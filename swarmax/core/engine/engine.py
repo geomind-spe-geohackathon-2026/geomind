@@ -11,6 +11,7 @@ from swarmax.core.engine.context import Context
 from swarmax.core.engine.log import RunLog
 from swarmax.core.engine.permissions import Permissions
 from swarmax.core.engine.recovery import catch_up
+from swarmax.core.engine.replay import replay_run
 from swarmax.core.engine.session import RunSession, Stop
 from swarmax.core.engine.step import record_result, run_step, settle_interrupted, text_result
 from swarmax.core.engine.store import MemoryRunStore
@@ -81,6 +82,11 @@ class Engine:
         session = RunSession(self, log, Checkpoint(root=context.run_id), agent, loop)
         await session.start(context, max_steps=max_steps or runtime.get("max_steps"))
         return await self._drive(session)
+
+    @classmethod
+    async def replay(cls, store, run_id):
+        """Rerun a stored run offline; a difference raises ``ReplayError``."""
+        return await replay_run(cls, store, run_id)
 
     async def run_child(self, parent, agent, task):
         """Run ``agent`` as a nested run with a clean context: the task text only."""
