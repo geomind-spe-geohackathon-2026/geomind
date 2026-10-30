@@ -38,51 +38,9 @@ EXPECTED = (
     "errors",
     "__version__",
 )
-BUILT = {
-    "Run",
-    "loops",
-    "stores",
-    "testing",
-    "Engine",
-    "Context",
-    "Permissions",
-    "hooks",
-    "callbacks",
-    "Agent",
-    "Prompt",
-    "Model",
-    "Output",
-    "agents",
-    "Tool",
-    "tool",
-    "tools",
-    "sandbox",
-    "providers",
-    "Message",
-    "Action",
-    "Request",
-    "Allow",
-    "Deny",
-    "RunResult",
-    "runlog",
-    "runtime",
-    "errors",
-    "__version__",
-}
-NOT_BUILT = set(EXPECTED) - BUILT
 
 
-@pytest.mark.parametrize(
-    "name",
-    [
-        (
-            pytest.param(name, marks=pytest.mark.xfail(strict=True, reason="not built yet"))
-            if name in NOT_BUILT
-            else name
-        )
-        for name in EXPECTED
-    ],
-)
+@pytest.mark.parametrize("name", EXPECTED)
 def test_public_name_exists_and_is_listed(name):
     """Every curated name exists, is exported and shows in completion."""
     assert hasattr(sx, name) and name in sx.__all__ and name in dir(sx)
@@ -90,7 +48,13 @@ def test_public_name_exists_and_is_listed(name):
 
 def test_nothing_else_is_public():
     """Interactive completion shows only the curated names."""
-    assert set(dir(sx)) == set(sx.__all__) <= set(EXPECTED)
+    assert set(dir(sx)) == set(sx.__all__) == set(EXPECTED)
+
+
+def test_stores_namespace():
+    """The four implementations are public."""
+    names = ("MemoryRunStore", "FileRunStore", "MemoryWorkspace", "FileWorkspace")
+    assert all(hasattr(sx.stores, name) for name in names)
 
 
 def test_version_matches_the_package_metadata():

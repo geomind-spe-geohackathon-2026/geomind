@@ -53,6 +53,6 @@ class Delegate(Tool):
         if result.request is not None:
             return result.request
         if result.status != "done":
-            raise ToolError(f"{self.name}: {result.stop_reason}: {result.answer}")
+            raise ToolError(f"{self.name}: the nested run stopped with {result.stop_reason}")
         tokens = self.max_summary_tokens or runtime.get("delegate_summary_tokens")
         return str(result.answer)[: tokens * CHARACTERS_PER_TOKEN]

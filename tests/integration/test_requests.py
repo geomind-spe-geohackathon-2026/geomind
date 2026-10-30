@@ -4,7 +4,7 @@ import pytest
 
 from swarmax.core import runtime
 from swarmax.core.engine import Permissions
-from swarmax.core.engine.hooks import Hook, RequireApproval
+from swarmax.core.engine.hooks import Cancellation, Hook, RequireApproval
 from swarmax.core.types import Request
 from swarmax.errors import RequestError, RunError
 from tests.fixtures.runs import (
@@ -212,3 +212,13 @@ async def test_wrong_answer_shape_raises():
     with pytest.raises(RequestError, match="approved"):
         await resume(engine, result, {"text": "yes"})
     assert (await resume(engine, result, {"approved": True})).status == "done"
+
+
+async def test_cancellation_still_holds_for_an_approved_call():
+    """An approval skips the hooks that asked, never the check for a cancelled run."""
+    is_cancelled = []
+    script = [uses(call("save_note", text="x")), says("end")]
+    engine, result = await paused(script, hooks=[Cancellation(lambda: bool(is_cancelled))])
+    is_cancelled.append(True)
+    final = await resume(engine, result, {"approved": True})
+    assert final.stop_reason == "cancelled" and EXECUTED == []

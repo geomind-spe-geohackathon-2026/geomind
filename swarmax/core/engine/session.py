@@ -150,20 +150,22 @@ class RunSession:
         )
         return event.completion
 
+    def _hooks_for(self, point):
+        """Return the hooks to ask; a point the user approved asks only the ``always_asked``."""
+        hooks = self.engine.hooks()
+        if point in self.state.allowed:
+            return [hook for hook in hooks if hook.always_asked]
+        return hooks
+
     async def before_llm_call(self, agent, messages):
         """Return the hook decision of an LLM call, unless the user approved it."""
-        if "llm" in self.state.allowed:
-            return None
-        decision, _ = await ask_hooks(
-            self.engine.hooks(), "before_llm_call", agent, tuple(messages)
-        )
+        hooks = self._hooks_for("llm")
+        decision, _ = await ask_hooks(hooks, "before_llm_call", agent, tuple(messages))
         return decision
 
     async def before_finish(self, agent, action):
         """Return the hook decision of the answer, unless the user approved it."""
-        if "finish" in self.state.allowed:
-            return None
-        decision, _ = await ask_hooks(self.engine.hooks(), "before_finish", agent, action)
+        decision, _ = await ask_hooks(self._hooks_for("finish"), "before_finish", agent, action)
         return decision
 
     async def decide(self, agent, tool, call):
@@ -171,9 +173,9 @@ class RunSession:
 
         A call the user approved is not asked again: an approval applies to that call id only.
         """
-        if call.id in self.state.allowed:
+        decision, rule = await ask_hooks(self._hooks_for(call.id), "before_tool_call", agent, call)
+        if call.id in self.state.allowed and not isinstance(decision, Deny):
             return Allow()
-        decision, rule = await ask_hooks(self.engine.hooks(), "before_tool_call", agent, call)
         changed = decision.input if isinstance(decision, Allow) else None
         if decision is None or isinstance(decision, Allow):
             ask_rules = [rule for hook in self.engine.hooks() for rule in hook.ask_rules]

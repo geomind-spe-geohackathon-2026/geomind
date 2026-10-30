@@ -16,6 +16,8 @@ class Hook:
     """
 
     ask_rules = ()
+    always_asked = False
+    """Whether this hook is asked even at a point the user already approved."""
 
     def before_llm_call(self, agent, messages):
         """Object to an LLM call, or not."""
@@ -83,8 +85,11 @@ class Cancellation(Hook):
     """End the run with ``cancelled`` when ``is_cancelled()`` says so.
 
     It is checked before every LLM and tool call and before the answer. The function may read
-    anything, such as Redis, so it works across processes.
+    anything, such as Redis, so it works across processes. NOTE: it is ``always_asked``, because an
+    approval given before a cancellation must not outrun it.
     """
+
+    always_asked = True
 
     def __init__(self, is_cancelled):
         """Keep the function the caller gives."""
