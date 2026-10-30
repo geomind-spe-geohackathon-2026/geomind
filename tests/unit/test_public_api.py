@@ -39,6 +39,11 @@ EXPECTED = (
     "__version__",
 )
 BUILT = {
+    "Engine",
+    "Context",
+    "Permissions",
+    "hooks",
+    "callbacks",
     "Agent",
     "Prompt",
     "Model",

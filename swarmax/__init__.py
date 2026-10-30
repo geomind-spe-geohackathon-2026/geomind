@@ -3,6 +3,7 @@
 from swarmax import errors, providers, sandbox, tools
 from swarmax.core import agents, runtime
 from swarmax.core.agents import Agent, Model, Output
+from swarmax.core.engine import Context, Engine, Permissions, callbacks, hooks
 from swarmax.core.prompts import Prompt
 from swarmax.core.types import Action, Allow, Deny, Message, Request, RunResult
 from swarmax.core.types.runlog import runlog
@@ -11,6 +12,11 @@ from swarmax.tools import Tool, tool
 __version__ = "0.1.0"
 __all__ = [
     "Agent",
+    "Engine",
+    "Context",
+    "Permissions",
+    "hooks",
+    "callbacks",
     "Prompt",
     "Model",
     "Output",
