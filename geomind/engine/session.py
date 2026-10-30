@@ -281,6 +281,10 @@ class RunSession:
         clean = redact(data, self.log.secrets)
         await asyncio.to_thread(self.store.save_artifact, self.state.root, key, clean)
 
+    def load_artifact(self, key):
+        """Return a stored result of this run; called by sync tools, in a worker thread."""
+        return self.store.load_artifact(self.state.root, key)
+
     async def report_error(self, error, where):
         """Log an error and call ``on_error``."""
         await self.emit(

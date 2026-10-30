@@ -54,6 +54,16 @@ functions.
 
 Both have effect `read`, so `ask` mode lets them through; `plan` mode runs neither.
 
+## Project tools
+
+`read_result(reference, path, field, start=None, end=None)` (`read`) returns a slice of a stored
+result, whose JSON is `{path: {field: {unit, values}}}`. `search_documents(query)` (`read`) searches the
+project through `context.session.workspace`. Both are in `tools/gemini.py`.
+
+`list_modules`, `describe_module`, `evaluate_module`, `read_plant` and `simulate` are not built yet.
+They wait for gemini's class registry, `Module.describe()` and a public plant loader, and use only
+`import gemini as gm`. `simulate` must store its results in the shape above.
+
 ## Problem state
 
 `update_state(changes)` (`write`, not idempotent) applies JSON Patch operations to the problem state
