@@ -7,7 +7,7 @@ from swarmax.core.engine import Context, Engine, Permissions
 from swarmax.core.prompts import Prompt
 from swarmax.core.types import Completion, Message, ToolCall, Usage
 from swarmax.providers import FakeLLM
-from swarmax.tools import ask_user, finish, run_python, tool
+from swarmax.tools import Delegate, ask_user, finish, run_python, tool
 
 USAGE = Usage(input_tokens=10, output_tokens=5, cost=0.01)
 EXECUTED = []
@@ -61,6 +61,29 @@ class Worker(Agent):
         self.run_python = run_python
         self.ask_user = ask_user
         self.finish = finish
+
+        # Model
+        self.model = Model("fake/model")
+
+
+class Helper(Worker):
+    """Helps with one task."""
+
+
+class Lead(Agent):
+    """Delegates work to a helper."""
+
+    def __init__(self):
+        """Declare the child and its tool."""
+        super().__init__()
+
+        # Agents
+        self.helper_agent = Helper()
+
+        # Tools
+        self.helper = Delegate(self.helper_agent, max_summary_tokens=10)
+        self.lookup = lookup
+        self.run_python = run_python
 
         # Model
         self.model = Model("fake/model")
