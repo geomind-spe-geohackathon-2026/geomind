@@ -78,7 +78,7 @@ async def test_a_refused_answer_is_refused_again():
     class Once(Hook):
         refused = False
 
-        def before_finish(self, agent, action):
+        def before_finish(self, context, agent, action):
             if self.refused:
                 return None
             self.refused = True

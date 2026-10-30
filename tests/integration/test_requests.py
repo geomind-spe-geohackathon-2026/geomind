@@ -93,7 +93,7 @@ async def test_the_same_hook_is_not_asked_again_for_that_call():
     class Asks(Hook):
         count = 0
 
-        def before_tool_call(self, agent, call):
+        def before_tool_call(self, context, agent, call):
             self.count += 1
             return Request(kind="approval", message="ok?")
 
@@ -126,7 +126,7 @@ async def test_pause_before_the_answer():
     """An approved answer ends the run; a denied one goes back to the model."""
 
     class Check(Hook):
-        def before_finish(self, agent, action):
+        def before_finish(self, context, agent, action):
             return Request(kind="approval", message="send?")
 
     engine, result = await paused([says("first"), says("second")], hooks=[Check()])
@@ -144,7 +144,7 @@ async def test_pause_of_the_finish_tool():
     """An approved ``finish`` ends the run with its answer."""
 
     class Check(Hook):
-        def before_finish(self, agent, action):
+        def before_finish(self, context, agent, action):
             return Request(kind="approval", message="send?")
 
     engine, result = await paused([uses(call("finish", answer="a"))], hooks=[Check()])
@@ -156,7 +156,7 @@ async def test_pause_before_an_llm_call():
     """An approved call proceeds; a denied one stops the run."""
 
     class Check(Hook):
-        def before_llm_call(self, agent, messages):
+        def before_llm_call(self, context, agent, messages):
             return Request(kind="approval", message="spend?")
 
     engine, result = await paused([says("end")], hooks=[Check()])
@@ -171,7 +171,7 @@ async def test_a_reply_to_a_question_before_the_answer_is_a_message():
     """A hook can ask the user something; the reply joins the conversation."""
 
     class Ask(Hook):
-        def before_finish(self, agent, action):
+        def before_finish(self, context, agent, action):
             return Request(kind="question", message="anything else?")
 
     engine, result = await paused([says("first")], hooks=[Ask()])

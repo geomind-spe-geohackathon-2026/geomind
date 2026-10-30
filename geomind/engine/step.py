@@ -124,7 +124,7 @@ async def _execute(session, agent, tool, call):
     if recorded is not None and not (tool.is_pure and recorded.source == "tool"):
         await _reuse(session, call, recorded)
         return _over_retries(session, tool)
-    outcome = await dispatch(tool, call)
+    outcome = await dispatch(tool, call, session.context())
     if isinstance(outcome, Finish):
         return await _gate_answer(session, agent, outcome.answer, call)
     if isinstance(outcome, Request) and session.waiting_child is not None:

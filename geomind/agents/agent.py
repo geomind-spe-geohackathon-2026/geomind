@@ -221,21 +221,21 @@ class Agent(metaclass=_AgentMeta):
             )
         )
 
-    async def complete(self, messages):
-        """Call the LLM of the active run with this agent's model and tools."""
-        completion = await runtime.active_run().complete(self, messages)
+    async def complete(self, context, messages):
+        """Call the LLM of the run with this agent's model and tools."""
+        completion = await context.session.complete(self, messages)
         return Action(text=completion.text, tool_calls=completion.tool_calls)
 
     async def forward(self, context):
         """Render the context and ask the model; override only for a rule-based step."""
-        return await self.complete(context.messages_for(self))
+        return await self.complete(context, context.messages_for(self))
 
     async def __call__(self, context):
         """Run ``before_llm_call`` hooks, then ``forward``; return an ``AgentResult``.
 
         ``on_llm_call`` callbacks run as the completion is logged.
         """
-        session = runtime.active_run()
+        session = context.session
         messages = context.messages_for(self)
         decision = await session.before_llm_call(self, messages)
         if decision is not None:

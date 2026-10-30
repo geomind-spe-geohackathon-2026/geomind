@@ -33,15 +33,15 @@ class Fixed(Hook):
         self.point = point
         self.decision = decision
 
-    def before_llm_call(self, agent, messages):
+    def before_llm_call(self, context, agent, messages):
         """Decide before an LLM call."""
         return self.decision if self.point == "llm" else None
 
-    def before_tool_call(self, agent, call):
+    def before_tool_call(self, context, agent, call):
         """Decide before a tool call."""
         return self.decision if self.point == "tool" else None
 
-    async def before_finish(self, agent, action):
+    async def before_finish(self, context, agent, action):
         """Decide before the answer, asynchronously on purpose."""
         return self.decision if self.point == "finish" else None
 
@@ -80,7 +80,7 @@ async def test_deny_before_finish_feeds_the_reason_back():
     class Once(Hook):
         refused = False
 
-        def before_finish(self, agent, action):
+        def before_finish(self, context, agent, action):
             if self.refused:
                 return None
             self.refused = True
@@ -98,7 +98,7 @@ async def test_deny_of_the_finish_tool_is_its_result():
     class Once(Hook):
         refused = False
 
-        def before_finish(self, agent, action):
+        def before_finish(self, context, agent, action):
             if self.refused:
                 return None
             self.refused = True
@@ -127,7 +127,7 @@ async def test_allow_changes_the_input():
     """A hook can correct an input, and the log shows the change."""
 
     class Correct(Hook):
-        def before_tool_call(self, agent, call):
+        def before_tool_call(self, context, agent, call):
             return Allow(input={"key": "fixed"})
 
     _, _, events = await run([uses(call("lookup", key="wrong")), says()], hooks=[Correct()])
@@ -139,7 +139,7 @@ async def test_allow_does_not_skip_the_rules():
     """An allow from a hook still meets the permission rules."""
 
     class Yes(Hook):
-        def before_tool_call(self, agent, call):
+        def before_tool_call(self, context, agent, call):
             return Allow()
 
     engine = engine_for([uses(call("save_note", text="x"))], hooks=[Yes()], permissions=None)
@@ -150,7 +150,7 @@ async def test_allow_does_not_skip_the_rules():
 async def test_ask_hooks_returns_the_first_objection():
     """Later hooks are not asked."""
     first, second = Fixed("tool", DENY), Fixed("tool", ASK)
-    decision, name = await ask_hooks([first, second], "before_tool_call", None, call("t"))
+    decision, name = await ask_hooks([first, second], "before_tool_call", None, None, call("t"))
     assert (decision, name) == (DENY, "Fixed")
 
 

@@ -24,9 +24,13 @@ other sources (MCP later) fit: without `input_model`, only the required and know
 
 ## Dispatch
 
-`await dispatch(tool, call)` is one of the two places with side effects. It validates the input,
+`await dispatch(tool, call, context)` is one of the two places with side effects. It validates the input,
 runs the function with the tool's timeout, times it and returns a `ToolResult`, or the `Request` or
-`Finish` the tool returned. A sync function runs in a worker thread with a copied context.
+`Finish` the tool returned. A sync function runs in a worker thread.
+
+A function that needs the run declares a first parameter named `context`, and `dispatch` passes it:
+`context.session` is the session of the run. The schema never shows it, and plain tools stay plain
+functions.
 
 - A validation error, an `gd.errors` or `gemini.errors` class, or a timeout becomes a result
   `{error: {class, message}}` with `is_error`, so the model can fix its call. gemini errors are
@@ -58,8 +62,8 @@ next tool provisions a new one. See [sandbox.md](sandbox.md).
 
 ## Delegate
 
-`Delegate(agent, max_summary_tokens=None)` runs the agent in a nested engine run through the active
-run, with a clean context (the task text only), a child run id, its own sandbox and `parent` set on
+`Delegate(agent, max_summary_tokens=None)` runs the agent in a nested engine run through
+`context.session`, with a clean context (the task text only), a child run id, its own sandbox and `parent` set on
 every event. The model reads only the final answer, cut to the token limit at four characters per
 token (default: the `delegate_summary_tokens` setting). The effect is `compute`, so delegating
 needs no approval of its own: each nested tool is decided by the same permissions. It is not pure

@@ -13,14 +13,21 @@ EFFECTS = ("read", "compute", "write", "execute", "external")
 PURE_EFFECTS = ("read", "compute")
 
 
+def takes_context(function):
+    """Tell whether a tool function wants the run: its first parameter is named ``context``."""
+    return next(iter(inspect.signature(function).parameters), None) == "context"
+
+
 class Tool:
     """One action a model can call.
 
     ``effect`` says what a call touches: ``read``, ``compute``, ``write``, ``execute`` (sandbox
     code) or ``external`` (network or anything outside the run). ``idempotent`` says a call may run
-    again after a crash. ``runs_alone`` keeps a pure tool out of concurrent dispatch, for tools the
-    engine itself handles. ``input_model`` validates the input fully; without one, as for a toolset
-    from another source, only the required and known names of ``input_schema`` are checked.
+    again after a crash. A function whose first parameter is ``context`` receives the run's context;
+    the schema never shows it, and other tools stay plain functions. ``runs_alone`` keeps a pure
+    tool out of concurrent dispatch, for tools the engine itself handles. ``input_model`` validates
+    the input fully; without one, as for a toolset from another source, only the required and known
+    names of ``input_schema`` are checked.
     NOTE: the class is shaped like a protocol, so tools from other sources fit without changes.
     """
 
@@ -49,6 +56,7 @@ class Tool:
         self.description = description
         self.input_schema = input_schema
         self.function = function
+        self.takes_context = takes_context(function)
         self.effect = effect
         self.idempotent = idempotent
         self.timeout = timeout
@@ -95,7 +103,8 @@ def _input_model(function):
     """Return the Pydantic model of a function's signature."""
     hints = typing.get_type_hints(function)
     fields = {}
-    for name, parameter in inspect.signature(function).parameters.items():
+    parameters = list(inspect.signature(function).parameters.items())
+    for name, parameter in parameters[takes_context(function) :]:
         if name not in hints:
             raise DeclarationError(
                 f"tool {function.__name__}: parameter = {name!r}; expected a type annotation"

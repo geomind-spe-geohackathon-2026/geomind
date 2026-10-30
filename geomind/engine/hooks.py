@@ -1,6 +1,5 @@
 """Decision points that can deny or pause, and the shipped hooks."""
 
-from geomind import runtime
 from geomind.engine.callbacks import call_maybe_async
 from geomind.types import Allow, Cancel, Deny, Request
 
@@ -8,9 +7,10 @@ from geomind.types import Allow, Cancel, Deny, Request
 class Hook:
     """Override any point, plain or ``async``.
 
-    ``before_llm_call(agent, messages)``, ``before_tool_call(agent, call)`` and
-    ``before_finish(agent, action)`` each return ``None`` for no objection, ``Deny(reason)`` or a
-    ``Request``; ``before_tool_call`` may also return ``Allow(input=...)`` to change the input.
+    ``before_llm_call(context, agent, messages)``, ``before_tool_call(context, agent, call)`` and
+    ``before_finish(context, agent, action)`` each return ``None`` for no objection,
+    ``Deny(reason)`` or a ``Request``; ``before_tool_call`` may also return ``Allow(input=...)`` to
+    change the input.
     NOTE: gemini's pre-hooks observe or adjust a call, while these can stop it, because a run has
     a user and a budget to answer to.
     """
@@ -19,21 +19,21 @@ class Hook:
     always_asked = False
     """Whether this hook is asked even at a point the user already approved."""
 
-    def before_llm_call(self, agent, messages):
+    def before_llm_call(self, context, agent, messages):
         """Object to an LLM call, or not."""
 
-    def before_tool_call(self, agent, call):
+    def before_tool_call(self, context, agent, call):
         """Object to a tool call, or not."""
 
-    def before_finish(self, agent, action):
+    def before_finish(self, context, agent, action):
         """Object to the final answer, or not."""
 
 
-async def ask_hooks(hooks, point, agent, subject):
+async def ask_hooks(hooks, point, context, agent, subject):
     """Return ``(decision, hook name)``: the first objection, else the last changed input."""
     changed = None
     for hook in hooks:
-        decision = await call_maybe_async(getattr(hook, point), agent, subject)
+        decision = await call_maybe_async(getattr(hook, point), context, agent, subject)
         if isinstance(decision, (Deny, Request)):
             return decision, type(hook).__name__
         if isinstance(decision, Allow) and decision.input is not None:
@@ -49,10 +49,9 @@ class TokenBudget(Hook):
         """Keep the limit."""
         self.max_tokens = max_tokens
 
-    def before_llm_call(self, agent, messages):
+    def before_llm_call(self, context, agent, messages):
         """Deny the call over the budget."""
-        usage = runtime.active_run().state.usage
-        used = usage.input_tokens + usage.output_tokens
+        used = context.usage.input_tokens + context.usage.output_tokens
         if used >= self.max_tokens:
             return Deny(reason=f"token budget: used {used} of {self.max_tokens}")
         return None
@@ -65,9 +64,9 @@ class CostBudget(Hook):
         """Keep the limit."""
         self.max_cost = max_cost
 
-    def before_llm_call(self, agent, messages):
+    def before_llm_call(self, context, agent, messages):
         """Deny the call over the budget."""
-        cost = runtime.active_run().state.usage.cost
+        cost = context.usage.cost
         if cost >= self.max_cost:
             return Deny(reason=f"cost budget: used {cost} of {self.max_cost}")
         return None
@@ -99,14 +98,14 @@ class Cancellation(Hook):
         """Return the decision of this moment."""
         return Cancel(reason="cancelled") if self.is_cancelled() else None
 
-    def before_llm_call(self, agent, messages):
+    def before_llm_call(self, context, agent, messages):
         """Check before an LLM call."""
         return self._check()
 
-    def before_tool_call(self, agent, call):
+    def before_tool_call(self, context, agent, call):
         """Check before a tool call."""
         return self._check()
 
-    def before_finish(self, agent, action):
+    def before_finish(self, context, agent, action):
         """Check before the answer."""
         return self._check()

@@ -5,6 +5,7 @@ import pytest
 
 from geomind import runtime
 from geomind.agents import Agent, AgentResult, Model, Output
+from geomind.engine import Context
 from geomind.errors import DeclarationError, OutputError, RunError
 from geomind.prompts import Prompt
 from geomind.tools import ask_user, finish
@@ -51,6 +52,10 @@ class Parent(Agent):
 
 class Stub:
     """A context with fixed messages."""
+
+    def __init__(self, session):
+        """Belong to a stand-in run."""
+        self.session = session
 
     def messages_for(self, agent):
         """Return one message."""
@@ -181,16 +186,15 @@ def test_typed_output_validates_json_and_objects():
 
 async def test_complete_outside_a_run_raises():
     """There is no provider outside a run."""
-    with pytest.raises(RunError, match="no active run"):
-        await Parent().complete([])
+    with pytest.raises(RunError, match="inside Engine.run"):
+        await Parent().complete(Context(), [])
 
 
 async def test_call_returns_the_action_messages_and_usage():
     """Hooks pass, ``forward`` asks the model and ``__call__`` builds the result."""
     session = StubSession()
     session.completion = Completion(text="ok", usage=Usage(input_tokens=3))
-    with runtime.activate(session):
-        result = await Parent()(Stub())
+    result = await Parent()(Stub(session))
     assert isinstance(result, AgentResult)
     assert result.action == Action(text="ok")
     assert result.usage.input_tokens == 3 and result.messages[0].content == "hi"
@@ -200,8 +204,7 @@ async def test_call_stops_at_a_hook_decision():
     """A decision means ``forward`` never runs."""
     session = StubSession()
     session.decision = Deny(reason="budget")
-    with runtime.activate(session):
-        result = await Parent()(Stub())
+    result = await Parent()(Stub(session))
     assert result.action is None and result.decision == session.decision
 
 
@@ -212,5 +215,4 @@ async def test_rule_based_forward_needs_no_model():
         async def forward(self, context):
             return Action(text="fixed")
 
-    with runtime.activate(StubSession()):
-        assert (await Rule()(Stub())).action.text == "fixed"
+    assert (await Rule()(Stub(StubSession()))).action.text == "fixed"

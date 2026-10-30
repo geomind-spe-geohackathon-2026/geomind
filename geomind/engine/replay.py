@@ -31,20 +31,20 @@ class _Recording(Hook):
             if e.type == "tool.result" and e.call_id is None and e.feedback == "finish"
         }
 
-    def before_llm_call(self, agent, messages):
+    def before_llm_call(self, context, agent, messages):
         """End the replay when no recorded completion is left."""
         return None if len(self.llm.calls) < self.scripted else Cancel(reason=END_OF_RECORDING)
 
-    def before_tool_call(self, agent, call):
+    def before_tool_call(self, context, agent, call):
         """Use the recorded input, or end the replay at a call without a result."""
         recorded = self.results.get(call.id)
         if recorded is None:
             return Cancel(reason=END_OF_RECORDING)
         return Allow(input=recorded.input) if recorded.input != call.input else None
 
-    def before_finish(self, agent, action):
+    def before_finish(self, context, agent, action):
         """Refuse the answers the original run refused."""
-        reason = self.refusals.get(runtime.active_run().state.step)
+        reason = self.refusals.get(context.session.state.step)
         return Deny(reason=reason) if reason is not None else None
 
 

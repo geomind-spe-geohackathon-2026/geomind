@@ -146,7 +146,7 @@ async def test_hooks_come_first():
     """A hook's denial needs no rule."""
 
     class No(Hook):
-        def before_tool_call(self, agent, call):
+        def before_tool_call(self, context, agent, call):
             return Deny(reason="hook says no")
 
     _, _, events = await run(

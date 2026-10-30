@@ -1,9 +1,4 @@
-"""One run in progress: what agents and tools reach as the active run.
-
-NOTE: this file is beyond the layout of the S1 prompt. ``runtime`` holds the active run and
-sits below the tools, so the object behind it must be defined here, and ``step.py`` stays free of
-the bookkeeping.
-"""
+"""One run in progress: what agents, tools and hooks reach as ``context.session``."""
 
 import asyncio
 from dataclasses import dataclass
@@ -118,6 +113,7 @@ class RunSession:
             chat=state.chat,
             project=state.project,
             steps_left=state.max_steps - state.step,
+            session=self,
         )
 
     def on_text(self, delta):
@@ -178,12 +174,16 @@ class RunSession:
     async def before_llm_call(self, agent, messages):
         """Return the hook decision of an LLM call, unless the user approved it."""
         hooks = self._hooks_for("llm")
-        decision, _ = await ask_hooks(hooks, "before_llm_call", agent, tuple(messages))
+        decision, _ = await ask_hooks(
+            hooks, "before_llm_call", self.context(), agent, tuple(messages)
+        )
         return decision
 
     async def before_finish(self, agent, action):
         """Return the hook decision of the answer, unless the user approved it."""
-        decision, _ = await ask_hooks(self._hooks_for("finish"), "before_finish", agent, action)
+        decision, _ = await ask_hooks(
+            self._hooks_for("finish"), "before_finish", self.context(), agent, action
+        )
         return decision
 
     async def decide(self, agent, tool, call):
@@ -191,7 +191,9 @@ class RunSession:
 
         A call the user approved is not asked again: an approval applies to that call id only.
         """
-        decision, rule = await ask_hooks(self._hooks_for(call.id), "before_tool_call", agent, call)
+        decision, rule = await ask_hooks(
+            self._hooks_for(call.id), "before_tool_call", self.context(), agent, call
+        )
         if call.id in self.state.allowed and not isinstance(decision, Deny):
             return Allow()
         changed = decision.input if isinstance(decision, Allow) else None

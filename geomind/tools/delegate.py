@@ -44,9 +44,9 @@ class Delegate(Tool):
         """Return that a nested run is never pure."""
         return False
 
-    async def _delegate(self, task):
-        """Run the nested agent through the active run."""
-        return self.outcome(await runtime.active_run().delegate(self.agent, task))
+    async def _delegate(self, context, task):
+        """Run the nested agent through the run of ``context``."""
+        return self.outcome(await context.session.delegate(self.agent, task))
 
     def outcome(self, result):
         """Return the output of a finished nested run, or its request when it waits."""

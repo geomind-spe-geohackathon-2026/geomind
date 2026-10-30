@@ -1,4 +1,4 @@
-"""The active run: sandbox lifecycle and artifacts."""
+"""The session of a run: sandbox lifecycle and artifacts."""
 
 from geomind.engine.session import Stop, is_cancel
 from geomind.sandbox import LocalSandbox

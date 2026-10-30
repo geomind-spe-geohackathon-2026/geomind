@@ -16,8 +16,9 @@ A package may import only the packages to its left:
 
 - `types` sits below `providers` because a provider returns a `Completion`.
 - `sandbox` sits below `tools` because the code tools use it.
-- `tools.delegate` reaches the engine only through the active run in `runtime`, never by
-  import. The same goes for `Agent.complete`, `dispatch` and the code tools.
+- `tools.delegate` reaches the engine only through `context.session`, never by import. The same
+  goes for `Agent.complete`, `dispatch`, the code tools and the hooks. The context is passed
+  explicitly; nothing reaches the run through hidden state.
 - `geomind.utils` and `geomind.errors` are leaf packages: they import only the standard library,
   installed dependencies and themselves.
 - `import geomind` does not import `gemini`, which takes more than a second. `FileWorkspace.plant`
@@ -94,10 +95,9 @@ The package avoids hidden behaviour. These are the only implicit mechanisms, eac
   its one slot. Constructors therefore read as plain assignments in section order. Unknown or
   duplicate names raise `DeclarationError` with a close-match suggestion. The `_AgentMeta`
   metaclass seals an instance after `__init__`, so a later declaration raises too.
-- The active run is a context variable in `runtime.py`, read by `Agent.complete`, `dispatch`,
-  the code tools, `Delegate` and the budget hooks. An agent declares *which model*; the run supplies
-  *which provider*, so agents and tools stay free of keys, stores and HTTP. Worker threads for
-  sync tools receive a copied context.
+- `Tool` looks at the first parameter of its function: one named `context` receives the run's
+  context from `dispatch` and is left out of the schema, so a tool that needs the run says so in
+  its signature and every other tool stays a plain function.
 - `gd.runtime.settings()` is a context setting built on `geomind.utils.context.ContextSetting`: a
   context variable change usable as a `with` block and as a decorator, restored on exit.
 - `class_path`/`import_class` in `engine/checkpoint.py` are the only import-by-string:
@@ -122,8 +122,8 @@ Each one also has a `NOTE:` in the docstring that makes it.
 - Assigning after `__init__` raises. gemini lets a user assign `esp.frequency = 50` afterward
   because a module has persistent commands; an agent has none.
 - The dependency order adds `stores`, the small module behind `gd.stores`, after `engine`.
-- `engine/session.py` is one file beyond the layout of the S1 prompt: the object behind the
-  active run.
+- `engine/session.py` is one file beyond the layout of the S1 prompt: the object behind
+  `context.session`.
 - Tool names follow the attribute of the agent that declares them, on a copy of the tool.
 
 ## Parallels with gemini

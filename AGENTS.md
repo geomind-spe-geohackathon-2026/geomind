@@ -28,7 +28,7 @@ Read every file in `.claude/docs/` before changing the repository:
 - [Hooks](.claude/docs/hooks.md): decision points, decisions and the shipped hooks.
 - [Permissions](.claude/docs/permissions.md): rules, modes and the fixed decision order.
 - [Sandbox](.claude/docs/sandbox.md): where model-written code runs and what it cannot reach.
-- [Runtime](.claude/docs/runtime.md): context-local settings and the active run.
+- [Runtime](.claude/docs/runtime.md): context-local settings.
 - [Errors](.claude/docs/errors.md): the `gd.errors` classes and when each is raised.
 - [Testing](.claude/docs/testing.md): tiers, test profiles, budgets, fixtures and CI.
 - [Utilities](.claude/docs/utils.md): the `geomind.utils` helpers and how to add one.
@@ -61,7 +61,7 @@ geomind/
 ├── utils/            # leaf: hooks, context settings, time, json, strings
 ├── errors/           # leaf: every gd.errors class
 ├── types/            # messages, decisions, results, events, redaction, runlog
-├── runtime.py        # context-local settings and the active run
+├── runtime.py        # context-local settings
 ├── prompts/          # <role>.md files and Prompt
 ├── providers/        # LLM protocol, retry layer, OpenRouter, FakeLLM
 ├── sandbox/          # Sandbox and SandboxProvider protocols, Manifest, local, docker

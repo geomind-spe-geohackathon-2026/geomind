@@ -1,18 +1,14 @@
-"""Context-local settings and the active run.
+"""Context-local settings.
 
 Settings live in one ``contextvars.ContextVar``, so a change applies to the current context only.
 asyncio tasks and ``asyncio.to_thread`` workers start from a copy of their creator's context,
 while new threads start from the defaults.
-
-The active run is a context variable too: an implicit mechanism, listed in ``conventions.md``. An
-agent declares which model it wants and the run supplies the provider, so agents, tools and hooks
-stay free of keys, stores and HTTP.
 """
 
 import os
 from contextvars import ContextVar
 
-from geomind.errors import RunError, UnknownNameError
+from geomind.errors import UnknownNameError
 from geomind.utils.context import ContextSetting
 from geomind.utils.strings import did_you_mean
 
@@ -30,7 +26,6 @@ _FIXED = {
     "sandbox_cpu": 1,
 }
 _settings = ContextVar("geomind_settings", default=None)
-_active_run = ContextVar("geomind_active_run", default=None)
 
 
 def _defaults():
@@ -67,16 +62,3 @@ def settings(**changes):
     for name in changes:
         get(name)
     return ContextSetting(_settings, lambda current: {**(current or _defaults()), **changes})
-
-
-def activate(run):
-    """Make ``run`` the active run for a ``with`` block."""
-    return ContextSetting(_active_run, lambda current: run)
-
-
-def active_run():
-    """Return the active run; outside a run this raises ``RunError``."""
-    run = _active_run.get()
-    if run is None:
-        raise RunError("runtime: no active run; expected a call inside Engine.run")
-    return run

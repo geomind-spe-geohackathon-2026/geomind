@@ -32,21 +32,22 @@ def error_output(error):
     return {"error": {"class": type(error).__name__, "message": str(error)}}
 
 
-async def _call(tool, arguments):
-    """Run the function with its timeout; a sync one runs in a worker with a copied context."""
+async def _call(tool, arguments, context):
+    """Run the function with its timeout; a sync one runs in a worker thread."""
+    leading = (context,) if tool.takes_context else ()
     async with asyncio.timeout(tool.timeout):
         if inspect.iscoroutinefunction(tool.function):
-            return await tool.function(**arguments)
-        return await asyncio.to_thread(tool.function, **arguments)
+            return await tool.function(*leading, **arguments)
+        return await asyncio.to_thread(tool.function, *leading, **arguments)
 
 
-async def _bounded(call, output):
+async def _bounded(context, call, output):
     """Return the output for the model, saving a large one as an artifact."""
     text = json.dumps(output)
     if len(text) <= runtime.get("tool_result_limit"):
         return output, None
     key = f"result-{hashlib.sha256(call.id.encode()).hexdigest()[:16]}"
-    await runtime.active_run().save_artifact(key, output)
+    await context.session.save_artifact(key, output)
     return {"reference": key, "summary": text[:SUMMARY_CHARACTERS]}, key
 
 
@@ -56,7 +57,7 @@ def _result(tool, call, started, output, **fields):
     return ToolResult(call_id=call.id, tool=tool.name, output=output, duration=duration, **fields)
 
 
-async def dispatch(tool, call):
+async def dispatch(tool, call, context):
     """Validate, run and time one call.
 
     Returns a ``ToolResult``, or the ``Request`` or ``Finish`` the tool returned for the engine.
@@ -70,17 +71,17 @@ async def dispatch(tool, call):
         output = error_output(error)
         return _result(tool, call, started, output, is_error=True, is_validation=True)
     try:
-        output = await _call(tool, arguments)
+        output = await _call(tool, arguments, context)
     except TimeoutError:
         error = ToolError(f"{tool.name}: timed out after {tool.timeout} s")
         return _result(tool, call, started, error_output(error), is_error=True)
     except Exception as error:
         if is_reported_error(error):
             return _result(tool, call, started, error_output(error), is_error=True)
-        await runtime.active_run().report_error(error, where=f"tool {tool.name}")
+        await context.session.report_error(error, where=f"tool {tool.name}")
         hidden = ToolError(f"{tool.name}: internal error")
         return _result(tool, call, started, error_output(hidden), is_error=True)
     if isinstance(output, (Request, Finish)):
         return output
-    bounded, reference = await _bounded(call, to_jsonable(output))
+    bounded, reference = await _bounded(context, call, to_jsonable(output))
     return _result(tool, call, started, bounded, reference=reference)

@@ -124,13 +124,12 @@ class Engine:
         log and ``on_error`` hold the class and message, and a dying process (a ``BaseException``)
         is not caught, so it can be recovered.
         """
-        with runtime.activate(session):
-            try:
-                stop = await self._steps(session)
-            except Exception as error:
-                await session.report_error(error, where="engine")
-                stop = Stop("error", str(error))
-            return await self._end(session, stop)
+        try:
+            stop = await self._steps(session)
+        except Exception as error:
+            await session.report_error(error, where="engine")
+            stop = Stop("error", str(error))
+        return await self._end(session, stop)
 
     async def _steps(self, session):
         """Run steps until one returns a stop or the step limit is reached."""

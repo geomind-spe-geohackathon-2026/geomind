@@ -1,8 +1,9 @@
 # Hooks
 
 Three decision points that can deny or pause a run, in `geomind/engine/hooks.py`. A hook
-derives from `gd.hooks.Hook` and overrides any of `before_llm_call(agent, messages)`,
-`before_tool_call(agent, call)` and `before_finish(agent, action)`, plain or `async`. Each returns
+derives from `gd.hooks.Hook` and overrides any of `before_llm_call(context, agent, messages)`,
+`before_tool_call(context, agent, call)` and `before_finish(context, agent, action)`, plain or
+`async`. The context gives the hook the run: `context.usage` and `context.session`. Each returns
 `None` (no objection), `Deny(reason)` or a `Request`; `before_tool_call` may also return
 `Allow(input=...)` to change the input.
 
@@ -21,7 +22,7 @@ so they are passed again when a run resumes in another process.
 ## Shipped hooks
 
 - `TokenBudget(max_tokens)` and `CostBudget(max_cost)` deny the next LLM call over the budget. They
-  read the usage of the active run, nested runs included once they end.
+  read `context.usage`, nested runs included once they end.
 - `RequireApproval(tools)` is a shortcut for ask rules, in their place in the
   [permission order](permissions.md).
 - `Cancellation(is_cancelled)` calls the function the caller gives before every LLM and tool call

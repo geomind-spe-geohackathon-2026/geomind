@@ -43,8 +43,10 @@ There is no `Team` and no agent container: the order of agents is a policy, and 
 
 `async def forward(self, context) -> Action` renders the context and awaits `self.complete`.
 Override it only for a rule-based step; the engine logs its action as a completion of the model
-`rule`. `self.complete(messages)` calls the LLM of the active run with this agent's model and
-tools, and raises `RunError` outside a run.
+`rule`. `self.complete(context, messages)` calls the LLM of the run with this agent's model and
+tools. The run is passed explicitly: `context.session` is the session of the run, and a context
+outside a run raises `RunError`. An agent declares *which model*; the run supplies *which
+provider*, so agents stay free of keys and HTTP.
 
 `await agent(context)` returns `AgentResult(action, messages, usage, duration, decision)`. The
 order is `before_llm_call` hooks → `forward` → `on_llm_call` callbacks. `decision` is set when a

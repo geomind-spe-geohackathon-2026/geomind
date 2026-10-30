@@ -1,11 +1,11 @@
-"""Context-local settings and the active run."""
+"""Context-local settings."""
 
 import asyncio
 
 import pytest
 
 from geomind import runtime
-from geomind.errors import RunError, UnknownNameError
+from geomind.errors import UnknownNameError
 
 
 def test_settings_nest_and_restore():
@@ -57,18 +57,3 @@ async def test_load_state_stays_in_its_task():
     before = runtime.get("max_steps")
     assert await asyncio.create_task(change()) == 9
     assert runtime.get("max_steps") == before
-
-
-def test_active_run_outside_a_run_raises():
-    """Nothing is active by default."""
-    with pytest.raises(RunError, match="no active run"):
-        runtime.active_run()
-
-
-async def test_active_run_reaches_worker_threads():
-    """A sync tool in a worker thread sees the run through the copied context."""
-    run = object()
-    with runtime.activate(run):
-        assert await asyncio.to_thread(runtime.active_run) is run
-    with pytest.raises(RunError):
-        runtime.active_run()
