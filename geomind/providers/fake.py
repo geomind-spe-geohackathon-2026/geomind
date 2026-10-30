@@ -2,6 +2,7 @@
 
 from geomind.errors import ProviderError
 from geomind.types import RULE_MODEL
+from geomind.types.events import LLM_EVENTS
 
 
 class FakeLLM:
@@ -14,8 +15,8 @@ class FakeLLM:
 
     @classmethod
     def from_events(cls, events):
-        """Rebuild the script from the ``llm.completed`` events of a stored run."""
-        completions = [event.completion for event in events if event.type == "llm.completed"]
+        """Rebuild the script from the LLM calls of a stored run, summaries included."""
+        completions = [event.completion for event in events if event.type in LLM_EVENTS]
         return cls(item for item in completions if item.model != RULE_MODEL)
 
     async def complete(self, messages, tools, *, model, settings, on_text=None):

@@ -1,4 +1,4 @@
-"""The ``<role>.md`` prompt files and ``Prompt``.
+"""The ``<area>/<role>.md`` prompt files, ``skills/*.md`` and ``Prompt``.
 
 Imports ``runtime`` and everything to its left.
 """

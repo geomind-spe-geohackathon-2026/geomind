@@ -52,6 +52,7 @@ Stored and used by recovery, replay and the log; never streamed. `data()` holds 
 | Type | Class | Fields |
 |---|---|---|
 | `llm.completed` | `LLMCompleted` | `index`, `completion`, `messages`, `duration` |
+| `compaction` | `Compacted` | `index`, `completion` (its `text` is the summary), `messages`, `duration`, `turns` |
 | `tool.result` | `ToolRecorded` | `index`, `call_id`, `tool`, `input`, `output`, `is_error`, `is_validation`, `is_finish`, `duration`, `source`, `reference`, `feedback`, `usage` |
 | `permission` | `PermissionDecided` | `index`, `decision`, `rule`, `point`, `call_id`, `tool`, `reason`, `input`, `request`, `child`, `call` |
 | `retry` | `Retried` | `attempt`, `model`, `error`, `delay` |

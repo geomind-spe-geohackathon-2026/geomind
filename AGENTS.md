@@ -63,14 +63,14 @@ geomind/
 ├── types/            # messages, decisions, results, events, redaction, runlog
 ├── stores/           # RunStore, Workspace and their memory and file implementations
 ├── runtime.py        # context-local settings
-├── prompts/          # <role>.md files and Prompt
+├── prompts/          # <area>/<role>.md files, skills/*.md and Prompt
 ├── context/          # problem state, compaction, skills: the deterministic part
 ├── providers/        # LLM protocol, retry layer, OpenRouter, FakeLLM
 ├── sandbox/          # Sandbox and SandboxProvider protocols, Manifest, local, docker
 ├── tools/            # Tool, tool decorator, dispatch, built-ins, code tools, Delegate
 ├── agents/           # Agent, AgentResult, Model, Output, general/assistant.py
 ├── engine/           # engine, session, step, delegation, log, recovery, state, context,
-│                     # callbacks, hooks, permissions, replay
+│                     # callbacks, hooks, permissions, replay, compaction
 └── loops/            # Loop, ToolLoop
 examples/             # area/category/NN_name.py
 scripts/              # test_changed.py, the development test profile

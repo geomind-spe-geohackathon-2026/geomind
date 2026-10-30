@@ -66,6 +66,9 @@ messages), then the history, then the dynamic part last, so prompt caching works
 is the steps left and then the [problem state](context.md), the very last part of every call. It is
 never stored in the history.
 
+Before each LLM call of a step, the engine compacts a context that has grown too long; see
+[context.md](context.md#long-conversations).
+
 ## Callbacks
 
 `Callback` has `on_run_start`, `on_step_start`, `on_llm_call`, `on_text`, `on_tool_start`,

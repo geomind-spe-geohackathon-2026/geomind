@@ -4,6 +4,7 @@ Imports ``prompts`` and everything to its left. An LLM call or an event stays in
 everything here is deterministic.
 """
 
-from geomind.context.state import ProblemState, apply_changes, render
+from geomind.context.history import restore
+from geomind.context.state import Compaction, ProblemState, apply_changes, render
 
-__all__ = ["ProblemState", "apply_changes", "render"]
+__all__ = ["Compaction", "ProblemState", "apply_changes", "render", "restore"]

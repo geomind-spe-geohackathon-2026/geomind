@@ -3,6 +3,7 @@
 from uuid import uuid4
 
 from geomind.context import ProblemState, render
+from geomind.context.skills import skill_listing
 from geomind.errors import RunError
 from geomind.types import Message
 
@@ -60,6 +61,7 @@ class Context:
     def _prefix(self, agent):
         """Return the system message, or nothing for an agent without a prompt."""
         parts = [agent.prompt.render() if agent.prompt else "", agent.output.instructions()]
+        parts.append(skill_listing() if "read_skill" in agent.tools() else "")
         text = "\n\n".join(part for part in parts if part)
         return (Message(role="system", content=text),) if text else ()
 

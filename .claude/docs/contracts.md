@@ -48,6 +48,7 @@ and to read one back `event_from_dict`.
 | `gd.providers.FakeLLM` | `geomind/providers/fake.py` | `tests/unit/providers/test_fake.py` |
 | Memory and file stores | `geomind/stores/run.py` | `tests/unit/stores/test_run.py` |
 | Memory and file workspaces | `geomind/stores/workspace.py` | `tests/unit/stores/test_workspace.py` |
+| Internal `compaction` event | `geomind/types/events.py` | `tests/unit/engine/test_compaction.py` |
 | `gd.Run`, `start`, `astart`, `load`, `resume`, `aresume`, `cancel` | `geomind/run.py` | `tests/unit/test_run.py` |
 | `gd.Permissions` | `geomind/engine/permissions.py` | `tests/unit/engine/test_permissions.py` |
 | `gd.hooks.TokenBudget`, `RequireApproval`, `Cancellation` | `geomind/engine/hooks.py` | `tests/unit/engine/test_hooks.py` |

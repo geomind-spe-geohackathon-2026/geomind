@@ -4,7 +4,8 @@
 is saved, and ``recover`` calls it on stored events, so the engine holds nothing the log does not.
 """
 
-from geomind.context import ProblemState, apply_changes
+from geomind.context import Compaction, ProblemState, apply_changes
+from geomind.context.history import replace_older
 from geomind.engine.state import PendingAction, RunState
 from geomind.errors import RunError
 from geomind.types import Action, Message, Usage
@@ -49,6 +50,17 @@ def _llm_completed(state, event):
     state.usage += completion.usage
     state.step_usage += completion.usage
     state.allowed = [name for name in state.allowed if name != "llm"]
+
+
+def _compaction(state, event):
+    """Replace older turns by the summary, which also goes to the next run of the chat."""
+    summary = event.completion.text
+    state.messages = replace_older(state.messages, summary, event.turns)
+    state.usage += event.completion.usage
+    state.step_usage += event.completion.usage
+    earlier = state.problem.compaction.turns if state.problem.compaction else 0
+    compaction = Compaction(summary=summary, turns=earlier + event.turns)
+    state.problem = state.problem.model_copy(update={"compaction": compaction})
 
 
 def _tool_started(state, event):
@@ -159,6 +171,7 @@ _HANDLERS = {
     "run.started": _run_started,
     "step.started": _step_started,
     "llm.completed": _llm_completed,
+    "compaction": _compaction,
     "tool.started": _tool_started,
     "tool.result": _tool_result,
     "permission": _permission,

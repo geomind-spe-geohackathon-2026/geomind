@@ -6,6 +6,7 @@ yet. So a step continues from any point, after a pause or a crash, without a sec
 
 import asyncio
 
+from geomind.engine.compaction import compact_history
 from geomind.engine.state import Stop, is_cancel
 from geomind.errors import OutputError, ToolError, UnknownNameError
 from geomind.tools import dispatch
@@ -60,6 +61,7 @@ def text_result(call, text, **fields):
 
 async def _think(session, agent):
     """Make the agent call of this step, unless the log already holds it."""
+    await compact_history(session, agent)
     result = await agent(session.context())
     decision = result.decision
     if isinstance(decision, Request):

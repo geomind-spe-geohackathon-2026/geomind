@@ -16,6 +16,7 @@ from geomind.types.messages import Completion, Message, Record, ToolCall, Usage
 from geomind.types.patch import operation_problem
 
 BASE_FIELDS = ("run_id", "sequence", "time", "agent", "parent")
+LLM_EVENTS = ("llm.completed", "compaction")
 
 
 class Event(Record):
@@ -224,6 +225,22 @@ class LLMCompleted(Event):
     duration: float = 0.0
 
 
+class Compacted(Event):
+    """Older turns became one summary: ``completion.text``, which replaced ``turns`` turns.
+
+    It holds the whole completion, like ``llm.completed``, so a replay gets the same summary back
+    from ``FakeLLM.from_events`` and a run log counts its cost.
+    """
+
+    type: ClassVar[str] = "compaction"
+
+    index: int
+    completion: Completion
+    messages: tuple[Message, ...] = ()
+    duration: float = 0.0
+    turns: int
+
+
 class ToolRecorded(Event):
     """One result, or with ``call_id=None`` feedback to the model about its answer.
 
@@ -323,6 +340,7 @@ EVENT_CLASSES = {
         UsageUpdated,
         RunFinished,
         LLMCompleted,
+        Compacted,
         ToolRecorded,
         PermissionDecided,
         Retried,

@@ -54,10 +54,12 @@ hook stopped the call, and then `action` is `None`.
 
 ## Prompt, Model, Output
 
-`Prompt("assistant")` loads `prompts/assistant.md`, and `Prompt.text(...)` holds inline text.
+`Prompt("assistant")` loads `prompts/general/assistant.md`: a role has one file, in the folder of its
+area. `Prompt.text(...)` holds inline text.
 
-`Model(name=None, temperature=0, max_tokens=None, fallbacks=())`: `name=None` means the default
-model of `gd.runtime`, and `fallbacks` lists models tried in order when the provider keeps failing.
+`Model(name=None, setting=None, temperature=0, max_tokens=None, fallbacks=())`: `setting` names the
+role setting in `gd.runtime`, such as `analyst_model`; with neither a name nor a set role, the model is
+`default_model`. `fallbacks` lists models tried in order when the provider keeps failing.
 
 `Output(kind=str, max_retries=2)` is the type of the final answer, `str` or a Pydantic model. The
 answer of `finish` or of the last message is validated. A failure goes back to the model as

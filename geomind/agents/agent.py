@@ -22,12 +22,15 @@ from geomind.utils.strings import did_you_mean, first_paragraph, join_names, joi
 
 
 class Model(Record):
-    """Which model an agent wants; ``name=None`` means the default model of ``gd.runtime``.
+    """Which model an agent wants; ``name=None`` means a model of ``gd.runtime``.
 
-    ``fallbacks`` lists models tried in order when the provider keeps failing.
+    ``setting`` names the runtime setting of an agent's role, such as ``analyst_model``. Unset, or
+    set to ``None``, it means the default model. ``fallbacks`` lists models tried in order when the
+    provider keeps failing.
     """
 
     name: str | None = None
+    setting: str | None = None
     temperature: float = 0
     max_tokens: int | None = None
     fallbacks: tuple[str, ...] = ()
@@ -38,7 +41,8 @@ class Model(Record):
 
     def resolved_name(self):
         """Return the name to call the provider with."""
-        return self.name or runtime.get("default_model")
+        role = runtime.get(self.setting) if self.setting else None
+        return self.name or role or runtime.get("default_model")
 
     def settings(self):
         """Return the settings a provider receives."""

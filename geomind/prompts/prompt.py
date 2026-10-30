@@ -8,18 +8,26 @@ from geomind.utils.strings import did_you_mean
 FOLDER = Path(__file__).parent
 
 
+def role_files():
+    """Return the prompt file of each role; ``skills/`` holds skills, not roles."""
+    paths = FOLDER.glob("*/*.md")
+    return {path.stem: path for path in paths if path.parent.name != "skills"}
+
+
 class Prompt:
-    """The system prompt of an agent; ``Prompt("assistant")`` loads ``assistant.md``."""
+    """The system prompt of an agent; ``Prompt("analyst")`` loads ``<folder>/analyst.md``.
+
+    A role has one file, in the folder of its area, as its agent has.
+    """
 
     def __init__(self, role):
         """Load the role file; an unknown role raises with a close match."""
-        path = FOLDER / f"{role}.md"
-        if not path.is_file():
-            roles = [item.stem for item in FOLDER.glob("*.md")]
+        roles = role_files()
+        if role not in roles:
             raise UnknownNameError(
                 f"Prompt: role = {role!r}; expected a role file{did_you_mean(role, roles)}"
             )
-        self.content = path.read_text().strip()
+        self.content = roles[role].read_text().strip()
 
     @classmethod
     def text(cls, content):

@@ -47,11 +47,20 @@ class Question(Record):
     text: str
 
 
+class Compaction(Record):
+    """The summary of the first ``turns`` turns of a chat's history."""
+
+    summary: str
+    turns: int
+
+
 class ProblemState(Record):
     """The notes of one chat; ``version`` is raised by one with every change.
 
     NOTE: the state is frozen, so a change is always a new state and the only writer is ``apply`` of
-    the engine, over ``state.changed`` events.
+    the engine, over events. NOTE: ``compaction`` is kept here because ``save_state`` is the only
+    per-chat storage of the contract, and ``load_history`` always returns every message. It is no
+    key of the document: a patch cannot reach it and ``render`` does not show it.
     """
 
     version: int = 0
@@ -62,6 +71,7 @@ class ProblemState(Record):
     results: tuple[Result, ...] = ()
     verification: dict[str, Any] = {}
     questions: tuple[Question, ...] = ()
+    compaction: Compaction | None = None
 
     @model_validator(mode="after")
     def _check_ids(self):

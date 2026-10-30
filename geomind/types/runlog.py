@@ -1,6 +1,7 @@
 """Build the contract's ``runlog`` object from the events of a run, nested runs included."""
 
 from geomind.errors import RunError
+from geomind.types.events import LLM_EVENTS
 from geomind.types.messages import Usage
 
 
@@ -66,7 +67,7 @@ def _run(events, root):
     )
     usage = Usage()
     for event in events:
-        if event.type == "llm.completed":
+        if event.type in LLM_EVENTS:
             usage += event.completion.usage
     return {
         "id": root.run_id,
@@ -92,7 +93,7 @@ def runlog(events):
     parents = {e.run_id: e.parent_step for e in events if e.type == "run.started"}
     steps = {}
     for event in events:
-        if event.type == "llm.completed":
+        if event.type in LLM_EVENTS:
             _step(steps, parents, event)["llm_calls"].append(_llm_call(event))
         if event.type == "tool.result" and event.call_id is not None:
             _step(steps, parents, event)["tool_calls"].append(_tool_call(event))

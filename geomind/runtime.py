@@ -13,6 +13,7 @@ from geomind.utils.context import ContextSetting
 from geomind.utils.strings import did_you_mean
 
 FIXED_DEFAULT_MODEL = "anthropic/claude-sonnet-5.5"
+FIXED_CHEAP_MODEL = "anthropic/claude-haiku-5.5"
 _FIXED = {
     "max_steps": 30,
     "retry_count": 3,
@@ -24,6 +25,15 @@ _FIXED = {
     "sandbox_memory": "1g",
     "sandbox_disk": "1g",
     "sandbox_cpu": 1,
+    "compaction_threshold": 0.6,
+    "compaction_keep_turns": 6,
+    "analyst_model": None,
+    "coordinator_model": FIXED_CHEAP_MODEL,
+    "designer_model": None,
+    "economist_model": None,
+    "explainer_model": None,
+    "summarizer_model": FIXED_CHEAP_MODEL,
+    "verifier_model": None,
 }
 _settings = ContextVar("geomind_settings", default=None)
 

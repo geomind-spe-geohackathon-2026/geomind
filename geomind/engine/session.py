@@ -14,6 +14,7 @@ from geomind.errors import RunError, SandboxError
 from geomind.sandbox import Manifest
 from geomind.types import Allow, Deny, Request
 from geomind.types.events import (
+    Compacted,
     ErrorRaised,
     LLMCompleted,
     PermissionDecided,
@@ -136,20 +137,37 @@ class RunSession:
         """Log one provider retry."""
         await self.emit(Retried, **fields)
 
-    async def complete(self, agent, messages):
-        """Call the provider and log the completion before anything acts on it."""
+    async def _call_provider(self, agent, messages, on_text):
+        """Call the provider for an agent."""
         if self.engine.llm is None:
             raise RunError("engine: llm = None; expected a provider")
-        started = perf_counter()
-        completion = await self.engine.llm.complete(
+        return await self.engine.llm.complete(
             list(messages),
             agent.tool_schemas(),
             model=agent.model.resolved_name(),
             settings=agent.model.settings(),
-            on_text=self.on_text,
+            on_text=on_text,
             fallbacks=agent.model.fallbacks,
             on_retry=self._on_retry,
         )
+
+    async def summarize(self, agent, messages, turns):
+        """Call the provider for a summary of ``turns`` turns and log it, without streaming."""
+        started = perf_counter()
+        completion = await self._call_provider(agent, messages, None)
+        await self.emit(
+            Compacted,
+            index=self.state.step,
+            completion=completion,
+            messages=tuple(messages),
+            duration=perf_counter() - started,
+            turns=turns,
+        )
+
+    async def complete(self, agent, messages):
+        """Call the provider and log the completion before anything acts on it."""
+        started = perf_counter()
+        completion = await self._call_provider(agent, messages, self.on_text)
         held, self._held_text = self._held_text, ""
         self._stream(held)
         await self.log.flush()

@@ -60,6 +60,10 @@ Both have effect `read`, so `ask` mode lets them through; `plan` mode runs neith
 and emits `state.changed`; see [context.md](context.md). An invalid patch is an error result that
 says how to fix it. The default rule of [permissions.md](permissions.md) allows it in `ask` mode.
 
+## Skills
+
+`read_skill(name)` (`read`) returns one skill; see [context.md](context.md).
+
 ## Code tools
 
 `run_python(code)` (`execute`, not idempotent), `write_file(path, text)` (`write`) and

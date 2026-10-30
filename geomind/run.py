@@ -3,7 +3,7 @@
 import asyncio
 
 from geomind.agents import Assistant, CodeAssistant
-from geomind.context import ProblemState
+from geomind.context import ProblemState, restore
 from geomind.engine import Context, Engine, Permissions
 from geomind.engine.context import new_run_id
 from geomind.engine.hooks import Cancellation
@@ -100,8 +100,9 @@ class Run:
         """Run until the answer or a pause."""
         if self.message is None:
             raise RunError("Run: message = None; expected a message to start with")
-        messages = [*self.history, Message(role="user", content=self.message)]
         problem = await asyncio.to_thread(self._load_problem)
+        history = restore(self.history, problem.compaction)
+        messages = [*history, Message(role="user", content=self.message)]
         context = Context(self.id, messages, chat=self.chat, project=self.project, problem=problem)
         return await self.loop.run(self.engine, context)
 

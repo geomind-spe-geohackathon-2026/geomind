@@ -23,3 +23,34 @@ state.
   reaches the runs above it, and `recover` applies `state.changed` from the whole tree.
 - **Shown to the model.** `render(state)` gives one line per item, the last part of every call, never
   in the message list. An untouched state (`version` 0) renders nothing.
+
+## Long conversations
+
+`history.py` turns messages into turns: a turn starts at a user message and holds everything up to the
+next one, so a tool call never parts from its result.
+
+`compaction.py` decides. Before an LLM call, when the rendered context passes `compaction_threshold`
+(default 0.6) of the model's window, all turns but the last `compaction_keep_turns` (default 6) are
+replaced by one summary message. The window comes from a small table per model, with a safe default,
+and tokens are estimated at four characters each, so a replay gives the same answer. With nothing old
+enough to replace, the run goes on: an open turn stays whole.
+
+`engine/compaction.py` makes the one call to the `Summarizer` agent (cheap model, no tools, not
+streamed) and logs an internal `compaction` event holding the completion. `apply` makes the
+replacement, so a recovered run holds it and a replay gets the same summary from `FakeLLM.from_events`.
+Hooks do not see this call, and its usage counts toward the run.
+
+The problem state is outside the messages, so compaction never touches it. The summary goes the other
+way: `apply` keeps it in `ProblemState.compaction` as `{summary, turns}`, saved with `save_state`,
+because `load_history` always returns every message and the contract has no other per-chat storage.
+`restore(history, compaction)` gives the next run the summary and the newer turns, so a chat compacts
+once and not on every message. That key is outside the patchable document: a patch cannot reach it and
+`render` does not show it.
+
+## Skills
+
+`prompts/skills/*.md` hold instructions a model loads on demand. The first paragraph of a file is its
+one line. An agent that has the `read_skill` tool gets the list of names with one line each in its
+system prompt; the rest costs nothing until it is read. `read_skill(name)` returns one skill, and an
+unknown name is an error result with the close match. The skills are `gemini-units` and
+`reading-results`.
