@@ -91,5 +91,5 @@ default.
 
 `.github/workflows/python_lint.yaml` runs Flake8, Black and isort. `python_test.yaml` runs the
 development profile on pull requests and the full suite on pushes to `main`, on Python 3.11 to
-3.14. It checks gemini out into `gemini/` beside the sources, because swarmax needs it as an
+3.14. It checks gemini out into `gemini-checkout/`, because swarmax needs it as an
 editable path dependency.

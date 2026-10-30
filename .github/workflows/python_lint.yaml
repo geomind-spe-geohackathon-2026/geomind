@@ -1,0 +1,20 @@
+name: Lint
+
+on: [push, pull_request, merge_group]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+    - uses: astral-sh/setup-uv@v7
+    - name: Install Python 3.11 and the lint tools
+      run: |
+        uv venv --python 3.11
+        uv pip install --group lint
+        echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+    - name: Lint with flake8 black isort
+      run: |
+        flake8 swarmax tests examples scripts
+        black --check swarmax tests examples scripts
+        isort --check-only swarmax tests examples scripts

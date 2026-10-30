@@ -1,0 +1,69 @@
+[project]
+name = "swarmax"
+version = "0.1.0"
+description = "Agent harness over an event log, with gemini as its physics library"
+readme = "AGENTS.md"
+requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "gemini-geothermal-suite-open",
+    "pydantic>=2.8.0",
+    "pydantic>=2.12.0; python_version >= '3.14'",
+    "httpx>=0.27.0",
+]
+
+[project.scripts]
+swarmax = "swarmax.cli:main"
+
+[dependency-groups]
+test = ["pytest==9.2.0", "pytest-xdist>=3.8,<4", "pytest-asyncio>=1.0,<2"]
+lint = [
+    "flake8==7.5.0",
+    "flake8-docstrings==1.7.0",
+    "Flake8-pyproject==1.2.4",
+    "black==26.10.1",
+    "isort==9.0.2",
+]
+dev = [{ include-group = "test" }, { include-group = "lint" }]
+
+[tool.uv.sources]
+gemini-geothermal-suite-open = { path = "../gemini", editable = true }
+
+[tool.poetry]
+packages = [{ include = "swarmax" }]
+
+[tool.flake8]
+max-line-length = 100
+extend-ignore = ["W503", "W504", "E127", "E128", "E203", "D202"]
+max-complexity = 10
+
+[tool.black]
+line-length = 100
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.pytest.ini_options]
+pythonpath = "."
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-n auto --dist loadgroup --strict-markers -m 'not e2e and not slow and not docker'"
+markers = [
+    "unit: isolated tests mirroring one source unit",
+    "integration: tests combining multiple runtime components",
+    "e2e: full public workflows",
+    "slow: tests intentionally exceeding the one-second fast-tier budget",
+    "docker: tests that need a Docker daemon",
+]
+
+[build-system]
+requires = ["poetry-core>=2.0"]
+build-backend = "poetry.core.masonry.api"

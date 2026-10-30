@@ -1,0 +1,13 @@
+.idea
+.venv
+.vscode
+venv
+__pycache__
+*.pyc
+poetry.lock
+build
+dist/
+.env
+.pytest_cache/
+.tmp/
+.runs/

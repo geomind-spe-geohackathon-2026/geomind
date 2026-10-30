@@ -1,0 +1,46 @@
+name: Test
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  merge_group:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Python ${{ matrix.python }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12", "3.13", "3.14"]
+    env:
+      PROFILE: >-
+        ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main' && 'release') ||
+        'development' }}
+    steps:
+    - uses: actions/checkout@v5
+      with:
+        fetch-depth: 0
+    - uses: actions/checkout@v5
+      with:
+        repository: GEMINI-Digital-Twin/gemini-geothermal-suite-open
+        ref: refactor
+        path: gemini-checkout
+    - uses: astral-sh/setup-uv@v7
+    - name: Install Python ${{ matrix.python }} and the dependencies
+      run: |
+        uv venv --python "${{ matrix.python }}"
+        uv pip install -e ./gemini-checkout -e . --group test
+        echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+    - name: Run development profile against the base
+      if: env.PROFILE == 'development'
+      env:
+        BASE: ${{ github.base_ref || 'main' }}
+      run: python scripts/test_changed.py --base "origin/$BASE"
+    - name: Run the full suite
+      if: env.PROFILE == 'release'
+      run: python -m pytest -n auto -m "not docker" --profile=release --durations=20
