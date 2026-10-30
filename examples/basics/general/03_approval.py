@@ -37,8 +37,7 @@ async def main():
     context = gd.Context(messages=[gd.Message(role="user", content="Send the report")])
     paused = await engine.run(Sender(), context)
     print(paused.status, paused.request.message)
-    checkpoint = engine.store.load_checkpoint(context.run_id)
-    result = await engine.resume(checkpoint, paused.request.id, {"approved": True})
+    result = await engine.resume(context.run_id, paused.request.id, {"approved": True})
     print(result.answer)
 
 

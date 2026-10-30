@@ -70,7 +70,8 @@ The suite must remain safe under `pytest -n auto`:
 - `tests/unit/test_package_boundaries.py`: the dependency order of
   [conventions.md](conventions.md#dependencies), and that no `core` package or import returns.
 - `tests/unit/test_code_quality.py`: comments, nesting, function length with `LONG_FUNCTIONS`,
-  `else` after an early exit, builtin raises, framework names and the former package name.
+  `else` after an early exit, builtin raises, framework names and the former package name, which only
+  `CHANGELOG.md` may hold.
 - `tests/unit/test_public_api.py`: the curated `gd` names, documented, and the version.
 - `tests/unit/test_docs_links.py`: every link in `AGENTS.md` and `.claude/docs/` resolves.
 
@@ -80,13 +81,6 @@ The suite must remain safe under `pytest -n auto`:
 `../docs/contracts.md` section 2. `gd.testing.check_run_store` and `gd.testing.check_workspace`
 run against the memory and file implementations in `tests/unit/testing/`; the backend runs the
 same functions against its own.
-
-## Stored runs
-
-`tests/fixtures/stored/s1_run.tar.gz` is one real run stored by S1, paused on a question.
-`tests/integration/test_stored_runs.py` loads, resumes and replays it, so event and checkpoint
-formats stay readable. Never regenerate it. It is compressed because the class path inside it holds
-the former package name, which the name test keeps out of tracked text.
 
 ## Docker
 

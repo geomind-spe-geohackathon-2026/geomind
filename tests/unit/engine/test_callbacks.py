@@ -111,4 +111,4 @@ async def test_on_event_comes_before_the_specific_method():
 
     await run([says()], callbacks=[Ordered()])
     assert order.index("step.finished") + 1 == order.index("specific")
-    assert "llm.completed" in order and "checkpoint" in order
+    assert "llm.completed" in order and "permission" not in order[:1]

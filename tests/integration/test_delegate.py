@@ -5,7 +5,6 @@ import pytest
 import geomind as gd
 from geomind import runtime
 from geomind.engine import Engine, Permissions
-from geomind.engine.checkpoint import Checkpoint
 from geomind.engine.recovery import recover
 from geomind.engine.store import MemoryRunStore
 from geomind.providers import FakeLLM
@@ -121,10 +120,9 @@ async def test_nested_pause_pauses_the_parent_and_resumes_through_it():
     assert of_type(events, "request")[0].agent == "lead.helper_agent"
     assert EXECUTED == []
 
-    checkpoint = engine.store.load_checkpoint(result.run_id)
     final = await Engine(
         llm=FakeLLM(script[2:]), store=engine.store, permissions=Permissions(mode="ask")
-    ).resume(checkpoint, result.request.id, {"approved": True})
+    ).resume(result.run_id, result.request.id, {"approved": True})
     assert (final.status, final.answer) == ("done", "end")
     assert EXECUTED == ["save_note"]
     assert final.usage.input_tokens == 40
@@ -140,21 +138,17 @@ async def test_a_second_pause_in_the_nested_run_pauses_again():
         says("end"),
     ]
     result, engine, _ = await nested(script, permissions=Permissions(mode="ask"))
-    first = engine.store.load_checkpoint(result.run_id)
-    second = await engine.resume(first, result.request.id, {"approved": True})
+    second = await engine.resume(result.run_id, result.request.id, {"approved": True})
     assert second.status == "waiting" and second.request.call_id == "n2"
-    checkpoint = engine.store.load_checkpoint(result.run_id)
-    final = await engine.resume(checkpoint, second.request.id, {"approved": True})
+    final = await engine.resume(result.run_id, second.request.id, {"approved": True})
     assert final.answer == "end" and EXECUTED == ["save_note", "save_note"]
 
 
-async def test_recovery_equals_the_checkpoint_with_a_nested_pause():
+async def test_recovery_finds_a_nested_pause():
     """The parent's state rebuilds from the shared log."""
     script = [uses(HELP), uses(call("save_note", "n1", text="x"))]
     result, engine, events = await nested(script, permissions=Permissions(mode="ask"))
-    saved = Checkpoint.load(engine.store.load_checkpoint(result.run_id))
-    assert recover(events, result.run_id) == saved
-    assert saved.pending.child is not None
+    assert recover(events, result.run_id).pending.child is not None
 
 
 async def test_replay_reuses_the_nested_result():
@@ -181,12 +175,10 @@ async def test_public_events_of_a_nested_run_are_forwarded():
 
 
 async def test_parent_has_no_pending_action_after_the_nested_run_ended():
-    """A settled nested pause leaves nothing pending, at every checkpoint after it."""
+    """A settled nested pause leaves nothing pending, in the step after it."""
     script = [uses(HELP), uses(call("save_note", "n1", text="x")), says("found"), says("end")]
     result, engine, _ = await nested(script, permissions=Permissions(mode="ask"))
-    final = await engine.resume(
-        engine.store.load_checkpoint(result.run_id), result.request.id, {"approved": True}
-    )
+    final = await engine.resume(result.run_id, result.request.id, {"approved": True})
     events = engine.store.load_events(final.run_id)
     finished = next(e for e in of_type(events, "step.finished") if e.parent is None)
     assert recover(events[: finished.sequence], final.run_id).pending is None
@@ -223,7 +215,7 @@ async def killed_after_answer(kind, is_nested):
     store.kind = kind
     with pytest.raises(Killed):
         await Engine(llm=FakeLLM(script[2:]), store=store, permissions=ask).resume(
-            store.load_checkpoint(start.run_id), paused.request.id, {"approved": True}
+            start.run_id, paused.request.id, {"approved": True}
         )
     return store, start.run_id, paused.request.id, script
 
@@ -232,16 +224,14 @@ async def test_killed_while_the_nested_run_continues_is_not_stuck():
     """The answer reached the child; a resume without arguments finishes the job."""
     store, run_id, _, script = await killed_after_answer("step.finished", True)
     fresh = Engine(llm=FakeLLM(script[2:]), store=store, permissions=Permissions(mode="ask"))
-    state = recover(store.load_events(run_id), run_id)
-    assert (await fresh.resume(state)).answer == "end"
+    assert (await fresh.resume(run_id)).answer == "end"
 
 
 async def test_killed_after_the_nested_run_ended_is_not_stuck():
     """The child's outcome is in the log; the parent takes it from there."""
     store, run_id, request_id, script = await killed_after_answer("tool.result", False)
     fresh = Engine(llm=FakeLLM(script[3:]), store=store, permissions=Permissions(mode="ask"))
-    state = recover(store.load_events(run_id), run_id)
-    final = await fresh.resume(state, request_id, {"approved": True})
+    final = await fresh.resume(run_id, request_id, {"approved": True})
     assert final.answer == "end"
     assert final.usage.input_tokens == 40
 
@@ -255,7 +245,7 @@ async def test_crash_in_a_nested_run_keeps_its_usage_and_ends_it():
     with pytest.raises(Killed):
         await Engine(llm=FakeLLM(script), store=store, permissions=auto).run(Lead(), start)
     fresh = Engine(llm=FakeLLM([says("end")]), store=store, permissions=auto)
-    result = await fresh.resume(recover(store.load_events(start.run_id), start.run_id))
+    result = await fresh.resume(start.run_id)
     events = store.load_events(start.run_id)
     assert result.answer == "end" and result.usage.input_tokens == 30
     nested_end = [e for e in of_type(events, "run.finished") if e.parent is not None]

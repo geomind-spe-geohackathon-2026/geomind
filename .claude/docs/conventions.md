@@ -100,8 +100,8 @@ The package avoids hidden behaviour. These are the only implicit mechanisms, eac
   its signature and every other tool stays a plain function.
 - `gd.runtime.settings()` is a context setting built on `geomind.utils.context.ContextSetting`: a
   context variable change usable as a `with` block and as a decorator, restored on exit.
-- `class_path`/`import_class` in `engine/checkpoint.py` are the only import-by-string:
-  checkpoints and events name the agent class that rebuilds a run.
+- `class_path`/`import_class` in `utils/imports.py` are the only import-by-string: `run.started`
+  names the agent class that rebuilds a run, and a plant file names its plant class.
 - `Callback.on_<event>` methods are found through the `CALLBACK_METHODS` table in
   `engine/callbacks.py`, so a callback overrides only the methods it needs.
 
@@ -114,8 +114,8 @@ Each one also has a `NOTE:` in the docstring that makes it.
 - The core is `async`, with a sync facade on `Run`. gemini is sync. Parallel tools, streaming and
   the FastAPI backend need it, and changing it later would touch every layer.
 - Stores and workspaces stay sync, for the backend, and are called through `asyncio.to_thread`.
-- The event log, not the checkpoint, is the source of truth: `apply(state, event)` is the only
-  code that changes run state. gemini's checkpoint is its own record.
+- The event log is the only run state: `apply(state, event)` is the only code that changes it,
+  and there is nothing like gemini's separate saved run record.
 - Hooks can deny or pause. gemini's pre-hooks observe or adjust inputs.
 - `Agent` has no `__getattr__` and keeps no values: declarations are plain attributes, and values
   of one run live in the session.

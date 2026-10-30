@@ -103,8 +103,7 @@ async def test_resumed_run_replays():
     engine = engine_for([uses(call("ask_user", question="q")), says("end")])
     start = context()
     paused = await engine.run(Worker(), start)
-    checkpoint = engine.store.load_checkpoint(start.run_id)
-    await engine.resume(checkpoint, paused.request.id, {"text": "yes"})
+    await engine.resume(start.run_id, paused.request.id, {"text": "yes"})
     assert (await Engine.replay(engine.store, start.run_id)).answer == "end"
 
 

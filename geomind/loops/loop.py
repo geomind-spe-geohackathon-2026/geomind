@@ -4,9 +4,9 @@
 class Loop:
     """Base class: ``run`` drives the engine, as gemini's ``optim`` drives ``Engine.replay``.
 
-    The state of a loop is saved inside the run checkpoint, so a pause inside a loop resumes at the
-    same place in another process. NOTE: loops are written as resumable steps, never with state held
-    only in local variables.
+    The state of a loop is logged on ``run.started`` and ``step.finished``, so a pause inside a loop
+    resumes at the same place in another process. NOTE: loops are written as resumable steps, never
+    with state held only in local variables.
     """
 
     name = "loop"
@@ -15,9 +15,9 @@ class Loop:
         """Drive the engine toward the goal in ``task`` and return a ``RunResult``."""
         raise NotImplementedError
 
-    async def resume(self, engine, checkpoint, request_id=None, answer=None):
-        """Continue from a checkpoint, with this loop receiving its stored state."""
-        return await engine.resume(checkpoint, request_id, answer, loop=self)
+    async def resume(self, engine, run_id, request_id=None, answer=None):
+        """Continue a run, with this loop receiving its logged state."""
+        return await engine.resume(run_id, request_id, answer, loop=self)
 
     def state_dict(self):
         """Return the JSON-safe position of this loop."""

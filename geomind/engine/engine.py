@@ -6,13 +6,13 @@ later would touch every layer. ``Run`` is the sync facade.
 """
 
 from geomind import runtime
-from geomind.engine.checkpoint import Checkpoint, import_class
 from geomind.engine.context import Context
 from geomind.engine.log import RunLog
 from geomind.engine.permissions import Permissions
-from geomind.engine.recovery import catch_up, recover
+from geomind.engine.recovery import agent_class, recover
 from geomind.engine.replay import replay_run
 from geomind.engine.session import RunSession, Stop
+from geomind.engine.state import RunState
 from geomind.engine.step import record_result, run_step, settle_interrupted, text_result
 from geomind.engine.store import MemoryRunStore
 from geomind.errors import RequestError, RunError, ToolError
@@ -91,7 +91,7 @@ class Engine:
     async def run(self, agent, context, *, max_steps=None, loop=None):
         """Run ``agent`` from ``context`` until it stops."""
         log = RunLog(self, context.run_id)
-        session = RunSession(self, log, Checkpoint(root=context.run_id), agent, loop)
+        session = RunSession(self, log, RunState(root=context.run_id), agent, loop)
         await session.start(context, max_steps=max_steps or runtime.get("max_steps"))
         return await self._drive(session)
 
@@ -106,7 +106,7 @@ class Engine:
         context = Context(
             messages=[Message(role="user", content=task)], chat=state.chat, project=state.project
         )
-        session = RunSession(self, parent.log, Checkpoint(root=state.root), agent)
+        session = RunSession(self, parent.log, RunState(root=state.root), agent)
         await session.start(
             context,
             max_steps=runtime.get("max_steps"),
@@ -155,27 +155,21 @@ class Engine:
             message=stop.message,
             answer=stop.answer,
         )
-        await session.save_checkpoint()
         return run_result(session, stop)
 
-    def _latest(self, checkpoint):
-        """Return the state of a checkpoint plus whatever the log holds after it."""
-        state = checkpoint if isinstance(checkpoint, Checkpoint) else Checkpoint.load(checkpoint)
-        return catch_up(state, self.store.load_events(state.root))
-
-    async def resume(self, checkpoint, request_id=None, answer=None, *, agent=None, loop=None):
-        """Continue a run from a checkpoint, in any process.
+    async def resume(self, run_id, request_id=None, answer=None, *, agent=None, loop=None):
+        """Continue a run from its events, in any process.
 
         With ``request_id`` and ``answer`` it settles the pending request. Without them it
         continues a run whose process died. ``agent`` defaults to a new instance of the stored
         class, and ``loop`` receives its stored state.
         """
-        state = self._latest(checkpoint)
+        state = recover(self.store.load_events(run_id), run_id)
         if state.status != "running":
             raise RunError(f"resume: run = {state.run_id}; it already ended as {state.status}")
         if loop is not None:
             loop.load_state_dict(state.loop_state)
-        agent = agent or import_class(state.agent_class)()
+        agent = agent or agent_class(state)()
         with runtime.settings(**state.settings):
             log = RunLog(self, state.root, state.sequence)
             session = RunSession(self, log, state, agent, loop)
@@ -271,7 +265,7 @@ class Engine:
         no request, so it continues without one, or has ended, so its outcome stands.
         """
         tool = session.agent.tools()[pending.call.name]
-        state = self._latest(await self._load_checkpoint(pending.child))
+        state = recover(self.store.load_events(session.state.root), pending.child)
         if state.status != "running":
             result = result_of_state(state)
         elif state.pending is None:
@@ -296,10 +290,3 @@ class Engine:
             return await session.wait_for_child(outcome, pending.call)
         await record_result(session, pending.call, text_result(pending.call, outcome))
         return None
-
-    async def _load_checkpoint(self, run_id):
-        """Return a stored checkpoint."""
-        data = self.store.load_checkpoint(run_id)
-        if data is None:
-            raise RunError(f"resume: run = {run_id!r}; no checkpoint is stored")
-        return data

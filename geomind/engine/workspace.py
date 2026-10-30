@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 from typing import Protocol
 
-from geomind.engine.checkpoint import import_class
+from geomind.utils.imports import import_class
 from geomind.utils.json import read_json
 
 _WORD = re.compile(r"\w+")

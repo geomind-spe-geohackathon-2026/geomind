@@ -35,7 +35,6 @@ A permission denial is a tool result, not an exception.
   event loop.
 - `RequestError(ValueError)`: an unknown or already answered request id, or an answer of the wrong
   shape.
-- `CheckpointError(RuntimeError, ValueError)`: a checkpoint with a wrong version or shape.
 - `ReplayError(RuntimeError)`: a replay differs from its recording; the message names the first
   differing step.
 - `LoopError(RuntimeError)`: a loop state that does not fit the loop.

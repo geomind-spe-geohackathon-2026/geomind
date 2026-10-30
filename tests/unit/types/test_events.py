@@ -9,7 +9,6 @@ from geomind.errors import RunError
 from geomind.types import Completion, Request, ToolCall, Usage
 from geomind.types.events import (
     EVENT_CLASSES,
-    CheckpointSaved,
     ErrorRaised,
     LLMCompleted,
     PermissionDecided,
@@ -93,7 +92,6 @@ INTERNAL_EVENTS = [
     Retried(**BASE, attempt=1, model="m", error="busy", delay=0.5),
     SandboxProvisioned(**BASE, provider="LocalSandbox"),
     SandboxClosed(**BASE),
-    CheckpointSaved(**BASE, index=1),
     ErrorRaised(**BASE, error_class="ValueError", message="m", where="callback"),
 ]
 CONTRACT_TYPES = {

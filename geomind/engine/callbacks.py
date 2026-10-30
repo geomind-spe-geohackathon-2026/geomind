@@ -63,7 +63,7 @@ class Callback:
         """Observe a change of the problem state."""
 
     def on_request(self, engine, event):
-        """Observe a pause; the checkpoint is already saved."""
+        """Observe a pause; the request is already in the log."""
 
     def on_step_end(self, engine, event):
         """Observe the end of a step."""

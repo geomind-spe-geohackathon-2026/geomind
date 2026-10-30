@@ -38,12 +38,9 @@ FRAMEWORK = re.compile(
             "pydantic[- ]" + "ai",
             "agents? " + "sdk",
         )
-    ),
-    re.IGNORECASE,
+    )
 )
-
-
-FORMER_NAME = re.compile("swarm" + "ax|\\bs" + "x\\.", re.IGNORECASE)
+FORMER_NAME = re.compile("swa" + "rm|\\bs" + "x\\.")
 RENAME_NOTE = "CHANGELOG.md"
 
 
@@ -194,19 +191,23 @@ def test_nesting_counts_blocks_but_not_elif_chains(source, expected):
 
 
 def lines_matching(pattern, skipped=()):
-    """Return ``path:line`` of every match in tracked text; only files with a match are split."""
+    """Return ``path:line`` of every match in lower-cased tracked text.
+
+    Only files with a match are split into lines, and the search runs on lower-cased text instead
+    of ignoring case, because that keeps this within the budget of one test under parallel load.
+    """
     found = []
     for path in tracked_files():
         try:
             text = (ROOT / path).read_text(encoding="utf-8")
         except UnicodeDecodeError:
             continue
-        if path in skipped or not pattern.search(text):
+        if path in skipped or not pattern.search(text.lower()):
             continue
         found.extend(
             f"{path}:{number}"
             for number, line in enumerate(text.splitlines(), 1)
-            if pattern.search(line)
+            if pattern.search(line.lower())
         )
     return found
 

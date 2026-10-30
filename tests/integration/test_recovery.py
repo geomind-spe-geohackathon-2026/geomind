@@ -4,7 +4,6 @@ import pytest
 
 from geomind import runtime
 from geomind.engine import Engine, Permissions
-from geomind.engine.checkpoint import Checkpoint
 from geomind.engine.recovery import recover
 from geomind.engine.store import FileRunStore, MemoryRunStore
 from geomind.errors import RunError
@@ -72,9 +71,7 @@ async def test_pause_then_a_fresh_engine_gives_the_same_run(tmp_path):
 
     fresh_store = FileRunStore(tmp_path)
     fresh = Engine(llm=FakeLLM(script()[1:]), store=fresh_store)
-    result = await fresh.resume(
-        fresh_store.load_checkpoint(start.run_id), paused.request.id, {"approved": True}
-    )
+    result = await fresh.resume(start.run_id, paused.request.id, {"approved": True})
 
     straight = Engine(llm=FakeLLM(script()), permissions=Permissions(allow=("save_note",)))
     other = context()
@@ -100,7 +97,7 @@ async def test_killed_between_completion_and_tools_makes_no_second_llm_call():
 
     llm = FakeLLM([says("end")])
     fresh = Engine(llm=llm, store=store, permissions=Permissions(mode="auto"))
-    result = await fresh.resume(recover(store.load_events(start.run_id)))
+    result = await fresh.resume(start.run_id)
     assert (result.answer, EXECUTED) == ("end", ["lookup"])
     assert len(llm.calls) == 1
     assert len(of_type(store.load_events(start.run_id), "llm.completed")) == 2
@@ -122,7 +119,7 @@ async def test_started_idempotent_tool_runs_again():
     """A started tool without a result is rerun when that does no harm."""
     store, run_id = await killed_at_the_result(call("save_again", text="x"))
     fresh = Engine(llm=FakeLLM([says("end")]), store=store, permissions=Permissions(mode="auto"))
-    await fresh.resume(recover(store.load_events(run_id)))
+    await fresh.resume(run_id)
     assert EXECUTED == ["save_again", "save_again"]
 
 
@@ -131,32 +128,18 @@ async def test_started_other_tool_becomes_an_error_for_the_model():
     store, run_id = await killed_at_the_result(call("save_note", text="x"))
     llm = FakeLLM([says("end")])
     fresh = Engine(llm=llm, store=store, permissions=Permissions(mode="auto"))
-    result = await fresh.resume(recover(store.load_events(run_id)))
+    result = await fresh.resume(run_id)
     assert result.answer == "end" and EXECUTED == ["save_note"]
     recorded = of_type(store.load_events(run_id), "tool.result")[0]
     assert recorded.source == "interrupted" and "interrupted" in str(recorded.output)
 
 
-async def test_recovery_from_events_equals_the_checkpoint_at_a_pause():
-    """Both ways of rebuilding a paused run give the same state."""
+async def test_recovery_finds_the_pending_call_at_a_pause():
+    """The pending action is in the log."""
     engine = Engine(llm=FakeLLM(script()))
     start = context()
-    result = await engine.run(Worker(), start)
-    saved = Checkpoint.load(engine.store.load_checkpoint(result.run_id))
-    assert recover(engine.store.load_events(result.run_id)) == saved
-    assert saved.pending.call.id == "a"
-
-
-async def test_recovery_from_events_equals_the_checkpoint_after_a_resume():
-    """They stay equal over a whole run."""
-    engine = Engine(llm=FakeLLM(script()))
-    start = context()
-    paused = await engine.run(Worker(), start)
-    checkpoint = engine.store.load_checkpoint(start.run_id)
-    await engine.resume(checkpoint, paused.request.id, {"approved": True})
-    saved = Checkpoint.load(engine.store.load_checkpoint(start.run_id))
-    assert recover(engine.store.load_events(start.run_id)) == saved
-    assert saved.status == "done"
+    await engine.run(Worker(), start)
+    assert recover(engine.store.load_events(start.run_id)).pending.call.id == "a"
 
 
 async def test_a_finished_run_cannot_resume():
@@ -165,22 +148,22 @@ async def test_a_finished_run_cannot_resume():
     start = context()
     await engine.run(Worker(), start)
     with pytest.raises(RunError, match="already ended"):
-        await engine.resume(engine.store.load_checkpoint(start.run_id))
+        await engine.resume(start.run_id)
 
 
-async def test_killed_after_the_last_checkpoint_of_an_answer_repeats_nothing():
+async def test_killed_after_the_last_step_of_an_answer_repeats_nothing():
     """The stop decision is in the log, so the answer stands without another LLM call."""
     store = DyingStore("run.finished")
     start = context()
     with pytest.raises(Killed):
         await Engine(llm=FakeLLM([says("end")]), store=store).run(Worker(), start)
     llm = FakeLLM([])
-    result = await Engine(llm=llm, store=store).resume(recover(store.load_events(start.run_id)))
+    result = await Engine(llm=llm, store=store).resume(start.run_id)
     assert (result.stop_reason, result.answer) == ("answer", "end")
     assert llm.calls == []
 
 
-async def test_killed_after_the_last_checkpoint_of_finish_repeats_nothing():
+async def test_killed_after_the_last_step_of_finish_repeats_nothing():
     """The same holds for the ``finish`` tool."""
     store = DyingStore("run.finished")
     start = context()
@@ -188,7 +171,7 @@ async def test_killed_after_the_last_checkpoint_of_finish_repeats_nothing():
     with pytest.raises(Killed):
         await Engine(llm=FakeLLM(script), store=store).run(Worker(), start)
     llm = FakeLLM([])
-    result = await Engine(llm=llm, store=store).resume(recover(store.load_events(start.run_id)))
+    result = await Engine(llm=llm, store=store).resume(start.run_id)
     assert (result.stop_reason, result.answer) == ("finish", "end")
     assert llm.calls == []
 
@@ -200,7 +183,7 @@ async def test_killed_inside_the_step_of_an_answer_repeats_nothing():
     with pytest.raises(Killed):
         await Engine(llm=FakeLLM([says("end")]), store=store).run(Worker(), start)
     llm = FakeLLM([])
-    result = await Engine(llm=llm, store=store).resume(recover(store.load_events(start.run_id)))
+    result = await Engine(llm=llm, store=store).resume(start.run_id)
     assert (result.stop_reason, result.answer) == ("answer", "end")
 
 

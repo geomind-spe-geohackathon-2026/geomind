@@ -37,6 +37,8 @@ list of JSON Patch operations, validated by `geomind/types/patch.py`: `op` is `a
 `remove`, `path` is a JSON Pointer under a top-level key of the problem state, lists of items with
 an `id` are addressed by id, and `-` ends the path of an `add` that appends an item with an `id`.
 
+`StepFinished` also stores `loop_state`, the state of the loop.
+
 `RunStarted` also stores what rebuilds the run: `root`, `agent_class`, `max_steps`, `chat`,
 `project`, `parent_step`, `messages`, `settings` and `loop_state`. `RequestMade` also stores the
 pending action: `point` (`tool`, `llm` or `finish`) and `call`. `RunFinished` also stores `answer`.
@@ -53,7 +55,6 @@ Stored and used by recovery, replay and the log; never streamed. `data()` holds 
 | `retry` | `Retried` | `attempt`, `model`, `error`, `delay` |
 | `sandbox.provisioned` | `SandboxProvisioned` | `provider` |
 | `sandbox.closed` | `SandboxClosed` | `is_lost` |
-| `checkpoint` | `CheckpointSaved` | `index`, `loop_state` |
 | `error` | `ErrorRaised` | `error_class`, `message`, `where` |
 
 `tool.result` with `call_id` `null` is feedback to the model about its final answer, shown as a

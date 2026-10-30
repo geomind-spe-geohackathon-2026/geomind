@@ -5,6 +5,7 @@ import pytest
 from geomind import runtime
 from geomind.agents import Agent
 from geomind.engine import Context, Engine, Permissions
+from geomind.engine.recovery import recover
 from geomind.engine.store import MemoryRunStore
 from geomind.providers import FakeLLM
 from geomind.tools import tool
@@ -69,7 +70,7 @@ async def test_known_secrets_never_reach_the_store():
     result = await engine.run(Worker(), start)
     stored = "".join(event.model_dump_json() for event in engine.store.load_events(start.run_id))
     assert "sk-secret" not in stored and "[redacted]" in stored
-    assert "sk-secret" not in str(engine.store.load_checkpoint(start.run_id))
+    assert "sk-secret" not in str(recover(engine.store.load_events(start.run_id)))
     assert result.answer == "[redacted]"
 
 

@@ -12,7 +12,6 @@ from tests.fixtures.runs import call, run, says, uses
 def test_missing_values_read_as_empty():
     """Unknown ids are not errors."""
     store = MemoryRunStore()
-    assert store.load_checkpoint("x") is None
     assert store.load_history("x") == []
     assert store.load_state("x") is None
     assert store.load_artifact("x", "k") is None
@@ -23,9 +22,9 @@ def test_saved_values_are_copies():
     """Changing a value after saving changes nothing."""
     store = MemoryRunStore()
     value = {"a": [1]}
-    store.save_checkpoint("r", value)
+    store.save_state("r", value)
     value["a"].append(2)
-    assert store.load_checkpoint("r") == {"a": [1]}
+    assert store.load_state("r") == {"a": [1]}
 
 
 def test_history_keeps_its_order():
@@ -40,14 +39,12 @@ def test_file_store_layout(tmp_path):
     """Files land where the docs say."""
     store = FileRunStore(tmp_path)
     store.save_event("r", StepStarted(run_id="r", index=1))
-    store.save_checkpoint("r", {"a": 1})
     store.save_artifact("r", "k", b"x")
     store.add_message("c", Message(role="user", content="1"))
     store.save_state("c", {"s": 1})
     files = {path.relative_to(tmp_path).as_posix() for path in tmp_path.rglob("*.*")}
     assert files == {
         "r/events.jsonl",
-        "r/checkpoint.json",
         "r/artifacts/k.bin",
         "chats/c/history.jsonl",
         "chats/c/state.json",
@@ -61,7 +58,7 @@ def test_file_store_refuses_unsafe_names(tmp_path, name):
     with pytest.raises(RunError, match="expected letters"):
         store.save_artifact("r", name, b"x")
     with pytest.raises(RunError, match="expected letters"):
-        store.load_checkpoint(name)
+        store.load_state(name)
 
 
 async def test_large_tool_result_is_an_artifact_in_the_store(tmp_path):

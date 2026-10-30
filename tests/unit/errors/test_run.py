@@ -2,7 +2,7 @@
 
 import pytest
 
-from geomind.errors import CheckpointError, LoopError, ReplayError, RequestError, RunError
+from geomind.errors import LoopError, ReplayError, RequestError, RunError
 
 
 @pytest.mark.parametrize(
@@ -10,7 +10,6 @@ from geomind.errors import CheckpointError, LoopError, ReplayError, RequestError
     [
         (RunError, (RuntimeError,)),
         (RequestError, (ValueError,)),
-        (CheckpointError, (RuntimeError, ValueError)),
         (ReplayError, (RuntimeError,)),
         (LoopError, (RuntimeError,)),
     ],

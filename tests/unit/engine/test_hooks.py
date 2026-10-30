@@ -10,6 +10,7 @@ from geomind.engine.hooks import (
     TokenBudget,
     ask_hooks,
 )
+from geomind.engine.recovery import recover
 from geomind.types import Allow, Deny, Request
 from tests.fixtures.runs import (
     EXECUTED,
@@ -113,13 +114,13 @@ async def test_deny_of_the_finish_tool_is_its_result():
 
 @pytest.mark.parametrize("point", ["llm", "tool", "finish"])
 async def test_request_pauses_at_every_point(point):
-    """The run returns ``waiting`` and the event comes after the checkpoint is saved."""
+    """The run returns ``waiting``, and the log holds the pending action."""
     script = [uses(call("lookup", key="k")), says()]
     result, engine, events = await run(script, hooks=[Fixed(point, ASK)])
     assert (result.status, result.stop_reason) == ("waiting", "request")
     assert result.request.id.startswith("request-")
     assert of_type(events, "request")[0].point == point
-    assert engine.store.load_checkpoint(result.run_id)["pending"]["point"] == point
+    assert recover(events).pending.point == point
     assert "run.finished" not in types(events)
 
 

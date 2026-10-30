@@ -11,10 +11,6 @@ class RequestError(GeomindError, ValueError):
     """An unknown or already answered request id, or an answer of the wrong shape."""
 
 
-class CheckpointError(GeomindError, RuntimeError, ValueError):
-    """A checkpoint has a wrong version or shape."""
-
-
 class ReplayError(GeomindError, RuntimeError):
     """A replay differs from its recording; the message names the first differing step."""
 

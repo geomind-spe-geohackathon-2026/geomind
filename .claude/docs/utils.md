@@ -9,6 +9,7 @@ module; `geomind/utils/__init__.py` exports nothing.
 - `context.py`: `ContextSetting`, a context variable change usable as `with` and as a decorator.
 - `strings.py`: `snake_case`, `first_paragraph`, `join_path`, `join_names`, `did_you_mean`.
 - `time.py`: `utc_now`, `parse_duration`.
+- `imports.py`: `class_path`, `import_class`, the only import-by-string.
 - `json.py`: `to_jsonable`, `read_json`, `write_json` (atomic), `append_line`, `read_lines`.
 
 ## Adding a helper

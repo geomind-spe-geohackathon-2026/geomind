@@ -4,9 +4,10 @@
 is saved, and ``recover`` calls it on stored events, so the engine holds nothing the log does not.
 """
 
-from geomind.engine.checkpoint import Checkpoint, PendingAction
+from geomind.engine.state import PendingAction, RunState
 from geomind.errors import RunError
 from geomind.types import Action, Message, Usage
+from geomind.utils.imports import import_class
 from geomind.utils.json import to_jsonable
 
 
@@ -136,10 +137,6 @@ def _step_finished(state, event):
     state.results = {}
     state.allowed = []
     state.started = []
-
-
-def _checkpoint(state, event):
-    """Take the state of the loop."""
     state.loop_state = dict(event.loop_state)
 
 
@@ -160,7 +157,6 @@ _HANDLERS = {
     "permission": _permission,
     "request": _request,
     "step.finished": _step_finished,
-    "checkpoint": _checkpoint,
     "run.finished": _run_finished,
 }
 
@@ -170,26 +166,30 @@ def apply(state, event):
     handler = _HANDLERS.get(event.type)
     if handler is not None:
         handler(state, event)
-    state.created = event.time
-
-
-def catch_up(state, events):
-    """Apply the events after the snapshot; nested runs count for the sequence only."""
-    for event in events:
-        if event.sequence <= state.sequence:
-            continue
-        state.sequence = event.sequence
-        if event.run_id == state.run_id:
-            apply(state, event)
-    return state
 
 
 def recover(events, run_id=None):
-    """Return the state of a run from its events alone; by default, the root run."""
+    """Return the state of a run from its events; by default, the root run.
+
+    Nested runs share the log, so their events count for the sequence only.
+    """
     events = list(events)
     started = [event for event in events if event.type == "run.started"]
     if run_id is None and started:
         run_id = next((event.run_id for event in started if event.parent is None), None)
     if not any(event.run_id == run_id for event in started):
         raise RunError(f"recover: run = {run_id!r}; expected a log with its run.started")
-    return catch_up(Checkpoint(run_id=run_id), events)
+    state = RunState(run_id=run_id)
+    for event in events:
+        state.sequence = event.sequence
+        if event.run_id == run_id:
+            apply(state, event)
+    return state
+
+
+def agent_class(state):
+    """Return the class of the agent a run names."""
+    try:
+        return import_class(state.agent_class)
+    except ImportError as error:
+        raise RunError(f"recover: {error}") from error

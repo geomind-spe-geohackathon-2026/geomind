@@ -18,9 +18,9 @@ class ToolLoop(Loop):
         """Run the agent from the context ``task``."""
         return await engine.run(self.agent, task, max_steps=self.max_steps, loop=self)
 
-    async def resume(self, engine, checkpoint, request_id=None, answer=None):
+    async def resume(self, engine, run_id, request_id=None, answer=None):
         """Continue the agent of this loop."""
-        return await engine.resume(checkpoint, request_id, answer, agent=self.agent, loop=self)
+        return await engine.resume(run_id, request_id, answer, agent=self.agent, loop=self)
 
     def state_dict(self):
         """Return which agent this loop runs."""

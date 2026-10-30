@@ -33,16 +33,6 @@ def _check_event_order(store):
     _expect(store.load_events(MISSING) == [], "load_events of an unknown run must be empty")
 
 
-def _check_checkpoint(store):
-    """Check that a checkpoint round-trips, is replaced, and is ``None`` when missing."""
-    _expect(store.load_checkpoint(MISSING) is None, "a missing checkpoint must load as None")
-    first = {"version": 1, "messages": [{"role": "user", "content": "q"}], "step": 1}
-    store.save_checkpoint(RUN, first)
-    _expect(store.load_checkpoint(RUN) == first, "a checkpoint must round-trip as saved")
-    store.save_checkpoint(RUN, {"version": 1, "step": 2})
-    _expect(store.load_checkpoint(RUN)["step"] == 2, "a new checkpoint must replace the old one")
-
-
 def _check_history(store, seed_history):
     """Check that history is oldest first and an unknown chat has none."""
     _expect(store.load_history(MISSING) == [], "the history of an unknown chat must be empty")
@@ -84,7 +74,6 @@ def check_run_store(factory, seed_history=None):
     check its order.
     """
     _check_event_order(factory())
-    _check_checkpoint(factory())
     _check_history(factory(), seed_history)
     _check_state(factory())
     _check_artifacts(factory())

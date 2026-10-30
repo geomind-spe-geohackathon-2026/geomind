@@ -1,4 +1,4 @@
-"""One step: one agent call, the decision and dispatch of its tool calls, one checkpoint.
+"""One step: one agent call, then the decision and dispatch of its tool calls.
 
 A step is written over the log: each part looks at the state and does only what is not recorded
 yet. So a step continues from any point, after a pause or a crash, without a second LLM call.
@@ -233,11 +233,12 @@ async def _gate_answer(session, agent, answer, call):
 
 
 async def close_step(session):
-    """Log the end of the step, the running totals and a checkpoint."""
+    """Log the end of the step, with the state of the loop, and the running totals."""
     state = session.state
-    await session.emit(StepFinished, index=state.step, usage=state.step_usage)
+    await session.emit(
+        StepFinished, index=state.step, usage=state.step_usage, loop_state=session.loop_state()
+    )
     await session.emit(UsageUpdated, **state.usage.model_dump())
-    await session.snapshot()
 
 
 async def run_step(session, agent):

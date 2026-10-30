@@ -124,7 +124,10 @@ class ToolFinished(Event):
 
 
 class StepFinished(Event):
-    """A step finished; ``usage`` is the usage of this step."""
+    """A step finished; ``usage`` is the usage of this step.
+
+    ``loop_state`` is the state of the loop, stored but not streamed.
+    """
 
     type: ClassVar[str] = "step.finished"
     is_public: ClassVar[bool] = True
@@ -132,6 +135,7 @@ class StepFinished(Event):
 
     index: int
     usage: Usage
+    loop_state: dict[str, Any] = {}
 
 
 class StateChanged(Event):
@@ -293,15 +297,6 @@ class SandboxClosed(Event):
     is_lost: bool = False
 
 
-class CheckpointSaved(Event):
-    """A snapshot of the log up to this event; ``loop_state`` is the state of the loop."""
-
-    type: ClassVar[str] = "checkpoint"
-
-    index: int
-    loop_state: dict[str, Any] = {}
-
-
 class ErrorRaised(Event):
     """An error the run survived or ended with: a callback, a tool bug, a provider failure."""
 
@@ -331,7 +326,6 @@ EVENT_CLASSES = {
         Retried,
         SandboxProvisioned,
         SandboxClosed,
-        CheckpointSaved,
         ErrorRaised,
     )
 }

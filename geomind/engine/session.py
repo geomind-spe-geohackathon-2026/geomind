@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from time import perf_counter
 
 from geomind import runtime
-from geomind.engine.checkpoint import class_path
 from geomind.engine.context import Context
 from geomind.engine.hooks import ask_hooks
 from geomind.engine.recovery import apply
@@ -13,7 +12,6 @@ from geomind.errors import RunError, SandboxError
 from geomind.sandbox import Manifest
 from geomind.types import Allow, Cancel, Deny, Request
 from geomind.types.events import (
-    CheckpointSaved,
     ErrorRaised,
     LLMCompleted,
     PermissionDecided,
@@ -25,6 +23,7 @@ from geomind.types.events import (
     TextDelta,
 )
 from geomind.types.redaction import redact
+from geomind.utils.imports import class_path
 
 
 @dataclass
@@ -67,16 +66,14 @@ class RunSession:
         """Return what every event of this run carries."""
         return dict(run_id=self.state.run_id, agent=self.state.agent, parent=self.state.parent)
 
-    async def record(self, kind, **fields):
-        """Save one event, then apply it. Nothing acts on an event before it is saved."""
+    async def emit(self, kind, **fields):
+        """Save one event, apply it, then tell the callbacks.
+
+        Nothing acts on an event before it is saved.
+        """
         event = self.log.build(kind, **self.fields, **fields)
         await self.log.save(event)
         apply(self.state, event)
-        return event
-
-    async def emit(self, kind, **fields):
-        """Record one event and tell the callbacks."""
-        event = await self.record(kind, **fields)
         await self.log.notify(event)
         return event
 
@@ -215,14 +212,11 @@ class RunSession:
         return decision
 
     async def pause(self, request, point, call=None):
-        """Save the pending action, then tell the callbacks, so an answer finds the checkpoint."""
+        """Log the pending action, so an answer finds it, and stop."""
         updates = {"id": request.id or f"request-{self.log.sequence + 1}"}
         updates["call_id"] = call.id if call else None
         request = request.model_copy(update=updates)
-        event = await self.record(RequestMade, request=request, point=point, call=call)
-        checkpoint = await self._checkpoint()
-        await self.log.notify(event)
-        await self.log.notify(checkpoint)
+        await self.emit(RequestMade, request=request, point=point, call=call)
         return Stop("request", request=request)
 
     async def wait_for_child(self, request, call):
@@ -240,26 +234,7 @@ class RunSession:
             child=child,
             call=call,
         )
-        await self.snapshot()
         return Stop("request", request=request)
-
-    async def _checkpoint(self):
-        """Log a checkpoint and save the state up to it; return the event."""
-        event = await self.record(
-            CheckpointSaved, index=self.state.step, loop_state=self.loop_state()
-        )
-        await self.save_checkpoint()
-        return event
-
-    async def snapshot(self):
-        """Save a checkpoint and tell the callbacks."""
-        await self.log.notify(await self._checkpoint())
-
-    async def save_checkpoint(self):
-        """Save the state as it is."""
-        self.state.sequence = self.log.sequence
-        data = self.state.dump()
-        await asyncio.to_thread(self.store.save_checkpoint, self.state.run_id, data)
 
     async def save_artifact(self, key, data):
         """Save a large result, under the same rule for secrets as an event."""

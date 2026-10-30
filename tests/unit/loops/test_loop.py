@@ -3,7 +3,7 @@
 import pytest
 
 from geomind.engine import Engine, Permissions
-from geomind.engine.checkpoint import Checkpoint
+from geomind.engine.recovery import recover
 from geomind.loops import Loop
 from geomind.providers import FakeLLM
 from tests.fixtures.runs import Worker, call, context, says, uses
@@ -45,10 +45,24 @@ async def test_loop_state_is_saved_and_comes_back_in_another_process():
     start = context()
     loop = Counting()
     paused = await loop.run(engine, start)
-    saved = engine.store.load_checkpoint(start.run_id)
-    assert Checkpoint.load(saved).loop_state == {"round": 3}
-    assert saved["loop"] == "counting"
+    saved = recover(engine.store.load_events(start.run_id))
+    assert saved.loop_state == {"round": 3}
+    assert saved.loop == "counting"
 
     fresh = Counting()
-    final = await fresh.resume(engine, saved, paused.request.id, {"approved": True})
+    final = await fresh.resume(engine, start.run_id, paused.request.id, {"approved": True})
     assert final.answer == "end" and fresh.round == 3
+
+
+async def test_loop_state_follows_the_steps():
+    """A position that changes during a run is logged when its step ends."""
+
+    class Moving(Counting):
+        def state_dict(self):
+            self.round += 1
+            return super().state_dict()
+
+    engine = Engine(llm=FakeLLM([uses(call("lookup", key="k")), says("end")]))
+    start = context()
+    await Moving().run(engine, start)
+    assert recover(engine.store.load_events(start.run_id)).loop_state == {"round": 6}

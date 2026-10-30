@@ -1,7 +1,7 @@
 # Contracts
 
 How geomind implements the backend contract: [contracts.md](../../../docs/contracts.md), file
-version 6, sections 2 and 3, interface version 2.2. A change to the contract is a change to that file first, announced to all
+version 9, sections 2 and 3, interface version 2.3. A change to the contract is a change to that file first, announced to all
 repositories. `tests/unit/test_contract_map.py` checks that every code path below exists.
 
 ## Section 2: live run events
@@ -35,7 +35,7 @@ and to read one back `event_from_dict`.
 |---|---|---|
 | `LLM` | `geomind/providers/base.py` | `tests/unit/providers/test_base.py` |
 | `Completion`, `Usage`, `Message` | `geomind/types/messages.py` | `tests/unit/types/test_messages.py` |
-| `RunStore`, all nine methods, `load_events` included | `geomind/engine/store.py` | `tests/unit/testing/test_conformance.py` |
+| `RunStore`, all seven methods, `load_events` included | `geomind/engine/store.py` | `tests/unit/testing/test_conformance.py` |
 | `Workspace` | `geomind/engine/workspace.py` | `tests/unit/testing/test_conformance.py` |
 | `SandboxProvider`, `Sandbox` | `geomind/sandbox/base.py` | `tests/unit/sandbox/test_base.py` |
 | `gd.sandbox.LocalSandbox` | `geomind/sandbox/local.py` | `tests/unit/sandbox/test_local.py` |

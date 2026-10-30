@@ -1,4 +1,4 @@
-"""Where a run keeps its log, snapshots, chats and artifacts."""
+"""Where a run keeps its log, chats and artifacts."""
 
 import copy
 import re
@@ -18,12 +18,6 @@ class RunStore(Protocol):
 
     def save_event(self, run_id, event):
         """Append one event to a run's log."""
-
-    def save_checkpoint(self, run_id, checkpoint):
-        """Replace a run's checkpoint, a JSON-safe dictionary."""
-
-    def load_checkpoint(self, run_id):
-        """Return a run's checkpoint, or ``None``."""
 
     def load_history(self, chat_id):
         """Return the user and assistant messages of a chat, oldest first."""
@@ -50,7 +44,6 @@ class MemoryRunStore:
     def __init__(self):
         """Start empty."""
         self.events = {}
-        self.checkpoints = {}
         self.histories = {}
         self.states = {}
         self.artifacts = {}
@@ -62,14 +55,6 @@ class MemoryRunStore:
     def load_events(self, run_id):
         """Return a run's events in sequence order."""
         return list(self.events.get(run_id, ()))
-
-    def save_checkpoint(self, run_id, checkpoint):
-        """Replace a run's checkpoint."""
-        self.checkpoints[run_id] = copy.deepcopy(checkpoint)
-
-    def load_checkpoint(self, run_id):
-        """Return a run's checkpoint, or ``None``."""
-        return copy.deepcopy(self.checkpoints.get(run_id))
 
     def add_message(self, chat_id, message):
         """Append one message to a chat; the backend's own store fills history itself."""
@@ -106,7 +91,7 @@ def _safe(name):
 class FileRunStore:
     """Keep everything in files.
 
-    A run has ``<root>/<run id>/events.jsonl``, ``checkpoint.json`` and ``artifacts/``; a chat has
+    A run has ``<root>/<run id>/events.jsonl`` and ``artifacts/``; a chat has
     ``<root>/chats/<chat id>/history.jsonl`` and ``state.json``. Ids become path parts, so unsafe
     ones raise.
     """
@@ -130,15 +115,6 @@ class FileRunStore:
     def load_events(self, run_id):
         """Return a run's events in sequence order."""
         return [event_from_dict(line) for line in read_lines(self._run(run_id) / "events.jsonl")]
-
-    def save_checkpoint(self, run_id, checkpoint):
-        """Replace a run's checkpoint."""
-        write_json(self._run(run_id) / "checkpoint.json", checkpoint)
-
-    def load_checkpoint(self, run_id):
-        """Return a run's checkpoint, or ``None``."""
-        path = self._run(run_id) / "checkpoint.json"
-        return read_json(path) if path.exists() else None
 
     def add_message(self, chat_id, message):
         """Append one message to a chat; the backend's own store fills history itself."""

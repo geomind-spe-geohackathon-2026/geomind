@@ -31,8 +31,8 @@ so they are passed again when a run resumes in another process.
 
 ## Pausing
 
-A `Request` becomes a pause: the engine logs `request` with the pending action, saves a checkpoint,
-then tells the callbacks, so an answer always finds the checkpoint. It returns
+A `Request` becomes a pause: the engine logs `request` with the pending action before it tells the
+callbacks, so an answer always finds it. It returns
 `RunResult(status="waiting", request=...)`, and the process may exit. `Request.id` is filled in
 from the sequence number, so it is deterministic. An approved call is not asked again, and an
 approval applies to that call id only.

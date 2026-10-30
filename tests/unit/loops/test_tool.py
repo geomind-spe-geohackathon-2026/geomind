@@ -27,6 +27,6 @@ async def test_max_steps_is_passed_on():
 
 
 def test_state_of_another_agent_is_refused():
-    """A checkpoint fits one agent."""
+    """A logged state fits one agent."""
     with pytest.raises(LoopError, match="expected 'worker'"):
         ToolLoop(Worker()).load_state_dict({"agent": "other"})

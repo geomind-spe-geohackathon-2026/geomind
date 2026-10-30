@@ -37,9 +37,8 @@ async def paused(script, **options):
 
 
 async def resume(engine, result, answer):
-    """Answer the pending request from the stored checkpoint."""
-    checkpoint = engine.store.load_checkpoint(result.run_id)
-    return await engine.resume(checkpoint, result.request.id, answer)
+    """Answer the pending request."""
+    return await engine.resume(result.run_id, result.request.id, answer)
 
 
 async def test_approval_runs_the_stored_call_once():
@@ -182,29 +181,26 @@ async def test_a_reply_to_a_question_before_the_answer_is_a_message():
 async def test_unknown_request_id_raises():
     """A wrong id changes nothing."""
     engine, result = await paused([uses(call("save_note", text="x")), says()])
-    checkpoint = engine.store.load_checkpoint(result.run_id)
     with pytest.raises(RequestError, match="expected"):
-        await engine.resume(checkpoint, "other", {"approved": True})
+        await engine.resume(result.run_id, "other", {"approved": True})
 
 
 async def test_already_answered_request_raises():
-    """Answering twice is refused, even from the old checkpoint."""
+    """Answering twice is refused."""
     script = [uses(call("save_note", text="x")), says("end"), says("again")]
     engine, result = await paused(script)
-    checkpoint = engine.store.load_checkpoint(result.run_id)
-    await engine.resume(checkpoint, result.request.id, {"approved": True})
+    await engine.resume(result.run_id, result.request.id, {"approved": True})
     with pytest.raises(RunError, match="already ended"):
-        await engine.resume(checkpoint, result.request.id, {"approved": True})
+        await engine.resume(result.run_id, result.request.id, {"approved": True})
 
 
 async def test_answered_while_still_running_raises():
     """A second answer to a request settled in a run that goes on is refused."""
     script = [uses(call("save_note", "a", text="x")), uses(call("save_note", "b", text="y"))]
     engine, first = await paused(script)
-    old = engine.store.load_checkpoint(first.run_id)
-    await engine.resume(old, first.request.id, {"approved": True})
+    await engine.resume(first.run_id, first.request.id, {"approved": True})
     with pytest.raises(RequestError):
-        await engine.resume(old, first.request.id, {"approved": True})
+        await engine.resume(first.run_id, first.request.id, {"approved": True})
 
 
 async def test_wrong_answer_shape_raises():

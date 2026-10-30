@@ -104,7 +104,7 @@ async def test_aresume_for_async_callers():
 
 def test_load_of_an_unknown_run_raises(tmp_path):
     """Nothing is stored."""
-    with pytest.raises(RunError, match="nothing is stored"):
+    with pytest.raises(RunError, match="expected a log"):
         gd.Run.load("nope", llm=FakeLLM([]), store=gd.stores.FileRunStore(tmp_path))
 
 

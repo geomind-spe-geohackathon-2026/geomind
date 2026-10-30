@@ -6,7 +6,7 @@ comes next. It is finite: it never sleeps or schedules itself. Code is in `geomi
 ## Harness principles
 
 1. **The event log is the source of truth.** Every completion and tool result is saved before the
-   engine acts on it. A checkpoint is a snapshot of the log for speed. `apply(state, event)` in
+   engine acts on it, and it is the only run state. `apply(state, event)` in
    `recovery.py` is the only code that changes run state: the engine calls it as each event is
    saved, and `recover(events)` calls it on stored events, so the two cannot differ.
 2. **Side effects only in two places:** providers and `tools.dispatch`. The rest is deterministic
@@ -14,8 +14,8 @@ comes next. It is finite: it never sleeps or schedules itself. Code is in `geomi
 3. **Async core, sync facade.** Stores and workspaces stay sync and are called through
    `asyncio.to_thread`. `Run` is the sync facade.
 4. **Credentials stay in the harness.** Events pass `redact_event` with the known secrets of the
-   provider, so a key stays out of the log, the checkpoint and the callbacks.
-5. **Stable identifiers.** Tool names, event types, and the checkpoint and event-log versions
+   provider, so a key stays out of the log and the callbacks.
+5. **Stable identifiers.** Tool names, event types and the event-log version
    never change silently.
 
 ## API
@@ -26,14 +26,14 @@ run needs them. `llm` gets the retry layer, `store` defaults to `MemoryRunStore`
 to `Permissions(mode="ask")`.
 
 - `await run(agent, context, *, max_steps=None, loop=None) -> RunResult`
-- `await resume(checkpoint, request_id=None, answer=None, *, agent=None, loop=None) -> RunResult`
+- `await resume(run_id, request_id=None, answer=None, *, agent=None, loop=None) -> RunResult`
 - `await Engine.replay(store, run_id) -> RunResult`
 - `register_hook(hook)` returns a handle with `.remove()`; `hooks()` lists them.
 
 ## One step
 
 `step.py`: one agent call (its completion logged), the decision and dispatch of its tool calls
-(each result logged), then `step.finished`, `usage` and a checkpoint. A step is written over the
+(each result logged), then `step.finished` and `usage`. A step is written over the
 log: each part looks at the state and does only what is not recorded yet, so a step continues from
 any point, after a pause or a crash, without a second LLM call.
 
@@ -84,20 +84,20 @@ See [hooks.md](hooks.md), [permissions.md](permissions.md), [events.md](events.m
 ## Loops
 
 
-`Loop` has `async run(engine, task)`, `resume(engine, checkpoint, request_id, answer)`,
-`state_dict()` and `load_state_dict(state)`. The state of a loop is saved in the `checkpoint` event
-and the run checkpoint, so a pause inside a loop resumes at the same place in another process.
+`Loop` has `async run(engine, task)`, `resume(engine, run_id, request_id, answer)`,
+`state_dict()` and `load_state_dict(state)`. The state of a loop is logged on `run.started` and in
+an internal `loop_state` field of `step.finished`, so a pause inside a loop resumes at the same
+place in another process.
 Loops are written as resumable steps, never with state held only in local variables.
 `ToolLoop(agent, max_steps=None)` is one engine run of one agent.
 
 ## Recovery and resume
 
-`recover(events, run_id=None)` folds a log through `apply`, and `catch_up(state, events)` applies
-what came after a snapshot. A checkpoint (version 1, `checkpoint.py`) is that same state as JSON,
-saved after every step, before a pause and at the end; a wrong version or shape raises
-`CheckpointError`.
+`recover(events, run_id=None)` folds a log through `apply` into a `RunState` (`engine/state.py`).
+`Run.load`, `Engine.resume`, `Engine.replay` and crash recovery all read `store.load_events(run_id)`
+and nothing else.
 
-`Engine.resume(checkpoint, request_id, answer)` first catches up with the log. An unknown or already answered request raises `RequestError`, and a run that ended
+`Engine.resume(run_id, request_id, answer)` rebuilds the state from the log. An unknown or already answered request raises `RequestError`, and a run that ended
 raises `RunError`. Approval runs the stored call without asking again; denial becomes the tool
 result; a reply to `ask_user` becomes its result. Without a request, it continues a run whose
 process died: the recorded completion is reused, and a started tool without a result runs again
@@ -110,8 +110,7 @@ ended.
 ## Nested runs
 
 `Delegate` runs an agent through `session.delegate` in a child session sharing the root's
-`RunLog`: same store key, same sequence, its own `run_id`, `parent` set, its own checkpoint under
-its own run id. A pause in the child logs `request` once; the parent logs a `permission` event with
+`RunLog`: same store key, same sequence, its own `run_id`, and `parent` set. A pause in the child logs `request` once; the parent logs a `permission` event with
 decision `wait` and pauses on the same request id, and an answer to the parent passes down.
 
 ## Replay
@@ -125,9 +124,9 @@ first differing step.
 
 ## Stores and workspaces
 
-`RunStore` is the nine-method protocol of the contract, `load_events` included. `MemoryRunStore`
+`RunStore` is the seven-method protocol of the contract, `load_events` included. `MemoryRunStore`
 and `FileRunStore(root=".runs")` add `add_message(chat_id, message)`.
-`FileRunStore` writes `<root>/<run id>/events.jsonl`, `checkpoint.json` and `artifacts/`, and
+`FileRunStore` writes `<root>/<run id>/events.jsonl` and `artifacts/`, and
 `<root>/chats/<chat id>/history.jsonl` and `state.json`. Unsafe ids raise `RunError`.
 
 `Workspace` has `plant(project_id)` and `documents(project_id, query)`. `MemoryWorkspace(plants,

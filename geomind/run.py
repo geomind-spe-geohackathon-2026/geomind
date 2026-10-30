@@ -4,10 +4,9 @@ import asyncio
 
 from geomind.agents import Assistant, CodeAssistant
 from geomind.engine import Context, Engine, Permissions
-from geomind.engine.checkpoint import Checkpoint, import_class
 from geomind.engine.context import new_run_id
 from geomind.engine.hooks import Cancellation
-from geomind.engine.recovery import recover
+from geomind.engine.recovery import agent_class, recover
 from geomind.engine.store import MemoryRunStore
 from geomind.errors import RunError
 from geomind.loops import ToolLoop
@@ -23,17 +22,6 @@ def _sync(coroutine):
         return asyncio.run(coroutine)
     coroutine.close()
     raise RunError("Run: called inside an event loop; expected astart() or aresume()")
-
-
-def _load_state(store, run_id):
-    """Return the latest state of a run: from its log, else from its checkpoint."""
-    events = store.load_events(run_id)
-    if events:
-        return recover(events, run_id)
-    data = store.load_checkpoint(run_id)
-    if data is None:
-        raise RunError(f"Run: run = {run_id!r}; nothing is stored for it")
-    return Checkpoint.load(data)
 
 
 class Run:
@@ -101,10 +89,10 @@ class Run:
             hooks=hooks,
         )
         run.id = run_id
-        state = _load_state(run.store, run_id)
+        state = recover(run.store.load_events(run_id), run_id)
         run.chat = state.chat
         run.project = state.project
-        run.loop = ToolLoop(import_class(state.agent_class)())
+        run.loop = ToolLoop(agent_class(state)())
         return run
 
     async def astart(self):
@@ -117,8 +105,7 @@ class Run:
 
     async def aresume(self, request_id=None, answer=None):
         """Answer the pending request, or continue a run whose process died."""
-        state = _load_state(self.store, self.id)
-        return await self.loop.resume(self.engine, state, request_id, answer)
+        return await self.loop.resume(self.engine, self.id, request_id, answer)
 
     def start(self):
         """Run until the answer or a pause; sync form of ``astart``."""
