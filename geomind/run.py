@@ -3,6 +3,7 @@
 import asyncio
 
 from geomind.agents import Assistant, CodeAssistant
+from geomind.context import ProblemState
 from geomind.engine import Context, Engine, Permissions
 from geomind.engine.context import new_run_id
 from geomind.engine.hooks import Cancellation
@@ -100,8 +101,14 @@ class Run:
         if self.message is None:
             raise RunError("Run: message = None; expected a message to start with")
         messages = [*self.history, Message(role="user", content=self.message)]
-        context = Context(self.id, messages, chat=self.chat, project=self.project)
+        problem = await asyncio.to_thread(self._load_problem)
+        context = Context(self.id, messages, chat=self.chat, project=self.project, problem=problem)
         return await self.loop.run(self.engine, context)
+
+    def _load_problem(self):
+        """Return the problem state of the chat; a run without one starts empty."""
+        stored = self.store.load_state(self.chat) if self.chat is not None else None
+        return ProblemState() if stored is None else ProblemState.model_validate(stored)
 
     async def aresume(self, request_id=None, answer=None):
         """Answer the pending request, or continue a run whose process died."""

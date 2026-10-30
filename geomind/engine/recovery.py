@@ -4,6 +4,7 @@
 is saved, and ``recover`` calls it on stored events, so the engine holds nothing the log does not.
 """
 
+from geomind.context import ProblemState, apply_changes
 from geomind.engine.state import PendingAction, RunState
 from geomind.errors import RunError
 from geomind.types import Action, Message, Usage
@@ -26,6 +27,7 @@ def _run_started(state, event):
     state.max_steps = event.max_steps
     state.settings = dict(event.settings)
     state.messages = list(event.messages)
+    state.problem = ProblemState.model_validate(event.problem)
 
 
 def _step_started(state, event):
@@ -129,6 +131,11 @@ def _request(state, event):
     state.pending = PendingAction(request=event.request, point=event.point, call=event.call)
 
 
+def _state_changed(state, event):
+    """Apply one change of the problem state."""
+    state.problem = apply_changes(state.problem, event.changes)
+
+
 def _step_finished(state, event):
     """Close the step."""
     state.in_step = False
@@ -156,6 +163,7 @@ _HANDLERS = {
     "tool.result": _tool_result,
     "permission": _permission,
     "request": _request,
+    "state.changed": _state_changed,
     "step.finished": _step_finished,
     "run.finished": _run_finished,
 }
@@ -171,7 +179,8 @@ def apply(state, event):
 def recover(events, run_id=None):
     """Return the state of a run from its events; by default, the root run.
 
-    Nested runs share the log, so their events count for the sequence only.
+    Nested runs share the log, so their events count for the sequence only, and for the problem
+    state, which the whole tree of runs shares from the moment this run began.
     """
     events = list(events)
     started = [event for event in events if event.type == "run.started"]
@@ -182,7 +191,8 @@ def recover(events, run_id=None):
     state = RunState(run_id=run_id)
     for event in events:
         state.sequence = event.sequence
-        if event.run_id == run_id:
+        is_shared = event.type == "state.changed" and state.root != ""
+        if event.run_id == run_id or is_shared:
             apply(state, event)
     return state
 

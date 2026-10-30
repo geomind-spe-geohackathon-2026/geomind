@@ -18,7 +18,10 @@ async def run_child(session, agent, task):
     """Run ``agent`` as a nested run with a clean context: the task text only."""
     state = session.state
     context = Context(
-        messages=[Message(role="user", content=task)], chat=state.chat, project=state.project
+        messages=[Message(role="user", content=task)],
+        chat=state.chat,
+        project=state.project,
+        problem=state.problem,
     )
     child = session.spawn(RunState(root=state.root), agent)
     await child.start(

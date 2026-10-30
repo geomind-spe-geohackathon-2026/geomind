@@ -126,6 +126,7 @@ class Engine:
             message=stop.message,
             answer=stop.answer,
         )
+        await session.save_problem()
         return run_result(session, stop)
 
     async def resume(self, run_id, request_id=None, answer=None, *, agent=None, loop=None):

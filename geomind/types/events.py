@@ -59,6 +59,7 @@ class RunStarted(Event):
     project: str | None = None
     parent_step: int | None = None
     messages: tuple[Message, ...] = ()
+    problem: dict[str, Any] = {}
     settings: dict[str, Any] = {}
     loop_state: dict[str, Any] = {}
 
@@ -140,7 +141,7 @@ class StepFinished(Event):
 
 
 class StateChanged(Event):
-    """The problem state changed; emitted from S2.
+    """The problem state changed.
 
     ``version`` is the state version after the change, starting at 1. ``changes`` are JSON Patch
     operations in the subset of ``patch.py``.

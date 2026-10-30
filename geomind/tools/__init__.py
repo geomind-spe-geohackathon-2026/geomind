@@ -8,6 +8,7 @@ from geomind.tools.builtins import ask_user, finish
 from geomind.tools.code import read_file, run_python, write_file
 from geomind.tools.delegate import Delegate
 from geomind.tools.dispatch import dispatch
+from geomind.tools.state import update_state
 
 __all__ = [
     "EFFECTS",
@@ -19,5 +20,6 @@ __all__ = [
     "read_file",
     "run_python",
     "tool",
+    "update_state",
     "write_file",
 ]

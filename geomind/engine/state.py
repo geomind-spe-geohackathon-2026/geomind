@@ -3,6 +3,7 @@
 from dataclasses import dataclass, field
 from typing import Any
 
+from geomind.context import ProblemState
 from geomind.types import Action, Cancel, Message, Record, Request, ToolCall, Usage
 
 
@@ -38,7 +39,8 @@ class RunState:
     rebuild from the log are equal by construction. ``action``, ``calls``, ``results``, ``allowed``
     and ``started`` describe the open step, so a run continues inside a step without repeating what
     the log already holds. ``allowed`` holds approved call ids, and ``llm`` or ``finish`` for an
-    approved pause at those points. ``is_refused`` says the answer of this step went back to the
+    approved pause at those points. ``problem`` is the problem state, shared by the whole tree of
+    runs. ``is_refused`` says the answer of this step went back to the
     model, so the step closes instead of proposing it again. ``sequence`` is the last number of the
     whole log, nested runs included.
     """
@@ -56,6 +58,7 @@ class RunState:
     max_steps: int = 0
     settings: dict[str, Any] = field(default_factory=dict)
     messages: list[Message] = field(default_factory=list)
+    problem: ProblemState = field(default_factory=ProblemState)
     step: int = 0
     in_step: bool = False
     action: Action | None = None

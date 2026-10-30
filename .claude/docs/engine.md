@@ -60,11 +60,11 @@ process is a `BaseException`, is not caught, and can be recovered.
 
 ## Context
 
-`Context(run_id=None, messages=(), *, chat=None, project=None, steps_left=None)`.
+`Context(run_id=None, messages=(), *, chat=None, project=None, steps_left=None, problem=None)`.
 `messages_for(agent)` renders a stable prefix (system prompt; tool schemas travel beside the
 messages), then the history, then the dynamic part last, so prompt caching works. The dynamic part
-is a system message with the steps left; S2 adds the problem state. It is never stored in the
-history.
+is the steps left and then the [problem state](context.md), the very last part of every call. It is
+never stored in the history.
 
 ## Callbacks
 

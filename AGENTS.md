@@ -21,6 +21,7 @@ Read every file in `.claude/docs/` before changing the repository:
   implicit mechanisms.
 - [Contracts](.claude/docs/contracts.md): how geomind implements the backend contract.
 - [Agents](.claude/docs/agents.md): `Agent`, `Prompt`, `Output`, `Model` and declarations.
+- [Context](.claude/docs/context.md): the problem state, long conversations and skills.
 - [Engine](.claude/docs/engine.md): steps, the log, recovery, resume and replay.
 - [Events](.claude/docs/events.md): every event type, public or internal, with its JSON.
 - [Tools](.claude/docs/tools.md): `Tool`, `@tool`, dispatch, built-ins, code tools and `Delegate`.
@@ -63,6 +64,7 @@ geomind/
 ├── stores/           # RunStore, Workspace and their memory and file implementations
 ├── runtime.py        # context-local settings
 ├── prompts/          # <role>.md files and Prompt
+├── context/          # problem state, compaction, skills: the deterministic part
 ├── providers/        # LLM protocol, retry layer, OpenRouter, FakeLLM
 ├── sandbox/          # Sandbox and SandboxProvider protocols, Manifest, local, docker
 ├── tools/            # Tool, tool decorator, dispatch, built-ins, code tools, Delegate

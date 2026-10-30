@@ -20,11 +20,14 @@ path below exists.
 | Answers to options | `geomind/types/decisions.py` | `tests/unit/types/test_decisions.py` |
 | `state.changed` as `{version, changes}` | `geomind/types/events.py` | `tests/unit/types/test_events.py` |
 | The JSON Patch subset | `geomind/types/patch.py` | `tests/unit/types/test_patch.py` |
+| Patches applied, addressed by id, `version` + 1 | `geomind/context/state.py` | `tests/unit/context/test_state.py` |
+| `step.finished.text`, `text.delta` not stored | `geomind/engine/session.py` | `tests/unit/engine/test_log.py` |
+| `state.changed` emitted by `update_state` | `geomind/engine/session.py` | `tests/integration/test_problem_state.py` |
 | `Callback.on_event`, the one method of a publisher | `geomind/engine/callbacks.py` | `tests/unit/engine/test_callbacks.py` |
 | Every event but `text.delta` through `RunStore.save_event` | `geomind/engine/session.py` | `tests/unit/engine/test_log.py` |
 | Public events reach a publisher | `geomind/engine/callbacks.py` | `tests/integration/test_delegate.py` |
 
-`state.changed` exists with its JSON and validation, and is emitted from S2. Events that S1 stored
+Events that S1 stored
 have no `model` on `step.started`; that key is left out of their JSON. A backend publisher overrides
 `Callback.on_event` and forwards `event.type` and `event.data()` when `event.is_public`.
 `examples/backend/general/01_queue_and_resume.py` shows it. To store an event use `event.to_dict()`,
@@ -52,6 +55,7 @@ and to read one back `event_from_dict`.
 | The shapes of `answer` | `geomind/types/decisions.py` | `tests/unit/types/test_decisions.py` |
 | `resume()` of a dead run | `geomind/engine/recovery.py` | `tests/integration/test_recovery.py` |
 | Resume in another process | `geomind/run.py` | `tests/e2e/test_process_restart.py` |
+| `load_state` at start, `save_state` at the end | `geomind/run.py` | `tests/integration/test_problem_state.py` |
 
 ## Section 1: the parts geomind builds
 

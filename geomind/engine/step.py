@@ -121,7 +121,7 @@ async def _execute(session, agent, tool, call):
             ToolStarted, index=session.state.step, call_id=call.id, tool=call.name, input=call.input
         )
     recorded = session.engine.recorded.get(call.id)
-    if recorded is not None and not (tool.is_pure and recorded.source == "tool"):
+    if recorded is not None and not (tool.replays and recorded.source == "tool"):
         await _reuse(session, call, recorded)
         return _over_retries(session, tool)
     outcome = await dispatch(tool, call, session.context())

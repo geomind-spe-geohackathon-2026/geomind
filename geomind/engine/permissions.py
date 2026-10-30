@@ -7,6 +7,7 @@ from geomind.utils.strings import did_you_mean, join_names
 
 MODES = ("auto", "ask", "readonly", "plan")
 PLAN_FEEDBACK = "plan mode: describe what you would do"
+DEFAULT_ALLOW = ("update_state",)
 
 
 def _check_rule(rule):
@@ -34,6 +35,8 @@ class Permissions:
     NOTE: allow rules come before the mode because the mode decides every remaining call, so an
     allow rule after it could never apply. NOTE: ``readonly`` and ``plan`` are checked before ask
     rules, because otherwise an approval could run a tool those modes promise never to run.
+    NOTE: ``update_state`` is allowed by default, after ask rules, because it only touches the
+    run's own notes and an approval for each note would make ``ask`` unusable.
     """
 
     def __init__(self, mode="ask", allow=(), ask=(), deny=()):
@@ -69,7 +72,7 @@ class Permissions:
         rule = _matching((*self.ask, *ask), tool)
         if rule is not None:
             return self._approval(tool), f"ask:{rule}"
-        rule = _matching(self.allow, tool)
+        rule = _matching((*self.allow, *DEFAULT_ALLOW), tool)
         if rule is not None:
             return Allow(), f"allow:{rule}"
         if self.mode == "ask" and tool.effect not in ("read", "compute"):

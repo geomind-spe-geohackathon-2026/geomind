@@ -1,6 +1,7 @@
 """Rerun a stored run offline and check that it behaves the same."""
 
 from geomind import runtime
+from geomind.context import ProblemState
 from geomind.engine.context import Context
 from geomind.engine.hooks import Hook
 from geomind.engine.permissions import Permissions
@@ -103,7 +104,12 @@ async def replay_run(engine_class, store, run_id):
         store=MemoryRunStore(),
     )
     engine.recorded = {event.call_id: event for event in _results(events)}
-    context = Context(messages=list(started.messages), chat=started.chat, project=started.project)
+    context = Context(
+        messages=list(started.messages),
+        chat=started.chat,
+        project=started.project,
+        problem=ProblemState.model_validate(started.problem),
+    )
     with runtime.settings(**started.settings):
         agent = agent_class(started)()
         result = await engine.run(agent, context, max_steps=started.max_steps)

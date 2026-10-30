@@ -18,7 +18,8 @@ schema comes from the signature through Pydantic and the description from the do
 | `external` | network or anything outside the run | after approval |
 
 `idempotent` says a call may run again after a crash. `is_pure` (`read` or `compute`) says a call
-may run beside others and again in a replay. `Tool` is shaped like a protocol, so toolsets from
+may run beside others and again in a replay. `reruns_in_replay` says a tool that is not pure runs
+again in a replay too, because all it changes is the run's own log. `Tool` is shaped like a protocol, so toolsets from
 other sources (MCP later) fit: without `input_model`, only the required and known names of
 `input_schema` are checked. An agent names a tool by its attribute, on its own copy.
 
@@ -52,6 +53,12 @@ functions.
 - `finish(answer)` ends the run, after `before_finish` hooks and output validation.
 
 Both have effect `read`, so `ask` mode lets them through; `plan` mode runs neither.
+
+## Problem state
+
+`update_state(changes)` (`write`, not idempotent) applies JSON Patch operations to the problem state
+and emits `state.changed`; see [context.md](context.md). An invalid patch is an error result that
+says how to fix it. The default rule of [permissions.md](permissions.md) allows it in `ask` mode.
 
 ## Code tools
 

@@ -15,7 +15,8 @@ Every tool call is decided in this fixed order:
    do"; `readonly` denies all but `read` and `compute`.
 4. Ask rules, always a `Request` of kind `approval`. `RequireApproval(tools)` adds to these.
 5. Allow rules: an allow rule lets a `write`, `execute` or `external` tool run without asking in
-   `ask` mode.
+   `ask` mode. `update_state` has such a rule by default, because it only touches the run's own
+   notes; a deny or ask rule still wins, and `readonly` and `plan` still refuse it.
 6. The rest of the mode: `auto` allows all; `ask` asks for `write`, `execute` and `external`.
 
 Allow rules come before the mode because the mode decides every remaining call, so an allow rule

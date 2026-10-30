@@ -8,8 +8,8 @@ sentence in the docstring of the function, class or test that makes it.
 
 A package may import only the packages to its left:
 
-`geomind.utils`, `geomind.errors` ← `types` ← `stores` ← `runtime` ← `prompts` ← `providers`
-← `sandbox` ← `tools` ← `agents` ← `engine` ← `loops` ← `run` ← `testing`
+`geomind.utils`, `geomind.errors` ← `types` ← `stores` ← `runtime` ← `prompts` ← `context`
+← `providers` ← `sandbox` ← `tools` ← `agents` ← `engine` ← `loops` ← `run` ← `testing`
 ← `cli` ← `geomind/__init__`.
 
 `tests/unit/test_package_boundaries.py` enforces this order.
@@ -30,7 +30,8 @@ A package may import only the packages to its left:
 The folder `types` shares its name with the standard library module. This is safe because every
 import is absolute (`geomind.types`); never put the package folder itself on `sys.path`.
 
-`context/` (problem state, compaction) arrives in S2 and `verify/` in S3.
+`context/` holds what is deterministic about the problem state, compaction and skills; an LLM call
+or an event stays in the engine. `verify/` arrives in S3.
 
 The import alias is `gd` (`import geomind as gd`), not `gm`, which is gemini's.
 

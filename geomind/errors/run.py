@@ -11,6 +11,10 @@ class RequestError(GeomindError, ValueError):
     """An unknown or already answered request id, or an answer of the wrong shape."""
 
 
+class StateError(GeomindError, ValueError):
+    """A change of the problem state is invalid; the message tells the model how to fix it."""
+
+
 class ReplayError(GeomindError, RuntimeError):
     """A replay differs from its recording; the message names the first differing step."""
 

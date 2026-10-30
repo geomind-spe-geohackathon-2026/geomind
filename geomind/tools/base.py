@@ -25,9 +25,10 @@ class Tool:
     code) or ``external`` (network or anything outside the run). ``idempotent`` says a call may run
     again after a crash. A function whose first parameter is ``context`` receives the run's context;
     the schema never shows it, and other tools stay plain functions. ``runs_alone`` keeps a pure
-    tool out of concurrent dispatch, for tools the engine itself handles. ``input_model`` validates
-    the input fully; without one, as for a toolset from another source, only the required and known
-    names of ``input_schema`` are checked.
+    tool out of concurrent dispatch, for tools the engine itself handles. ``reruns_in_replay`` says
+    a tool that is not pure runs again in a replay, because all it changes is the run's own log.
+    ``input_model`` validates the input fully; without one, as for a toolset from another source,
+    only the required and known names of ``input_schema`` are checked.
     NOTE: the class is shaped like a protocol, so tools from other sources fit without changes.
     """
 
@@ -44,6 +45,7 @@ class Tool:
         max_retries=2,
         input_model=None,
         runs_alone=False,
+        reruns_in_replay=False,
     ):
         """Store the definition; an unknown effect raises."""
         if effect not in EFFECTS:
@@ -63,11 +65,17 @@ class Tool:
         self.max_retries = max_retries
         self.input_model = input_model
         self.runs_alone = runs_alone
+        self.reruns_in_replay = reruns_in_replay
 
     @property
     def is_pure(self):
         """Tell whether a call may run beside others and again in a replay."""
         return self.effect in PURE_EFFECTS
+
+    @property
+    def replays(self):
+        """Tell whether a replay runs this tool again instead of reusing its recorded result."""
+        return self.is_pure or self.reruns_in_replay
 
     def schema(self):
         """Return what a provider needs to offer this tool."""
@@ -115,7 +123,15 @@ def _input_model(function):
     return create_model(f"{function.__name__}_input", __config__=config, **fields)
 
 
-def tool(*, effect, idempotent=True, timeout=None, max_retries=2, runs_alone=False):
+def tool(
+    *,
+    effect,
+    idempotent=True,
+    timeout=None,
+    max_retries=2,
+    runs_alone=False,
+    reruns_in_replay=False,
+):
     """Return a decorator that builds a ``Tool`` from a typed function.
 
     The schema comes from the signature through Pydantic, the description from the docstring.
@@ -136,6 +152,7 @@ def tool(*, effect, idempotent=True, timeout=None, max_retries=2, runs_alone=Fal
             max_retries=max_retries,
             input_model=model,
             runs_alone=runs_alone,
+            reruns_in_replay=reruns_in_replay,
         )
 
     return build

@@ -25,7 +25,7 @@ the whole tree. `event.to_dict()` holds every field and `event_from_dict` rebuil
 | `tool.started` | `ToolStarted` | `{index, call_id, tool, input}` |
 | `tool.finished` | `ToolFinished` | `{index, call_id, output_summary, duration, error?}` |
 | `step.finished` | `StepFinished` | `{index, usage, text}`; `text` is the step's full assistant text, `""` if none |
-| `state.changed` | `StateChanged` | `{version, changes}`; emitted from S2 |
+| `state.changed` | `StateChanged` | `{version, changes}` |
 | `request` | `RequestMade` | `{request, call_id?, kind, message, options?}` |
 | `usage` | `UsageUpdated` | `{input_tokens, output_tokens, cost}`, running totals |
 | `run.finished` | `RunFinished` | `{status, stop_reason, message?}` |
@@ -42,7 +42,7 @@ an `id` are addressed by id, and `-` ends the path of an `add` that appends an i
 `StepFinished` also stores `loop_state`, the state of the loop.
 
 `RunStarted` also stores what rebuilds the run: `root`, `agent_class`, `max_steps`, `chat`,
-`project`, `parent_step`, `messages`, `settings` and `loop_state`. `RequestMade` also stores the
+`project`, `parent_step`, `messages`, `problem`, `settings` and `loop_state`. `RequestMade` also stores the
 pending action: `point` (`tool`, `llm` or `finish`) and `call`. `RunFinished` also stores `answer`.
 
 ## Internal events

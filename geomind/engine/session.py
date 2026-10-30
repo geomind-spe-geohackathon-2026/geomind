@@ -4,6 +4,7 @@ import asyncio
 from time import perf_counter
 
 from geomind import runtime
+from geomind.context import apply_changes
 from geomind.engine.context import Context
 from geomind.engine.delegation import run_child
 from geomind.engine.hooks import ask_hooks
@@ -21,6 +22,7 @@ from geomind.types.events import (
     RunStarted,
     SandboxClosed,
     SandboxProvisioned,
+    StateChanged,
     TextDelta,
 )
 from geomind.types.redaction import redact
@@ -30,13 +32,14 @@ from geomind.utils.imports import class_path
 class RunSession:
     """The state of one run with its log, and the only way to change that state."""
 
-    def __init__(self, engine, log, state, agent, loop=None):
+    def __init__(self, engine, log, state, agent, loop=None, parent=None):
         """Join a run: ``state`` is empty for a new run and recovered for a resumed one."""
         self.engine = engine
         self.log = log
         self.state = state
         self.agent = agent
         self.loop = loop
+        self.parent = parent
         self.waiting_child = None
         self.child_usage = None
         self._sandbox = None
@@ -84,6 +87,7 @@ class RunSession:
             project=context.project,
             parent_step=parent_step,
             messages=tuple(context.messages),
+            problem=context.problem.model_dump(mode="json"),
             settings=runtime.state(),
             loop_state=self.loop_state(),
         )
@@ -101,6 +105,7 @@ class RunSession:
             chat=state.chat,
             project=state.project,
             steps_left=state.max_steps - state.step,
+            problem=state.problem,
             session=self,
         )
 
@@ -232,6 +237,27 @@ class RunSession:
         )
         return Stop("request", request=request)
 
+    async def change_state(self, changes):
+        """Log a change of the problem state and return its version.
+
+        An invalid change raises before anything is logged. NOTE: the whole tree of runs shares one
+        problem state, so a change in a nested run also reaches the runs above it.
+        """
+        version = apply_changes(self.state.problem, changes).version
+        event = await self.emit(StateChanged, version=version, changes=tuple(changes))
+        session = self.parent
+        while session is not None:
+            apply(session.state, event)
+            session = session.parent
+        return version
+
+    async def save_problem(self):
+        """Keep the problem state for the next message of the chat, when a root run ends."""
+        state = self.state
+        if state.parent is None and state.chat is not None:
+            data = state.problem.model_dump(mode="json")
+            await asyncio.to_thread(self.store.save_state, state.chat, data)
+
     async def save_artifact(self, key, data):
         """Save a large result, under the same rule for secrets as an event."""
         clean = redact(data, self.log.secrets)
@@ -272,7 +298,7 @@ class RunSession:
 
     def spawn(self, state, agent):
         """Return the session of a nested run on the same log."""
-        return RunSession(self.engine, self.log, state, agent)
+        return RunSession(self.engine, self.log, state, agent, parent=self)
 
     async def delegate(self, agent, task):
         """Run a nested agent and keep what the parent needs of its result."""
