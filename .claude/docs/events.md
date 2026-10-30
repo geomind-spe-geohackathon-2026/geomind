@@ -48,14 +48,19 @@ Stored and used by recovery, replay and the log; never streamed. `data()` holds 
 | `error` | `ErrorRaised` | `error_class`, `message`, `where` |
 
 `tool.result` with `call_id` `null` is feedback to the model about its final answer, shown as a
-user message: `feedback` is `output` (failed validation) or `finish` (refused by a hook). Its
-`source` is `tool`, `denied`, `answer` or `interrupted`. A `permission` decision is `allow`, `deny`,
+user message: `feedback` is `output` (failed validation) or `finish` (refused by a hook). With
+`is_finish` it is the accepted answer instead, and `call_id` tells a `finish` call from a plain
+answer. Its `source` is `tool`, `denied`, `answer` or `interrupted`. A `permission` decision is `allow`, `deny`,
 `ask`, `answer` (a user settled a request) or `wait` (a nested run paused, and this run waits on the
 same request).
 
 `error` is an addition to the internal list of the contract: `on_error` callbacks need an event
 object, and a survived error belongs in the log. See
 [contracts.md](contracts.md#proposed-changes).
+
+Text is redacted as one stream: the last characters of `text.delta` wait for the next piece, as
+many as a known secret could still need. Without known secrets nothing waits. Artifacts pass the
+same redaction as events.
 
 ## Run log
 

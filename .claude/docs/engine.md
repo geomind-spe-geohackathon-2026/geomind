@@ -52,7 +52,11 @@ A run stops on exactly one reason, in `RunResult.stop_reason`:
 | `denied` | `failed` | a hook denied an LLM call, or the user denied one |
 | `step_limit` | `failed` | `max_steps` reached |
 | `cancelled` | `cancelled` | `Cancellation` or `run.cancel()` |
-| `error` | `failed` | a provider failed, a tool was called wrongly too often, or the output never fit |
+| `error` | `failed` | a provider failed, a tool was called wrongly too often, the output never fit, or any other exception |
+
+Any `Exception` ends the run with `error`, with its class and message in an `error` event, because
+a provider made by the backend raises its own errors and a client must see the run end. A dying
+process is a `BaseException`, is not caught, and can be recovered.
 
 ## Context
 
@@ -98,7 +102,11 @@ saved after every step, before a pause and at the end; a wrong version or shape 
 raises `RunError`. Approval runs the stored call without asking again; denial becomes the tool
 result; a reply to `ask_user` becomes its result. Without a request, it continues a run whose
 process died: the recorded completion is reused, and a started tool without a result runs again
-only when `idempotent`; otherwise it becomes an error result for the model.
+only when `idempotent`; otherwise it becomes an error result for the model. An accepted answer is
+logged before the run ends, so a crash after it repeats no LLM call. A nested run left open by a
+crash ends with `error`, and its usage goes to the parent. If the crash came after the answer of a
+nested request reached the child, `resume()` continues the child, or takes its outcome when it
+ended.
 
 ## Nested runs
 

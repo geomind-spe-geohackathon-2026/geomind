@@ -10,14 +10,14 @@ from swarmax.core.engine.checkpoint import Checkpoint, import_class
 from swarmax.core.engine.context import Context
 from swarmax.core.engine.log import RunLog
 from swarmax.core.engine.permissions import Permissions
-from swarmax.core.engine.recovery import catch_up
+from swarmax.core.engine.recovery import catch_up, recover
 from swarmax.core.engine.replay import replay_run
 from swarmax.core.engine.session import RunSession, Stop
 from swarmax.core.engine.step import record_result, run_step, settle_interrupted, text_result
 from swarmax.core.engine.store import MemoryRunStore
 from swarmax.core.types import Message, RunResult, status_of, validate_answer
 from swarmax.core.types.events import PermissionDecided, RunFinished, ToolRecorded
-from swarmax.errors import RequestError, RunError, SwarmaxError, ToolError
+from swarmax.errors import RequestError, RunError, ToolError
 from swarmax.providers import with_retries
 from swarmax.tools.dispatch import error_output
 from swarmax.utils.hooks import RemovableHandle
@@ -34,6 +34,18 @@ def run_result(session, stop):
         usage=state.usage,
         steps=state.step,
         stop_reason=stop.reason,
+    )
+
+
+def result_of_state(state):
+    """Return the result of a run that already ended."""
+    return RunResult(
+        run_id=state.run_id,
+        status=state.status,
+        answer=state.answer,
+        usage=state.usage,
+        steps=state.step,
+        stop_reason=state.stop_reason,
     )
 
 
@@ -105,11 +117,17 @@ class Engine:
         return await self._drive(session)
 
     async def _drive(self, session):
-        """Run steps until one reason stops the run, then end it."""
+        """Run steps until one reason stops the run, then end it.
+
+        NOTE: any exception ends the run with ``error``, not only an ``sx.errors`` class, because a
+        provider made by the backend raises its own errors and a client must see the run end. The
+        log and ``on_error`` hold the class and message, and a dying process (a ``BaseException``)
+        is not caught, so it can be recovered.
+        """
         with runtime.activate(session):
             try:
                 stop = await self._steps(session)
-            except SwarmaxError as error:
+            except Exception as error:
                 await session.report_error(error, where="engine")
                 stop = Stop("error", str(error))
             return await self._end(session, stop)
@@ -117,6 +135,8 @@ class Engine:
     async def _steps(self, session):
         """Run steps until one returns a stop or the step limit is reached."""
         state = session.state
+        if state.has_answer and not state.in_step:
+            return Stop(state.stop_reason, answer=state.answer)
         while state.in_step or state.step < state.max_steps:
             stop = await run_step(session, session.agent)
             if stop is not None:
@@ -175,17 +195,34 @@ class Engine:
             raise RequestError(
                 f"resume: request = {request_id!r}; it is unknown or already answered"
             )
+        await self._end_orphans(session)
         await settle_interrupted(session, session.agent)
         return await self._drive(session)
+
+    async def _end_orphans(self, session):
+        """End nested runs a crash left open, and keep what they spent for the parent."""
+        load_events = getattr(self.store, "load_events", None)
+        if load_events is None:
+            return
+        state = session.state
+        events = load_events(state.root)
+        ended = {event.run_id for event in events if event.type == "run.finished"}
+        for event in events:
+            is_child = event.type == "run.started" and event.parent == state.run_id
+            if is_child and event.run_id not in ended:
+                orphan = recover(events, event.run_id)
+                child = RunSession(self, session.log, orphan, None)
+                await self._end(child, Stop("error", "interrupted by a crash"))
+                session.child_usage = orphan.usage
 
     async def _answer(self, session, request_id, answer):
         """Settle the pending request; return a stop when that ends or pauses the run."""
         pending = session.state.pending
+        if pending.child is not None:
+            return await self._answer_child(session, pending, request_id, answer)
         if request_id != pending.request.id:
             raise RequestError(f"resume: request = {request_id!r}; expected {pending.request.id!r}")
         answer = validate_answer(pending.request, answer)
-        if pending.child is not None:
-            return await self._answer_child(session, pending, answer)
         fields = dict(
             index=session.state.step,
             rule="user",
@@ -232,13 +269,22 @@ class Engine:
         await record_result(session, pending.call, result, source="denied")
         return None
 
-    async def _answer_child(self, session, pending, answer):
-        """Pass an answer to the nested run that asked; its outcome is the tool result."""
+    async def _answer_child(self, session, pending, request_id, answer):
+        """Pass an answer to the nested run that asked; its outcome is the tool result.
+
+        A crash can come after the answer reached the nested run. The log then shows it holds
+        no request, so it continues without one, or has ended, so its outcome stands.
+        """
         tool = session.agent.tools()[pending.call.name]
-        data = await self._load_checkpoint(pending.child)
-        state = self._latest(data)
-        child = RunSession(self, session.log, state, tool.agent)
-        result = await self._continue(child, pending.request.id, answer)
+        state = self._latest(await self._load_checkpoint(pending.child))
+        if state.status != "running":
+            result = result_of_state(state)
+        elif state.pending is None:
+            child = RunSession(self, session.log, state, tool.agent)
+            result = await self._continue(child, None, None)
+        else:
+            child = RunSession(self, session.log, state, tool.agent)
+            result = await self._continue(child, request_id, answer)
         session.child_usage = result.usage
         return await self._finish_delegate(session, pending, tool, result)
 

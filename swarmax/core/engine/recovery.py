@@ -60,7 +60,7 @@ def _content(output):
 
 def _feedback(state, event):
     """Add feedback about the final answer to the conversation."""
-    if event.call_id is None:
+    if event.call_id is None and not event.is_finish:
         state.messages.append(Message(role="user", content=_content(event.output)))
         state.is_refused = event.feedback is not None
     if event.feedback == "output":
@@ -82,16 +82,20 @@ def _tool_result(state, event):
     """
     if event.usage is not None:
         state.usage += event.usage
+        state.step_usage += event.usage
+    if event.is_finish:
+        state.has_answer = True
+        state.answer = event.output
+        state.stop_reason = "answer" if event.call_id is None else "finish"
     _feedback(state, event)
     if event.call_id is None:
         return
     _count_failure(state, event)
+    if state.pending is not None and state.pending.call.id == event.call_id:
+        state.pending = None
     state.results[event.call_id] = Message(
         role="tool", content=_content(event.output), tool_call_id=event.call_id
     )
-    if event.is_finish:
-        state.has_answer = True
-        state.answer = event.output
     if all(call.id in state.results for call in state.calls):
         state.messages.extend(state.results[call.id] for call in state.calls)
 

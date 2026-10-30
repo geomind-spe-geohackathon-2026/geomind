@@ -7,6 +7,7 @@ from swarmax.core import runtime
 from swarmax.core.engine import Engine, Permissions
 from swarmax.core.engine.checkpoint import Checkpoint
 from swarmax.core.engine.recovery import recover
+from swarmax.core.engine.store import MemoryRunStore
 from swarmax.providers import FakeLLM
 from swarmax.sandbox import LocalSandbox
 from tests.fixtures.runs import EXECUTED, Lead, call, context, of_type, says, uses
@@ -177,3 +178,92 @@ async def test_public_events_of_a_nested_run_are_forwarded():
     await nested([uses(HELP), says("found"), says("end")], callbacks=[Publisher()])
     assert seen.count("run.started") == 2 and "run.finished" in seen
     assert "tool.result" not in seen
+
+
+async def test_parent_has_no_pending_action_after_the_nested_run_ended():
+    """A settled nested pause leaves nothing pending, at every checkpoint after it."""
+    script = [uses(HELP), uses(call("save_note", "n1", text="x")), says("found"), says("end")]
+    result, engine, _ = await nested(script, permissions=Permissions(mode="ask"))
+    final = await engine.resume(
+        engine.store.load_checkpoint(result.run_id), result.request.id, {"approved": True}
+    )
+    events = engine.store.load_events(final.run_id)
+    finished = next(e for e in of_type(events, "step.finished") if e.parent is None)
+    assert recover(events[: finished.sequence], final.run_id).pending is None
+
+
+class DyingStore(MemoryRunStore):
+    """Die just before the first event of one type and run is saved."""
+
+    def __init__(self, kind, is_nested):
+        """Remember what to die on."""
+        super().__init__()
+        self.kind = kind
+        self.is_nested = is_nested
+
+    def save_event(self, run_id, event):
+        """Raise once instead of saving."""
+        if event.type == self.kind and (event.parent is not None) == self.is_nested:
+            self.kind = None
+            raise Killed
+        super().save_event(run_id, event)
+
+
+class Killed(BaseException):
+    """A process dying."""
+
+
+async def killed_after_answer(kind, is_nested):
+    """Pause in a nested run, answer, and die at one event; return the store and the request."""
+    script = [uses(HELP), uses(call("save_note", "n1", text="x")), says("found"), says("end")]
+    store = DyingStore(None, is_nested)
+    start = context("lead the work")
+    ask = Permissions(mode="ask")
+    paused = await Engine(llm=FakeLLM(script), store=store, permissions=ask).run(Lead(), start)
+    store.kind = kind
+    with pytest.raises(Killed):
+        await Engine(llm=FakeLLM(script[2:]), store=store, permissions=ask).resume(
+            store.load_checkpoint(start.run_id), paused.request.id, {"approved": True}
+        )
+    return store, start.run_id, paused.request.id, script
+
+
+async def test_killed_while_the_nested_run_continues_is_not_stuck():
+    """The answer reached the child; a resume without arguments finishes the job."""
+    store, run_id, _, script = await killed_after_answer("step.finished", True)
+    fresh = Engine(llm=FakeLLM(script[2:]), store=store, permissions=Permissions(mode="ask"))
+    state = recover(store.load_events(run_id), run_id)
+    assert (await fresh.resume(state)).answer == "end"
+
+
+async def test_killed_after_the_nested_run_ended_is_not_stuck():
+    """The child's outcome is in the log; the parent takes it from there."""
+    store, run_id, request_id, script = await killed_after_answer("tool.result", False)
+    fresh = Engine(llm=FakeLLM(script[3:]), store=store, permissions=Permissions(mode="ask"))
+    state = recover(store.load_events(run_id), run_id)
+    final = await fresh.resume(state, request_id, {"approved": True})
+    assert final.answer == "end"
+    assert final.usage.input_tokens == 40
+
+
+async def test_crash_in_a_nested_run_keeps_its_usage_and_ends_it():
+    """The parent's model reads the interruption, and no spending is lost."""
+    store = DyingStore("tool.result", True)
+    start = context("lead the work")
+    script = [uses(HELP), uses(call("lookup", "n1", key="k"))]
+    auto = Permissions(mode="auto")
+    with pytest.raises(Killed):
+        await Engine(llm=FakeLLM(script), store=store, permissions=auto).run(Lead(), start)
+    fresh = Engine(llm=FakeLLM([says("end")]), store=store, permissions=auto)
+    result = await fresh.resume(recover(store.load_events(start.run_id), start.run_id))
+    events = store.load_events(start.run_id)
+    assert result.answer == "end" and result.usage.input_tokens == 30
+    nested_end = [e for e in of_type(events, "run.finished") if e.parent is not None]
+    assert [e.stop_reason for e in nested_end] == ["error"]
+
+
+async def test_step_usage_includes_the_nested_run():
+    """The step that delegated spent what the nested run spent."""
+    _, _, events = await nested([uses(HELP), says("found"), says("end")])
+    parent_steps = [e for e in of_type(events, "step.finished") if e.parent is None]
+    assert parent_steps[0].usage.input_tokens == 20

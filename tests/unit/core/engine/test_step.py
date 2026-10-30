@@ -91,7 +91,8 @@ async def test_read_and_compute_tools_run_concurrently():
     MEETING.__init__()
     result, _, events = await run([uses(call("meet", "a"), call("meet", "b")), says()], Meeters())
     assert result.status == "done"
-    assert [event.output for event in of_type(events, "tool.result")] == ["met", "met"]
+    calls = [event for event in of_type(events, "tool.result") if event.call_id]
+    assert [event.output for event in calls] == ["met", "met"]
 
 
 async def test_other_tools_run_in_order():

@@ -206,7 +206,8 @@ async def _gate_answer(session, agent, answer, call):
     """Pass a proposed answer through ``before_finish`` and the output; return a stop or ``None``.
 
     ``None`` with a ``finish`` call means it is recorded, and the step closes after its other
-    calls. ``None`` without a call means feedback went back to the model.
+    calls. ``None`` without a call means feedback went back to the model. An accepted answer is
+    logged before the run ends, so a crash in between repeats no LLM call.
     """
     state = session.state
     decision = await session.before_finish(agent, state.action)
@@ -225,6 +226,7 @@ async def _gate_answer(session, agent, answer, call):
             return Stop("error", str(error))
         return None
     if call is None:
+        await session.emit(ToolRecorded, index=state.step, output=answer, is_finish=True)
         return Stop("answer", answer=answer)
     await record_result(session, call, text_result(call, answer), is_finish=True)
     return None
@@ -249,7 +251,7 @@ async def run_step(session, agent):
             return stop
     stop = await _run_calls(session, agent)
     if stop is None and state.has_answer:
-        stop = Stop("finish", answer=state.answer)
+        stop = Stop(state.stop_reason, answer=state.answer)
     if stop is None and not state.action.tool_calls and not state.is_refused:
         stop = await _gate_answer(session, agent, state.action.text, None)
     if stop is not None and stop.reason == "request":

@@ -164,7 +164,8 @@ async def test_restricted_modes_run_no_write_or_execute_tool(mode, tmp_path):
     ]
     result, _, events = await run(script, permissions=Permissions(mode=mode))
     assert result.answer == "understood" and EXECUTED == []
-    assert all(event.is_error for event in of_type(events, "tool.result"))
+    calls = [event for event in of_type(events, "tool.result") if event.call_id]
+    assert len(calls) == 2 and all(event.is_error for event in calls)
     assert "tool.started" not in [event.type for event in events]
 
 

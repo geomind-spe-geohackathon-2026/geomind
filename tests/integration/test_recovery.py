@@ -166,3 +166,55 @@ async def test_a_finished_run_cannot_resume():
     await engine.run(Worker(), start)
     with pytest.raises(RunError, match="already ended"):
         await engine.resume(engine.store.load_checkpoint(start.run_id))
+
+
+async def test_killed_after_the_last_checkpoint_of_an_answer_repeats_nothing():
+    """The stop decision is in the log, so the answer stands without another LLM call."""
+    store = DyingStore("run.finished")
+    start = context()
+    with pytest.raises(Killed):
+        await Engine(llm=FakeLLM([says("end")]), store=store).run(Worker(), start)
+    llm = FakeLLM([])
+    result = await Engine(llm=llm, store=store).resume(recover(store.load_events(start.run_id)))
+    assert (result.stop_reason, result.answer) == ("answer", "end")
+    assert llm.calls == []
+
+
+async def test_killed_after_the_last_checkpoint_of_finish_repeats_nothing():
+    """The same holds for the ``finish`` tool."""
+    store = DyingStore("run.finished")
+    start = context()
+    script = [uses(call("finish", answer="end"))]
+    with pytest.raises(Killed):
+        await Engine(llm=FakeLLM(script), store=store).run(Worker(), start)
+    llm = FakeLLM([])
+    result = await Engine(llm=llm, store=store).resume(recover(store.load_events(start.run_id)))
+    assert (result.stop_reason, result.answer) == ("finish", "end")
+    assert llm.calls == []
+
+
+async def test_killed_inside_the_step_of_an_answer_repeats_nothing():
+    """An accepted answer survives a crash before the step closes."""
+    store = DyingStore("step.finished")
+    start = context()
+    with pytest.raises(Killed):
+        await Engine(llm=FakeLLM([says("end")]), store=store).run(Worker(), start)
+    llm = FakeLLM([])
+    result = await Engine(llm=llm, store=store).resume(recover(store.load_events(start.run_id)))
+    assert (result.stop_reason, result.answer) == ("answer", "end")
+
+
+async def test_a_foreign_exception_ends_the_run_with_an_error():
+    """A provider raising something else still ends the run, with a log the backend can show."""
+
+    class Broken:
+        async def complete(self, messages, tools, *, model, settings, on_text=None):
+            raise OSError("connection reset")
+
+    engine = Engine(llm=Broken())
+    start = context()
+    result = await engine.run(Worker(), start)
+    events = engine.store.load_events(start.run_id)
+    assert (result.status, result.stop_reason) == ("failed", "error")
+    assert of_type(events, "error")[0].error_class == "OSError"
+    assert of_type(events, "run.finished")[0].message == "connection reset"

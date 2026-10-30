@@ -27,3 +27,8 @@ def test_no_secrets_returns_the_same_event():
     """The common case costs nothing."""
     event = LLMCompleted(run_id="r", index=1, completion=Completion())
     assert redact_event(event, ()) is event
+
+
+def test_redact_cleans_bytes():
+    """A binary artifact loses the secret too."""
+    assert redact(b"a sk-1 b", ("sk-1",)) == f"a {REDACTED} b".encode()

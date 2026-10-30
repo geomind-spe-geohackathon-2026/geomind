@@ -2,10 +2,13 @@
 
 import pytest
 
+from swarmax.core import runtime
+from swarmax.core.agents import Agent
 from swarmax.core.engine import Context, Engine, Permissions
 from swarmax.core.engine.store import MemoryRunStore
 from swarmax.core.types import ToolCall
 from swarmax.providers import FakeLLM
+from swarmax.tools import tool
 from tests.fixtures.runs import Worker, call, context, engine_for, of_type, run, says, types, uses
 
 
@@ -68,3 +71,55 @@ async def test_known_secrets_never_reach_the_store():
     assert "sk-secret" not in stored and "[redacted]" in stored
     assert "sk-secret" not in str(engine.store.load_checkpoint(start.run_id))
     assert result.answer == "[redacted]"
+
+
+class Streaming(FakeLLM):
+    """Stream a text in fixed pieces."""
+
+    secrets = ("sk-SECRET-123",)
+
+    async def complete(self, messages, tools, *, model, settings, on_text=None):
+        """Split the text in the middle of the secret."""
+        on_text("key sk-SEC")
+        on_text("RET-123 end")
+        return await super().complete(messages, tools, model=model, settings=settings)
+
+
+async def test_a_secret_split_across_deltas_never_streams():
+    """Text is held back just long enough to see a secret whole; nothing is lost."""
+    llm = Streaming([says("key sk-SECRET-123 end")])
+    engine = Engine(llm=llm, permissions=Permissions(mode="auto"))
+    start = Context(messages=[])
+    await engine.run(Worker(), start)
+    text = "".join(
+        event.text for event in of_type(engine.store.load_events(start.run_id), "text.delta")
+    )
+    assert "sk-SEC" not in text and text == "key [redacted] end"
+
+
+@tool(effect="read")
+def leak():
+    """Return a secret, as a tool that reads a settings file could."""
+    return "sk-SECRET-123 " * 10
+
+
+class Leaking(Agent):
+    """Has the leaking tool."""
+
+    def __init__(self):
+        """Declare the tool."""
+        super().__init__()
+
+        # Tools
+        self.leak = leak
+
+
+async def test_a_secret_never_reaches_an_artifact():
+    """Large results are stored under the same rule as events."""
+    llm = Streaming([uses(ToolCall(id="c", name="leak")), says()])
+    engine = Engine(llm=llm, permissions=Permissions(mode="auto"))
+    start = Context(messages=[])
+    with runtime.settings(tool_result_limit=10):
+        await engine.run(Leaking(), start)
+    assert engine.store.artifacts
+    assert "sk-SECRET-123" not in str(engine.store.artifacts)

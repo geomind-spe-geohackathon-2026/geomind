@@ -27,6 +27,7 @@ from swarmax.core.types.events import (
     SandboxProvisioned,
     TextDelta,
 )
+from swarmax.core.types.redaction import redact
 from swarmax.errors import RunError, SandboxError
 from swarmax.sandbox import Manifest
 
@@ -54,6 +55,7 @@ class RunSession:
         self.waiting_child = None
         self.child_usage = None
         self._sandbox = None
+        self._held_text = ""
 
     @property
     def store(self):
@@ -119,8 +121,22 @@ class RunSession:
         )
 
     def on_text(self, delta):
-        """Stream one piece of text; providers call this as a plain function."""
-        self.log.save_soon(self.emit(TextDelta, index=self.state.step, text=delta))
+        """Stream one piece of text; providers call this as a plain function.
+
+        Text is redacted as one stream and the last characters wait for the next piece, as many as
+        a known secret could still need, so a secret split across pieces is never sent.
+        """
+        secrets = self.log.secrets
+        waiting = max(map(len, secrets), default=1) - 1
+        text = redact(self._held_text + delta, secrets)
+        cut = max(len(text) - waiting, 0)
+        self._held_text = text[cut:]
+        self._stream(text[:cut])
+
+    def _stream(self, text):
+        """Log one piece of text, in order, without waiting."""
+        if text:
+            self.log.save_soon(self.emit(TextDelta, index=self.state.step, text=text))
 
     async def _on_retry(self, **fields):
         """Log one provider retry."""
@@ -140,6 +156,8 @@ class RunSession:
             fallbacks=agent.model.fallbacks,
             on_retry=self._on_retry,
         )
+        held, self._held_text = self._held_text, ""
+        self._stream(held)
         await self.log.flush()
         event = await self.emit(
             LLMCompleted,
@@ -242,8 +260,9 @@ class RunSession:
         await asyncio.to_thread(self.store.save_checkpoint, self.state.run_id, data)
 
     async def save_artifact(self, key, data):
-        """Save a large result."""
-        await asyncio.to_thread(self.store.save_artifact, self.state.root, key, data)
+        """Save a large result, under the same rule for secrets as an event."""
+        clean = redact(data, self.log.secrets)
+        await asyncio.to_thread(self.store.save_artifact, self.state.root, key, clean)
 
     async def report_error(self, error, where):
         """Log an error and call ``on_error``."""
