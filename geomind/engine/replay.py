@@ -5,9 +5,9 @@ from geomind.engine.context import Context
 from geomind.engine.hooks import Hook
 from geomind.engine.permissions import Permissions
 from geomind.engine.recovery import agent_class
-from geomind.engine.store import MemoryRunStore
 from geomind.errors import ReplayError
 from geomind.providers import FakeLLM
+from geomind.stores.run import MemoryRunStore
 from geomind.types import Allow, Cancel, Deny
 
 END_OF_RECORDING = "end of the recording"

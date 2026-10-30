@@ -56,11 +56,11 @@ geomind/
 ├── __main__.py       # python -m geomind runs the command line
 ├── cli.py            # geomind run, replay, show
 ├── run.py            # Run: the facade the backend uses
-├── stores.py         # gd.stores: the store and workspace implementations
 ├── testing/          # conformance checks for RunStore and Workspace implementations
 ├── utils/            # leaf: hooks, context settings, time, json, strings
 ├── errors/           # leaf: every gd.errors class
 ├── types/            # messages, decisions, results, events, redaction, runlog
+├── stores/           # RunStore, Workspace and their memory and file implementations
 ├── runtime.py        # context-local settings
 ├── prompts/          # <role>.md files and Prompt
 ├── providers/        # LLM protocol, retry layer, OpenRouter, FakeLLM
@@ -68,7 +68,7 @@ geomind/
 ├── tools/            # Tool, tool decorator, dispatch, built-ins, code tools, Delegate
 ├── agents/           # Agent, AgentResult, Model, Output, general/assistant.py
 ├── engine/           # engine, session, step, log, recovery, context, callbacks, hooks,
-│                     # permissions, state, store, workspace, replay
+│                     # permissions, state, replay
 └── loops/            # Loop, ToolLoop
 examples/             # area/category/NN_name.py
 scripts/              # test_changed.py, the development test profile

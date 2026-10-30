@@ -5,9 +5,9 @@ import pytest
 from geomind import runtime
 from geomind.engine import Engine, Permissions
 from geomind.engine.recovery import recover
-from geomind.engine.store import FileRunStore, MemoryRunStore
 from geomind.errors import RunError
 from geomind.providers import FakeLLM
+from geomind.stores.run import FileRunStore, MemoryRunStore
 from tests.fixtures.runs import EXECUTED, Worker, call, context, of_type, says, uses
 
 VOLATILE = {"run", "duration"}

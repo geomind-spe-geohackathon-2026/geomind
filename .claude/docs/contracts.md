@@ -35,15 +35,15 @@ and to read one back `event_from_dict`.
 |---|---|---|
 | `LLM` | `geomind/providers/base.py` | `tests/unit/providers/test_base.py` |
 | `Completion`, `Usage`, `Message` | `geomind/types/messages.py` | `tests/unit/types/test_messages.py` |
-| `RunStore`, all seven methods, `load_events` included | `geomind/engine/store.py` | `tests/unit/testing/test_conformance.py` |
-| `Workspace` | `geomind/engine/workspace.py` | `tests/unit/testing/test_conformance.py` |
+| `RunStore`, all seven methods, `load_events` included | `geomind/stores/run.py` | `tests/unit/testing/test_conformance.py` |
+| `Workspace` | `geomind/stores/workspace.py` | `tests/unit/testing/test_conformance.py` |
 | `SandboxProvider`, `Sandbox` | `geomind/sandbox/base.py` | `tests/unit/sandbox/test_base.py` |
 | `gd.sandbox.LocalSandbox` | `geomind/sandbox/local.py` | `tests/unit/sandbox/test_local.py` |
 | `gd.sandbox.DockerSandbox` | `geomind/sandbox/docker.py` | `tests/unit/sandbox/test_docker.py` |
 | `gd.providers.OpenRouter` | `geomind/providers/openrouter.py` | `tests/unit/providers/test_openrouter.py` |
 | `gd.providers.FakeLLM` | `geomind/providers/fake.py` | `tests/unit/providers/test_fake.py` |
-| Memory and file stores | `geomind/engine/store.py` | `tests/unit/engine/test_store.py` |
-| Memory and file workspaces | `geomind/engine/workspace.py` | `tests/unit/engine/test_workspace.py` |
+| Memory and file stores | `geomind/stores/run.py` | `tests/unit/stores/test_run.py` |
+| Memory and file workspaces | `geomind/stores/workspace.py` | `tests/unit/stores/test_workspace.py` |
 | `gd.Run`, `start`, `astart`, `load`, `resume`, `aresume`, `cancel` | `geomind/run.py` | `tests/unit/test_run.py` |
 | `gd.Permissions` | `geomind/engine/permissions.py` | `tests/unit/engine/test_permissions.py` |
 | `gd.hooks.TokenBudget`, `RequireApproval`, `Cancellation` | `geomind/engine/hooks.py` | `tests/unit/engine/test_hooks.py` |

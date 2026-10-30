@@ -8,11 +8,13 @@ sentence in the docstring of the function, class or test that makes it.
 
 A package may import only the packages to its left:
 
-`geomind.utils`, `geomind.errors` ← `types` ← `runtime` ← `prompts` ← `providers`
-← `sandbox` ← `tools` ← `agents` ← `engine` ← `stores` ← `loops` ← `run` ← `testing`
+`geomind.utils`, `geomind.errors` ← `types` ← `stores` ← `runtime` ← `prompts` ← `providers`
+← `sandbox` ← `tools` ← `agents` ← `engine` ← `loops` ← `run` ← `testing`
 ← `cli` ← `geomind/__init__`.
 
 `tests/unit/test_package_boundaries.py` enforces this order.
+
+- `stores` needs only `types`, `errors` and `utils`.
 
 - `types` sits below `providers` because a provider returns a `Completion`.
 - `sandbox` sits below `tools` because the code tools use it.
@@ -118,7 +120,6 @@ Each one also has a `NOTE:` in the docstring that makes it.
 - Hooks can deny or pause. gemini's pre-hooks observe or adjust inputs.
 - `Agent` has no `__getattr__` and keeps no values: declarations are plain attributes, and values
   of one run live in the session.
-- The dependency order adds `stores`, the small module behind `gd.stores`, after `engine`.
 - `engine/session.py` is one file beyond the layout of the S1 prompt: the object behind
   `context.session`.
 - Tool names follow the attribute of the agent that declares them, on a copy of the tool.

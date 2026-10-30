@@ -4,8 +4,8 @@ import pytest
 
 from geomind.engine import Engine, Permissions
 from geomind.engine.hooks import Hook, RequireApproval
-from geomind.engine.store import MemoryRunStore
 from geomind.errors import ReplayError
+from geomind.stores.run import MemoryRunStore
 from geomind.types import Deny
 from geomind.types.events import ToolRecorded
 from tests.fixtures.runs import EXECUTED, Worker, call, context, engine_for, run, says, uses

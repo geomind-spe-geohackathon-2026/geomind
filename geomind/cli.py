@@ -8,11 +8,11 @@ from pathlib import Path
 
 from geomind import runtime
 from geomind.engine import Engine, Permissions, callbacks
-from geomind.engine.store import FileRunStore
 from geomind.errors import GeomindError
 from geomind.providers import OpenRouter
 from geomind.run import Run
 from geomind.sandbox import DockerSandbox, LocalSandbox
+from geomind.stores.run import FileRunStore
 from geomind.types.runlog import runlog
 
 RUNS_FOLDER = ".runs"

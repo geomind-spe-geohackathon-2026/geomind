@@ -7,10 +7,10 @@ from geomind.engine import Context, Engine, Permissions
 from geomind.engine.context import new_run_id
 from geomind.engine.hooks import Cancellation
 from geomind.engine.recovery import agent_class, recover
-from geomind.engine.store import MemoryRunStore
 from geomind.errors import RunError
 from geomind.loops import ToolLoop
 from geomind.providers import OpenRouter
+from geomind.stores.run import MemoryRunStore
 from geomind.types import Message
 
 

@@ -2,8 +2,8 @@
 
 import pytest
 
-from geomind.engine.store import FileRunStore, MemoryRunStore
 from geomind.errors import RunError
+from geomind.stores.run import FileRunStore, MemoryRunStore
 from geomind.types import Message
 from geomind.types.events import StepStarted
 from tests.fixtures.runs import call, run, says, uses

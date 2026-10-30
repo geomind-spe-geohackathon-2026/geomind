@@ -14,9 +14,9 @@ from geomind.engine.replay import replay_run
 from geomind.engine.session import RunSession, Stop
 from geomind.engine.state import RunState
 from geomind.engine.step import record_result, run_step, settle_interrupted, text_result
-from geomind.engine.store import MemoryRunStore
 from geomind.errors import RequestError, RunError, ToolError
 from geomind.providers import with_retries
+from geomind.stores.run import MemoryRunStore
 from geomind.tools.dispatch import error_output
 from geomind.types import Message, RunResult, status_of, validate_answer
 from geomind.types.events import PermissionDecided, RunFinished, ToolRecorded

@@ -6,9 +6,9 @@ import geomind as gd
 from geomind import runtime
 from geomind.engine import Engine, Permissions
 from geomind.engine.recovery import recover
-from geomind.engine.store import MemoryRunStore
 from geomind.providers import FakeLLM
 from geomind.sandbox import LocalSandbox
+from geomind.stores.run import MemoryRunStore
 from tests.fixtures.runs import EXECUTED, Lead, call, context, of_type, says, uses
 
 HELP = call("helper", "d1", task="find it")

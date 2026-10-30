@@ -11,6 +11,7 @@ ORDER = [
     ("geomind.utils",),
     ("geomind.errors",),
     ("geomind.types",),
+    ("geomind.stores",),
     ("geomind.runtime",),
     ("geomind.prompts",),
     ("geomind.providers",),
@@ -18,7 +19,6 @@ ORDER = [
     ("geomind.tools",),
     ("geomind.agents",),
     ("geomind.engine",),
-    ("geomind.stores",),
     ("geomind.loops",),
     ("geomind.run",),
     ("geomind.testing",),
@@ -74,6 +74,13 @@ def test_rank_finds_the_owner_package():
     """A submodule belongs to its package and the package root to nothing."""
     assert rank("geomind.engine.step") > rank("geomind.tools.base")
     assert rank("geomind") is None
+
+
+def test_stores_left_the_engine():
+    """The store and workspace live only in their package."""
+    assert not (ROOT / "geomind/engine/store.py").exists()
+    assert not (ROOT / "geomind/engine/workspace.py").exists()
+    assert not (ROOT / "geomind/stores.py").exists()
 
 
 def all_python_files():

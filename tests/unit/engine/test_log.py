@@ -6,8 +6,8 @@ from geomind import runtime
 from geomind.agents import Agent
 from geomind.engine import Context, Engine, Permissions
 from geomind.engine.recovery import recover
-from geomind.engine.store import MemoryRunStore
 from geomind.providers import FakeLLM
+from geomind.stores.run import MemoryRunStore
 from geomind.tools import tool
 from geomind.types import ToolCall
 from tests.fixtures.runs import Worker, call, context, engine_for, of_type, run, says, types, uses

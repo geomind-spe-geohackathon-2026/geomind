@@ -1,6 +1,6 @@
 """Workspaces: plants and keyword search."""
 
-from geomind.engine.workspace import FileWorkspace, MemoryWorkspace, search
+from geomind.stores.workspace import FileWorkspace, MemoryWorkspace, search
 
 DOCUMENTS = [
     {"id": "1", "title": "Pumps", "text": "a pump moves water"},
