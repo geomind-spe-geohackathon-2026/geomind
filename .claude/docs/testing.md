@@ -32,7 +32,7 @@ files, plus commits since `--base <ref>`), builds the `ast` import graph of `swa
 and of every module that imports a changed module, directly or transitively:
 
 1. a changed test file runs itself; a changed `conftest.py` runs every test below it;
-2. `pyproject.toml` and `tests/conftest.py` select every test;
+2. `pyproject.toml` and the root `conftest.py` select every test;
 3. every affected `swarmax/<path>/<name>.py` runs `tests/unit/<path>/test_<name>.py`, and every
    affected test file runs; imports made by `conftest.py` files are not followed;
 4. a changed numbered example selects `tests/e2e/test_examples.py`;
@@ -40,7 +40,7 @@ and of every module that imports a changed module, directly or transitively:
 
 It prints what it chose and why, then runs `pytest -n auto -m "not slow and not docker"
 --profile=development` on the selection. The budget is **300 s** wall time: a session-end guard in
-`tests/conftest.py` fails a development-profile run over 300 s and prints the 10 slowest test
+the root `conftest.py` fails a development-profile run over 300 s and prints the 10 slowest test
 phases.
 
 **Release** runs in CI only, on `main`: `pytest -n auto -m "not docker" --profile=release
@@ -49,7 +49,7 @@ phases.
 ## Speed budget
 
 An individual fast-tier test call may take at most about one second. In the development profile
-`tests/conftest.py` fails a slower unit or integration test with instructions to optimize it or
+the root `conftest.py` fails a slower unit or integration test with instructions to optimize it or
 mark it `slow`. E2E tests are exempt. Marking is allowed only when the property inherently needs
 long elapsed work; add a one-line reason to its docstring. Do not delete, skip or weaken a test to
 meet the budget.
