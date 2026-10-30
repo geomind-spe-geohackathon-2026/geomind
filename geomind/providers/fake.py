@@ -1,8 +1,9 @@
-"""A scripted provider for tests, examples and replay."""
+"""A scripted provider for tests, examples and replay, and what records one."""
 
 from geomind.errors import ProviderError
-from geomind.types import RULE_MODEL
+from geomind.types import RULE_MODEL, Completion
 from geomind.types.events import LLM_EVENTS
+from geomind.utils.json import append_line, read_lines
 
 
 class FakeLLM:
@@ -19,6 +20,11 @@ class FakeLLM:
         completions = [event.completion for event in events if event.type in LLM_EVENTS]
         return cls(item for item in completions if item.model != RULE_MODEL)
 
+    @classmethod
+    def from_recording(cls, path):
+        """Rebuild the script from a recording: one completion as JSON per line."""
+        return cls(Completion.model_validate(line) for line in read_lines(path))
+
     async def complete(self, messages, tools, *, model, settings, on_text=None):
         """Return the next scripted completion and stream its text."""
         self.calls.append({"messages": messages, "tools": tools, "model": model})
@@ -29,4 +35,25 @@ class FakeLLM:
             raise completion
         if on_text is not None and completion.text:
             on_text(completion.text)
+        return completion
+
+
+class Recorder:
+    """Call another provider and append each completion to a recording, for ``from_recording``.
+
+    NOTE: ``raw`` stays out, because a recording is committed and needs only what a replay reads.
+    """
+
+    def __init__(self, llm, path):
+        """Wrap a provider, whose secrets stay known to the engine."""
+        self.llm = llm
+        self.path = path
+        self.secrets = getattr(llm, "secrets", ())
+
+    async def complete(self, messages, tools, *, model, settings, on_text=None):
+        """Call the provider and record what it returned."""
+        completion = await self.llm.complete(
+            messages, tools, model=model, settings=settings, on_text=on_text
+        )
+        append_line(self.path, completion.model_dump(mode="json", exclude={"raw"}))
         return completion

@@ -68,7 +68,7 @@ The only comments allowed in code are:
 
 Everything worth explaining goes into docstrings. A decision is a `NOTE:` sentence in the
 docstring, never a comment. `test_only_section_headers_and_tool_directives_are_comments` checks
-every Python file in `geomind/`, `examples/`, `tests/` and `scripts/`.
+every Python file in `geomind/`, `examples/`, `tests/`, `scripts/` and `evals/`.
 
 ## Code quality
 

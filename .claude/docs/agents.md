@@ -108,5 +108,5 @@ The analyst is the worked example: `geomind/agents/analysis/analyst.py` and
    loop, and a row in `LOOPS`.
 6. **Test it by hand.** `geomind chat --agent <name> --live`; see [api.md](api.md#command-line).
 7. **Test it by tasks.** Write `evals/tasks/<name>/<task>.yaml` and run
-   `python -m evals.run --agent <name> --live` once to record it; see `evals.md`.
+   `python -m evals.run --agent <name> --live` once to record it; see [evals.md](evals.md).
 8. **Update this table,** and change its status from skeleton to complete.

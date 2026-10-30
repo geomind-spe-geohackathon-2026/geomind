@@ -81,6 +81,11 @@ The suite must remain safe under `pytest -n auto`:
 run against the memory and file implementations in `tests/unit/testing/`; the backend runs the
 same functions against its own.
 
+## Evals
+
+`python -m evals.run --agent <name>` tests an agent by tasks, offline from recordings; see
+[evals.md](evals.md). `tests/integration/test_evals.py` tests the runner itself.
+
 ## Docker
 
 The one `DockerSandbox` integration test has the `docker` marker and skips without a Docker

@@ -33,7 +33,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGES = ("geomind", "examples", "tests", "scripts")
+PACKAGES = ("geomind", "examples", "tests", "scripts", "evals")
 SELECT_ALL = {"pyproject.toml", "conftest.py"}
 EXAMPLE_SCRIPT = re.compile(r"^examples/.*/\d\d_[^/]+\.py$")
 EXAMPLES_TEST = "tests/e2e/test_examples.py"

@@ -3,10 +3,10 @@
 import pydantic
 import pytest
 
-from geomind import runtime
+from geomind import agents, runtime
 from geomind.agents import Agent, AgentResult, Model, Output
 from geomind.engine import Context
-from geomind.errors import DeclarationError, OutputError, RunError
+from geomind.errors import DeclarationError, OutputError, RunError, UnknownNameError
 from geomind.prompts import Prompt
 from geomind.tools import ask_user, finish
 from geomind.types import Action, Completion, Deny, Message, Usage
@@ -217,3 +217,16 @@ async def test_rule_based_forward_needs_no_model():
             return Action(text="fixed")
 
     assert (await Rule()(Stub(StubSession()))).action.text == "fixed"
+
+
+def test_a_shipped_agent_is_found_by_name():
+    """Skeletons too, so each can be tried as soon as it is filled."""
+    assert type(agents.named("analyst")) is agents.Analyst
+    assert type(agents.named("code_assistant")) is agents.CodeAssistant
+    assert type(agents.named("verifier")) is agents.Verifier
+
+
+def test_an_unknown_agent_name_gets_a_close_match():
+    """A typo in ``--agent`` says what was meant."""
+    with pytest.raises(UnknownNameError, match="did you mean 'analyst'"):
+        agents.named("analist")

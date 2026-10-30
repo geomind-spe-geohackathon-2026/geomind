@@ -3,7 +3,7 @@
 import pytest
 
 from geomind.errors import ProviderError
-from geomind.providers import FakeLLM
+from geomind.providers import FakeLLM, Recorder
 from geomind.types import RULE_MODEL, Completion
 from geomind.types.events import LLMCompleted, StepStarted
 from tests.fixtures import load_completions
@@ -48,3 +48,22 @@ async def test_from_events_keeps_only_real_completions():
 async def test_recorded_fixture_loads():
     """Recorded completions come from JSON files."""
     assert "Hello" in (await call(FakeLLM(load_completions("hello")))).text
+
+
+async def test_a_recording_replays_what_a_recorder_wrote(tmp_path):
+    """One completion per line, in order, without the raw response."""
+    path = tmp_path / "a" / "task.jsonl"
+    recorded = Completion(text="hi", model="m", raw={"big": "response"})
+    recorder = Recorder(FakeLLM([recorded]), path)
+    assert (await recorder.complete([], [], model="m", settings={})).text == "hi"
+    script = FakeLLM.from_recording(path)
+    assert script.completions == [recorded.model_copy(update={"raw": None})]
+
+
+def test_a_recorder_keeps_the_secrets_of_its_provider():
+    """The engine redacts them through the wrapper too."""
+
+    class Keyed(FakeLLM):
+        secrets = ("sk-1",)
+
+    assert Recorder(Keyed([]), "unused").secrets == ("sk-1",)

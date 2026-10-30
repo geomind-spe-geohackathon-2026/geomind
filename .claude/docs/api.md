@@ -44,6 +44,12 @@ for testing one agent by hand. `answer` is `{"approved": true}`, `{"approved": f
 - `geomind run "<message>" [--model ID] [--max-steps N] [--mode ask|auto|readonly|plan]
   [--sandbox local|docker]` runs with `OpenRouter` and `FileRunStore(".runs")`, prints text as it
   streams, asks in the terminal when a request pauses the run, then resumes.
+- `geomind chat --agent analyst [--project PATH] [--live] [--recording FILE] [--model ID]` is an
+  interactive session with any agent of `gd.agents`, skeletons included. Each turn prints the streamed
+  text, every tool call with its input and a short output, the requests, answered at the prompt, and
+  the problem state. `/state`, `/log` (the run log of the last turn), `/reset` (a new chat) and `/quit`
+  are commands. It needs `--live` for OpenRouter or `--recording` for `FakeLLM` from a recording. Runs
+  are saved in `.runs/`, so `geomind show` works on them.
 - `geomind replay <run dir>` reruns offline and prints pass or the first mismatch.
 - `geomind show <run dir> [--format md]` prints the log per step and the totals, built from
   `gd.runlog`.

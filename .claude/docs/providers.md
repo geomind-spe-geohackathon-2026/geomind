@@ -34,4 +34,10 @@ so validation sends them back to the model. `transport` replaces the network in 
 
 `FakeLLM(completions)` returns scripted completions in order and streams their text; an exception
 in the script is raised, and calling past the end raises `ProviderError`. `calls` keeps what it
-received. `FakeLLM.from_events(events)` rebuilds the script from a stored run, for replay.
+received. `FakeLLM.from_events(events)` rebuilds the script from a stored run, for replay, and
+`FakeLLM.from_recording(path)` from a recording: one completion as JSON per line.
+
+## Recorder
+
+`Recorder(llm, path)` calls another provider and appends each completion, without `raw`, to a
+recording. `evals --live` uses it.

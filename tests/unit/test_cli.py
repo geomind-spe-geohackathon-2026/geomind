@@ -8,7 +8,9 @@ import pytest
 
 from geomind import cli, runtime
 from geomind.providers import FakeLLM, OpenRouter
-from tests.fixtures.runs import says
+from geomind.stores.run import FileRunStore
+from geomind.utils.json import append_line
+from tests.fixtures.runs import call, says, uses
 
 
 def stream(*chunks):
@@ -154,3 +156,101 @@ def test_run_replay_and_show_with_a_fake_llm(monkeypatch, tmp_path, capsys):
     assert cli.main(["replay", run_folder()]) == 0
     assert cli.main(["show", run_folder()]) == 0
     assert "answer: Hello" in capsys.readouterr().out
+
+
+def recording(tmp_path, *completions):
+    """Write a recording and return its path."""
+    path = tmp_path / "recording.jsonl"
+    for completion in completions:
+        append_line(path, completion.model_dump(mode="json"))
+    return str(path)
+
+
+def typed(monkeypatch, *lines):
+    """Answer ``input`` with lines in order, then end of file."""
+    answers = iter(lines)
+
+    def reply(prompt):
+        try:
+            return next(answers)
+        except StopIteration:
+            raise EOFError from None
+
+    monkeypatch.setattr("builtins.input", reply)
+
+
+GOAL = {"op": "replace", "path": "/goal", "value": "Find the flow"}
+
+
+def test_chat_shows_text_tools_and_the_state_after_a_turn(tmp_path, monkeypatch, capsys):
+    """One turn prints the tool with its input, the text and the problem state."""
+    monkeypatch.chdir(tmp_path)
+    script = [uses(call("update_state", changes=[GOAL])), says("Noted")]
+    typed(monkeypatch, "What is the flow?", "/quit")
+    assert cli.main(["chat", "--recording", recording(tmp_path, *script)]) == 0
+    output = capsys.readouterr().out
+    assert "[analyst] update_state" in output and "Noted" in output
+    assert "Goal: Find the flow" in output
+
+
+def test_chat_keeps_the_state_and_history_across_turns(tmp_path, monkeypatch, capsys):
+    """The second message of a chat continues the first."""
+    monkeypatch.chdir(tmp_path)
+    script = [uses(call("update_state", changes=[GOAL])), says("one"), says("two")]
+    typed(monkeypatch, "first", "second", "/state")
+    assert cli.main(["chat", "--recording", recording(tmp_path, *script)]) == 0
+    assert capsys.readouterr().out.count("Goal: Find the flow") == 3
+    runs = [path for path in Path(".runs").iterdir() if path.name != "chats"]
+    chats = list(Path(".runs/chats").iterdir())
+    assert len(runs) == 2 and len(chats) == 1
+    assert len(FileRunStore(".runs").load_history(chats[0].name)) == 4
+
+
+def test_chat_commands(tmp_path, monkeypatch, capsys):
+    """The commands work before and after a turn; ``/reset`` starts a new chat."""
+    monkeypatch.chdir(tmp_path)
+    script = [uses(call("update_state", changes=[GOAL])), says("one")]
+    lines = ("/state", "/log", "hello", "/log", "/reset", "/state", "/help", "", "/quit")
+    typed(monkeypatch, *lines)
+    assert cli.main(["chat", "--recording", recording(tmp_path, *script)]) == 0
+    output = capsys.readouterr().out
+    assert output.count("(the problem state is empty)") == 2
+    assert "(no turn yet)" in output and "Run " in output and "commands: /state" in output
+
+
+def test_chat_asks_for_a_question_in_the_terminal(tmp_path, monkeypatch, capsys):
+    """A request is answered at the prompt and the run goes on."""
+    monkeypatch.chdir(tmp_path)
+    script = [uses(call("ask_user", question="Which well?")), says("Well 2")]
+    typed(monkeypatch, "go", "well 2", "/quit")
+    assert cli.main(["chat", "--recording", recording(tmp_path, *script)]) == 0
+    assert "Well 2" in capsys.readouterr().out
+
+
+def test_chat_works_with_any_agent_and_a_project(tmp_path, monkeypatch, capsys):
+    """A skeleton can be tried, and a project becomes its workspace."""
+    monkeypatch.chdir(tmp_path)
+    typed(monkeypatch, "hello")
+    arguments = ["--agent", "explainer", "--project", "site/p1"]
+    assert cli.main(["chat", *arguments, "--recording", recording(tmp_path, says("Hi"))]) == 0
+    assert "Hi" in capsys.readouterr().out
+
+
+def test_chat_goes_live_through_the_provider(service, monkeypatch, capsys):
+    """``--live`` uses OpenRouter, and ``--model`` reaches it."""
+    service.append(answer("Hello"))
+    typed(monkeypatch, "hi")
+    assert cli.main(["chat", "--live", "--model", "a/b"]) == 0
+    assert "Hello" in capsys.readouterr().out
+
+
+def test_chat_needs_a_provider(capsys):
+    """Without one it says what to pass."""
+    assert cli.main(["chat"]) == 1
+    assert "--live or --recording" in capsys.readouterr().err
+
+
+def test_chat_refuses_an_unknown_agent(capsys):
+    """A wrong name is a message, not a traceback."""
+    assert cli.main(["chat", "--agent", "analist", "--live"]) == 1
+    assert "did you mean 'analyst'" in capsys.readouterr().err

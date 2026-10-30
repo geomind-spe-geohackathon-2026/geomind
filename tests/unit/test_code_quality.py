@@ -13,7 +13,7 @@ import pytest
 
 from tests.fixtures import ROOT
 
-PYTHON_FOLDERS = ("geomind", "examples", "tests", "scripts")
+PYTHON_FOLDERS = ("geomind", "examples", "tests", "scripts", "evals")
 SECTION_HEADERS = {"# Agents", "# Prompt", "# Tools", "# Output", "# Model"}
 TOOL_DIRECTIVE = re.compile(
     r"# (noqa: [A-Z]+\d+(, [A-Z]+\d+)*|type: ignore\[[\w-]+\]|pragma: no cover)"

@@ -1,18 +1,23 @@
-"""The command line: run, replay and show."""
+"""The command line: run, chat, replay and show."""
 
 import argparse
 import asyncio
 import json
 import sys
+from dataclasses import dataclass
 from pathlib import Path
+from uuid import uuid4
 
-from geomind import runtime
+from geomind import agents, runtime
+from geomind.context import ProblemState, render
 from geomind.engine import Engine, Permissions, callbacks
-from geomind.errors import GeomindError
-from geomind.providers import OpenRouter
+from geomind.errors import GeomindError, RunError
+from geomind.providers import FakeLLM, OpenRouter
 from geomind.run import Run
 from geomind.sandbox import DockerSandbox, LocalSandbox
+from geomind.stores import FileWorkspace
 from geomind.stores.run import FileRunStore
+from geomind.types import Message
 from geomind.types.runlog import runlog
 
 RUNS_FOLDER = ".runs"
@@ -79,6 +84,103 @@ def _command_run(args):
     usage = result.usage
     print(f"tokens {usage.input_tokens} in, {usage.output_tokens} out; cost {usage.cost}")
     return 0 if result.status == "done" else 1
+
+
+@dataclass
+class _Chat:
+    """One terminal chat with one agent; ``last_run`` is what ``/log`` shows."""
+
+    agent: str
+    llm: object
+    store: FileRunStore
+    workspace: FileWorkspace | None
+    project: str | None
+    id: str = ""
+    last_run: str | None = None
+
+
+def _chat_provider(args):
+    """Return the provider of a chat: OpenRouter, or a recording."""
+    if args.live:
+        return OpenRouter()
+    if args.recording is None:
+        raise RunError("chat: expected --live or --recording FILE")
+    return FakeLLM.from_recording(args.recording)
+
+
+def _project(path):
+    """Return the workspace and the project of a project folder."""
+    if path is None:
+        return None, None
+    folder = Path(path)
+    return FileWorkspace(folder.parent), folder.name
+
+
+def _state_text(chat):
+    """Return the problem state of a chat as the model reads it."""
+    stored = chat.store.load_state(chat.id)
+    text = render(ProblemState.model_validate(stored)) if stored else ""
+    return text or "(the problem state is empty)"
+
+
+def _chat_turn(chat, message):
+    """Answer one message, asking in the terminal, and keep it in the chat's history."""
+    run = Run(
+        message,
+        chat=chat.id,
+        project=chat.project,
+        history=chat.store.load_history(chat.id),
+        llm=chat.llm,
+        store=chat.store,
+        workspace=chat.workspace,
+        permissions=Permissions(mode="ask"),
+        callbacks=[_Printer()],
+        agent=agents.named(chat.agent),
+    )
+    result = run.start()
+    while result.status == "waiting":
+        result = run.resume(result.request.id, _ask(result.request))
+    chat.last_run = result.run_id
+    chat.store.add_message(chat.id, Message(role="user", content=message))
+    chat.store.add_message(chat.id, Message(role="assistant", content=str(result.answer or "")))
+    print(f"\n[{result.status}: {result.stop_reason}]\n{_state_text(chat)}")
+
+
+def _chat_command(chat, command):
+    """Do one ``/`` command; return ``False`` to leave."""
+    if command == "/quit":
+        return False
+    if command == "/state":
+        print(_state_text(chat))
+    elif command == "/log" and chat.last_run is not None:
+        print(render_log(runlog(chat.store.load_events(chat.last_run)), False))
+    elif command == "/log":
+        print("(no turn yet)")
+    elif command == "/reset":
+        chat.id = uuid4().hex
+        chat.last_run = None
+    else:
+        print("commands: /state, /log, /reset, /quit")
+    return True
+
+
+def _command_chat(args):
+    """Talk to one agent in the terminal; every run is saved like ``geomind run``."""
+    agents.named(args.agent)
+    workspace, project = _project(args.project)
+    llm = _chat_provider(args)
+    chat = _Chat(args.agent, llm, FileRunStore(RUNS_FOLDER), workspace, project, uuid4().hex)
+    with runtime.settings(**_changes(args)):
+        while True:
+            try:
+                message = input("\n> ").strip()
+            except EOFError:
+                return 0
+            is_command = message.startswith("/")
+            if is_command and not _chat_command(chat, message):
+                return 0
+            if message and not is_command:
+                _chat_turn(chat, message)
 
 
 def _split_run_folder(folder):
@@ -161,6 +263,14 @@ def _parser():
     run.add_argument("--mode", choices=["ask", "auto", "readonly", "plan"], default="ask")
     run.add_argument("--sandbox", choices=["local", "docker"])
     run.set_defaults(function=_command_run)
+    chat = commands.add_parser("chat", help="talk to one agent in the terminal")
+    chat.add_argument("--agent", default="analyst")
+    chat.add_argument("--project")
+    chat.add_argument("--live", action="store_true")
+    chat.add_argument("--recording")
+    chat.add_argument("--model")
+    chat.add_argument("--max-steps", type=int)
+    chat.set_defaults(function=_command_chat)
     replay = commands.add_parser("replay", help="rerun a stored run offline")
     replay.add_argument("run")
     replay.set_defaults(function=_command_replay)

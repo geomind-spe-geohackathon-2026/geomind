@@ -31,6 +31,7 @@ Read every file in `.claude/docs/` before changing the repository:
 - [Sandbox](.claude/docs/sandbox.md): where model-written code runs and what it cannot reach.
 - [Runtime](.claude/docs/runtime.md): context-local settings.
 - [Errors](.claude/docs/errors.md): the `gd.errors` classes and when each is raised.
+- [Evals](.claude/docs/evals.md): testing an agent by tasks, offline or live.
 - [Testing](.claude/docs/testing.md): tiers, test profiles, budgets, fixtures and CI.
 - [Utilities](.claude/docs/utils.md): the `geomind.utils` helpers and how to add one.
 
@@ -55,7 +56,7 @@ Test before each commit with `make test`, then `make test-all` and `make lint`.
 geomind/
 ├── __init__.py       # curated import geomind as gd API
 ├── __main__.py       # python -m geomind runs the command line
-├── cli.py            # geomind run, replay, show
+├── cli.py            # geomind run, chat, replay, show
 ├── run.py            # Run: the facade the backend uses
 ├── testing/          # conformance checks for RunStore and Workspace implementations
 ├── utils/            # leaf: hooks, context settings, time, json, strings
@@ -74,6 +75,7 @@ geomind/
 └── loops/            # Loop, ToolLoop
 examples/             # area/category/NN_name.py
 scripts/              # test_changed.py, the development test profile
+evals/                # tasks/, recordings/, reports/ and the runner, run.py
 tests/                # unit mirror, integration, e2e and recorded fixtures
 ```
 

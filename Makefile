@@ -10,10 +10,10 @@ test-all:
 	python -m pytest -m "not slow and not docker" --profile=development
 
 lint:
-	flake8 geomind tests examples scripts
-	black --check geomind tests examples scripts
-	isort --check-only geomind tests examples scripts
+	flake8 geomind tests examples scripts evals
+	black --check geomind tests examples scripts evals
+	isort --check-only geomind tests examples scripts evals
 
 format:
-	black geomind tests examples scripts
-	isort geomind tests examples scripts
+	black geomind tests examples scripts evals
+	isort geomind tests examples scripts evals

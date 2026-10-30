@@ -15,6 +15,6 @@ jobs:
         echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
     - name: Lint with flake8 black isort
       run: |
-        flake8 geomind tests examples scripts
-        black --check geomind tests examples scripts
-        isort --check-only geomind tests examples scripts
+        flake8 geomind tests examples scripts evals
+        black --check geomind tests examples scripts evals
+        isort --check-only geomind tests examples scripts evals
