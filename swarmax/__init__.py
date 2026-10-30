@@ -1,6 +1,6 @@
 """swarmax: agents, an engine over an event log, tools and the Run facade the backend uses."""
 
-from swarmax import errors
+from swarmax import errors, providers
 from swarmax.core import runtime
 from swarmax.core.types import Action, Allow, Deny, Message, Request, RunResult
 from swarmax.core.types.runlog import runlog
@@ -14,6 +14,7 @@ __all__ = [
     "Deny",
     "RunResult",
     "runlog",
+    "providers",
     "runtime",
     "errors",
     "__version__",

@@ -1,0 +1,2 @@
+[{"text": "Hello! I have ask_user and finish.", "model": "fake/model",
+  "usage": {"input_tokens": 12, "output_tokens": 9, "cost": 0.0001}}]

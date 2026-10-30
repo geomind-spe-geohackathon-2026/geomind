@@ -5,6 +5,7 @@ Imports only ``swarmax.utils``, ``swarmax.errors`` and itself.
 
 from swarmax.core.types.decisions import Allow, Cancel, Deny, Finish, Request, validate_answer
 from swarmax.core.types.messages import (
+    RULE_MODEL,
     Action,
     Completion,
     Message,
@@ -16,6 +17,7 @@ from swarmax.core.types.messages import (
 from swarmax.core.types.results import RunResult, status_of
 
 __all__ = [
+    "RULE_MODEL",
     "Action",
     "Allow",
     "Cancel",

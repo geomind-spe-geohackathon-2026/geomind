@@ -4,6 +4,9 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
+RULE_MODEL = "rule"
+"""The model name of a logged action that a rule-based ``forward`` decided without an LLM."""
+
 
 class Record(BaseModel):
     """Base of every swarmax record: frozen, strict about names, JSON-safe."""
