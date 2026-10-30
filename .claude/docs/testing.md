@@ -27,13 +27,13 @@ make test-all                             # the full fast suite, before each com
 ```
 
 `scripts/test_changed.py` takes the files changed against `HEAD` (plus uncommitted and untracked
-files, plus commits since `--base <ref>`), builds the `ast` import graph of `swarmax/`, `examples/`,
+files, plus commits since `--base <ref>`), builds the `ast` import graph of `geomind/`, `examples/`,
 `tests/` and `scripts/` (cached in `.tmp/test_changed/`), and selects the tests of the changed files
 and of every module that imports a changed module, directly or transitively:
 
 1. a changed test file runs itself; a changed `conftest.py` runs every test below it;
 2. `pyproject.toml` and the root `conftest.py` select every test;
-3. every affected `swarmax/<path>/<name>.py` runs `tests/unit/<path>/test_<name>.py`, and every
+3. every affected `geomind/<path>/<name>.py` runs `tests/unit/<path>/test_<name>.py`, and every
    affected test file runs; imports made by `conftest.py` files are not followed;
 4. a changed numbered example selects `tests/e2e/test_examples.py`;
 5. any other changed file selects the tests (or `conftest.py` scopes) whose source names its path.
@@ -65,21 +65,28 @@ The suite must remain safe under `pytest -n auto`:
 
 ## Structure and quality tests
 
-- `tests/unit/test_mirror.py`: every `swarmax/<path>/<name>.py` except `__init__.py` and
+- `tests/unit/test_mirror.py`: every `geomind/<path>/<name>.py` except `__init__.py` and
   `__main__.py` has a mirrored `tests/unit/<path>/test_<name>.py` that defines a test.
 - `tests/unit/test_package_boundaries.py`: the dependency order of
-  [conventions.md](conventions.md#dependencies).
+  [conventions.md](conventions.md#dependencies), and that no `core` package or import returns.
 - `tests/unit/test_code_quality.py`: comments, nesting, function length with `LONG_FUNCTIONS`,
-  `else` after an early exit, builtin raises and framework names.
-- `tests/unit/test_public_api.py`: the curated `sx` names, documented, and the version.
+  `else` after an early exit, builtin raises, framework names and the former package name.
+- `tests/unit/test_public_api.py`: the curated `gd` names, documented, and the version.
 - `tests/unit/test_docs_links.py`: every link in `AGENTS.md` and `.claude/docs/` resolves.
 
 ## Contract tests
 
 `tests/unit/types/test_events.py` pins `event.data()` to the table of
-`../docs/contracts.md` section 2. `sx.testing.check_run_store` and `sx.testing.check_workspace`
+`../docs/contracts.md` section 2. `gd.testing.check_run_store` and `gd.testing.check_workspace`
 run against the memory and file implementations in `tests/unit/testing/`; the backend runs the
 same functions against its own.
+
+## Stored runs
+
+`tests/fixtures/stored/s1_run.tar.gz` is one real run stored by S1, paused on a question.
+`tests/integration/test_stored_runs.py` loads, resumes and replays it, so event and checkpoint
+formats stay readable. Never regenerate it. It is compressed because the class path inside it holds
+the former package name, which the name test keeps out of tracked text.
 
 ## Docker
 
@@ -91,5 +98,5 @@ default.
 
 `.github/workflows/python_lint.yaml` runs Flake8, Black and isort. `python_test.yaml` runs the
 development profile on pull requests and the full suite on pushes to `main`, on Python 3.11 to
-3.14. It checks gemini out into `gemini-checkout/`, because swarmax needs it as an
+3.14. It checks gemini out into `gemini-checkout/`, because geomind needs it as an
 editable path dependency.

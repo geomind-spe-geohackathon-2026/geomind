@@ -1,8 +1,8 @@
 """The active run: sandbox lifecycle and artifacts."""
 
-from swarmax.engine.session import Stop, is_cancel
-from swarmax.sandbox import LocalSandbox
-from swarmax.types import Cancel, Deny
+from geomind.engine.session import Stop, is_cancel
+from geomind.sandbox import LocalSandbox
+from geomind.types import Cancel, Deny
 from tests.fixtures.runs import call, of_type, run, says, types, uses
 
 

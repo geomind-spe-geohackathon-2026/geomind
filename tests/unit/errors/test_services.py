@@ -1,6 +1,6 @@
 """Errors of what the harness calls."""
 
-from swarmax.errors import ProviderError, SandboxError, ToolError
+from geomind.errors import ProviderError, SandboxError, ToolError
 
 
 def test_provider_error_carries_status_and_retry_advice():

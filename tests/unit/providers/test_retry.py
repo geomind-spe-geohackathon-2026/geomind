@@ -2,10 +2,10 @@
 
 import pytest
 
-from swarmax import runtime
-from swarmax.errors import ProviderError
-from swarmax.providers import FakeLLM, RetryLLM, with_retries
-from swarmax.types import Completion
+from geomind import runtime
+from geomind.errors import ProviderError
+from geomind.providers import FakeLLM, RetryLLM, with_retries
+from geomind.types import Completion
 
 BUSY = ProviderError("busy", status=429, is_retryable=True)
 GOOD = Completion(text="ok")

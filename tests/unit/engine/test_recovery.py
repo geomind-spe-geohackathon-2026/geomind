@@ -2,9 +2,9 @@
 
 import pytest
 
-from swarmax.engine.checkpoint import Checkpoint
-from swarmax.engine.recovery import recover
-from swarmax.errors import RunError
+from geomind.engine.checkpoint import Checkpoint
+from geomind.engine.recovery import recover
+from geomind.errors import RunError
 from tests.fixtures.runs import call, run, says, uses
 
 

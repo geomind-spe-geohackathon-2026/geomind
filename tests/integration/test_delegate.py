@@ -2,14 +2,14 @@
 
 import pytest
 
-import swarmax as sx
-from swarmax import runtime
-from swarmax.engine import Engine, Permissions
-from swarmax.engine.checkpoint import Checkpoint
-from swarmax.engine.recovery import recover
-from swarmax.engine.store import MemoryRunStore
-from swarmax.providers import FakeLLM
-from swarmax.sandbox import LocalSandbox
+import geomind as gd
+from geomind import runtime
+from geomind.engine import Engine, Permissions
+from geomind.engine.checkpoint import Checkpoint
+from geomind.engine.recovery import recover
+from geomind.engine.store import MemoryRunStore
+from geomind.providers import FakeLLM
+from geomind.sandbox import LocalSandbox
 from tests.fixtures.runs import EXECUTED, Lead, call, context, of_type, says, uses
 
 HELP = call("helper", "d1", task="find it")
@@ -105,7 +105,7 @@ async def test_runlog_shows_the_nested_steps():
     _, _, events = await nested(
         [uses(call("lookup", "p1", key="k")), uses(HELP), says("found"), says("end")]
     )
-    log = sx.runlog(events)
+    log = gd.runlog(events)
     nested_steps = [step for step in log["steps"] if step["agent"] == "lead.helper_agent"]
     assert [step["parent"] for step in nested_steps] == [2]
     assert nested_steps[0]["llm_calls"][0]["answer"] == "found"
@@ -170,7 +170,7 @@ async def test_public_events_of_a_nested_run_are_forwarded():
     """A publisher sees the nested request and steps."""
     seen = []
 
-    class Publisher(sx.callbacks.Callback):
+    class Publisher(gd.callbacks.Callback):
         def on_event(self, engine, event):
             if event.is_public:
                 seen.append(event.type)

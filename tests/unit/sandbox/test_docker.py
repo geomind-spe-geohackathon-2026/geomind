@@ -2,9 +2,9 @@
 
 import pytest
 
-from swarmax.errors import SandboxError
-from swarmax.sandbox import DockerSandbox, Manifest, docker
-from swarmax.sandbox.base import TIMED_OUT
+from geomind.errors import SandboxError
+from geomind.sandbox import DockerSandbox, Manifest, docker
+from geomind.sandbox.base import TIMED_OUT
 
 
 @pytest.fixture

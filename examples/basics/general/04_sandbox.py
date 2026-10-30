@@ -1,8 +1,8 @@
 """The model writes and runs a small calculation in the local sandbox."""
 
-import swarmax as sx
+import geomind as gd
 from examples.support import provider
-from swarmax.types import Completion, ToolCall
+from geomind.types import Completion, ToolCall
 
 CODE = "print(sum(range(1, 101)))"
 SCRIPT = [
@@ -13,13 +13,13 @@ SCRIPT = [
 
 def main():
     """Run with the sandbox and approve the code by rule."""
-    store = sx.stores.MemoryRunStore()
-    run = sx.Run(
+    store = gd.stores.MemoryRunStore()
+    run = gd.Run(
         message="Add the numbers from 1 to 100 with Python",
         llm=provider(SCRIPT),
         store=store,
-        sandbox=sx.sandbox.LocalSandbox(),
-        permissions=sx.Permissions(allow=("run_python",)),
+        sandbox=gd.sandbox.LocalSandbox(),
+        permissions=gd.Permissions(allow=("run_python",)),
     )
     result = run.start()
     output = next(e.output for e in store.load_events(run.id) if e.type == "tool.result")

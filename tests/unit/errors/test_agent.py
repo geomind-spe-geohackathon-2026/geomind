@@ -2,7 +2,7 @@
 
 import pytest
 
-from swarmax.errors import DeclarationError, OutputError, UnknownNameError
+from geomind.errors import DeclarationError, OutputError, UnknownNameError
 
 
 @pytest.mark.parametrize(

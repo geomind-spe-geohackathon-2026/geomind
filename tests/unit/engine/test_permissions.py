@@ -2,12 +2,12 @@
 
 import pytest
 
-from swarmax.engine import Permissions
-from swarmax.engine.hooks import Hook, RequireApproval
-from swarmax.engine.permissions import PLAN_FEEDBACK
-from swarmax.errors import UnknownNameError
-from swarmax.tools import Tool
-from swarmax.types import Allow, Deny, Request
+from geomind.engine import Permissions
+from geomind.engine.hooks import Hook, RequireApproval
+from geomind.engine.permissions import PLAN_FEEDBACK
+from geomind.errors import UnknownNameError
+from geomind.tools import Tool
+from geomind.types import Allow, Deny, Request
 from tests.fixtures.runs import EXECUTED, call, of_type, run, says, uses
 
 

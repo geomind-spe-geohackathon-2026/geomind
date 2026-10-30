@@ -8,14 +8,14 @@ from tests.fixtures import ROOT
 
 START = """
 import sys
-import swarmax as sx
+import geomind as gd
 from tests.fixtures.runs import call, says, uses
-from swarmax.providers import FakeLLM
+from geomind.providers import FakeLLM
 
-run = sx.Run(
+run = gd.Run(
     message="go",
     llm=FakeLLM([uses(call("ask_user", question="which?"))]),
-    store=sx.stores.FileRunStore(sys.argv[1]),
+    store=gd.stores.FileRunStore(sys.argv[1]),
 )
 result = run.start()
 print(run.id, result.request.id)
@@ -23,12 +23,12 @@ print(run.id, result.request.id)
 ANSWER = """
 import sys
 import json
-import swarmax as sx
+import geomind as gd
 from tests.fixtures.runs import says
-from swarmax.providers import FakeLLM
+from geomind.providers import FakeLLM
 
-store = sx.stores.FileRunStore(sys.argv[1])
-run = sx.Run.load(sys.argv[2], llm=FakeLLM([says("end")]), store=store)
+store = gd.stores.FileRunStore(sys.argv[1])
+run = gd.Run.load(sys.argv[2], llm=FakeLLM([says("end")]), store=store)
 result = run.resume(sys.argv[3], {"text": "this"})
 print(json.dumps([result.status, result.answer]))
 """

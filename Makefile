@@ -10,10 +10,10 @@ test-all:
 	python -m pytest -m "not slow and not docker" --profile=development
 
 lint:
-	flake8 swarmax tests examples scripts
-	black --check swarmax tests examples scripts
-	isort --check-only swarmax tests examples scripts
+	flake8 geomind tests examples scripts
+	black --check geomind tests examples scripts
+	isort --check-only geomind tests examples scripts
 
 format:
-	black swarmax tests examples scripts
-	isort swarmax tests examples scripts
+	black geomind tests examples scripts
+	isort geomind tests examples scripts

@@ -4,10 +4,10 @@ import asyncio
 
 import pydantic
 
-from swarmax.agents import Agent, Output
-from swarmax.prompts import Prompt
-from swarmax.tools import finish, tool
-from swarmax.types import Action
+from geomind.agents import Agent, Output
+from geomind.prompts import Prompt
+from geomind.tools import finish, tool
+from geomind.types import Action
 from tests.fixtures.runs import (
     EXECUTED,
     call,

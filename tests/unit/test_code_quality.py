@@ -13,7 +13,7 @@ import pytest
 
 from tests.fixtures import ROOT
 
-PYTHON_FOLDERS = ("swarmax", "examples", "tests", "scripts")
+PYTHON_FOLDERS = ("geomind", "examples", "tests", "scripts")
 SECTION_HEADERS = {"# Agents", "# Prompt", "# Tools", "# Output", "# Model"}
 TOOL_DIRECTIVE = re.compile(
     r"# (noqa: [A-Z]+\d+(, [A-Z]+\d+)*|type: ignore\[[\w-]+\]|pragma: no cover)"
@@ -41,6 +41,10 @@ FRAMEWORK = re.compile(
     ),
     re.IGNORECASE,
 )
+
+
+FORMER_NAME = re.compile("swarm" + "ax|\\bs" + "x\\.", re.IGNORECASE)
+RENAME_NOTE = "CHANGELOG.md"
 
 
 def tracked_files():
@@ -93,7 +97,7 @@ PYTHON_FILES = python_files()
 PACKAGE_FILES = [
     path
     for path in PYTHON_FILES
-    if path.startswith("swarmax/") and not path.startswith("swarmax/utils/")
+    if path.startswith("geomind/") and not path.startswith("geomind/utils/")
 ]
 
 
@@ -165,8 +169,8 @@ def is_validator(function):
 
 
 @pytest.mark.parametrize("path", PACKAGE_FILES)
-def test_package_code_raises_swarmax_errors(path):
-    """Deliberate errors use ``gd.errors``; ``swarmax.utils`` and validators are the exceptions."""
+def test_package_code_raises_geomind_errors(path):
+    """Deliberate errors use ``gd.errors``; ``geomind.utils`` and validators are the exceptions."""
     found = [
         f"{path}:{node.lineno} {raised_name(node)}"
         for function in functions(path)
@@ -201,5 +205,23 @@ def test_no_framework_names_in_tracked_text_files():
             f"{path}:{number}"
             for number, line in enumerate(text.splitlines(), 1)
             if FRAMEWORK.search(line)
+        )
+    assert found == []
+
+
+def test_no_former_name_in_tracked_text_files():
+    """The former package name and alias are gone, but for one line in the changelog."""
+    found = []
+    for path in tracked_files():
+        if path == RENAME_NOTE:
+            continue
+        try:
+            text = (ROOT / path).read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            continue
+        found.extend(
+            f"{path}:{number}"
+            for number, line in enumerate(text.splitlines(), 1)
+            if FORMER_NAME.search(line)
         )
     assert found == []

@@ -2,7 +2,7 @@
 
 import pytest
 
-from swarmax.engine.hooks import (
+from geomind.engine.hooks import (
     Cancellation,
     CostBudget,
     Hook,
@@ -10,7 +10,7 @@ from swarmax.engine.hooks import (
     TokenBudget,
     ask_hooks,
 )
-from swarmax.types import Allow, Deny, Request
+from geomind.types import Allow, Deny, Request
 from tests.fixtures.runs import (
     EXECUTED,
     Worker,

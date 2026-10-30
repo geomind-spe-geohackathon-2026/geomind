@@ -2,11 +2,11 @@
 
 import pytest
 
-import swarmax as sx
-from swarmax import runtime
-from swarmax.agents import Assistant, CodeAssistant
-from swarmax.errors import ProviderError, RequestError, RunError
-from swarmax.providers import FakeLLM
+import geomind as gd
+from geomind import runtime
+from geomind.agents import Assistant, CodeAssistant
+from geomind.errors import ProviderError, RequestError, RunError
+from geomind.providers import FakeLLM
 from tests.fixtures.runs import call, of_type, says, uses
 
 
@@ -19,7 +19,7 @@ def no_retry_delay():
 
 def run_of(script, **options):
     """Return a run with a scripted provider."""
-    return sx.Run(message="hello", llm=FakeLLM(script), **options)
+    return gd.Run(message="hello", llm=FakeLLM(script), **options)
 
 
 def test_start_answers():
@@ -42,15 +42,15 @@ async def test_sync_form_inside_an_event_loop_raises():
 def test_history_comes_before_the_message():
     """A chat continues."""
     llm = FakeLLM([says()])
-    history = [sx.Message(role="user", content="before")]
-    sx.Run(message="now", history=history, llm=llm).start()
+    history = [gd.Message(role="user", content="before")]
+    gd.Run(message="now", history=history, llm=llm).start()
     contents = [message.content for message in llm.calls[0]["messages"]]
     assert contents.index("before") < contents.index("now")
 
 
 def test_run_started_reports_the_tool_loop():
     """The contract's event, with the chat in the log."""
-    store = sx.stores.MemoryRunStore()
+    store = gd.stores.MemoryRunStore()
     run = run_of([says()], store=store, chat="c1", project="p1")
     run.start()
     event = of_type(store.load_events(run.id), "run.started")[0]
@@ -62,13 +62,13 @@ def test_default_llm_is_openrouter(monkeypatch):
     """Without a provider the run uses OpenRouter, and so needs a key."""
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     with pytest.raises(ProviderError, match="OPENROUTER_API_KEY"):
-        sx.Run(message="x")
+        gd.Run(message="x")
 
 
 def test_a_sandbox_chooses_the_code_assistant(tmp_path):
     """Without a sandbox the model is not offered code tools."""
     assert type(run_of([]).loop.agent) is Assistant
-    assert type(run_of([], sandbox=sx.sandbox.LocalSandbox(tmp_path)).loop.agent) is CodeAssistant
+    assert type(run_of([], sandbox=gd.sandbox.LocalSandbox(tmp_path)).loop.agent) is CodeAssistant
 
 
 def question_script():
@@ -78,12 +78,12 @@ def question_script():
 
 def test_load_and_resume_in_a_fresh_run(tmp_path):
     """Nothing survives but the files."""
-    run = run_of(question_script(), store=sx.stores.FileRunStore(tmp_path))
+    run = run_of(question_script(), store=gd.stores.FileRunStore(tmp_path))
     paused = run.start()
     assert paused.status == "waiting"
 
-    fresh = sx.Run.load(
-        run.id, llm=FakeLLM(question_script()[1:]), store=sx.stores.FileRunStore(tmp_path)
+    fresh = gd.Run.load(
+        run.id, llm=FakeLLM(question_script()[1:]), store=gd.stores.FileRunStore(tmp_path)
     )
     assert fresh.resume(paused.request.id, {"text": "this"}).answer == "end"
 
@@ -105,13 +105,13 @@ async def test_aresume_for_async_callers():
 def test_load_of_an_unknown_run_raises(tmp_path):
     """Nothing is stored."""
     with pytest.raises(RunError, match="nothing is stored"):
-        sx.Run.load("nope", llm=FakeLLM([]), store=sx.stores.FileRunStore(tmp_path))
+        gd.Run.load("nope", llm=FakeLLM([]), store=gd.stores.FileRunStore(tmp_path))
 
 
 def test_resume_of_a_dead_run_continues_from_its_events():
     """A run with a logged completion continues without a second LLM call."""
 
-    class Dying(sx.stores.MemoryRunStore):
+    class Dying(gd.stores.MemoryRunStore):
         kind = "tool.started"
 
         def save_event(self, run_id, event):
@@ -121,11 +121,11 @@ def test_resume_of_a_dead_run_continues_from_its_events():
             super().save_event(run_id, event)
 
     store = Dying()
-    permissions = sx.Permissions(mode="auto")
+    permissions = gd.Permissions(mode="auto")
     run = run_of([uses(call("ask_user", question="q"))], store=store, permissions=permissions)
     with pytest.raises(SystemExit):
         run.start()
-    fresh = sx.Run.load(run.id, llm=FakeLLM([]), store=store, permissions=permissions)
+    fresh = gd.Run.load(run.id, llm=FakeLLM([]), store=store, permissions=permissions)
     paused = fresh.resume()
     assert paused.status == "waiting"
 
@@ -135,7 +135,7 @@ class ContractOnly:
 
     def __init__(self):
         """Wrap a full store."""
-        self.inner = sx.stores.MemoryRunStore()
+        self.inner = gd.stores.MemoryRunStore()
 
     def __getattr__(self, name):
         """Offer everything but what the contract leaves out."""
@@ -149,7 +149,7 @@ def test_a_contract_only_store_resumes_requests_from_its_checkpoint():
     store = ContractOnly()
     run = run_of(question_script(), store=store)
     paused = run.start()
-    fresh = sx.Run.load(run.id, llm=FakeLLM(question_script()[1:]), store=store)
+    fresh = gd.Run.load(run.id, llm=FakeLLM(question_script()[1:]), store=store)
     assert fresh.resume(paused.request.id, {"text": "x"}).answer == "end"
 
 
@@ -158,7 +158,7 @@ def test_a_contract_only_store_refuses_crash_recovery():
     store = ContractOnly()
     run = run_of(question_script(), store=store)
     run.start()
-    fresh = sx.Run.load(run.id, llm=FakeLLM([]), store=store)
+    fresh = gd.Run.load(run.id, llm=FakeLLM([]), store=store)
     with pytest.raises(RunError, match="load_events"):
         fresh.resume()
 
@@ -167,7 +167,7 @@ def test_cancel_stops_at_the_next_hook_point():
     """Cancelling from a callback ends the run."""
     run = run_of([uses(call("ask_user", question="q"))])
 
-    class Canceller(sx.callbacks.Callback):
+    class Canceller(gd.callbacks.Callback):
         def on_llm_call(self, engine, event):
             run.cancel()
 

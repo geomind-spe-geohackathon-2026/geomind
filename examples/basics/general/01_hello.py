@@ -1,8 +1,8 @@
 """The smallest run: one message, one answer."""
 
-import swarmax as sx
+import geomind as gd
 from examples.support import provider
-from swarmax.types import Completion, Usage
+from geomind.types import Completion, Usage
 
 SCRIPT = [
     Completion(
@@ -15,7 +15,7 @@ SCRIPT = [
 
 def main():
     """Run and print the answer."""
-    result = sx.Run(message="Say hello and list the tools you have", llm=provider(SCRIPT)).start()
+    result = gd.Run(message="Say hello and list the tools you have", llm=provider(SCRIPT)).start()
     print(result.answer)
     print(result.usage)
 

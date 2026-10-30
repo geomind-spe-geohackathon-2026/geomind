@@ -1,6 +1,6 @@
 # Events
 
-Every event of a run, in `swarmax/types/events.py`. An event has `run_id`, `sequence`, `time`,
+Every event of a run, in `geomind/types/events.py`. An event has `run_id`, `sequence`, `time`,
 `agent` (the dotted agent path), `parent` (the parent run id of a nested run, or `null`), a stable
 `type`, `is_public` and `data()`. Event log version: 1. Types never change silently: a change is a
 new version, recorded here.
@@ -64,6 +64,6 @@ same redaction as events.
 
 ## Run log
 
-`sx.runlog(events)` builds the contract `runlog` object from the events of a root run, nested
+`gd.runlog(events)` builds the contract `runlog` object from the events of a root run, nested
 runs included. A step's `parent` is the step of the parent run that delegated it, while an event's
 `parent` is the parent run id; both are as the contract defines them.

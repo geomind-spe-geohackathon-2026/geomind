@@ -2,7 +2,7 @@
 
 import pytest
 
-from swarmax.types import RunResult, status_of
+from geomind.types import RunResult, status_of
 
 
 @pytest.mark.parametrize(

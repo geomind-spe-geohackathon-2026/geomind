@@ -1,8 +1,8 @@
 """Known secrets never reach a store or a stream."""
 
-from swarmax.types import Completion, Message
-from swarmax.types.events import LLMCompleted
-from swarmax.types.redaction import REDACTED, redact, redact_event
+from geomind.types import Completion, Message
+from geomind.types.events import LLMCompleted
+from geomind.types.redaction import REDACTED, redact, redact_event
 
 
 def test_redact_walks_nested_values():

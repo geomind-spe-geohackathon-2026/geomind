@@ -5,7 +5,7 @@ import subprocess
 
 import pytest
 
-from swarmax.sandbox import DockerSandbox, Manifest
+from geomind.sandbox import DockerSandbox, Manifest
 
 pytestmark = pytest.mark.docker
 

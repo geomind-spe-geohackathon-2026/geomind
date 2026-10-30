@@ -1,8 +1,8 @@
 """A stand-in for the engine's session, for tests below the engine."""
 
-from swarmax.errors import SandboxError
-from swarmax.sandbox import LocalSandbox, Manifest
-from swarmax.types import Usage
+from geomind.errors import SandboxError
+from geomind.sandbox import LocalSandbox, Manifest
+from geomind.types import Usage
 
 
 class StubState:

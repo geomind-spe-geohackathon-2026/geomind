@@ -1,14 +1,14 @@
 # Errors
 
-`swarmax/errors/` defines every swarmax exception class. Users reach them as `sx.errors.<Name>`.
+`geomind/errors/` defines every geomind exception class. Users reach them as `gd.errors.<Name>`.
 It is a leaf package (`tests/unit/test_package_boundaries.py`).
 
-Every class derives from `SwarmaxError` and from the matching built-in exception, so `except
-ValueError` keeps catching `sx.errors.RequestError`. Catch `SwarmaxError` to handle every swarmax
+Every class derives from `GeomindError` and from the matching built-in exception, so `except
+ValueError` keeps catching `gd.errors.RequestError`. Catch `GeomindError` to handle every geomind
 error. New code raises one of these classes for every deliberate error; the exceptions are
-`swarmax.utils`, which cannot import them, pydantic validators, which must raise `ValueError`, and
+`geomind.utils`, which cannot import them, pydantic validators, which must raise `ValueError`, and
 the Python protocol errors (`NotImplementedError`, and `AttributeError` from `__getattr__`).
-`test_package_code_raises_swarmax_errors` enforces this.
+`test_package_code_raises_geomind_errors` enforces this.
 
 A permission denial is a tool result, not an exception.
 
@@ -16,7 +16,7 @@ A permission denial is a tool result, not an exception.
 
 `base.py`:
 
-- `SwarmaxError(Exception)`: root of every class below.
+- `GeomindError(Exception)`: root of every class below.
 
 `agent.py`, defining agents and their answers:
 
@@ -52,11 +52,11 @@ A permission denial is a tool result, not an exception.
 ## Message style
 
 Write `<where>: <field> = <value>; expected <what>[; did you mean 'x'?]`. Use
-`swarmax.utils.strings.did_you_mean` for the suggestion and `join_names` for lists of valid names.
+`geomind.utils.strings.did_you_mean` for the suggestion and `join_names` for lists of valid names.
 
 ## Adding a class
 
 Add a class only for a situation no existing class describes. Put it in the file of its topic,
-derive it from `SwarmaxError` and from the matching built-in exception, give it a one-line docstring
-saying when it is raised, export it in `swarmax/errors/__init__.py`, and test it in the mirrored
+derive it from `GeomindError` and from the matching built-in exception, give it a one-line docstring
+saying when it is raised, export it in `geomind/errors/__init__.py`, and test it in the mirrored
 file under `tests/unit/errors/`. Then update this document.

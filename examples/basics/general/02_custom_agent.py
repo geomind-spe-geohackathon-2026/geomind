@@ -2,18 +2,18 @@
 
 import asyncio
 
-import swarmax as sx
+import geomind as gd
 from examples.support import provider
-from swarmax.types import Completion, ToolCall
+from geomind.types import Completion, ToolCall
 
 
-@sx.tool(effect="compute")
+@gd.tool(effect="compute")
 def add(left: int, right: int):
     """Add two numbers."""
     return left + right
 
 
-class Adder(sx.Agent):
+class Adder(gd.Agent):
     """Adds numbers with its tool."""
 
     def __init__(self):
@@ -21,14 +21,14 @@ class Adder(sx.Agent):
         super().__init__()
 
         # Prompt
-        self.prompt = sx.Prompt.text("Use the tool, then answer with the number.")
+        self.prompt = gd.Prompt.text("Use the tool, then answer with the number.")
 
         # Tools
         self.add = add
-        self.finish = sx.tools.finish
+        self.finish = gd.tools.finish
 
         # Model
-        self.model = sx.Model(temperature=0)
+        self.model = gd.Model(temperature=0)
 
 
 SCRIPT = [
@@ -40,9 +40,9 @@ SCRIPT = [
 async def main():
     """Print the agent, then run it."""
     print(Adder.help())
-    engine = sx.Engine(llm=provider(SCRIPT))
-    context = sx.Context(messages=[sx.Message(role="user", content="What is 2 + 40?")])
-    result = await sx.loops.ToolLoop(Adder()).run(engine, context)
+    engine = gd.Engine(llm=provider(SCRIPT))
+    context = gd.Context(messages=[gd.Message(role="user", content="What is 2 + 40?")])
+    result = await gd.loops.ToolLoop(Adder()).run(engine, context)
     print(result.answer)
 
 

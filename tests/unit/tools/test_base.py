@@ -3,8 +3,8 @@
 import pydantic
 import pytest
 
-from swarmax.errors import DeclarationError, ToolError, UnknownNameError
-from swarmax.tools import Tool, tool
+from geomind.errors import DeclarationError, ToolError, UnknownNameError
+from geomind.tools import Tool, tool
 
 
 @tool(effect="compute")

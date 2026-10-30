@@ -2,8 +2,8 @@
 
 import pytest
 
-from swarmax.errors import UnknownNameError
-from swarmax.prompts import Prompt
+from geomind.errors import UnknownNameError
+from geomind.prompts import Prompt
 
 
 def test_role_loads_its_file():

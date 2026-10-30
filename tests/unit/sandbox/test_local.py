@@ -5,10 +5,10 @@ import shutil
 
 import pytest
 
-from swarmax.errors import SandboxError
-from swarmax.sandbox import LocalSandbox, Manifest
-from swarmax.sandbox.base import NOT_FOUND, TIMED_OUT
-from swarmax.sandbox.local import parse_size
+from geomind.errors import SandboxError
+from geomind.sandbox import LocalSandbox, Manifest
+from geomind.sandbox.base import NOT_FOUND, TIMED_OUT
+from geomind.sandbox.local import parse_size
 
 
 @pytest.fixture

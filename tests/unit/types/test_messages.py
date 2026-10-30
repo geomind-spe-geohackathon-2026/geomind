@@ -3,7 +3,7 @@
 import pydantic
 import pytest
 
-from swarmax.types import Completion, Message, ToolCall, Usage
+from geomind.types import Completion, Message, ToolCall, Usage
 
 
 def test_usage_adds_up():

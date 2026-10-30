@@ -2,11 +2,11 @@
 
 import pytest
 
-from swarmax import runtime
-from swarmax.errors import SandboxError
-from swarmax.sandbox import LocalSandbox, Manifest, Sandbox, SandboxProvider
-from swarmax.sandbox.base import checked_path, package_root
-from swarmax.sandbox.local import LocalSession
+from geomind import runtime
+from geomind.errors import SandboxError
+from geomind.sandbox import LocalSandbox, Manifest, Sandbox, SandboxProvider
+from geomind.sandbox.base import checked_path, package_root
+from geomind.sandbox.local import LocalSession
 
 
 def test_manifest_defaults_are_closed():

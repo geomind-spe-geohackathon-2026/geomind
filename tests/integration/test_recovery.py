@@ -2,13 +2,13 @@
 
 import pytest
 
-from swarmax import runtime
-from swarmax.engine import Engine, Permissions
-from swarmax.engine.checkpoint import Checkpoint
-from swarmax.engine.recovery import recover
-from swarmax.engine.store import FileRunStore, MemoryRunStore
-from swarmax.errors import RunError
-from swarmax.providers import FakeLLM
+from geomind import runtime
+from geomind.engine import Engine, Permissions
+from geomind.engine.checkpoint import Checkpoint
+from geomind.engine.recovery import recover
+from geomind.engine.store import FileRunStore, MemoryRunStore
+from geomind.errors import RunError
+from geomind.providers import FakeLLM
 from tests.fixtures.runs import EXECUTED, Worker, call, context, of_type, says, uses
 
 VOLATILE = {"run", "duration"}

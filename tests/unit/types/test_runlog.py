@@ -2,9 +2,9 @@
 
 import pytest
 
-from swarmax.errors import RunError
-from swarmax.types import Completion, Message, Request, Usage
-from swarmax.types.events import (
+from geomind.errors import RunError
+from geomind.types import Completion, Message, Request, Usage
+from geomind.types.events import (
     LLMCompleted,
     PermissionDecided,
     RequestMade,
@@ -12,7 +12,7 @@ from swarmax.types.events import (
     RunStarted,
     ToolRecorded,
 )
-from swarmax.types.runlog import runlog
+from geomind.types.runlog import runlog
 
 USAGE = Usage(input_tokens=2, output_tokens=3, cost=0.5)
 

@@ -4,9 +4,9 @@ import re
 
 import pytest
 
-from swarmax.errors import RunError
-from swarmax.types import Completion, Request, ToolCall, Usage
-from swarmax.types.events import (
+from geomind.errors import RunError
+from geomind.types import Completion, Request, ToolCall, Usage
+from geomind.types.events import (
     EVENT_CLASSES,
     CheckpointSaved,
     ErrorRaised,

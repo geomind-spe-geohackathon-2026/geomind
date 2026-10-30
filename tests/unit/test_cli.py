@@ -6,8 +6,9 @@ from pathlib import Path
 import httpx
 import pytest
 
-from swarmax import cli, runtime
-from swarmax.providers import OpenRouter
+from geomind import cli, runtime
+from geomind.providers import FakeLLM, OpenRouter
+from tests.fixtures.runs import says
 
 
 def stream(*chunks):
@@ -143,3 +144,13 @@ def test_show_marks_a_nested_step():
         ],
     }
     assert "Step 1 (lead.helper, delegated by step 2)" in cli.render_log(log, False)
+
+
+def test_run_replay_and_show_with_a_fake_llm(monkeypatch, tmp_path, capsys):
+    """The three commands work with the scripted provider."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "OpenRouter", lambda: FakeLLM([says("Hello")]))
+    assert cli.main(["run", "Say hello"]) == 0
+    assert cli.main(["replay", run_folder()]) == 0
+    assert cli.main(["show", run_folder()]) == 0
+    assert "answer: Hello" in capsys.readouterr().out

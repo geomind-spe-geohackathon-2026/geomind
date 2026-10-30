@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from swarmax.utils.json import append_line, read_json, read_lines, to_jsonable, write_json
+from geomind.utils.json import append_line, read_json, read_lines, to_jsonable, write_json
 
 
 def test_to_jsonable_stringifies_unknown_objects():

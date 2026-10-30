@@ -5,11 +5,11 @@ import json
 import httpx
 import pytest
 
-from swarmax import runtime
-from swarmax.errors import ProviderError
-from swarmax.providers import OpenRouter
-from swarmax.providers.openrouter import INVALID_ARGUMENTS
-from swarmax.types import Message, ToolCall
+from geomind import runtime
+from geomind.errors import ProviderError
+from geomind.providers import OpenRouter
+from geomind.providers.openrouter import INVALID_ARGUMENTS
+from geomind.types import Message, ToolCall
 
 SETTINGS = {"temperature": 0, "max_tokens": 50}
 

@@ -2,8 +2,8 @@
 
 import pytest
 
-from swarmax.errors import RequestError
-from swarmax.types import Cancel, Deny, Request, validate_answer
+from geomind.errors import RequestError
+from geomind.types import Cancel, Deny, Request, validate_answer
 
 APPROVAL = Request(kind="approval", message="ok?")
 QUESTION = Request(kind="question", message="which?")

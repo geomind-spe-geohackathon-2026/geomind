@@ -6,7 +6,7 @@ import pytest
 
 from tests.fixtures import ROOT
 
-PACKAGE = ROOT / "swarmax"
+PACKAGE = ROOT / "geomind"
 SOURCES = sorted(
     path for path in PACKAGE.rglob("*.py") if path.name not in {"__init__.py", "__main__.py"}
 )

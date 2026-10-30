@@ -4,8 +4,8 @@ import asyncio
 
 import pytest
 
-from swarmax import runtime
-from swarmax.errors import RunError, UnknownNameError
+from geomind import runtime
+from geomind.errors import RunError, UnknownNameError
 
 
 def test_settings_nest_and_restore():
@@ -28,10 +28,10 @@ def test_settings_work_as_decorator():
 
 
 def test_default_model_reads_the_environment(monkeypatch):
-    """``SWARMAX_MODEL`` wins over the fixed default."""
-    monkeypatch.setenv("SWARMAX_MODEL", "x/y")
+    """``GEOMIND_MODEL`` wins over the fixed default."""
+    monkeypatch.setenv("GEOMIND_MODEL", "x/y")
     assert runtime.get("default_model") == "x/y"
-    monkeypatch.delenv("SWARMAX_MODEL")
+    monkeypatch.delenv("GEOMIND_MODEL")
     assert runtime.get("default_model") == runtime.FIXED_DEFAULT_MODEL
 
 

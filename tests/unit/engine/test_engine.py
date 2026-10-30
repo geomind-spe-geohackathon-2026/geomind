@@ -1,10 +1,10 @@
 """The engine: stop reasons and limits."""
 
-from swarmax.engine import Engine, Permissions
-from swarmax.engine.hooks import TokenBudget
-from swarmax.errors import ProviderError
-from swarmax.providers import FakeLLM
-from swarmax.types import Usage
+from geomind.engine import Engine, Permissions
+from geomind.engine.hooks import TokenBudget
+from geomind.errors import ProviderError
+from geomind.providers import FakeLLM
+from geomind.types import Usage
 from tests.fixtures.runs import Worker, call, context, of_type, run, says, types, uses
 
 

@@ -1,9 +1,9 @@
 """The root of the error tree."""
 
-import swarmax.errors as errors
+import geomind.errors as errors
 
 
 def test_every_class_derives_from_the_root():
-    """Catching ``SwarmaxError`` catches every class."""
+    """Catching ``GeomindError`` catches every class."""
     for name in errors.__all__:
-        assert issubclass(getattr(errors, name), errors.SwarmaxError)
+        assert issubclass(getattr(errors, name), errors.GeomindError)

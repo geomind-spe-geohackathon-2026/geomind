@@ -1,9 +1,9 @@
 # Utilities
 
-`swarmax/utils/` holds general-purpose helpers that know nothing about agents, tools or runs. It is
+`geomind/utils/` holds general-purpose helpers that know nothing about agents, tools or runs. It is
 a leaf package (`tests/unit/test_package_boundaries.py`), so it raises built-in exceptions such as
-`ValueError`, and callers that need a swarmax error convert them. Import helpers from their topic
-module; `swarmax/utils/__init__.py` exports nothing.
+`ValueError`, and callers that need a geomind error convert them. Import helpers from their topic
+module; `geomind/utils/__init__.py` exports nothing.
 
 - `hooks.py`: `RemovableHandle`, ordered registrations with a safe double `remove()`.
 - `context.py`: `ContextSetting`, a context variable change usable as `with` and as a decorator.

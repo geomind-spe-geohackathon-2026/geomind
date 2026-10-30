@@ -4,7 +4,7 @@ from datetime import datetime
 
 import pytest
 
-from swarmax.utils.time import parse_duration, utc_now
+from geomind.utils.time import parse_duration, utc_now
 
 
 def test_utc_now_is_aware():

@@ -2,7 +2,7 @@
 
 import inspect
 
-from swarmax.providers import LLM, FakeLLM
+from geomind.providers import LLM, FakeLLM
 
 
 def test_protocol_is_the_contract_signature():

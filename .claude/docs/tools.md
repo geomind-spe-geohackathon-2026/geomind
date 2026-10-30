@@ -1,12 +1,12 @@
 # Tools
 
-The primitive actions of an agent, in `swarmax/tools/`. Tool names are stable identifiers: a change
+The primitive actions of an agent, in `geomind/tools/`. Tool names are stable identifiers: a change
 is a new version.
 
 ## Tool
 
 `Tool(name, description, input_schema, function, *, effect, idempotent=True, timeout=None,
-max_retries=2, input_model=None)`. `@sx.tool(effect=...)` builds one from a typed function: the
+max_retries=2, input_model=None)`. `@gd.tool(effect=...)` builds one from a typed function: the
 schema comes from the signature through Pydantic and the description from the docstring.
 
 | `effect` | Means | Runs in ask mode |
@@ -28,9 +28,9 @@ other sources (MCP later) fit: without `input_model`, only the required and know
 runs the function with the tool's timeout, times it and returns a `ToolResult`, or the `Request` or
 `Finish` the tool returned. A sync function runs in a worker thread with a copied context.
 
-- A validation error, an `sx.errors` or `gemini.errors` class, or a timeout becomes a result
+- A validation error, an `gd.errors` or `gemini.errors` class, or a timeout becomes a result
   `{error: {class, message}}` with `is_error`, so the model can fix its call. gemini errors are
-  recognised by module path, so `import swarmax` need not import gemini.
+  recognised by module path, so `import geomind` need not import gemini.
 - After `max_retries` validation failures of one tool in a row, the engine stops the run with
   `stop_reason="error"`.
 - Any other exception is a bug: it is reported through `on_error`, and the model reads only

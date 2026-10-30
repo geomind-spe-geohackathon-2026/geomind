@@ -2,7 +2,7 @@
 
 from contextvars import ContextVar
 
-from swarmax.utils.context import ContextSetting
+from geomind.utils.context import ContextSetting
 
 VALUE = ContextVar("value", default=0)
 

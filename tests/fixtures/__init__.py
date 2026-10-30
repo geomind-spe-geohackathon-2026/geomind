@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from swarmax.types import Completion
+from geomind.types import Completion
 
 ROOT = Path(__file__).parents[2]
 FIXTURES = ROOT / "tests/fixtures"

@@ -2,8 +2,9 @@
 
 import pytest
 
-from swarmax.engine.checkpoint import Checkpoint, class_path, import_class
-from swarmax.errors import CheckpointError, RunError
+from geomind.agents import Assistant
+from geomind.engine.checkpoint import FORMER_PREFIX, Checkpoint, class_path, import_class
+from geomind.errors import CheckpointError, RunError
 from tests.fixtures.runs import Worker
 
 
@@ -36,3 +37,8 @@ def test_bad_class_path_raises(path):
     """A path that imports nothing is a run error."""
     with pytest.raises(RunError, match="importable"):
         import_class(path)
+
+
+def test_former_class_path_imports_the_class():
+    """A run stored before the rename still names a class that loads."""
+    assert import_class(f"{FORMER_PREFIX}agents.general.assistant:Assistant") is Assistant

@@ -2,13 +2,13 @@
 
 import pytest
 
-from swarmax import runtime
-from swarmax.agents import Agent
-from swarmax.engine import Context, Engine, Permissions
-from swarmax.engine.store import MemoryRunStore
-from swarmax.providers import FakeLLM
-from swarmax.tools import tool
-from swarmax.types import ToolCall
+from geomind import runtime
+from geomind.agents import Agent
+from geomind.engine import Context, Engine, Permissions
+from geomind.engine.store import MemoryRunStore
+from geomind.providers import FakeLLM
+from geomind.tools import tool
+from geomind.types import ToolCall
 from tests.fixtures.runs import Worker, call, context, engine_for, of_type, run, says, types, uses
 
 

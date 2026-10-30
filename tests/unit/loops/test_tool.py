@@ -2,10 +2,10 @@
 
 import pytest
 
-from swarmax.engine import Engine
-from swarmax.errors import LoopError
-from swarmax.loops import ToolLoop
-from swarmax.providers import FakeLLM
+from geomind.engine import Engine
+from geomind.errors import LoopError
+from geomind.loops import ToolLoop
+from geomind.providers import FakeLLM
 from tests.fixtures.runs import Worker, call, context, of_type, says, uses
 
 

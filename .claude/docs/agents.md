@@ -1,27 +1,27 @@
 # Agents
 
 An `Agent` is to one decision what a gemini `Module` is to one tick: it turns a context into an
-action and never loops by itself. See `swarmax/agents/agent.py`.
+action and never loops by itself. See `geomind/agents/agent.py`.
 
 ```python
-class Assistant(sx.Agent):
+class Assistant(gd.Agent):
     """General assistant that answers with the tools it has."""
 
     def __init__(self):
         super().__init__()
 
         # Prompt
-        self.prompt = sx.Prompt("assistant")
+        self.prompt = gd.Prompt("assistant")
 
         # Tools
-        self.ask_user = sx.tools.ask_user
-        self.finish = sx.tools.finish
+        self.ask_user = gd.tools.ask_user
+        self.finish = gd.tools.finish
 
         # Output
-        self.output = sx.Output(str)
+        self.output = gd.Output(str)
 
         # Model
-        self.model = sx.Model(temperature=0)
+        self.model = gd.Model(temperature=0)
 ```
 
 ## Declarations
@@ -55,7 +55,7 @@ hook stopped the call, and then `action` is `None`.
 `Prompt("assistant")` loads `prompts/assistant.md`, and `Prompt.text(...)` holds inline text.
 
 `Model(name=None, temperature=0, max_tokens=None, fallbacks=())`: `name=None` means the default
-model of `sx.runtime`, and `fallbacks` lists models tried in order when the provider keeps failing.
+model of `gd.runtime`, and `fallbacks` lists models tried in order when the provider keeps failing.
 
 `Output(kind=str, max_retries=2)` is the type of the final answer, `str` or a Pydantic model. The
 answer of `finish` or of the last message is validated. A failure goes back to the model as
@@ -64,6 +64,6 @@ its JSON schema to the system prompt.
 
 ## Shipped agents
 
-`sx.agents.Assistant` is the agent of S1. `CodeAssistant` adds `run_python`, `read_file` and
+`gd.agents.Assistant` is the agent of S1. `CodeAssistant` adds `run_python`, `read_file` and
 `write_file`; `Run` uses it when a sandbox is configured, so a run without one offers the model no
 tool that can only fail.

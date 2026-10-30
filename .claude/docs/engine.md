@@ -1,7 +1,7 @@
 # Engine
 
 The engine runs one agent until it stops, over an append-only event log. Loops decide which run
-comes next. It is finite: it never sleeps or schedules itself. Code is in `swarmax/engine/`.
+comes next. It is finite: it never sleeps or schedules itself. Code is in `geomind/engine/`.
 
 ## Harness principles
 
@@ -134,5 +134,5 @@ first differing step.
 `Workspace` has `plant(project_id)` and `documents(project_id, query)`. `MemoryWorkspace(plants,
 documents)` holds values; `FileWorkspace(root)` reads `<root>/<project id>/plant.json`, loaded by
 the class the file names, and text files in `documents/`, searched by keyword count. The S1
-agents do not use it; the S2 tools will. `sx.testing.check_run_store` and `check_workspace` are the
+agents do not use it; the S2 tools will. `gd.testing.check_run_store` and `check_workspace` are the
 conformance checks.

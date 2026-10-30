@@ -1,6 +1,6 @@
 # Providers
 
-Interchangeable LLM services behind one protocol, in `swarmax/providers/`. The name differs from
+Interchangeable LLM services behind one protocol, in `geomind/providers/`. The name differs from
 gemini's `backends` because these are services. Keys live only here: they never enter a sandbox, a
 prompt, an event, a checkpoint or a log.
 

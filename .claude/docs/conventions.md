@@ -8,9 +8,9 @@ sentence in the docstring of the function, class or test that makes it.
 
 A package may import only the packages to its left:
 
-`swarmax.utils`, `swarmax.errors` ← `types` ← `runtime` ← `prompts` ← `providers`
+`geomind.utils`, `geomind.errors` ← `types` ← `runtime` ← `prompts` ← `providers`
 ← `sandbox` ← `tools` ← `agents` ← `engine` ← `stores` ← `loops` ← `run` ← `testing`
-← `cli` ← `swarmax/__init__`.
+← `cli` ← `geomind/__init__`.
 
 `tests/unit/test_package_boundaries.py` enforces this order.
 
@@ -18,16 +18,18 @@ A package may import only the packages to its left:
 - `sandbox` sits below `tools` because the code tools use it.
 - `tools.delegate` reaches the engine only through the active run in `runtime`, never by
   import. The same goes for `Agent.complete`, `dispatch` and the code tools.
-- `swarmax.utils` and `swarmax.errors` are leaf packages: they import only the standard library,
+- `geomind.utils` and `geomind.errors` are leaf packages: they import only the standard library,
   installed dependencies and themselves.
-- `import swarmax` does not import `gemini`, which takes more than a second. `FileWorkspace.plant`
+- `import geomind` does not import `gemini`, which takes more than a second. `FileWorkspace.plant`
   reaches it only through the class a plant file names. `dispatch` recognises `gemini.errors`
   classes by the module path in their class hierarchy.
 
 The folder `types` shares its name with the standard library module. This is safe because every
-import is absolute (`swarmax.types`); never put the package folder itself on `sys.path`.
+import is absolute (`geomind.types`); never put the package folder itself on `sys.path`.
 
 `context/` (problem state, compaction) arrives in S2 and `verify/` in S3.
+
+The import alias is `gd` (`import geomind as gd`), not `gm`, which is gemini's.
 
 ## Agent rules
 
@@ -62,7 +64,7 @@ The only comments allowed in code are:
 
 Everything worth explaining goes into docstrings. A decision is a `NOTE:` sentence in the
 docstring, never a comment. `test_only_section_headers_and_tool_directives_are_comments` checks
-every Python file in `swarmax/`, `examples/`, `tests/` and `scripts/`.
+every Python file in `geomind/`, `examples/`, `tests/` and `scripts/`.
 
 ## Code quality
 
@@ -74,7 +76,7 @@ every Python file in `swarmax/`, `examples/`, `tests/` and `scripts/`.
 - Just enough code: no dead code, unused options or parameters, speculative generality or golfed
   one-liners.
 - Clear names, as in [Naming](#naming).
-- Explicit errors: raise an `sx.errors` class (see [errors.md](errors.md)), never a bare `except`,
+- Explicit errors: raise an `gd.errors` class (see [errors.md](errors.md)), never a bare `except`,
   and no silent fallback that hides a failure.
 - A bug gets a failing test first; the fix makes it pass.
 
@@ -96,7 +98,7 @@ The package avoids hidden behaviour. These are the only implicit mechanisms, eac
   the code tools, `Delegate` and the budget hooks. An agent declares *which model*; the run supplies
   *which provider*, so agents and tools stay free of keys, stores and HTTP. Worker threads for
   sync tools receive a copied context.
-- `sx.runtime.settings()` is a context setting built on `swarmax.utils.context.ContextSetting`: a
+- `gd.runtime.settings()` is a context setting built on `geomind.utils.context.ContextSetting`: a
   context variable change usable as a `with` block and as a decorator, restored on exit.
 - `class_path`/`import_class` in `engine/checkpoint.py` are the only import-by-string:
   checkpoints and events name the agent class that rebuilds a run.
@@ -119,7 +121,7 @@ Each one also has a `NOTE:` in the docstring that makes it.
   of one run live in the session.
 - Assigning after `__init__` raises. gemini lets a user assign `esp.frequency = 50` afterward
   because a module has persistent commands; an agent has none.
-- The dependency order adds `stores`, the small module behind `sx.stores`, after `engine`.
+- The dependency order adds `stores`, the small module behind `gd.stores`, after `engine`.
 - `engine/session.py` is one file beyond the layout of the S1 prompt: the object behind the
   active run.
 - Tool names follow the attribute of the agent that declares them, on a copy of the tool.

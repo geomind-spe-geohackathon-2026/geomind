@@ -4,7 +4,7 @@ import tomllib
 
 import pytest
 
-import swarmax as sx
+import geomind as gd
 from tests.fixtures import ROOT
 
 EXPECTED = (
@@ -43,21 +43,21 @@ EXPECTED = (
 @pytest.mark.parametrize("name", EXPECTED)
 def test_public_name_exists_and_is_listed(name):
     """Every curated name exists, is exported and shows in completion."""
-    assert hasattr(sx, name) and name in sx.__all__ and name in dir(sx)
+    assert hasattr(gd, name) and name in gd.__all__ and name in dir(gd)
 
 
 def test_nothing_else_is_public():
     """Interactive completion shows only the curated names."""
-    assert set(dir(sx)) == set(sx.__all__) == set(EXPECTED)
+    assert set(dir(gd)) == set(gd.__all__) == set(EXPECTED)
 
 
 def test_stores_namespace():
     """The four implementations are public."""
     names = ("MemoryRunStore", "FileRunStore", "MemoryWorkspace", "FileWorkspace")
-    assert all(hasattr(sx.stores, name) for name in names)
+    assert all(hasattr(gd.stores, name) for name in names)
 
 
 def test_version_matches_the_package_metadata():
-    """The version literal in ``swarmax/__init__.py`` is the one in ``pyproject.toml``."""
+    """The version literal in ``geomind/__init__.py`` is the one in ``pyproject.toml``."""
     project = tomllib.loads((ROOT / "pyproject.toml").read_text())
-    assert sx.__version__ == project["project"]["version"]
+    assert gd.__version__ == project["project"]["version"]

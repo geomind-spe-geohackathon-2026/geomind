@@ -3,12 +3,12 @@
 import pydantic
 import pytest
 
-from swarmax import runtime
-from swarmax.agents import Agent, AgentResult, Model, Output
-from swarmax.errors import DeclarationError, OutputError, RunError
-from swarmax.prompts import Prompt
-from swarmax.tools import ask_user, finish
-from swarmax.types import Action, Completion, Deny, Message, Usage
+from geomind import runtime
+from geomind.agents import Agent, AgentResult, Model, Output
+from geomind.errors import DeclarationError, OutputError, RunError
+from geomind.prompts import Prompt
+from geomind.tools import ask_user, finish
+from geomind.types import Action, Completion, Deny, Message, Usage
 from tests.fixtures.sessions import StubSession
 
 

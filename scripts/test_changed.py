@@ -13,7 +13,7 @@ Selection rules, applied to the changed files:
 2. ``pyproject.toml``, the root ``conftest.py`` select every test.
 3. Every Python module that imports a changed module, directly or transitively (importing
    ``a.b.c`` also imports the packages ``a`` and ``a.b``), is affected. Affected test files run,
-   and every affected ``swarmax/<path>/<name>.py`` runs its mirror
+   and every affected ``geomind/<path>/<name>.py`` runs its mirror
    ``tests/unit/<path>/test_<name>.py``. Imports made by ``conftest.py`` files are not followed,
    otherwise every change would select the whole suite through shared fixtures.
 4. A changed numbered example script selects ``tests/e2e/test_examples.py``.
@@ -33,7 +33,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGES = ("swarmax", "examples", "tests", "scripts")
+PACKAGES = ("geomind", "examples", "tests", "scripts")
 SELECT_ALL = {"pyproject.toml", "conftest.py"}
 EXAMPLE_SCRIPT = re.compile(r"^examples/.*/\d\d_[^/]+\.py$")
 EXAMPLES_TEST = "tests/e2e/test_examples.py"
@@ -143,10 +143,10 @@ def is_test_file(path):
 
 
 def mirror_test(path):
-    """Return the mirrored unit-test path of one ``swarmax`` source file, or ``None``."""
-    if not path.startswith("swarmax/") or path.endswith("__init__.py"):
+    """Return the mirrored unit-test path of one ``geomind`` source file, or ``None``."""
+    if not path.startswith("geomind/") or path.endswith("__init__.py"):
         return None
-    relative = Path(path).relative_to("swarmax")
+    relative = Path(path).relative_to("geomind")
     return (Path("tests/unit") / relative.parent / f"test_{relative.name}").as_posix()
 
 

@@ -2,7 +2,7 @@
 
 import argparse
 
-import swarmax as sx
+import geomind as gd
 
 
 def provider(script, argv=None):
@@ -10,5 +10,5 @@ def provider(script, argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--live", action="store_true", help="use OpenRouter")
     if parser.parse_args(argv).live:
-        return sx.providers.OpenRouter()
-    return sx.providers.FakeLLM(script)
+        return gd.providers.OpenRouter()
+    return gd.providers.FakeLLM(script)

@@ -2,10 +2,10 @@
 
 import pydantic
 
-from swarmax.agents import Agent, Output
-from swarmax.engine import Context
-from swarmax.prompts import Prompt
-from swarmax.types import Message
+from geomind.agents import Agent, Output
+from geomind.engine import Context
+from geomind.prompts import Prompt
+from geomind.types import Message
 
 
 class Typed(pydantic.BaseModel):

@@ -1,6 +1,6 @@
 # Public API
 
-Use `import swarmax as sx`. The curated top level is `Run`, `Agent`, `Engine`, `Tool`, `tool`,
+Use `import geomind as gd`. The curated top level is `Run`, `Agent`, `Engine`, `Tool`, `tool`,
 `Prompt`, `Model`, `Output`, `Context`, `Message`, `Action`, `Request`, `Allow`, `Deny`,
 `Permissions`, `RunResult`, `runlog`, `agents`, `tools`, `loops`, `hooks`, `callbacks`, `providers`,
 `sandbox`, `stores`, `testing`, `runtime`, `errors` and `__version__`.
@@ -8,23 +8,23 @@ Use `import swarmax as sx`. The curated top level is `Run`, `Agent`, `Engine`, `
 workflow, documentation, and a public-API test.
 
 `Run` is the facade the backend uses. `Engine` is the lower layer for tests, evals and custom
-loops. `sx.stores` exposes `MemoryRunStore`, `FileRunStore`, `MemoryWorkspace`, `FileWorkspace` and
+loops. `gd.stores` exposes `MemoryRunStore`, `FileRunStore`, `MemoryWorkspace`, `FileWorkspace` and
 the `RunStore` and `Workspace` protocols.
 
 ## Run
 
 ```python
-import swarmax as sx
+import geomind as gd
 
-result = sx.Run(message="Say hello").start()
+result = gd.Run(message="Say hello").start()
 print(result.answer, result.usage)
 ```
 
 ```python
-run = sx.Run(message=..., chat=..., project=..., history=..., llm=..., store=...,
+run = gd.Run(message=..., chat=..., project=..., history=..., llm=..., store=...,
              workspace=None, sandbox=None, permissions=None, callbacks=[...], hooks=[...])
 result = run.start()                     # or: result = await run.astart()
-run = sx.Run.load(run_id, llm=..., store=..., workspace=None, sandbox=None,
+run = gd.Run.load(run_id, llm=..., store=..., workspace=None, sandbox=None,
                   permissions=None, callbacks=[...], hooks=[...])
 result = run.resume(request_id, answer)  # or: await run.aresume(...)
 result = run.resume()                    # continue a run whose process died
@@ -39,12 +39,12 @@ sandbox is configured. `answer` is `{"approved": true}`, `{"approved": false, "r
 
 ## Command line
 
-- `swarmax run "<message>" [--model ID] [--max-steps N] [--mode ask|auto|readonly|plan]
+- `geomind run "<message>" [--model ID] [--max-steps N] [--mode ask|auto|readonly|plan]
   [--sandbox local|docker]` runs with `OpenRouter` and `FileRunStore(".runs")`, prints text as it
   streams, asks in the terminal when a request pauses the run, then resumes.
-- `swarmax replay <run dir>` reruns offline and prints pass or the first mismatch.
-- `swarmax show <run dir> [--format md]` prints the log per step and the totals, built from
-  `sx.runlog`.
+- `geomind replay <run dir>` reruns offline and prints pass or the first mismatch.
+- `geomind show <run dir> [--format md]` prints the log per step and the totals, built from
+  `gd.runlog`.
 
 ## Examples
 
@@ -54,4 +54,4 @@ sandbox is configured. `answer` is `{"approved": true}`, `{"approved": false, "r
 
 ## Errors
 
-Every exception class is available as `sx.errors.<Name>`; see [errors.md](errors.md).
+Every exception class is available as `gd.errors.<Name>`; see [errors.md](errors.md).

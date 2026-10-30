@@ -2,9 +2,9 @@
 
 import pytest
 
-from swarmax import runtime
-from swarmax.tools import Delegate, dispatch
-from swarmax.types import Request, RunResult, ToolCall
+from geomind import runtime
+from geomind.tools import Delegate, dispatch
+from geomind.types import Request, RunResult, ToolCall
 from tests.fixtures.sessions import StubSession
 
 

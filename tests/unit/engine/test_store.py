@@ -1,11 +1,11 @@
-"""The memory store; the checks of ``sx.testing`` cover the protocol."""
+"""The memory store; the checks of ``gd.testing`` cover the protocol."""
 
 import pytest
 
-from swarmax.engine.store import FileRunStore, MemoryRunStore
-from swarmax.errors import RunError
-from swarmax.types import Message
-from swarmax.types.events import StepStarted
+from geomind.engine.store import FileRunStore, MemoryRunStore
+from geomind.errors import RunError
+from geomind.types import Message
+from geomind.types.events import StepStarted
 from tests.fixtures.runs import call, run, says, uses
 
 
@@ -66,7 +66,7 @@ def test_file_store_refuses_unsafe_names(tmp_path, name):
 
 async def test_large_tool_result_is_an_artifact_in_the_store(tmp_path):
     """A run saves a large result and the model reads a reference."""
-    from swarmax import runtime
+    from geomind import runtime
 
     store = FileRunStore(tmp_path)
     with runtime.settings(tool_result_limit=30):

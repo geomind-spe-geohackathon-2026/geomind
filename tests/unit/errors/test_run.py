@@ -2,7 +2,7 @@
 
 import pytest
 
-from swarmax.errors import CheckpointError, LoopError, ReplayError, RequestError, RunError
+from geomind.errors import CheckpointError, LoopError, ReplayError, RequestError, RunError
 
 
 @pytest.mark.parametrize(

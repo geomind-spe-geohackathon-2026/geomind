@@ -1,6 +1,6 @@
 """Removable hook registrations."""
 
-from swarmax.utils.hooks import RemovableHandle
+from geomind.utils.hooks import RemovableHandle
 
 
 def test_handle_removes_only_its_hook_and_twice_is_safe():

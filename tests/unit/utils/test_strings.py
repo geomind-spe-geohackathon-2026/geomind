@@ -1,6 +1,6 @@
 """Names and message pieces."""
 
-from swarmax.utils.strings import (
+from geomind.utils.strings import (
     did_you_mean,
     first_paragraph,
     join_names,

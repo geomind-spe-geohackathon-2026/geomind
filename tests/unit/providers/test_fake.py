@@ -2,10 +2,10 @@
 
 import pytest
 
-from swarmax.errors import ProviderError
-from swarmax.providers import FakeLLM
-from swarmax.types import RULE_MODEL, Completion
-from swarmax.types.events import LLMCompleted, StepStarted
+from geomind.errors import ProviderError
+from geomind.providers import FakeLLM
+from geomind.types import RULE_MODEL, Completion
+from geomind.types.events import LLMCompleted, StepStarted
 from tests.fixtures import load_completions
 
 

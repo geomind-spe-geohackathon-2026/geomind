@@ -1,6 +1,6 @@
 """The shipped assistants."""
 
-from swarmax.agents import Assistant, CodeAssistant
+from geomind.agents import Assistant, CodeAssistant
 
 
 def test_assistant_has_the_built_ins():

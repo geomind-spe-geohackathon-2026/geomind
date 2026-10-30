@@ -2,12 +2,12 @@
 
 import asyncio
 
-from swarmax.agents import Agent, Model
-from swarmax.engine import Context, Engine, Permissions
-from swarmax.prompts import Prompt
-from swarmax.providers import FakeLLM
-from swarmax.tools import Delegate, ask_user, finish, run_python, tool
-from swarmax.types import Completion, Message, ToolCall, Usage
+from geomind.agents import Agent, Model
+from geomind.engine import Context, Engine, Permissions
+from geomind.prompts import Prompt
+from geomind.providers import FakeLLM
+from geomind.tools import Delegate, ask_user, finish, run_python, tool
+from geomind.types import Completion, Message, ToolCall, Usage
 
 USAGE = Usage(input_tokens=10, output_tokens=5, cost=0.01)
 EXECUTED = []

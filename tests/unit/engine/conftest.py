@@ -2,7 +2,7 @@
 
 import pytest
 
-from swarmax import runtime
+from geomind import runtime
 from tests.fixtures.runs import EXECUTED
 
 

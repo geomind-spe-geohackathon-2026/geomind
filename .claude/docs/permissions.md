@@ -1,7 +1,7 @@
 # Permissions
 
-Declarative rules and a mode, in `swarmax/engine/permissions.py`.
-`sx.Permissions(mode="ask", allow=(), ask=(), deny=())`; a rule is a tool name or
+Declarative rules and a mode, in `geomind/engine/permissions.py`.
+`gd.Permissions(mode="ask", allow=(), ask=(), deny=())`; a rule is a tool name or
 `"effect:<effect>"`, and an unknown mode or effect raises `UnknownNameError`.
 
 ## The order

@@ -8,25 +8,25 @@ import pytest
 from tests.fixtures import ROOT
 
 ORDER = [
-    ("swarmax.utils",),
-    ("swarmax.errors",),
-    ("swarmax.types",),
-    ("swarmax.runtime",),
-    ("swarmax.prompts",),
-    ("swarmax.providers",),
-    ("swarmax.sandbox",),
-    ("swarmax.tools",),
-    ("swarmax.agents",),
-    ("swarmax.engine",),
-    ("swarmax.stores",),
-    ("swarmax.loops",),
-    ("swarmax.run",),
-    ("swarmax.testing",),
-    ("swarmax.cli",),
+    ("geomind.utils",),
+    ("geomind.errors",),
+    ("geomind.types",),
+    ("geomind.runtime",),
+    ("geomind.prompts",),
+    ("geomind.providers",),
+    ("geomind.sandbox",),
+    ("geomind.tools",),
+    ("geomind.agents",),
+    ("geomind.engine",),
+    ("geomind.stores",),
+    ("geomind.loops",),
+    ("geomind.run",),
+    ("geomind.testing",),
+    ("geomind.cli",),
 ]
 CORE_IMPORT = re.compile(r"^\s*(?:from|import) +\S*\bcore\b.*$", re.MULTILINE)
-LEAVES = {"swarmax.utils", "swarmax.errors"}
-SOURCES = sorted((ROOT / "swarmax").rglob("*.py"))
+LEAVES = {"geomind.utils", "geomind.errors"}
+SOURCES = sorted((ROOT / "geomind").rglob("*.py"))
 
 
 def module_name(path):
@@ -36,7 +36,7 @@ def module_name(path):
 
 
 def imported_modules(path):
-    """Return the dotted ``swarmax`` modules one file imports, with imported submodules."""
+    """Return the dotted ``geomind`` modules one file imports, with imported submodules."""
     names = set()
     for node in ast.walk(ast.parse(path.read_text())):
         if isinstance(node, ast.Import):
@@ -44,7 +44,7 @@ def imported_modules(path):
         if isinstance(node, ast.ImportFrom):
             assert node.level == 0, f"{path}: use absolute imports"
             names.update(f"{node.module}.{alias.name}" for alias in node.names)
-    return {name for name in names if name.startswith("swarmax.")}
+    return {name for name in names if name.startswith("geomind.")}
 
 
 def rank(name):
@@ -72,19 +72,19 @@ def test_imports_follow_the_dependency_order(path):
 
 def test_rank_finds_the_owner_package():
     """A submodule belongs to its package and the package root to nothing."""
-    assert rank("swarmax.engine.step") > rank("swarmax.tools.base")
-    assert rank("swarmax") is None
+    assert rank("geomind.engine.step") > rank("geomind.tools.base")
+    assert rank("geomind") is None
 
 
 def all_python_files():
     """Return every Python file of the repository's own folders."""
-    folders = ("swarmax", "examples", "tests", "scripts")
+    folders = ("geomind", "examples", "tests", "scripts")
     return [path for folder in folders for path in sorted((ROOT / folder).rglob("*.py"))]
 
 
 def test_no_core_package_or_import_reappears():
     """The packages live at the top level, and no import goes through a ``core`` package."""
-    assert not (ROOT / "swarmax/core").exists() and not (ROOT / "tests/unit/core").exists()
+    assert not (ROOT / "geomind/core").exists() and not (ROOT / "tests/unit/core").exists()
     found = []
     for path in all_python_files():
         found += [f"{path}: {line}" for line in CORE_IMPORT.findall(path.read_text())]

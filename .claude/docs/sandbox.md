@@ -1,6 +1,6 @@
 # Sandbox
 
-The hands for code the model writes, in `swarmax/sandbox/`. S3 uses it to write and test missing
+The hands for code the model writes, in `geomind/sandbox/`. S3 uses it to write and test missing
 gemini modules. gemini tools are trusted library calls and stay in-process; model-written code only
 ever runs here and is never imported into the harness process.
 
@@ -18,12 +18,12 @@ class SandboxProvider(Protocol):
 ```
 
 `ExecutionResult` holds `exit_code`, `stdout`, `stderr` and `duration`. A command over its time
-limit has exit code 124 and a missing command 127. `command` is a list or text. `sx.sandbox.LocalSandbox`
-and `DockerSandbox` are providers, as the contract passes them to `sx.Run`.
+limit has exit code 124 and a missing command 127. `command` is a list or text. `gd.sandbox.LocalSandbox`
+and `DockerSandbox` are providers, as the contract passes them to `gd.Run`.
 
 `Manifest(files={}, packages=("gemini",), python="3.11", cpu=1, memory="1g", disk="1g",
 timeout="10min", network=False)` says what goes in and the limits.
-`Manifest.from_runtime()` takes the limits from `sx.runtime`.
+`Manifest.from_runtime()` takes the limits from `gd.runtime`.
 
 ## LocalSandbox
 

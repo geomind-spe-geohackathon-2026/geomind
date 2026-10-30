@@ -1,8 +1,8 @@
 """Callbacks observe and never change a run."""
 
-from swarmax.engine.callbacks import CALLBACK_METHODS, Callback, EventLog
-from swarmax.types.events import EVENT_CLASSES
-from swarmax.utils.json import read_lines
+from geomind.engine.callbacks import CALLBACK_METHODS, Callback, EventLog
+from geomind.types.events import EVENT_CLASSES
+from geomind.utils.json import read_lines
 from tests.fixtures.runs import call, of_type, run, says, types, uses
 
 

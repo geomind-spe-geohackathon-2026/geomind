@@ -4,11 +4,11 @@ import asyncio
 
 import pytest
 
-from swarmax import runtime
-from swarmax.errors import ToolError
-from swarmax.tools import ask_user, dispatch, finish, tool
-from swarmax.tools.dispatch import is_reported_error
-from swarmax.types import Finish, Request, ToolCall
+from geomind import runtime
+from geomind.errors import ToolError
+from geomind.tools import ask_user, dispatch, finish, tool
+from geomind.tools.dispatch import is_reported_error
+from geomind.types import Finish, Request, ToolCall
 from tests.fixtures.sessions import StubSession
 
 
@@ -81,7 +81,7 @@ async def test_validation_error_is_a_result_for_the_model(session):
     assert result.output["error"]["class"] == "ValidationError"
 
 
-async def test_swarmax_error_is_a_result(session):
+async def test_geomind_error_is_a_result(session):
     """A deliberate error reaches the model with class and message."""
     result = await dispatch(raises_tool_error, call())
     assert result.is_error and not result.is_validation

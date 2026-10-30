@@ -4,9 +4,9 @@ import shutil
 
 import pytest
 
-from swarmax import runtime
-from swarmax.tools import dispatch, read_file, run_python, write_file
-from swarmax.types import ToolCall
+from geomind import runtime
+from geomind.tools import dispatch, read_file, run_python, write_file
+from geomind.types import ToolCall
 from tests.fixtures.sessions import StubSession
 
 
