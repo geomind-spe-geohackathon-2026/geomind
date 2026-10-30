@@ -250,7 +250,7 @@ async def run_step(session, agent):
     stop = await _run_calls(session, agent)
     if stop is None and state.has_answer:
         stop = Stop("finish", answer=state.answer)
-    if stop is None and not state.action.tool_calls:
+    if stop is None and not state.action.tool_calls and not state.is_refused:
         stop = await _gate_answer(session, agent, state.action.text, None)
     if stop is not None and stop.reason == "request":
         return stop

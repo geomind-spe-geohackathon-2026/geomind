@@ -48,7 +48,8 @@ class Checkpoint(BaseModel):
     snapshot and a rebuild from the log are equal by construction. ``action``, ``calls``,
     ``results``, ``allowed`` and ``started`` describe the open step, so a run continues inside a
     step without repeating what the log already holds. ``allowed`` holds approved call ids, and
-    ``llm`` or ``finish`` for an approved pause at those points.
+    ``llm`` or ``finish`` for an approved pause at those points. ``is_refused`` says the answer of
+    this step went back to the model, so the step closes instead of proposing it again.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -79,6 +80,7 @@ class Checkpoint(BaseModel):
     pending: PendingAction | None = None
     failures: dict[str, int] = {}
     output_failures: int = 0
+    is_refused: bool = False
     has_answer: bool = False
     answer: Any = None
     status: str = "running"

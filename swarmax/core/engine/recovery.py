@@ -31,6 +31,7 @@ def _step_started(state, event):
     """Open a step."""
     state.step = event.index
     state.in_step = True
+    state.is_refused = False
     state.step_usage = Usage()
 
 
@@ -61,6 +62,7 @@ def _feedback(state, event):
     """Add feedback about the final answer to the conversation."""
     if event.call_id is None:
         state.messages.append(Message(role="user", content=_content(event.output)))
+        state.is_refused = event.feedback is not None
     if event.feedback == "output":
         state.output_failures += 1
 
