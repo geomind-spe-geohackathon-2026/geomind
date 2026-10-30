@@ -34,7 +34,7 @@ The import alias is `gd` (`import geomind as gd`), not `gm`, which is gemini's.
 
 ## Agent rules
 
-1. Declare only in `__init__`, after `super().__init__()`.
+1. Declare in `__init__`, after `super().__init__()`.
 2. Constructor sections are `# Agents`, `# Prompt`, `# Tools`, `# Output`, `# Model`, in that
    order, with empty sections omitted.
 3. `forward` is exactly `async def forward(self, context)` and returns an `Action`. Override it
@@ -93,8 +93,7 @@ The package avoids hidden behaviour. These are the only implicit mechanisms, eac
 - `Agent.__setattr__` registers what `__init__` assigns: a `Tool` goes to the ordered tool
   registry, an `Agent` becomes a child with a dotted path, and a `Prompt`, `Output` or `Model` fills
   its one slot. Constructors therefore read as plain assignments in section order. Unknown or
-  duplicate names raise `DeclarationError` with a close-match suggestion. The `_AgentMeta`
-  metaclass seals an instance after `__init__`, so a later declaration raises too.
+  duplicate names raise `DeclarationError` with a close-match suggestion.
 - `Tool` looks at the first parameter of its function: one named `context` receives the run's
   context from `dispatch` and is left out of the schema, so a tool that needs the run says so in
   its signature and every other tool stays a plain function.
@@ -119,8 +118,6 @@ Each one also has a `NOTE:` in the docstring that makes it.
 - Hooks can deny or pause. gemini's pre-hooks observe or adjust inputs.
 - `Agent` has no `__getattr__` and keeps no values: declarations are plain attributes, and values
   of one run live in the session.
-- Assigning after `__init__` raises. gemini lets a user assign `esp.frequency = 50` afterward
-  because a module has persistent commands; an agent has none.
 - The dependency order adds `stores`, the small module behind `gd.stores`, after `engine`.
 - `engine/session.py` is one file beyond the layout of the S1 prompt: the object behind
   `context.session`.

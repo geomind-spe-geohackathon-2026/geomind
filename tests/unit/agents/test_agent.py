@@ -105,10 +105,11 @@ def test_declaring_before_super_init_raises():
         Early()
 
 
-def test_declaring_after_init_raises():
-    """Declarations stay in the constructor."""
-    with pytest.raises(DeclarationError, match="after __init__"):
-        Parent().finish = finish
+def test_a_declaration_after_init_registers():
+    """Assignment is recognised at any time, as on a gemini module."""
+    parent = Parent()
+    parent.finish = finish
+    assert list(parent.tools()) == ["ask", "finish"]
 
 
 def test_duplicate_name_raises():

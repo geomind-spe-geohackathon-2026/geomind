@@ -94,22 +94,12 @@ class AgentResult(Record):
 _SLOTS = {"prompt": Prompt, "output": Output, "model": Model}
 
 
-class _AgentMeta(type):
-    """Seal an agent once its ``__init__`` has returned, so declarations stay in ``__init__``."""
-
-    def __call__(cls, *args, **kwargs):
-        """Build the agent, then refuse further declarations."""
-        agent = super().__call__(*args, **kwargs)
-        object.__setattr__(agent, "_is_sealed", True)
-        return agent
-
-
-class Agent(metaclass=_AgentMeta):
+class Agent:
     """Base class: declare in ``__init__``, override ``forward`` only for a rule-based step.
 
     Constructor sections are ``# Agents``, ``# Prompt``, ``# Tools``, ``# Output``, ``# Model``.
-    NOTE: unlike a gemini module, an agent has no ``__getattr__`` and refuses assignment after
-    ``__init__``, because it has no persistent commands; the values of a run live in its session.
+    NOTE: unlike a gemini module, an agent has no ``__getattr__``, because it has no persistent
+    commands; the values of a run live in its session.
     """
 
     def __init__(self):
@@ -120,7 +110,6 @@ class Agent(metaclass=_AgentMeta):
             ("_declared", set()),
             ("_parent", None),
             ("_attribute", None),
-            ("_is_sealed", False),
             ("prompt", None),
             ("output", Output()),
             ("model", Model()),
@@ -149,8 +138,6 @@ class Agent(metaclass=_AgentMeta):
         where = f"{type(self).__name__}.{name}"
         if "_tools" not in self.__dict__:
             raise DeclarationError(f"{where}: assigned before super().__init__()")
-        if self._is_sealed:
-            raise DeclarationError(f"{where}: assigned after __init__; declare it in __init__")
         if name in self._declared or (hasattr(type(self), name) and name not in _SLOTS):
             raise DeclarationError(f"{where}: the name is already taken")
 

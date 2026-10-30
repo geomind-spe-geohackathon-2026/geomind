@@ -27,9 +27,9 @@ class Assistant(gd.Agent):
 ## Declarations
 
 Sections are `# Agents`, `# Prompt`, `# Tools`, `# Output`, `# Model`, in that order, with empty
-ones omitted, and only in `__init__` after `super().__init__()`. `Agent.__setattr__` registers: a
+ones omitted, in `__init__` after `super().__init__()`. `Agent.__setattr__` registers: a
 `Tool` under its attribute name, an `Agent` as a child with a dotted `path`, and a `Prompt`,
-`Output` or `Model` in its slot. A wrong place, a taken name (a method name included) or a value
+`Output` or `Model` in its slot. A declaration before `super().__init__()`, a taken name (a method name included) or a value
 that is no declaration raises `DeclarationError`, with a close match where there is one. Private
 `_names` are plain attributes.
 
