@@ -1,6 +1,18 @@
 # Utilities
 
-General-purpose helpers in a leaf package.
+`swarmax/utils/` holds general-purpose helpers that know nothing about agents, tools or runs. It is
+a leaf package (`tests/unit/test_package_boundaries.py`), so it raises built-in exceptions such as
+`ValueError`, and callers that need a swarmax error convert them. Import helpers from their topic
+module; `swarmax/utils/__init__.py` exports nothing.
 
-Status: planned. The API is in the S1 prompt, section 4, and the document fills in as the step
-lands.
+- `hooks.py`: `RemovableHandle`, ordered registrations with a safe double `remove()`.
+- `context.py`: `ContextSetting`, a context variable change usable as `with` and as a decorator.
+- `strings.py`: `snake_case`, `first_paragraph`, `join_path`, `join_names`, `did_you_mean`.
+- `time.py`: `utc_now`, `parse_duration`.
+- `json.py`: `to_jsonable`, `read_json`, `write_json` (atomic), `append_line`, `read_lines`.
+
+## Adding a helper
+
+Add a helper only when at least two places need it, or when it removes a duplicate. Put it in the
+file of its topic (no `misc.py` or `helpers.py`), give it a docstring, replace every duplicate in
+the same commit and add a test to the mirrored `tests/unit/utils/test_<file>.py`.

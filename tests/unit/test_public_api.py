@@ -38,7 +38,19 @@ EXPECTED = (
     "errors",
     "__version__",
 )
-NOT_BUILT = set(EXPECTED) - {"__version__"}
+BUILT = {
+    "Message",
+    "Action",
+    "Request",
+    "Allow",
+    "Deny",
+    "RunResult",
+    "runlog",
+    "runtime",
+    "errors",
+    "__version__",
+}
+NOT_BUILT = set(EXPECTED) - BUILT
 
 
 @pytest.mark.parametrize(
