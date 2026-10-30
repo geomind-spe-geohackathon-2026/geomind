@@ -39,6 +39,8 @@ EXPECTED = (
     "__version__",
 )
 BUILT = {
+    "Run",
+    "loops",
     "stores",
     "testing",
     "Engine",

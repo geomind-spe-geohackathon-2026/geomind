@@ -79,4 +79,52 @@ See [hooks.md](hooks.md), [permissions.md](permissions.md), [events.md](events.m
 
 ## Loops
 
-See `swarmax/loops/`.
+
+`Loop` has `async run(engine, task)`, `resume(engine, checkpoint, request_id, answer)`,
+`state_dict()` and `load_state_dict(state)`. The state of a loop is saved in the `checkpoint` event
+and the run checkpoint, so a pause inside a loop resumes at the same place in another process.
+Loops are written as resumable steps, never with state held only in local variables.
+`ToolLoop(agent, max_steps=None)` is one engine run of one agent.
+
+## Recovery and resume
+
+`recover(events, run_id=None)` folds a log through `apply`, and `catch_up(state, events)` applies
+what came after a snapshot. A checkpoint (version 1, `checkpoint.py`) is that same state as JSON,
+saved after every step, before a pause and at the end; a wrong version or shape raises
+`CheckpointError`.
+
+`Engine.resume(checkpoint, request_id, answer)` first catches up with the log, when the store has
+`load_events`. An unknown or already answered request raises `RequestError`, and a run that ended
+raises `RunError`. Approval runs the stored call without asking again; denial becomes the tool
+result; a reply to `ask_user` becomes its result. Without a request, it continues a run whose
+process died: the recorded completion is reused, and a started tool without a result runs again
+only when `idempotent`; otherwise it becomes an error result for the model.
+
+## Nested runs
+
+`Delegate` runs an agent through `session.delegate` in a child session sharing the root's
+`RunLog`: same store key, same sequence, its own `run_id`, `parent` set, its own checkpoint under
+its own run id. A pause in the child logs `request` once; the parent logs a `permission` event with
+decision `wait` and pauses on the same request id, and an answer to the parent passes down.
+
+## Replay
+
+`await Engine.replay(store, run_id)` (`replay.py`) reruns a stored run through
+`FakeLLM.from_events`, without network and with permissive permissions, since the log holds the
+outcome of the original decisions. `read` and `compute` tools run again; others reuse recorded
+results, as do calls that were denied or answered. A paused run stops where its log ends, so it
+never runs its pending tool. A different call, count or answer raises `ReplayError` naming the
+first differing step.
+
+## Stores and workspaces
+
+`RunStore` is the eight-method protocol of the contract. `MemoryRunStore` and
+`FileRunStore(root=".runs")` add `load_events(run_id)` and `add_message(chat_id, message)`.
+`FileRunStore` writes `<root>/<run id>/events.jsonl`, `checkpoint.json` and `artifacts/`, and
+`<root>/chats/<chat id>/history.jsonl` and `state.json`. Unsafe ids raise `RunError`.
+
+`Workspace` has `plant(project_id)` and `documents(project_id, query)`. `MemoryWorkspace(plants,
+documents)` holds values; `FileWorkspace(root)` reads `<root>/<project id>/plant.json`, loaded by
+the class the file names, and text files in `documents/`, searched by keyword count. The S1
+agents do not use it; the S2 tools will. `sx.testing.check_run_store` and `check_workspace` are the
+conformance checks.
