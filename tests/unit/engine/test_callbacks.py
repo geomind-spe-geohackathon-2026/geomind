@@ -65,7 +65,8 @@ async def test_on_event_sees_every_event_and_async_methods_run():
     recorder = Recorder()
     _, _, events = await run([uses(call("add", left=1, right=2)), says()], callbacks=[recorder])
     assert "async tool end" in recorder.seen
-    assert [item for item in recorder.seen if item != "async tool end"] == types(events)
+    seen = [item for item in recorder.seen if item not in ("async tool end", "text.delta")]
+    assert seen == types(events)
 
 
 async def test_failing_callback_never_changes_the_run():
@@ -88,14 +89,15 @@ async def test_event_log_in_memory():
     """Without a path events stay in memory."""
     log = EventLog()
     _, _, events = await run([says()], callbacks=[log])
-    assert log.events == events
+    assert [event for event in log.events if event.type != "text.delta"] == events
 
 
 async def test_event_log_writes_json_lines(tmp_path):
     """With a path every event is one JSON line."""
     path = tmp_path / "events.jsonl"
     _, _, events = await run([says()], callbacks=[EventLog(path)])
-    assert [line["type"] for line in read_lines(path)] == types(events)
+    written = [line["type"] for line in read_lines(path) if line["type"] != "text.delta"]
+    assert written == types(events)
 
 
 async def test_on_event_comes_before_the_specific_method():

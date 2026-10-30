@@ -123,7 +123,6 @@ async def test_step_events_in_order():
         "step.finished",
         "usage",
         "step.started",
-        "text.delta",
         "step.finished",
         "usage",
         "run.finished",

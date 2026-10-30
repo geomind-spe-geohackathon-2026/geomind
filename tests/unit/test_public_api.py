@@ -25,6 +25,7 @@ EXPECTED = (
     "Permissions",
     "RunResult",
     "runlog",
+    "event_from_dict",
     "agents",
     "tools",
     "loops",

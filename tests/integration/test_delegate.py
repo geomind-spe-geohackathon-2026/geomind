@@ -42,7 +42,7 @@ async def test_nested_run_has_its_own_id_and_a_parent_on_every_event():
     assert {event.agent for event in child} == {"lead.helper_agent"}
     assert len({event.run_id for event in child}) == 1
     assert child[0].run_id != result.run_id
-    assert [event.sequence for event in events] == list(range(1, len(events) + 1))
+    assert [event.sequence for event in events] == sorted({event.sequence for event in events})
 
 
 async def test_nested_run_starts_with_a_clean_context():

@@ -48,6 +48,11 @@ class RunSession:
         return self.engine.store
 
     @property
+    def workspace(self):
+        """Return the workspace of the run; tools reach a project's plant and documents here."""
+        return self.engine.workspace
+
+    @property
     def fields(self):
         """Return what every event of this run carries."""
         return dict(run_id=self.state.run_id, agent=self.state.agent, parent=self.state.parent)
@@ -113,9 +118,14 @@ class RunSession:
         self._stream(text[:cut])
 
     def _stream(self, text):
-        """Log one piece of text, in order, without waiting."""
+        """Tell the callbacks one piece of text, in order, without waiting.
+
+        NOTE: ``text.delta`` is stream-only and never reaches the store: ``llm.completed`` and
+        ``step.finished`` hold the full text, so recovery and replay never need the pieces.
+        """
         if text:
-            self.log.save_soon(self.emit(TextDelta, index=self.state.step, text=text))
+            event = self.log.build(TextDelta, **self.fields, index=self.state.step, text=text)
+            self.log.save_soon(self.log.publish(event))
 
     async def _on_retry(self, **fields):
         """Log one provider retry."""

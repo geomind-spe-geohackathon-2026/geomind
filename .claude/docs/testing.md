@@ -70,8 +70,7 @@ The suite must remain safe under `pytest -n auto`:
 - `tests/unit/test_package_boundaries.py`: the dependency order of
   [conventions.md](conventions.md#dependencies), and that no `core` package or import returns.
 - `tests/unit/test_code_quality.py`: comments, nesting, function length with `LONG_FUNCTIONS`,
-  `else` after an early exit, builtin raises, framework names and the former package name, which only
-  `CHANGELOG.md` may hold.
+  `else` after an early exit, builtin raises, framework names and the former package name.
 - `tests/unit/test_public_api.py`: the curated `gd` names, documented, and the version.
 - `tests/unit/test_docs_links.py`: every link in `AGENTS.md` and `.claude/docs/` resolves.
 

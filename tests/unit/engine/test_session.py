@@ -1,9 +1,11 @@
 """The session of a run: sandbox lifecycle and artifacts."""
 
-from geomind.engine.state import Stop, is_cancel
+from geomind.engine.session import RunSession
+from geomind.engine.state import RunState, Stop, is_cancel
 from geomind.sandbox import LocalSandbox
+from geomind.stores import MemoryWorkspace
 from geomind.types import Cancel, Deny
-from tests.fixtures.runs import call, of_type, run, says, types, uses
+from tests.fixtures.runs import call, engine_for, of_type, run, says, types, uses
 
 
 def test_is_cancel():
@@ -44,3 +46,10 @@ async def test_without_a_sandbox_the_model_reads_why():
     result, _, events = await run([uses(call("run_python", code="1")), says("sorry")])
     assert result.answer == "sorry"
     assert "no sandbox" in str(of_type(events, "tool.result")[0].output)
+
+
+async def test_tools_reach_the_workspace_through_the_session():
+    """``context.session.workspace`` is the workspace of the engine."""
+    workspace = MemoryWorkspace()
+    session = RunSession(engine_for([says()], workspace=workspace), None, RunState(), None)
+    assert session.context().session.workspace is workspace

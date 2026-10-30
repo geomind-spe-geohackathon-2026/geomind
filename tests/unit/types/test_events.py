@@ -55,7 +55,10 @@ PUBLIC_EVENTS = [
         ToolFinished(**BASE, index=1, call_id="c1", output_summary="s", duration=0.1, error="e"),
         {"index": 1, "call_id": "c1", "output_summary": "s", "duration": 0.1, "error": "e"},
     ),
-    (StepFinished(**BASE, index=1, usage=USAGE), {"index": 1, "usage": USAGE_JSON}),
+    (
+        StepFinished(**BASE, index=1, usage=USAGE, text="hi"),
+        {"index": 1, "usage": USAGE_JSON, "text": "hi"},
+    ),
     (StateChanged(**BASE, version=4, changes=(ADD,)), {"version": 4, "changes": [ADD]}),
     (
         RequestMade(**BASE, request=REQUEST, point="tool"),

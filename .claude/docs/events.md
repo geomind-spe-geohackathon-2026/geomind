@@ -5,7 +5,9 @@ Every event of a run, in `geomind/types/events.py`. An event has `run_id`, `sequ
 `type`, `is_public` and `data()`. Event log version: 1. Types never change silently: a change is a
 new version, recorded here.
 
-The engine saves **every** event with `store.save_event` and hands it to callbacks. Nested runs
+The engine saves every event with `store.save_event` and hands it to callbacks, except
+`text.delta`, which goes to callbacks only: `llm.completed` and `step.finished` hold the full text,
+so recovery and replay never need the pieces. Nested runs
 save under the root run id, with their own `run_id` and one shared `sequence`, so a root log holds
 the whole tree. `event.to_dict()` holds every field and `event_from_dict` rebuilds the event;
 `event.data()` is what a client sees.
@@ -22,7 +24,7 @@ the whole tree. `event.to_dict()` holds every field and `event_from_dict` rebuil
 | `text.delta` | `TextDelta` | `{index, text}` |
 | `tool.started` | `ToolStarted` | `{index, call_id, tool, input}` |
 | `tool.finished` | `ToolFinished` | `{index, call_id, output_summary, duration, error?}` |
-| `step.finished` | `StepFinished` | `{index, usage}` |
+| `step.finished` | `StepFinished` | `{index, usage, text}`; `text` is the step's full assistant text, `""` if none |
 | `state.changed` | `StateChanged` | `{version, changes}`; emitted from S2 |
 | `request` | `RequestMade` | `{request, call_id?, kind, message, options?}` |
 | `usage` | `UsageUpdated` | `{input_tokens, output_tokens, cost}`, running totals |

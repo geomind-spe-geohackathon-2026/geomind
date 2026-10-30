@@ -5,11 +5,13 @@ import pytest
 from geomind import runtime
 from geomind.agents import Agent
 from geomind.engine import Context, Engine, Permissions
+from geomind.engine.callbacks import EventLog
 from geomind.engine.recovery import recover
 from geomind.providers import FakeLLM
-from geomind.stores.run import MemoryRunStore
+from geomind.stores.run import FileRunStore, MemoryRunStore
 from geomind.tools import tool
 from geomind.types import ToolCall
+from geomind.types.runlog import runlog
 from tests.fixtures.runs import Worker, call, context, engine_for, of_type, run, says, types, uses
 
 
@@ -28,10 +30,12 @@ class FailingStore(MemoryRunStore):
         super().save_event(run_id, event)
 
 
-async def test_sequence_is_gapless():
-    """Every event has the next number."""
-    _, _, events = await run([uses(call("lookup", key="a")), says()])
-    assert [event.sequence for event in events] == list(range(1, len(events) + 1))
+async def test_the_stream_is_gapless_and_the_log_skips_only_text():
+    """Every event has the next number; the stored log holds all but ``text.delta``."""
+    seen = EventLog()
+    _, _, events = await run([uses(call("lookup", key="a")), says()], callbacks=[seen])
+    assert [event.sequence for event in seen.events] == list(range(1, len(seen.events) + 1))
+    assert events == [event for event in seen.events if event.type != "text.delta"]
 
 
 async def test_a_completion_is_logged_before_its_tools_run():
@@ -50,12 +54,28 @@ async def test_a_result_is_logged_before_the_next_call():
     assert order.index("tool.result") < order.index("llm.completed", order.index("tool.result"))
 
 
-async def test_text_is_logged_before_its_completion():
-    """Deltas keep their place, in order."""
-    _, _, events = await run([says("hi")])
-    order = types(events)
+async def test_text_streams_before_its_completion():
+    """Deltas reach callbacks in their place, in order, and never the store."""
+    seen = EventLog()
+    _, _, events = await run([says("hi")], callbacks=[seen])
+    order = types(seen.events)
     assert order.index("text.delta") < order.index("llm.completed")
-    assert of_type(events, "text.delta")[0].text == "hi"
+    assert of_type(seen.events, "text.delta")[0].text == "hi"
+    assert of_type(events, "text.delta") == []
+
+
+async def test_a_reloaded_run_holds_the_full_text(tmp_path):
+    """Without stored deltas, the log and ``step.finished`` still give the whole text."""
+    store = FileRunStore(tmp_path)
+    engine = engine_for([uses(call("lookup", key="a"), text="looking"), says("done")], store=store)
+    start = context()
+    await engine.run(Worker(), start)
+    events = store.load_events(start.run_id)
+    assert [event.text for event in of_type(events, "step.finished")] == ["looking", "done"]
+    assert [step["llm_calls"][0]["answer"] for step in runlog(events)["steps"]] == [
+        "looking",
+        "done",
+    ]
 
 
 async def test_known_secrets_never_reach_the_store():
@@ -89,12 +109,10 @@ class Streaming(FakeLLM):
 async def test_a_secret_split_across_deltas_never_streams():
     """Text is held back just long enough to see a secret whole; nothing is lost."""
     llm = Streaming([says("key sk-SECRET-123 end")])
-    engine = Engine(llm=llm, permissions=Permissions(mode="auto"))
-    start = Context(messages=[])
-    await engine.run(Worker(), start)
-    text = "".join(
-        event.text for event in of_type(engine.store.load_events(start.run_id), "text.delta")
-    )
+    seen = EventLog()
+    engine = Engine([seen], llm=llm, permissions=Permissions(mode="auto"))
+    await engine.run(Worker(), Context(messages=[]))
+    text = "".join(event.text for event in of_type(seen.events, "text.delta"))
     assert "sk-SEC" not in text and text == "key [redacted] end"
 
 

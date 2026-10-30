@@ -22,6 +22,7 @@ class RunLog:
         self.sequence = sequence
         self.secrets = tuple(getattr(engine.llm, "secrets", ()))
         self._lock = asyncio.Lock()
+        self._stream_lock = asyncio.Lock()
         self._writes = []
 
     def build(self, kind, **fields):
@@ -34,6 +35,11 @@ class RunLog:
         """Save one event in order."""
         async with self._lock:
             await asyncio.to_thread(self.engine.store.save_event, self.root, event)
+
+    async def publish(self, event):
+        """Tell the callbacks about a stream-only event, in order, without saving it."""
+        async with self._stream_lock:
+            await self.notify(event)
 
     def save_soon(self, write):
         """Start a write without waiting; ``flush`` waits for it."""

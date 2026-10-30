@@ -236,7 +236,11 @@ async def close_step(session):
     """Log the end of the step, with the state of the loop, and the running totals."""
     state = session.state
     await session.emit(
-        StepFinished, index=state.step, usage=state.step_usage, loop_state=session.loop_state()
+        StepFinished,
+        index=state.step,
+        usage=state.step_usage,
+        text=state.action.text if state.action else "",
+        loop_state=session.loop_state(),
     )
     await session.emit(UsageUpdated, **state.usage.model_dump())
 

@@ -7,6 +7,7 @@ from geomind.prompts import Prompt
 from geomind.run import Run
 from geomind.tools import Tool, tool
 from geomind.types import Action, Allow, Deny, Message, Request, RunResult
+from geomind.types.events import event_from_dict
 from geomind.types.runlog import runlog
 
 __version__ = "0.1.0"
@@ -30,6 +31,7 @@ __all__ = [
     "Deny",
     "RunResult",
     "runlog",
+    "event_from_dict",
     "agents",
     "loops",
     "stores",

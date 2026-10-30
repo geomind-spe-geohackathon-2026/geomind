@@ -43,8 +43,8 @@ same commit, so a new session can read the docs and know the current state.
 
 ## Branching
 
-Work directly on `main`: commit after each step. Do not create another branch and do not push
-until told. There is no remote yet.
+Work directly on `main`: commit after each step and push `origin main` when a phase ends. Do not
+create another branch.
 
 Test before each commit with `make test`, then `make test-all` and `make lint`.
 

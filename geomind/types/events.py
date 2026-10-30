@@ -123,17 +123,19 @@ class ToolFinished(Event):
 
 
 class StepFinished(Event):
-    """A step finished; ``usage`` is the usage of this step.
+    """A step finished; ``usage`` is the usage of this step and ``text`` its full assistant text.
 
-    ``loop_state`` is the state of the loop, stored but not streamed.
+    ``text`` is ``""`` when the step wrote none. ``loop_state`` is the state of the loop, stored but
+    not streamed.
     """
 
     type: ClassVar[str] = "step.finished"
     is_public: ClassVar[bool] = True
-    public_fields: ClassVar[tuple[str, ...]] = ("index", "usage")
+    public_fields: ClassVar[tuple[str, ...]] = ("index", "usage", "text")
 
     index: int
     usage: Usage
+    text: str = ""
     loop_state: dict[str, Any] = {}
 
 

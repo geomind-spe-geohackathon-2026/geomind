@@ -41,7 +41,6 @@ FRAMEWORK = re.compile(
     )
 )
 FORMER_NAME = re.compile("swa" + "rm|\\bs" + "x\\.")
-RENAME_NOTE = "CHANGELOG.md"
 
 
 def tracked_files():
@@ -218,5 +217,5 @@ def test_no_framework_names_in_tracked_text_files():
 
 
 def test_no_former_name_in_tracked_text_files():
-    """The former package name and alias are gone, but for one line in the changelog."""
-    assert lines_matching(FORMER_NAME, skipped=(RENAME_NOTE,)) == []
+    """The former package name and alias are gone."""
+    assert lines_matching(FORMER_NAME) == []

@@ -1,7 +1,7 @@
 # Contracts
 
 How geomind implements the backend contract: [contracts.md](../../../docs/contracts.md), file
-version 9, sections 2 and 3, interface version 2.3. A change to the contract is a change to that
+version 15, sections 2 and 3, interface version 2.5. A change to the contract is a change to that
 file first, announced to all repositories. `tests/unit/test_contract_map.py` checks that every code
 path below exists.
 
@@ -21,7 +21,7 @@ path below exists.
 | `state.changed` as `{version, changes}` | `geomind/types/events.py` | `tests/unit/types/test_events.py` |
 | The JSON Patch subset | `geomind/types/patch.py` | `tests/unit/types/test_patch.py` |
 | `Callback.on_event`, the one method of a publisher | `geomind/engine/callbacks.py` | `tests/unit/engine/test_callbacks.py` |
-| Every event through `RunStore.save_event` | `geomind/engine/session.py` | `tests/unit/engine/test_log.py` |
+| Every event but `text.delta` through `RunStore.save_event` | `geomind/engine/session.py` | `tests/unit/engine/test_log.py` |
 | Public events reach a publisher | `geomind/engine/callbacks.py` | `tests/integration/test_delegate.py` |
 
 `state.changed` exists with its JSON and validation, and is emitted from S2. Events that S1 stored
