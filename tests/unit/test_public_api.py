@@ -39,6 +39,11 @@ EXPECTED = (
     "__version__",
 )
 BUILT = {
+    "Agent",
+    "Prompt",
+    "Model",
+    "Output",
+    "agents",
     "Tool",
     "tool",
     "tools",
