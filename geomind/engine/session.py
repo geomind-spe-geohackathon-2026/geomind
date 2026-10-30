@@ -1,16 +1,17 @@
 """One run in progress: what agents, tools and hooks reach as ``context.session``."""
 
 import asyncio
-from dataclasses import dataclass
 from time import perf_counter
 
 from geomind import runtime
 from geomind.engine.context import Context
+from geomind.engine.delegation import run_child
 from geomind.engine.hooks import ask_hooks
 from geomind.engine.recovery import apply
+from geomind.engine.state import Stop
 from geomind.errors import RunError, SandboxError
 from geomind.sandbox import Manifest
-from geomind.types import Allow, Cancel, Deny, Request
+from geomind.types import Allow, Deny, Request
 from geomind.types.events import (
     ErrorRaised,
     LLMCompleted,
@@ -24,16 +25,6 @@ from geomind.types.events import (
 )
 from geomind.types.redaction import redact
 from geomind.utils.imports import class_path
-
-
-@dataclass
-class Stop:
-    """Why a run stops now: exactly one reason."""
-
-    reason: str
-    message: str | None = None
-    answer: object = None
-    request: Request | None = None
 
 
 class RunSession:
@@ -274,9 +265,13 @@ class RunSession:
         await sandbox.close()
         await self.emit(SandboxClosed)
 
+    def spawn(self, state, agent):
+        """Return the session of a nested run on the same log."""
+        return RunSession(self.engine, self.log, state, agent)
+
     async def delegate(self, agent, task):
-        """Run a nested agent; the engine owns how."""
-        result = await self.engine.run_child(self, agent, task)
+        """Run a nested agent and keep what the parent needs of its result."""
+        result = await run_child(self, agent, task)
         self.child_usage = result.usage
         if result.request is not None:
             self.waiting_child = result.run_id
@@ -293,8 +288,3 @@ def _decision_name(decision):
     if isinstance(decision, Request):
         return "ask"
     return "deny" if isinstance(decision, Deny) else "allow"
-
-
-def is_cancel(decision):
-    """Tell whether a decision ends the run as cancelled."""
-    return isinstance(decision, Cancel)

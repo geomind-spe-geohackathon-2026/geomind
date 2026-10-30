@@ -67,8 +67,8 @@ geomind/
 ├── sandbox/          # Sandbox and SandboxProvider protocols, Manifest, local, docker
 ├── tools/            # Tool, tool decorator, dispatch, built-ins, code tools, Delegate
 ├── agents/           # Agent, AgentResult, Model, Output, general/assistant.py
-├── engine/           # engine, session, step, log, recovery, context, callbacks, hooks,
-│                     # permissions, state, replay
+├── engine/           # engine, session, step, delegation, log, recovery, state, context,
+│                     # callbacks, hooks, permissions, replay
 └── loops/            # Loop, ToolLoop
 examples/             # area/category/NN_name.py
 scripts/              # test_changed.py, the development test profile

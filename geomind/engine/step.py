@@ -6,7 +6,7 @@ yet. So a step continues from any point, after a pause or a crash, without a sec
 
 import asyncio
 
-from geomind.engine.session import Stop, is_cancel
+from geomind.engine.state import Stop, is_cancel
 from geomind.errors import OutputError, ToolError, UnknownNameError
 from geomind.tools import dispatch
 from geomind.tools.dispatch import error_output

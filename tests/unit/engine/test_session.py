@@ -1,6 +1,6 @@
 """The session of a run: sandbox lifecycle and artifacts."""
 
-from geomind.engine.session import Stop, is_cancel
+from geomind.engine.state import Stop, is_cancel
 from geomind.sandbox import LocalSandbox
 from geomind.types import Cancel, Deny
 from tests.fixtures.runs import call, of_type, run, says, types, uses

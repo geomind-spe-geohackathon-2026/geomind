@@ -1,9 +1,24 @@
-"""The state of a run, which ``apply`` in ``recovery.py`` builds from its events."""
+"""The state of a run, which ``apply`` in ``recovery.py`` builds, and why a run stops."""
 
 from dataclasses import dataclass, field
 from typing import Any
 
-from geomind.types import Action, Message, Record, Request, ToolCall, Usage
+from geomind.types import Action, Cancel, Message, Record, Request, ToolCall, Usage
+
+
+@dataclass
+class Stop:
+    """Why a run stops now: exactly one reason."""
+
+    reason: str
+    message: str | None = None
+    answer: Any = None
+    request: Request | None = None
+
+
+def is_cancel(decision):
+    """Tell whether a decision ends the run as cancelled."""
+    return isinstance(decision, Cancel)
 
 
 class PendingAction(Record):

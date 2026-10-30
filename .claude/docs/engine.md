@@ -109,6 +109,7 @@ ended.
 
 ## Nested runs
 
+All delegation logic is in `engine/delegation.py`; `tools/delegate.py` stays the tool.
 `Delegate` runs an agent through `session.delegate` in a child session sharing the root's
 `RunLog`: same store key, same sequence, its own `run_id`, and `parent` set. A pause in the child logs `request` once; the parent logs a `permission` event with
 decision `wait` and pauses on the same request id, and an answer to the parent passes down.

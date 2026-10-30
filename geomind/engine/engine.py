@@ -6,19 +6,18 @@ later would touch every layer. ``Run`` is the sync facade.
 """
 
 from geomind import runtime
-from geomind.engine.context import Context
+from geomind.engine.delegation import answer_child, end_orphans
 from geomind.engine.log import RunLog
 from geomind.engine.permissions import Permissions
 from geomind.engine.recovery import agent_class, recover
 from geomind.engine.replay import replay_run
-from geomind.engine.session import RunSession, Stop
-from geomind.engine.state import RunState
+from geomind.engine.session import RunSession
+from geomind.engine.state import RunState, Stop
 from geomind.engine.step import record_result, run_step, settle_interrupted, text_result
-from geomind.errors import RequestError, RunError, ToolError
+from geomind.errors import RequestError, RunError
 from geomind.providers import with_retries
 from geomind.stores.run import MemoryRunStore
-from geomind.tools.dispatch import error_output
-from geomind.types import Message, RunResult, status_of, validate_answer
+from geomind.types import RunResult, status_of, validate_answer
 from geomind.types.events import PermissionDecided, RunFinished, ToolRecorded
 from geomind.utils.hooks import RemovableHandle
 
@@ -34,18 +33,6 @@ def run_result(session, stop):
         usage=state.usage,
         steps=state.step,
         stop_reason=stop.reason,
-    )
-
-
-def result_of_state(state):
-    """Return the result of a run that already ended."""
-    return RunResult(
-        run_id=state.run_id,
-        status=state.status,
-        answer=state.answer,
-        usage=state.usage,
-        steps=state.step,
-        stop_reason=state.stop_reason,
     )
 
 
@@ -93,30 +80,14 @@ class Engine:
         log = RunLog(self, context.run_id)
         session = RunSession(self, log, RunState(root=context.run_id), agent, loop)
         await session.start(context, max_steps=max_steps or runtime.get("max_steps"))
-        return await self._drive(session)
+        return await self.drive(session)
 
     @classmethod
     async def replay(cls, store, run_id):
         """Rerun a stored run offline; a difference raises ``ReplayError``."""
         return await replay_run(cls, store, run_id)
 
-    async def run_child(self, parent, agent, task):
-        """Run ``agent`` as a nested run with a clean context: the task text only."""
-        state = parent.state
-        context = Context(
-            messages=[Message(role="user", content=task)], chat=state.chat, project=state.project
-        )
-        session = RunSession(self, parent.log, RunState(root=state.root), agent)
-        await session.start(
-            context,
-            max_steps=runtime.get("max_steps"),
-            parent=state.run_id,
-            parent_step=state.step,
-            root=state.root,
-        )
-        return await self._drive(session)
-
-    async def _drive(self, session):
+    async def drive(self, session):
         """Run steps until one reason stops the run, then end it.
 
         NOTE: any exception ends the run with ``error``, not only an ``gd.errors`` class, because a
@@ -129,7 +100,7 @@ class Engine:
         except Exception as error:
             await session.report_error(error, where="engine")
             stop = Stop("error", str(error))
-        return await self._end(session, stop)
+        return await self.end(session, stop)
 
     async def _steps(self, session):
         """Run steps until one returns a stop or the step limit is reached."""
@@ -142,7 +113,7 @@ class Engine:
                 return stop
         return Stop("step_limit", f"stopped after {state.step} steps")
 
-    async def _end(self, session, stop):
+    async def end(self, session, stop):
         """Close the sandbox and log the end, unless the run only pauses."""
         await session.log.flush()
         await session.close_sandbox()
@@ -173,42 +144,29 @@ class Engine:
         with runtime.settings(**state.settings):
             log = RunLog(self, state.root, state.sequence)
             session = RunSession(self, log, state, agent, loop)
-            return await self._continue(session, request_id, answer)
+            return await self.proceed(session, request_id, answer)
 
-    async def _continue(self, session, request_id, answer):
+    async def proceed(self, session, request_id, answer):
         """Settle what the run stopped on, then drive it on."""
         state = session.state
         if state.pending is not None:
             stop = await self._answer(session, request_id, answer)
             if stop is not None:
-                return await self._end(session, stop)
-            return await self._drive(session)
+                return await self.end(session, stop)
+            return await self.drive(session)
         if request_id is not None:
             raise RequestError(
                 f"resume: request = {request_id!r}; it is unknown or already answered"
             )
-        await self._end_orphans(session)
+        await end_orphans(session)
         await settle_interrupted(session, session.agent)
-        return await self._drive(session)
-
-    async def _end_orphans(self, session):
-        """End nested runs a crash left open, and keep what they spent for the parent."""
-        state = session.state
-        events = self.store.load_events(state.root)
-        ended = {event.run_id for event in events if event.type == "run.finished"}
-        for event in events:
-            is_child = event.type == "run.started" and event.parent == state.run_id
-            if is_child and event.run_id not in ended:
-                orphan = recover(events, event.run_id)
-                child = RunSession(self, session.log, orphan, None)
-                await self._end(child, Stop("error", "interrupted by a crash"))
-                session.child_usage = orphan.usage
+        return await self.drive(session)
 
     async def _answer(self, session, request_id, answer):
         """Settle the pending request; return a stop when that ends or pauses the run."""
         pending = session.state.pending
         if pending.child is not None:
-            return await self._answer_child(session, pending, request_id, answer)
+            return await answer_child(session, pending, request_id, answer)
         if request_id != pending.request.id:
             raise RequestError(f"resume: request = {request_id!r}; expected {pending.request.id!r}")
         answer = validate_answer(pending.request, answer)
@@ -256,37 +214,4 @@ class Engine:
             return None
         result = text_result(pending.call, reason, is_error=True)
         await record_result(session, pending.call, result, source="denied")
-        return None
-
-    async def _answer_child(self, session, pending, request_id, answer):
-        """Pass an answer to the nested run that asked; its outcome is the tool result.
-
-        A crash can come after the answer reached the nested run. The log then shows it holds
-        no request, so it continues without one, or has ended, so its outcome stands.
-        """
-        tool = session.agent.tools()[pending.call.name]
-        state = recover(self.store.load_events(session.state.root), pending.child)
-        if state.status != "running":
-            result = result_of_state(state)
-        elif state.pending is None:
-            child = RunSession(self, session.log, state, tool.agent)
-            result = await self._continue(child, None, None)
-        else:
-            child = RunSession(self, session.log, state, tool.agent)
-            result = await self._continue(child, request_id, answer)
-        session.child_usage = result.usage
-        return await self._finish_delegate(session, pending, tool, result)
-
-    async def _finish_delegate(self, session, pending, tool, result):
-        """Turn the outcome of a nested run into the result of the delegate call."""
-        try:
-            outcome = tool.outcome(result)
-        except ToolError as error:
-            failed = text_result(pending.call, error_output(error), is_error=True)
-            await record_result(session, pending.call, failed)
-            return None
-        if result.request is not None:
-            session.waiting_child = result.run_id
-            return await session.wait_for_child(outcome, pending.call)
-        await record_result(session, pending.call, text_result(pending.call, outcome))
         return None
