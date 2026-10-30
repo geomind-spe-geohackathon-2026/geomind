@@ -39,6 +39,7 @@ EXPECTED = (
     "__version__",
 )
 BUILT = {
+    "sandbox",
     "providers",
     "Message",
     "Action",
