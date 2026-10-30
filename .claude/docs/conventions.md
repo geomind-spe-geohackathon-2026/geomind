@@ -20,8 +20,8 @@ A package may import only the packages to its left:
   import. The same goes for `Agent.complete`, `dispatch` and the code tools.
 - `swarmax.utils` and `swarmax.errors` are leaf packages: they import only the standard library,
   installed dependencies and themselves.
-- `import swarmax` does not import `gemini`, which takes more than a second. Only
-  `FileWorkspace.plant` imports it, inside the function. `dispatch` recognises `gemini.errors`
+- `import swarmax` does not import `gemini`, which takes more than a second. `FileWorkspace.plant`
+  reaches it only through the class a plant file names. `dispatch` recognises `gemini.errors`
   classes by the module path in their class hierarchy.
 
 `core/context/` (problem state, compaction) arrives in S2 and `core/verify/` in S3.
@@ -116,7 +116,10 @@ Each one also has a `NOTE:` in the docstring that makes it.
   of one run live in the session.
 - Assigning after `__init__` raises. gemini lets a user assign `esp.frequency = 50` afterward
   because a module has persistent commands; an agent has none.
-- `swarmax.utils` raises builtin errors, as in gemini. `swarmax.utils.time` needs no pandas.
+- The dependency order adds `stores`, the small module behind `sx.stores`, after `core.engine`.
+- `core/engine/session.py` is one file beyond the layout of the S1 prompt: the object behind the
+  active run.
+- Tool names follow the attribute of the agent that declares them, on a copy of the tool.
 
 ## Parallels with gemini
 

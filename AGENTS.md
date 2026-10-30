@@ -41,6 +41,8 @@ same commit, so a new session can read the docs and know the current state.
 Work directly on `main`: commit after each step. Do not create another branch and do not push
 until told. There is no remote yet.
 
+Test before each commit with `make test`, then `make test-all` and `make lint`.
+
 ## Layout
 
 ```text
