@@ -96,3 +96,19 @@ async def test_event_log_writes_json_lines(tmp_path):
     path = tmp_path / "events.jsonl"
     _, _, events = await run([says()], callbacks=[EventLog(path)])
     assert [line["type"] for line in read_lines(path)] == types(events)
+
+
+async def test_on_event_comes_before_the_specific_method():
+    """A publisher sees an event first, and internal events reach it too."""
+    order = []
+
+    class Ordered(Callback):
+        def on_event(self, engine, event):
+            order.append(event.type)
+
+        def on_step_end(self, engine, event):
+            order.append("specific")
+
+    await run([says()], callbacks=[Ordered()])
+    assert order.index("step.finished") + 1 == order.index("specific")
+    assert "llm.completed" in order and "checkpoint" in order

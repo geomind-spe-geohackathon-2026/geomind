@@ -18,15 +18,24 @@ the whole tree. `event.to_dict()` holds every field and `event_from_dict` rebuil
 | Type | Class | `data()` |
 |---|---|---|
 | `run.started` | `RunStarted` | `{run, loop}` |
-| `step.started` | `StepStarted` | `{index}` |
+| `step.started` | `StepStarted` | `{index, model}` |
 | `text.delta` | `TextDelta` | `{index, text}` |
 | `tool.started` | `ToolStarted` | `{index, call_id, tool, input}` |
 | `tool.finished` | `ToolFinished` | `{index, call_id, output_summary, duration, error?}` |
 | `step.finished` | `StepFinished` | `{index, usage}` |
-| `state.changed` | `StateChanged` | `{changes}`; emitted from S2 |
+| `state.changed` | `StateChanged` | `{version, changes}`; emitted from S2 |
 | `request` | `RequestMade` | `{request, call_id?, kind, message, options?}` |
 | `usage` | `UsageUpdated` | `{input_tokens, output_tokens, cost}`, running totals |
 | `run.finished` | `RunFinished` | `{status, stop_reason, message?}` |
+
+`model` is the provider model id the step calls. A run stored by S1 has none, and its JSON leaves
+the key out. `options` is `[{value, label}]`, for a question with fixed choices, and is absent for
+free text and for approvals.
+
+`version` of `state.changed` is the state version after the change, starting at 1. `changes` is a
+list of JSON Patch operations, validated by `geomind/types/patch.py`: `op` is `add`, `replace` or
+`remove`, `path` is a JSON Pointer under a top-level key of the problem state, lists of items with
+an `id` are addressed by id, and `-` ends the path of an `add` that appends an item with an `id`.
 
 `RunStarted` also stores what rebuilds the run: `root`, `agent_class`, `max_steps`, `chat`,
 `project`, `parent_step`, `messages`, `settings` and `loop_state`. `RequestMade` also stores the
@@ -54,9 +63,7 @@ answer. Its `source` is `tool`, `denied`, `answer` or `interrupted`. A `permissi
 `ask`, `answer` (a user settled a request) or `wait` (a nested run paused, and this run waits on the
 same request).
 
-`error` is an addition to the internal list of the contract: `on_error` callbacks need an event
-object, and a survived error belongs in the log. See
-[contracts.md](contracts.md#proposed-changes).
+`error` is saved like every event, and `on_error` callbacks receive it.
 
 Text is redacted as one stream: the last characters of `text.delta` wait for the next piece, as
 many as a known secret could still need. Without known secrets nothing waits. Artifacts pass the

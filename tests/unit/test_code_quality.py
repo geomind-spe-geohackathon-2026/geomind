@@ -193,35 +193,29 @@ def test_nesting_counts_blocks_but_not_elif_chains(source, expected):
     assert nesting(ast.parse(source).body[0]) == expected
 
 
-def test_no_framework_names_in_tracked_text_files():
-    """Concepts are described directly, without naming another framework."""
+def lines_matching(pattern, skipped=()):
+    """Return ``path:line`` of every match in tracked text; only files with a match are split."""
     found = []
     for path in tracked_files():
         try:
             text = (ROOT / path).read_text(encoding="utf-8")
         except UnicodeDecodeError:
             continue
+        if path in skipped or not pattern.search(text):
+            continue
         found.extend(
             f"{path}:{number}"
             for number, line in enumerate(text.splitlines(), 1)
-            if FRAMEWORK.search(line)
+            if pattern.search(line)
         )
-    assert found == []
+    return found
+
+
+def test_no_framework_names_in_tracked_text_files():
+    """Concepts are described directly, without naming another framework."""
+    assert lines_matching(FRAMEWORK) == []
 
 
 def test_no_former_name_in_tracked_text_files():
     """The former package name and alias are gone, but for one line in the changelog."""
-    found = []
-    for path in tracked_files():
-        if path == RENAME_NOTE:
-            continue
-        try:
-            text = (ROOT / path).read_text(encoding="utf-8")
-        except UnicodeDecodeError:
-            continue
-        found.extend(
-            f"{path}:{number}"
-            for number, line in enumerate(text.splitlines(), 1)
-            if FORMER_NAME.search(line)
-        )
-    assert found == []
+    assert lines_matching(FORMER_NAME, skipped=(RENAME_NOTE,)) == []

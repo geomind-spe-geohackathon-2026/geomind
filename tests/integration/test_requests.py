@@ -64,7 +64,8 @@ async def test_answer_to_a_question_becomes_its_result():
     engine, result = await paused(
         [uses(call("ask_user", question="which?", options=["a", "b"])), says("end")]
     )
-    assert result.request.kind == "question" and result.request.options == ("a", "b")
+    assert result.request.kind == "question"
+    assert [option.value for option in result.request.options] == ["a", "b"]
     assert of_type(engine.store.load_events(result.run_id), "request")[0].data()["options"]
     final = await resume(engine, result, {"text": "b"})
     assert final.answer == "end"

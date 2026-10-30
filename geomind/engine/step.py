@@ -244,7 +244,7 @@ async def run_step(session, agent):
     """Run or continue one step; return a ``Stop`` or ``None`` to go on."""
     state = session.state
     if not state.in_step:
-        await session.emit(StepStarted, index=state.step + 1)
+        await session.emit(StepStarted, index=state.step + 1, model=agent.model.resolved_name())
     if state.action is None:
         stop = await _think(session, agent)
         if stop is not None:

@@ -1,7 +1,7 @@
 # Contracts
 
-How geomind implements the backend contract: [contracts.md](../../../docs/contracts.md), version 2,
-sections 2 and 3. A change to the contract is a change to that file first, announced to all
+How geomind implements the backend contract: [contracts.md](../../../docs/contracts.md), file
+version 6, sections 2 and 3, interface version 2.2. A change to the contract is a change to that file first, announced to all
 repositories. `tests/unit/test_contract_map.py` checks that every code path below exists.
 
 ## Section 2: live run events
@@ -12,11 +12,19 @@ repositories. `tests/unit/test_contract_map.py` checks that every code path belo
 | `event.type`, `event.data()`, `event.is_public` | `geomind/types/events.py` | `tests/unit/types/test_events.py` |
 | `agent` and `parent` on every `data` | `geomind/types/events.py` | `tests/integration/test_delegate.py` |
 | `id: <sequence>`, one number per root run | `geomind/engine/log.py` | `tests/unit/engine/test_log.py` |
-| The internal events | `geomind/types/events.py` | `tests/unit/types/test_events.py` |
+| The internal events, `error` included | `geomind/types/events.py` | `tests/unit/types/test_events.py` |
+| `model` on `step.started` | `geomind/engine/step.py` | `tests/unit/engine/test_engine.py` |
+| `options` as `[{value, label}]` | `geomind/types/decisions.py` | `tests/unit/types/test_decisions.py` |
+| `ask_user` normalises `options` | `geomind/tools/builtins.py` | `tests/unit/tools/test_builtins.py` |
+| Answers to options | `geomind/types/decisions.py` | `tests/unit/types/test_decisions.py` |
+| `state.changed` as `{version, changes}` | `geomind/types/events.py` | `tests/unit/types/test_events.py` |
+| The JSON Patch subset | `geomind/types/patch.py` | `tests/unit/types/test_patch.py` |
+| `Callback.on_event`, the one method of a publisher | `geomind/engine/callbacks.py` | `tests/unit/engine/test_callbacks.py` |
 | Every event through `RunStore.save_event` | `geomind/engine/session.py` | `tests/unit/engine/test_log.py` |
 | Public events reach a publisher | `geomind/engine/callbacks.py` | `tests/integration/test_delegate.py` |
 
-`state.changed` exists with its JSON and is emitted from S2. A backend publisher overrides
+`state.changed` exists with its JSON and validation, and is emitted from S2. Events that S1 stored
+have no `model` on `step.started`; that key is left out of their JSON. A backend publisher overrides
 `Callback.on_event` and forwards `event.type` and `event.data()` when `event.is_public`.
 `examples/backend/general/01_queue_and_resume.py` shows it. To store an event use `event.to_dict()`,
 and to read one back `event_from_dict`.
@@ -27,7 +35,7 @@ and to read one back `event_from_dict`.
 |---|---|---|
 | `LLM` | `geomind/providers/base.py` | `tests/unit/providers/test_base.py` |
 | `Completion`, `Usage`, `Message` | `geomind/types/messages.py` | `tests/unit/types/test_messages.py` |
-| `RunStore`, all eight methods | `geomind/engine/store.py` | `tests/unit/testing/test_conformance.py` |
+| `RunStore`, all nine methods, `load_events` included | `geomind/engine/store.py` | `tests/unit/testing/test_conformance.py` |
 | `Workspace` | `geomind/engine/workspace.py` | `tests/unit/testing/test_conformance.py` |
 | `SandboxProvider`, `Sandbox` | `geomind/sandbox/base.py` | `tests/unit/sandbox/test_base.py` |
 | `gd.sandbox.LocalSandbox` | `geomind/sandbox/local.py` | `tests/unit/sandbox/test_local.py` |
@@ -57,17 +65,6 @@ and to read one back `event_from_dict`.
 - `load_history` is read-only in the contract, so `check_run_store` takes `seed_history(store,
   chat_id, messages)` to fill a chat.
 - `gd.Run` gets no `queued` status: that one is the backend's, before `start`.
-- Pass `permissions` again to `Run.load`, like hooks and callbacks; a run does not store them.
-
-## Proposed changes
-
-These are additions the contract does not list yet; nothing in it was changed.
-
-- `load_events(run_id)` as a ninth `RunStore` method. The contract leaves it out, yet continuing a
-  run whose process died needs the events after the last checkpoint. A store without it can still
-  pause and resume from its checkpoint; `resume()` without arguments then raises `RunError`
-  instead of repeating recorded calls. `Engine.replay` needs it too.
-- `error` as an eighth internal event type: `on_error` callbacks need an event object, and a
-  survived error belongs in the log. See [events.md](events.md).
-- `Callback.on_event`, beyond the listed methods: the public `usage` event has no method of its
-  own, and a publisher needs one place to forward everything.
+- Pass `sandbox` and `permissions` again to `Run.load`, like hooks and callbacks; a run does not
+  store them.
+- `event.to_dict()` holds every field a store must keep, and `event_from_dict` restores it.

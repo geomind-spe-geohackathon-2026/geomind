@@ -2,6 +2,7 @@
 
 import re
 
+import pydantic
 import pytest
 
 from geomind.errors import RunError
@@ -33,12 +34,15 @@ from tests.fixtures import ROOT
 BASE = {"run_id": "r1", "sequence": 7, "time": "2026-10-30T00:00:00+00:00", "agent": "a.b"}
 USAGE = Usage(input_tokens=1, output_tokens=2, cost=0.5)
 USAGE_JSON = {"input_tokens": 1, "output_tokens": 2, "cost": 0.5}
-REQUEST = Request(id="q1", kind="approval", message="ok?", options=("yes",), call_id="c1")
+REQUEST = Request(id="q1", kind="approval", message="ok?", call_id="c1")
+OPTIONS = ({"value": "yes", "label": "Yes"},)
+QUESTION = Request(id="q1", kind="question", message="ok?", options=OPTIONS, call_id="c1")
 STARTED = dict(run="r1", loop="tool", root="r1", agent_class="a:B", max_steps=3)
+ADD = {"op": "add", "path": "/requirements/-", "value": {"id": "R3", "text": "Cover peak"}}
 
 PUBLIC_EVENTS = [
     (RunStarted(**BASE, **STARTED), {"run": "r1", "loop": "tool"}),
-    (StepStarted(**BASE, index=1), {"index": 1}),
+    (StepStarted(**BASE, index=1, model="a/b"), {"index": 1, "model": "a/b"}),
     (TextDelta(**BASE, index=1, text="hi"), {"index": 1, "text": "hi"}),
     (
         ToolStarted(**BASE, index=1, call_id="c1", tool="t", input={"x": 1}),
@@ -53,15 +57,19 @@ PUBLIC_EVENTS = [
         {"index": 1, "call_id": "c1", "output_summary": "s", "duration": 0.1, "error": "e"},
     ),
     (StepFinished(**BASE, index=1, usage=USAGE), {"index": 1, "usage": USAGE_JSON}),
-    (StateChanged(**BASE, changes=({"op": "x"},)), {"changes": [{"op": "x"}]}),
+    (StateChanged(**BASE, version=4, changes=(ADD,)), {"version": 4, "changes": [ADD]}),
     (
         RequestMade(**BASE, request=REQUEST, point="tool"),
+        {"request": "q1", "call_id": "c1", "kind": "approval", "message": "ok?"},
+    ),
+    (
+        RequestMade(**BASE, request=QUESTION, point="tool"),
         {
             "request": "q1",
             "call_id": "c1",
-            "kind": "approval",
+            "kind": "question",
             "message": "ok?",
-            "options": ["yes"],
+            "options": [{"value": "yes", "label": "Yes"}],
         },
     ),
     (
@@ -138,6 +146,51 @@ def test_contract_table_lists_the_same_types():
         pytest.skip("the shared docs folder is a sibling of this repository")
     section = document.read_text().split("## 2. Live run events")[1].split("## 3.")[0]
     assert set(re.findall(r"^\| `([a-z.]+)` \|", section, re.MULTILINE)) == CONTRACT_TYPES
+
+
+def table_fields():
+    """Return ``{type: (required fields, optional fields)}`` from the shared document."""
+    document = ROOT.parent / "docs/contracts.md"
+    if not document.exists():
+        pytest.skip("the shared docs folder is a sibling of this repository")
+    section = document.read_text().split("## 2. Live run events")[1].split("**Problem state")[0]
+    fields = {}
+    for kind, data in re.findall(r"^\| `([a-z.]+)` \| `\{([^}]*)\}`", section, re.MULTILINE):
+        names = [name.strip() for name in data.split(",")]
+        required = {name for name in names if not name.endswith("?")}
+        fields[kind] = (required, {name.rstrip("?") for name in names} - required)
+    return fields
+
+
+@pytest.mark.parametrize(
+    ("event", "expected"), PUBLIC_EVENTS, ids=lambda item: getattr(item, "type", "")
+)
+def test_public_data_fits_the_table_of_the_contract(event, expected):
+    """Every row of the shared table holds for the JSON pinned above."""
+    required, optional = table_fields()[event.type]
+    assert required <= set(expected) <= required | optional
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [({"op": "move", "path": "/goal"},), ({"op": "add", "path": "/other", "value": 1},)],
+)
+def test_state_changed_refuses_other_operations(changes):
+    """The event validates its operations."""
+    with pytest.raises(pydantic.ValidationError):
+        StateChanged(**BASE, version=1, changes=changes)
+
+
+def test_state_version_starts_at_one():
+    """Version 0 does not exist."""
+    with pytest.raises(pydantic.ValidationError):
+        StateChanged(**BASE, version=0, changes=())
+
+
+def test_a_step_stored_without_a_model_still_loads():
+    """Runs stored by S1 have no ``model``, and their JSON leaves it out."""
+    event = event_from_dict({"type": "step.started", "run_id": "r", "index": 1})
+    assert event.data() == {"index": 1, "agent": "", "parent": None}
 
 
 def test_a_request_keeps_its_pending_call():

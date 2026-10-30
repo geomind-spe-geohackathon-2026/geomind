@@ -40,6 +40,9 @@ class RunStore(Protocol):
     def load_artifact(self, run_id, key):
         """Return an artifact, or ``None``."""
 
+    def load_events(self, run_id):
+        """Return a run's events in sequence order; recovery and replay read them."""
+
 
 class MemoryRunStore:
     """Keep everything in this process; ``add_message`` fills a chat's history."""
@@ -57,10 +60,7 @@ class MemoryRunStore:
         self.events.setdefault(run_id, []).append(event)
 
     def load_events(self, run_id):
-        """Return a run's events in order.
-
-        NOTE: this is not part of the backend contract yet; see ``contracts.md``.
-        """
+        """Return a run's events in sequence order."""
         return list(self.events.get(run_id, ()))
 
     def save_checkpoint(self, run_id, checkpoint):
@@ -128,10 +128,7 @@ class FileRunStore:
         append_line(self._run(run_id) / "events.jsonl", event.to_dict())
 
     def load_events(self, run_id):
-        """Return a run's events in order.
-
-        NOTE: this is not part of the backend contract yet; see ``contracts.md``.
-        """
+        """Return a run's events in sequence order."""
         return [event_from_dict(line) for line in read_lines(self._run(run_id) / "events.jsonl")]
 
     def save_checkpoint(self, run_id, checkpoint):

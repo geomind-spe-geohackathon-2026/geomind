@@ -43,6 +43,8 @@ runs the function with the tool's timeout, times it and returns a `ToolResult`, 
 ## Built-ins
 
 - `ask_user(question, options=None)` returns a `Request` of kind `question`; the engine pauses.
+  `options` is a list of strings or of `{value, label}`, normalised to the latter. An answer to a
+  question with options is `{"text": <value>}`, and any other text raises `RequestError`.
 - `finish(answer)` ends the run, after `before_finish` hooks and output validation.
 
 Both have effect `read`, so `ask` mode lets them through; `plan` mode runs neither.

@@ -70,9 +70,9 @@ history.
 
 `Callback` has `on_run_start`, `on_step_start`, `on_llm_call`, `on_text`, `on_tool_start`,
 `on_tool_end`, `on_permission`, `on_state_change`, `on_request`, `on_step_end`, `on_error` and
-`on_run_end`, plain or `async`, each receiving the engine and one event. `on_event` is an addition:
-it receives every event, because the public `usage` event has no method of its own and the backend
-publisher needs one place to forward `event.is_public` events. Callbacks observe only: an exception
+`on_run_end`, plain or `async`, each receiving the engine and one event. `on_event(engine, event)`
+receives every event, public and internal, before the specific method, so it is the one method a
+publisher needs: forward `event.type` and `event.data()` when `event.is_public`. Callbacks observe only: an exception
 in one is an `error` event, reported to `on_error`, and never changes the run. `EventLog(path=None)`
 writes JSON lines or keeps events in memory.
 
@@ -97,8 +97,7 @@ what came after a snapshot. A checkpoint (version 1, `checkpoint.py`) is that sa
 saved after every step, before a pause and at the end; a wrong version or shape raises
 `CheckpointError`.
 
-`Engine.resume(checkpoint, request_id, answer)` first catches up with the log, when the store has
-`load_events`. An unknown or already answered request raises `RequestError`, and a run that ended
+`Engine.resume(checkpoint, request_id, answer)` first catches up with the log. An unknown or already answered request raises `RequestError`, and a run that ended
 raises `RunError`. Approval runs the stored call without asking again; denial becomes the tool
 result; a reply to `ask_user` becomes its result. Without a request, it continues a run whose
 process died: the recorded completion is reused, and a started tool without a result runs again
@@ -126,8 +125,8 @@ first differing step.
 
 ## Stores and workspaces
 
-`RunStore` is the eight-method protocol of the contract. `MemoryRunStore` and
-`FileRunStore(root=".runs")` add `load_events(run_id)` and `add_message(chat_id, message)`.
+`RunStore` is the nine-method protocol of the contract, `load_events` included. `MemoryRunStore`
+and `FileRunStore(root=".runs")` add `add_message(chat_id, message)`.
 `FileRunStore` writes `<root>/<run id>/events.jsonl`, `checkpoint.json` and `artifacts/`, and
 `<root>/chats/<chat id>/history.jsonl` and `state.json`. Unsafe ids raise `RunError`.
 

@@ -26,12 +26,8 @@ def _sync(coroutine):
 
 
 def _load_state(store, run_id):
-    """Return the latest state of a run: from its log, else from its checkpoint.
-
-    NOTE: ``load_events`` is not in the backend contract yet, so a store without it has only its
-    checkpoint.
-    """
-    events = store.load_events(run_id) if hasattr(store, "load_events") else ()
+    """Return the latest state of a run: from its log, else from its checkpoint."""
+    events = store.load_events(run_id)
     if events:
         return recover(events, run_id)
     data = store.load_checkpoint(run_id)
@@ -82,9 +78,28 @@ class Run:
         self.loop = ToolLoop(CodeAssistant() if sandbox is not None else Assistant())
 
     @classmethod
-    def load(cls, run_id, **options):
-        """Rebuild a run in any process; hooks and callbacks are code, so they are passed again."""
-        run = cls(**options)
+    def load(
+        cls,
+        run_id,
+        *,
+        llm=None,
+        store=None,
+        workspace=None,
+        sandbox=None,
+        permissions=None,
+        callbacks=(),
+        hooks=(),
+    ):
+        """Rebuild a run in any process; what is code or a service is passed again."""
+        run = cls(
+            llm=llm,
+            store=store,
+            workspace=workspace,
+            sandbox=sandbox,
+            permissions=permissions,
+            callbacks=callbacks,
+            hooks=hooks,
+        )
         run.id = run_id
         state = _load_state(run.store, run_id)
         run.chat = state.chat
@@ -101,13 +116,7 @@ class Run:
         return await self.loop.run(self.engine, context)
 
     async def aresume(self, request_id=None, answer=None):
-        """Answer the pending request, or continue a run whose process died.
-
-        NOTE: continuing a dead run needs ``load_events``: without the events after the last
-        checkpoint, recorded calls would run twice, so that raises instead.
-        """
-        if request_id is None and not hasattr(self.store, "load_events"):
-            raise RunError("Run: resume() needs a store with load_events; see contracts.md")
+        """Answer the pending request, or continue a run whose process died."""
         state = _load_state(self.store, self.id)
         return await self.loop.resume(self.engine, state, request_id, answer)
 

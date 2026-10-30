@@ -132,5 +132,5 @@ async def test_artifact_key_is_safe_for_any_call_id(session):
 async def test_builtins_return_what_the_engine_understands(session):
     """A question and a final answer pass through unchanged."""
     request = await dispatch(ask_user, call(question="which?", options=["a"]))
-    assert isinstance(request, Request) and request.options == ("a",)
+    assert isinstance(request, Request) and request.options[0].value == "a"
     assert await dispatch(finish, call(answer="done")) == Finish(answer="done")

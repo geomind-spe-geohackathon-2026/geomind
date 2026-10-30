@@ -3,7 +3,15 @@
 Imports only ``geomind.utils``, ``geomind.errors`` and itself.
 """
 
-from geomind.types.decisions import Allow, Cancel, Deny, Finish, Request, validate_answer
+from geomind.types.decisions import (
+    Allow,
+    Cancel,
+    Deny,
+    Finish,
+    Option,
+    Request,
+    validate_answer,
+)
 from geomind.types.messages import (
     RULE_MODEL,
     Action,
@@ -25,6 +33,7 @@ __all__ = [
     "Deny",
     "Finish",
     "Message",
+    "Option",
     "Record",
     "Request",
     "RunResult",

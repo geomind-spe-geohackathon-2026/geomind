@@ -8,6 +8,12 @@ from geomind.types import Usage
 from tests.fixtures.runs import Worker, call, context, of_type, run, says, types, uses
 
 
+async def test_step_started_names_the_model_of_the_call():
+    """The contract's ``model`` is what the step calls."""
+    _, _, events = await run([says("hello")])
+    assert of_type(events, "step.started")[0].data()["model"] == "fake/model"
+
+
 async def test_answer_stops_a_run():
     """No tool calls means the text is the answer."""
     result, _, events = await run([says("hello")])

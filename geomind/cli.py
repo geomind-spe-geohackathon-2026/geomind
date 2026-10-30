@@ -38,7 +38,8 @@ class _Printer(callbacks.Callback):
 def _ask(request):
     """Ask in the terminal and return the answer of the contract."""
     if request.kind == "question":
-        options = f" {list(request.options)}" if request.options else ""
+        choices = [f"{option.value} ({option.label})" for option in request.options or ()]
+        options = f" {choices}" if choices else ""
         return {"text": input(f"\n{request.message}{options}\n> ")}
     if input(f"\n{request.message} [y/N] ").strip().lower() in ("y", "yes"):
         return {"approved": True}

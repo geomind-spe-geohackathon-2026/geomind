@@ -2,18 +2,46 @@
 
 from typing import Any, Literal
 
+from pydantic import field_validator, model_validator
+
 from geomind.errors import RequestError
 from geomind.types.messages import Record
 
 
+class Option(Record):
+    """One fixed choice of a question: ``value`` is the answer, ``label`` what the user reads."""
+
+    value: str
+    label: str
+
+
 class Request(Record):
-    """A pause for the user; the engine fills in ``id`` when it pauses the run."""
+    """A pause for the user; the engine fills in ``id`` when it pauses the run.
+
+    ``options`` are the fixed choices of a question. Plain strings become options with the same
+    value and label, which is also how a run stored by S1 holds them.
+    """
 
     kind: Literal["approval", "question"]
     message: str
     id: str = ""
-    options: tuple[str, ...] | None = None
+    options: tuple[Option, ...] | None = None
     call_id: str | None = None
+
+    @field_validator("options", mode="before")
+    @classmethod
+    def _normalise_options(cls, options):
+        """Turn plain strings into options; no choices means free text."""
+        if not options:
+            return None
+        return [dict(value=o, label=o) if isinstance(o, str) else o for o in options]
+
+    @model_validator(mode="after")
+    def _only_questions_have_options(self):
+        """Refuse fixed choices on an approval, which is answered yes or no."""
+        if self.kind == "approval" and self.options:
+            raise ValueError("options = fixed choices; expected them only on a question")
+        return self
 
 
 class Allow(Record):
@@ -58,4 +86,7 @@ def validate_answer(request, answer):
         return answer
     if set(answer) != {"text"} or not isinstance(answer["text"], str):
         raise RequestError(f"answer = {answer!r}; expected {{'text': '...'}}")
+    values = [option.value for option in request.options or ()]
+    if values and answer["text"] not in values:
+        raise RequestError(f"answer = {answer!r}; expected the value of one option: {values}")
     return answer

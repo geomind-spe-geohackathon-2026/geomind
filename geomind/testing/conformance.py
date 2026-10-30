@@ -20,7 +20,7 @@ def _expect(is_true, message):
 
 
 def _check_event_order(store):
-    """Save events; a store with ``load_events`` returns them equal and in order."""
+    """Save events; ``load_events`` returns them equal and in sequence order."""
     events = [
         StepStarted(run_id=RUN, sequence=1, index=1),
         TextDelta(run_id=RUN, sequence=2, index=1, text="hello"),
@@ -28,9 +28,9 @@ def _check_event_order(store):
     ]
     for event in events:
         store.save_event(RUN, event)
-    if hasattr(store, "load_events"):
-        _expect(store.load_events(RUN) == events, "load_events must return events in save order")
-        _expect(store.load_events(MISSING) == [], "load_events of an unknown run must be empty")
+    _expect(hasattr(store, "load_events"), "a RunStore must have load_events")
+    _expect(store.load_events(RUN) == events, "load_events must return events in sequence order")
+    _expect(store.load_events(MISSING) == [], "load_events of an unknown run must be empty")
 
 
 def _check_checkpoint(store):
@@ -81,7 +81,7 @@ def check_run_store(factory, seed_history=None):
     """Check a ``RunStore``; ``factory()`` returns a fresh store.
 
     The contract has no way to write history, so give ``seed_history(store, chat_id, messages)`` to
-    check its order. ``load_events`` is checked when the store has it.
+    check its order.
     """
     _check_event_order(factory())
     _check_checkpoint(factory())

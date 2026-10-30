@@ -34,6 +34,13 @@ async def test_a_stored_run_replays(stored):
     assert (await gd.Engine.replay(store, run_id)).stop_reason == "cancelled"
 
 
+def test_stored_options_load_in_the_new_shape(stored):
+    """Plain strings stored by S1 are read as options, and answers still fit."""
+    store, run_id = stored
+    request = next(event for event in store.load_events(run_id) if event.type == "request")
+    assert request.data()["options"][0] == {"value": "water", "label": "water"}
+
+
 def test_a_stored_run_has_a_log(stored):
     """The contract's log builds from old events."""
     store, run_id = stored

@@ -3,13 +3,13 @@
 from typing import Any
 
 from geomind.tools.base import tool
-from geomind.types import Finish, Request
+from geomind.types import Finish, Option, Request
 
 
 @tool(effect="read", runs_alone=True)
-async def ask_user(question: str, options: list[str] | None = None):
-    """Ask the user a question and wait for the answer."""
-    return Request(kind="question", message=question, options=tuple(options) if options else None)
+async def ask_user(question: str, options: list[str | Option] | None = None):
+    """Ask the user a question and wait for the answer, with fixed options if there are any."""
+    return Request(kind="question", message=question, options=options)
 
 
 @tool(effect="read", runs_alone=True)

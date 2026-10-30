@@ -162,8 +162,7 @@ class Engine:
     def _latest(self, checkpoint):
         """Return the state of a checkpoint plus whatever the log holds after it."""
         state = checkpoint if isinstance(checkpoint, Checkpoint) else Checkpoint.load(checkpoint)
-        load_events = getattr(self.store, "load_events", None)
-        return catch_up(state, load_events(state.root)) if load_events else state
+        return catch_up(state, self.store.load_events(state.root))
 
     async def resume(self, checkpoint, request_id=None, answer=None, *, agent=None, loop=None):
         """Continue a run from a checkpoint, in any process.
@@ -201,11 +200,8 @@ class Engine:
 
     async def _end_orphans(self, session):
         """End nested runs a crash left open, and keep what they spent for the parent."""
-        load_events = getattr(self.store, "load_events", None)
-        if load_events is None:
-            return
         state = session.state
-        events = load_events(state.root)
+        events = self.store.load_events(state.root)
         ended = {event.run_id for event in events if event.type == "run.finished"}
         for event in events:
             is_child = event.type == "run.started" and event.parent == state.run_id

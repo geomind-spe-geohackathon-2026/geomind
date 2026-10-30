@@ -8,9 +8,12 @@ truth: ``to_dict()`` keeps them all and ``event_from_dict`` restores the event.
 
 from typing import Any, ClassVar
 
+from pydantic import Field, field_validator
+
 from geomind.errors import RunError
 from geomind.types.decisions import Request
 from geomind.types.messages import Completion, Message, Record, ToolCall, Usage
+from geomind.types.patch import operation_problem
 
 EVENT_LOG_VERSION = 1
 BASE_FIELDS = ("run_id", "sequence", "time", "agent", "parent")
@@ -62,13 +65,18 @@ class RunStarted(Event):
 
 
 class StepStarted(Event):
-    """A step began."""
+    """A step began; ``model`` is the provider model id it calls.
+
+    NOTE: a run stored by S1 has no ``model``, so the field is optional here while every new step
+    has it.
+    """
 
     type: ClassVar[str] = "step.started"
     is_public: ClassVar[bool] = True
-    public_fields: ClassVar[tuple[str, ...]] = ("index",)
+    public_fields: ClassVar[tuple[str, ...]] = ("index", "model")
 
     index: int
+    model: str | None = None
 
 
 class TextDelta(Event):
@@ -127,13 +135,28 @@ class StepFinished(Event):
 
 
 class StateChanged(Event):
-    """The problem state changed; emitted from S2."""
+    """The problem state changed; emitted from S2.
+
+    ``version`` is the state version after the change, starting at 1. ``changes`` are JSON Patch
+    operations in the subset of ``patch.py``.
+    """
 
     type: ClassVar[str] = "state.changed"
     is_public: ClassVar[bool] = True
-    public_fields: ClassVar[tuple[str, ...]] = ("changes",)
+    public_fields: ClassVar[tuple[str, ...]] = ("version", "changes")
 
-    changes: tuple[Any, ...]
+    version: int = Field(ge=1)
+    changes: tuple[dict[str, Any], ...]
+
+    @field_validator("changes")
+    @classmethod
+    def _check_changes(cls, changes):
+        """Refuse an operation outside the contract's subset."""
+        for change in changes:
+            problem = operation_problem(change)
+            if problem is not None:
+                raise ValueError(problem)
+        return changes
 
 
 class RequestMade(Event):
@@ -153,7 +176,7 @@ class RequestMade(Event):
             "call_id": self.request.call_id,
             "kind": self.request.kind,
             "message": self.request.message,
-            "options": list(self.request.options) if self.request.options else None,
+            "options": [option.model_dump() for option in self.request.options or ()] or None,
         }
         present = {name: value for name, value in values.items() if value is not None}
         return {**present, "agent": self.agent, "parent": self.parent}

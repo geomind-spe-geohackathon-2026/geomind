@@ -130,37 +130,16 @@ def test_resume_of_a_dead_run_continues_from_its_events():
     assert paused.status == "waiting"
 
 
-class ContractOnly:
-    """A store with exactly the eight methods of the contract, as the backend's may be."""
-
-    def __init__(self):
-        """Wrap a full store."""
-        self.inner = gd.stores.MemoryRunStore()
-
-    def __getattr__(self, name):
-        """Offer everything but what the contract leaves out."""
-        if name == "load_events":
-            raise AttributeError(name)
-        return getattr(self.inner, name)
-
-
-def test_a_contract_only_store_resumes_requests_from_its_checkpoint():
-    """Pause and resume need no ``load_events``."""
-    store = ContractOnly()
-    run = run_of(question_script(), store=store)
-    paused = run.start()
-    fresh = gd.Run.load(run.id, llm=FakeLLM(question_script()[1:]), store=store)
-    assert fresh.resume(paused.request.id, {"text": "x"}).answer == "end"
-
-
-def test_a_contract_only_store_refuses_crash_recovery():
-    """It says why, instead of repeating recorded calls."""
-    store = ContractOnly()
-    run = run_of(question_script(), store=store)
+def test_load_takes_the_contract_keywords(tmp_path):
+    """Sandbox and permissions are passed again, as hooks and callbacks are."""
+    permissions = gd.Permissions(mode="readonly")
+    sandbox = gd.sandbox.LocalSandbox(tmp_path)
+    run = run_of(question_script())
     run.start()
-    fresh = gd.Run.load(run.id, llm=FakeLLM([]), store=store)
-    with pytest.raises(RunError, match="load_events"):
-        fresh.resume()
+    fresh = gd.Run.load(
+        run.id, llm=FakeLLM([]), store=run.store, sandbox=sandbox, permissions=permissions
+    )
+    assert fresh.engine.permissions is permissions and fresh.engine.sandbox is sandbox
 
 
 def test_cancel_stops_at_the_next_hook_point():

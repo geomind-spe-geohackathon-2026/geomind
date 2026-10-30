@@ -58,8 +58,19 @@ def test_a_store_that_loses_order_fails():
         def load_events(self, run_id):
             return list(reversed(super().load_events(run_id)))
 
-    with pytest.raises(AssertionError, match="save order"):
+    with pytest.raises(AssertionError, match="sequence order"):
         check_run_store(Reversed)
+
+
+def test_a_store_without_load_events_fails():
+    """The method is part of the contract now."""
+
+    class Partial:
+        def save_event(self, run_id, event):
+            """Accept events and nothing else."""
+
+    with pytest.raises(AssertionError, match="load_events"):
+        check_run_store(Partial)
 
 
 def test_a_store_that_keeps_old_state_fails():
