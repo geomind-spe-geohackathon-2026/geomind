@@ -1,6 +1,6 @@
 """swarmax: agents, an engine over an event log, tools and the Run facade the backend uses."""
 
-from swarmax import errors, providers, sandbox, tools
+from swarmax import errors, providers, sandbox, stores, testing, tools
 from swarmax.core import agents, runtime
 from swarmax.core.agents import Agent, Model, Output
 from swarmax.core.engine import Context, Engine, Permissions, callbacks, hooks
@@ -30,6 +30,8 @@ __all__ = [
     "RunResult",
     "runlog",
     "agents",
+    "stores",
+    "testing",
     "tools",
     "providers",
     "sandbox",
