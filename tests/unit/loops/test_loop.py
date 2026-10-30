@@ -2,8 +2,8 @@
 
 import pytest
 
-from swarmax.core.engine import Engine, Permissions
-from swarmax.core.engine.checkpoint import Checkpoint
+from swarmax.engine import Engine, Permissions
+from swarmax.engine.checkpoint import Checkpoint
 from swarmax.loops import Loop
 from swarmax.providers import FakeLLM
 from tests.fixtures.runs import Worker, call, context, says, uses

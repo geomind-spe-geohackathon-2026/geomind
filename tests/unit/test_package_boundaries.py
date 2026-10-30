@@ -1,6 +1,7 @@
 """Each package imports only the packages to its left, in the order of ``conventions.md``."""
 
 import ast
+import re
 
 import pytest
 
@@ -9,20 +10,21 @@ from tests.fixtures import ROOT
 ORDER = [
     ("swarmax.utils",),
     ("swarmax.errors",),
-    ("swarmax.core.types",),
-    ("swarmax.core.runtime",),
-    ("swarmax.core.prompts",),
+    ("swarmax.types",),
+    ("swarmax.runtime",),
+    ("swarmax.prompts",),
     ("swarmax.providers",),
     ("swarmax.sandbox",),
     ("swarmax.tools",),
-    ("swarmax.core.agents",),
-    ("swarmax.core.engine",),
+    ("swarmax.agents",),
+    ("swarmax.engine",),
     ("swarmax.stores",),
     ("swarmax.loops",),
     ("swarmax.run",),
     ("swarmax.testing",),
     ("swarmax.cli",),
 ]
+CORE_IMPORT = re.compile(r"^\s*(?:from|import) +\S*\bcore\b.*$", re.MULTILINE)
 LEAVES = {"swarmax.utils", "swarmax.errors"}
 SOURCES = sorted((ROOT / "swarmax").rglob("*.py"))
 
@@ -70,5 +72,20 @@ def test_imports_follow_the_dependency_order(path):
 
 def test_rank_finds_the_owner_package():
     """A submodule belongs to its package and the package root to nothing."""
-    assert rank("swarmax.core.engine.step") > rank("swarmax.tools.base")
+    assert rank("swarmax.engine.step") > rank("swarmax.tools.base")
     assert rank("swarmax") is None
+
+
+def all_python_files():
+    """Return every Python file of the repository's own folders."""
+    folders = ("swarmax", "examples", "tests", "scripts")
+    return [path for folder in folders for path in sorted((ROOT / folder).rglob("*.py"))]
+
+
+def test_no_core_package_or_import_reappears():
+    """The packages live at the top level, and no import goes through a ``core`` package."""
+    assert not (ROOT / "swarmax/core").exists() and not (ROOT / "tests/unit/core").exists()
+    found = []
+    for path in all_python_files():
+        found += [f"{path}: {line}" for line in CORE_IMPORT.findall(path.read_text())]
+    assert found == []

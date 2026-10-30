@@ -1,7 +1,7 @@
 # Engine
 
 The engine runs one agent until it stops, over an append-only event log. Loops decide which run
-comes next. It is finite: it never sleeps or schedules itself. Code is in `swarmax/core/engine/`.
+comes next. It is finite: it never sleeps or schedules itself. Code is in `swarmax/engine/`.
 
 ## Harness principles
 

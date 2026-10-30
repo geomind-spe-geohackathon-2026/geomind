@@ -3,11 +3,11 @@
 import pytest
 
 import swarmax as sx
-from swarmax.core import runtime
-from swarmax.core.engine import Engine, Permissions
-from swarmax.core.engine.checkpoint import Checkpoint
-from swarmax.core.engine.recovery import recover
-from swarmax.core.engine.store import MemoryRunStore
+from swarmax import runtime
+from swarmax.engine import Engine, Permissions
+from swarmax.engine.checkpoint import Checkpoint
+from swarmax.engine.recovery import recover
+from swarmax.engine.store import MemoryRunStore
 from swarmax.providers import FakeLLM
 from swarmax.sandbox import LocalSandbox
 from tests.fixtures.runs import EXECUTED, Lead, call, context, of_type, says, uses

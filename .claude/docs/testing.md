@@ -76,7 +76,7 @@ The suite must remain safe under `pytest -n auto`:
 
 ## Contract tests
 
-`tests/unit/core/types/test_events.py` pins `event.data()` to the table of
+`tests/unit/types/test_events.py` pins `event.data()` to the table of
 `../docs/contracts.md` section 2. `sx.testing.check_run_store` and `sx.testing.check_workspace`
 run against the memory and file implementations in `tests/unit/testing/`; the backend runs the
 same functions against its own.

@@ -10,7 +10,7 @@ import tempfile
 
 import swarmax as sx
 from examples.support import provider
-from swarmax.core.types import Completion, ToolCall
+from swarmax.types import Completion, ToolCall
 
 SCRIPT = [
     Completion(tool_calls=(ToolCall(id="c1", name="run_python", input={"code": "print(1)"}),)),

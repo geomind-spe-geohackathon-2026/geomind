@@ -1,7 +1,7 @@
 # Runtime settings
 
 `sx.runtime` holds context-local process settings and the active run, in
-`swarmax/core/runtime.py`.
+`swarmax/runtime.py`.
 
 - `get(name)`, `state()`, `load_state(mapping)` and `settings(**changes)`, usable as `with` and as
   a decorator, built on `swarmax.utils.context.ContextSetting`.
@@ -16,7 +16,7 @@ stores the settings it starts with, and a resumed run applies them again.
 ## The active run
 
 `activate(run)` makes a run active for a `with` block, and `active_run()` returns it or raises
-`RunError`. It is the session of `swarmax/core/engine/session.py`: `Agent.complete`, `dispatch`,
+`RunError`. It is the session of `swarmax/engine/session.py`: `Agent.complete`, `dispatch`,
 the code tools, `Delegate` and the budget hooks reach the provider, store and sandbox through it,
 so none of them imports the engine. This is an implicit mechanism, listed in
 [conventions.md](conventions.md#implicit-mechanisms).

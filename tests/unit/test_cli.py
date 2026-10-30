@@ -6,8 +6,7 @@ from pathlib import Path
 import httpx
 import pytest
 
-from swarmax import cli
-from swarmax.core import runtime
+from swarmax import cli, runtime
 from swarmax.providers import OpenRouter
 
 

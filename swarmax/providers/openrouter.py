@@ -5,9 +5,9 @@ import os
 
 import httpx
 
-from swarmax.core import runtime
-from swarmax.core.types import Completion, ToolCall, Usage
+from swarmax import runtime
 from swarmax.errors import ProviderError
+from swarmax.types import Completion, ToolCall, Usage
 
 BASE_URL = "https://openrouter.ai/api/v1"
 INVALID_ARGUMENTS = "invalid_json_arguments"

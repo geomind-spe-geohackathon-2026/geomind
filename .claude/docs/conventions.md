@@ -8,15 +8,15 @@ sentence in the docstring of the function, class or test that makes it.
 
 A package may import only the packages to its left:
 
-`swarmax.utils`, `swarmax.errors` ← `core.types` ← `core.runtime` ← `core.prompts` ← `providers`
-← `sandbox` ← `tools` ← `core.agents` ← `core.engine` ← `stores` ← `loops` ← `run` ← `testing`
+`swarmax.utils`, `swarmax.errors` ← `types` ← `runtime` ← `prompts` ← `providers`
+← `sandbox` ← `tools` ← `agents` ← `engine` ← `stores` ← `loops` ← `run` ← `testing`
 ← `cli` ← `swarmax/__init__`.
 
 `tests/unit/test_package_boundaries.py` enforces this order.
 
-- `core.types` sits below `providers` because a provider returns a `Completion`.
+- `types` sits below `providers` because a provider returns a `Completion`.
 - `sandbox` sits below `tools` because the code tools use it.
-- `tools.delegate` reaches the engine only through the active run in `core.runtime`, never by
+- `tools.delegate` reaches the engine only through the active run in `runtime`, never by
   import. The same goes for `Agent.complete`, `dispatch` and the code tools.
 - `swarmax.utils` and `swarmax.errors` are leaf packages: they import only the standard library,
   installed dependencies and themselves.
@@ -24,7 +24,10 @@ A package may import only the packages to its left:
   reaches it only through the class a plant file names. `dispatch` recognises `gemini.errors`
   classes by the module path in their class hierarchy.
 
-`core/context/` (problem state, compaction) arrives in S2 and `core/verify/` in S3.
+The folder `types` shares its name with the standard library module. This is safe because every
+import is absolute (`swarmax.types`); never put the package folder itself on `sys.path`.
+
+`context/` (problem state, compaction) arrives in S2 and `verify/` in S3.
 
 ## Agent rules
 
@@ -89,16 +92,16 @@ The package avoids hidden behaviour. These are the only implicit mechanisms, eac
   its one slot. Constructors therefore read as plain assignments in section order. Unknown or
   duplicate names raise `DeclarationError` with a close-match suggestion. The `_AgentMeta`
   metaclass seals an instance after `__init__`, so a later declaration raises too.
-- The active run is a context variable in `core/runtime.py`, read by `Agent.complete`, `dispatch`,
+- The active run is a context variable in `runtime.py`, read by `Agent.complete`, `dispatch`,
   the code tools, `Delegate` and the budget hooks. An agent declares *which model*; the run supplies
   *which provider*, so agents and tools stay free of keys, stores and HTTP. Worker threads for
   sync tools receive a copied context.
 - `sx.runtime.settings()` is a context setting built on `swarmax.utils.context.ContextSetting`: a
   context variable change usable as a `with` block and as a decorator, restored on exit.
-- `class_path`/`import_class` in `core/engine/checkpoint.py` are the only import-by-string:
+- `class_path`/`import_class` in `engine/checkpoint.py` are the only import-by-string:
   checkpoints and events name the agent class that rebuilds a run.
 - `Callback.on_<event>` methods are found through the `CALLBACK_METHODS` table in
-  `core/engine/callbacks.py`, so a callback overrides only the methods it needs.
+  `engine/callbacks.py`, so a callback overrides only the methods it needs.
 
 Adding another implicit mechanism needs a reason of the same weight and an entry here.
 
@@ -116,8 +119,8 @@ Each one also has a `NOTE:` in the docstring that makes it.
   of one run live in the session.
 - Assigning after `__init__` raises. gemini lets a user assign `esp.frequency = 50` afterward
   because a module has persistent commands; an agent has none.
-- The dependency order adds `stores`, the small module behind `sx.stores`, after `core.engine`.
-- `core/engine/session.py` is one file beyond the layout of the S1 prompt: the object behind the
+- The dependency order adds `stores`, the small module behind `sx.stores`, after `engine`.
+- `engine/session.py` is one file beyond the layout of the S1 prompt: the object behind the
   active run.
 - Tool names follow the attribute of the agent that declares them, on a copy of the tool.
 

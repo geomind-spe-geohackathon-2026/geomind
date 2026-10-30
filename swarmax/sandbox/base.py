@@ -4,9 +4,9 @@ import importlib.util
 from pathlib import Path, PurePosixPath
 from typing import Protocol
 
-from swarmax.core import runtime
-from swarmax.core.types import Record
+from swarmax import runtime
 from swarmax.errors import SandboxError
+from swarmax.types import Record
 
 TIMED_OUT = 124
 """The exit code of a command stopped by its time limit, as the ``timeout`` command uses."""

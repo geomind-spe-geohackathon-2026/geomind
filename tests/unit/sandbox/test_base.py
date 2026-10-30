@@ -2,7 +2,7 @@
 
 import pytest
 
-from swarmax.core import runtime
+from swarmax import runtime
 from swarmax.errors import SandboxError
 from swarmax.sandbox import LocalSandbox, Manifest, Sandbox, SandboxProvider
 from swarmax.sandbox.base import checked_path, package_root

@@ -1,9 +1,9 @@
 """A tool that runs another agent in a nested run."""
 
-from swarmax.core import runtime
-from swarmax.core.types import Record
+from swarmax import runtime
 from swarmax.errors import ToolError
 from swarmax.tools.base import Tool
+from swarmax.types import Record
 from swarmax.utils.strings import first_paragraph
 
 CHARACTERS_PER_TOKEN = 4

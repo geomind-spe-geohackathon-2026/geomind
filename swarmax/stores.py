@@ -1,7 +1,7 @@
 """``sx.stores``: the store and workspace implementations."""
 
-from swarmax.core.engine.store import FileRunStore, MemoryRunStore, RunStore
-from swarmax.core.engine.workspace import FileWorkspace, MemoryWorkspace, Workspace
+from swarmax.engine.store import FileRunStore, MemoryRunStore, RunStore
+from swarmax.engine.workspace import FileWorkspace, MemoryWorkspace, Workspace
 
 __all__ = [
     "FileRunStore",

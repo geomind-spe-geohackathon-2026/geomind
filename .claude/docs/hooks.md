@@ -1,6 +1,6 @@
 # Hooks
 
-Three decision points that can deny or pause a run, in `swarmax/core/engine/hooks.py`. A hook
+Three decision points that can deny or pause a run, in `swarmax/engine/hooks.py`. A hook
 derives from `sx.hooks.Hook` and overrides any of `before_llm_call(agent, messages)`,
 `before_tool_call(agent, call)` and `before_finish(agent, action)`, plain or `async`. Each returns
 `None` (no objection), `Deny(reason)` or a `Request`; `before_tool_call` may also return

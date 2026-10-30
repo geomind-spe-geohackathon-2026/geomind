@@ -8,9 +8,9 @@ from time import perf_counter
 
 import pydantic
 
-from swarmax.core import runtime
-from swarmax.core.types import Finish, Request, ToolResult
+from swarmax import runtime
 from swarmax.errors import SwarmaxError, ToolError
+from swarmax.types import Finish, Request, ToolResult
 from swarmax.utils.json import to_jsonable
 
 SUMMARY_CHARACTERS = 500

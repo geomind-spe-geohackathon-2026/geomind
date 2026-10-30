@@ -2,7 +2,7 @@
 
 import hashlib
 
-from swarmax.core import runtime
+from swarmax import runtime
 from swarmax.errors import SandboxError
 from swarmax.tools.base import tool
 from swarmax.utils.time import parse_duration

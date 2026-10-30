@@ -2,11 +2,11 @@
 
 import pytest
 
-from swarmax.core import runtime
-from swarmax.core.engine import Permissions
-from swarmax.core.engine.hooks import Cancellation, Hook, RequireApproval
-from swarmax.core.types import Request
+from swarmax import runtime
+from swarmax.engine import Permissions
+from swarmax.engine.hooks import Cancellation, Hook, RequireApproval
 from swarmax.errors import RequestError, RunError
+from swarmax.types import Request
 from tests.fixtures.runs import (
     EXECUTED,
     Worker,

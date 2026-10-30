@@ -4,8 +4,8 @@ Each raises ``AssertionError`` with a clear message. swarmax's own tests run the
 and file implementations; the backend runs them against its own.
 """
 
-from swarmax.core.types import Message
-from swarmax.core.types.events import StepStarted, TextDelta
+from swarmax.types import Message
+from swarmax.types.events import StepStarted, TextDelta
 
 RUN = "conformance-run"
 OTHER_RUN = "conformance-other-run"

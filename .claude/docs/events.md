@@ -1,6 +1,6 @@
 # Events
 
-Every event of a run, in `swarmax/core/types/events.py`. An event has `run_id`, `sequence`, `time`,
+Every event of a run, in `swarmax/types/events.py`. An event has `run_id`, `sequence`, `time`,
 `agent` (the dotted agent path), `parent` (the parent run id of a nested run, or `null`), a stable
 `type`, `is_public` and `data()`. Event log version: 1. Types never change silently: a change is a
 new version, recorded here.

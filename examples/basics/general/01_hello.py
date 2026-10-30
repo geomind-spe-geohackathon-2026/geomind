@@ -2,7 +2,7 @@
 
 import swarmax as sx
 from examples.support import provider
-from swarmax.core.types import Completion, Usage
+from swarmax.types import Completion, Usage
 
 SCRIPT = [
     Completion(

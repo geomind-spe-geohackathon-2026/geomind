@@ -4,9 +4,9 @@ import shutil
 
 import pytest
 
-from swarmax.core import runtime
-from swarmax.core.types import ToolCall
+from swarmax import runtime
 from swarmax.tools import dispatch, read_file, run_python, write_file
+from swarmax.types import ToolCall
 from tests.fixtures.sessions import StubSession
 
 

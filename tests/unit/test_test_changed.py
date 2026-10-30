@@ -28,5 +28,5 @@ def test_pyproject_selects_everything(tmp_path):
 
 def test_mirror_test_skips_package_files():
     """A package file has no mirror."""
-    assert mirror_test("swarmax/core/runtime.py") == "tests/unit/core/test_runtime.py"
-    assert mirror_test("swarmax/core/__init__.py") is None
+    assert mirror_test("swarmax/runtime.py") == "tests/unit/test_runtime.py"
+    assert mirror_test("swarmax/__init__.py") is None

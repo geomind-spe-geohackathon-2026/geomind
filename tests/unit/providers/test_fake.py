@@ -2,10 +2,10 @@
 
 import pytest
 
-from swarmax.core.types import RULE_MODEL, Completion
-from swarmax.core.types.events import LLMCompleted, StepStarted
 from swarmax.errors import ProviderError
 from swarmax.providers import FakeLLM
+from swarmax.types import RULE_MODEL, Completion
+from swarmax.types.events import LLMCompleted, StepStarted
 from tests.fixtures import load_completions
 
 

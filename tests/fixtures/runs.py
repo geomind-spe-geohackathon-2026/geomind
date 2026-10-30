@@ -2,12 +2,12 @@
 
 import asyncio
 
-from swarmax.core.agents import Agent, Model
-from swarmax.core.engine import Context, Engine, Permissions
-from swarmax.core.prompts import Prompt
-from swarmax.core.types import Completion, Message, ToolCall, Usage
+from swarmax.agents import Agent, Model
+from swarmax.engine import Context, Engine, Permissions
+from swarmax.prompts import Prompt
 from swarmax.providers import FakeLLM
 from swarmax.tools import Delegate, ask_user, finish, run_python, tool
+from swarmax.types import Completion, Message, ToolCall, Usage
 
 USAGE = Usage(input_tokens=10, output_tokens=5, cost=0.01)
 EXECUTED = []

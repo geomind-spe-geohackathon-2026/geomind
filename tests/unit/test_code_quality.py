@@ -134,7 +134,8 @@ def test_functions_are_short_or_documented_exceptions(path):
 
 def test_long_function_exceptions_exist():
     """Every listed long-function exception names an existing function."""
-    names = {f"{path}::{function.name}" for path in PYTHON_FILES for function in functions(path)}
+    paths = {name.partition("::")[0] for name in LONG_FUNCTIONS}
+    names = {f"{path}::{function.name}" for path in paths for function in functions(path)}
     assert set(LONG_FUNCTIONS) <= names
 
 
@@ -165,7 +166,7 @@ def is_validator(function):
 
 @pytest.mark.parametrize("path", PACKAGE_FILES)
 def test_package_code_raises_swarmax_errors(path):
-    """Deliberate errors use ``sx.errors``; ``swarmax.utils`` and validators are the exceptions."""
+    """Deliberate errors use ``gd.errors``; ``swarmax.utils`` and validators are the exceptions."""
     found = [
         f"{path}:{node.lineno} {raised_name(node)}"
         for function in functions(path)

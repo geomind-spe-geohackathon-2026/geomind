@@ -1,7 +1,7 @@
 """A scripted provider for tests, examples and replay."""
 
-from swarmax.core.types import RULE_MODEL
 from swarmax.errors import ProviderError
+from swarmax.types import RULE_MODEL
 
 
 class FakeLLM:

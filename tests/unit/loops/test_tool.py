@@ -2,7 +2,7 @@
 
 import pytest
 
-from swarmax.core.engine import Engine
+from swarmax.engine import Engine
 from swarmax.errors import LoopError
 from swarmax.loops import ToolLoop
 from swarmax.providers import FakeLLM

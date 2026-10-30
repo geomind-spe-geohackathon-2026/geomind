@@ -55,16 +55,15 @@ swarmax/
 ├── testing/          # conformance checks for RunStore and Workspace implementations
 ├── utils/            # leaf: hooks, context settings, time, json, strings
 ├── errors/           # leaf: every sx.errors class
-├── core/
-│   ├── types/        # messages, decisions, results, events, redaction, runlog
-│   ├── runtime.py    # context-local settings and the active run
-│   ├── prompts/      # <role>.md files and Prompt
-│   ├── agents/       # Agent, AgentResult, Model, Output, general/assistant.py
-│   └── engine/       # engine, session, step, log, recovery, context, callbacks, hooks,
-│                     # permissions, checkpoint, store, workspace, replay
+├── types/            # messages, decisions, results, events, redaction, runlog
+├── runtime.py        # context-local settings and the active run
+├── prompts/          # <role>.md files and Prompt
 ├── providers/        # LLM protocol, retry layer, OpenRouter, FakeLLM
 ├── sandbox/          # Sandbox and SandboxProvider protocols, Manifest, local, docker
 ├── tools/            # Tool, tool decorator, dispatch, built-ins, code tools, Delegate
+├── agents/           # Agent, AgentResult, Model, Output, general/assistant.py
+├── engine/           # engine, session, step, log, recovery, context, callbacks, hooks,
+│                     # permissions, checkpoint, store, workspace, replay
 └── loops/            # Loop, ToolLoop
 examples/             # area/category/NN_name.py
 scripts/              # test_changed.py, the development test profile

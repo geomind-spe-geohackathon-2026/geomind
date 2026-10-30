@@ -4,11 +4,11 @@ import asyncio
 
 import pytest
 
-from swarmax.core import runtime
-from swarmax.core.types import Finish, Request, ToolCall
+from swarmax import runtime
 from swarmax.errors import ToolError
 from swarmax.tools import ask_user, dispatch, finish, tool
 from swarmax.tools.dispatch import is_reported_error
+from swarmax.types import Finish, Request, ToolCall
 from tests.fixtures.sessions import StubSession
 
 

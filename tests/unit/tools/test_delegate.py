@@ -2,9 +2,9 @@
 
 import pytest
 
-from swarmax.core import runtime
-from swarmax.core.types import Request, RunResult, ToolCall
+from swarmax import runtime
 from swarmax.tools import Delegate, dispatch
+from swarmax.types import Request, RunResult, ToolCall
 from tests.fixtures.sessions import StubSession
 
 

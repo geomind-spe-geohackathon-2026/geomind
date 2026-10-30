@@ -3,7 +3,7 @@
 import asyncio
 import inspect
 
-from swarmax.core import runtime
+from swarmax import runtime
 from swarmax.errors import ProviderError
 
 

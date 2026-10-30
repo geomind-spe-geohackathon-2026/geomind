@@ -1,7 +1,7 @@
 """The tools the engine understands."""
 
-from swarmax.core.types import Finish, Request
 from swarmax.tools import ask_user, finish
+from swarmax.types import Finish, Request
 
 
 async def test_ask_user_is_a_question():

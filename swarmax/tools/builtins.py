@@ -2,8 +2,8 @@
 
 from typing import Any
 
-from swarmax.core.types import Finish, Request
 from swarmax.tools.base import tool
+from swarmax.types import Finish, Request
 
 
 @tool(effect="read", runs_alone=True)

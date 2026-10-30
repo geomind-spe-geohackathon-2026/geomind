@@ -1,7 +1,7 @@
 # Agents
 
 An `Agent` is to one decision what a gemini `Module` is to one tick: it turns a context into an
-action and never loops by itself. See `swarmax/core/agents/agent.py`.
+action and never loops by itself. See `swarmax/agents/agent.py`.
 
 ```python
 class Assistant(sx.Agent):
@@ -52,7 +52,7 @@ hook stopped the call, and then `action` is `None`.
 
 ## Prompt, Model, Output
 
-`Prompt("assistant")` loads `core/prompts/assistant.md`, and `Prompt.text(...)` holds inline text.
+`Prompt("assistant")` loads `prompts/assistant.md`, and `Prompt.text(...)` holds inline text.
 
 `Model(name=None, temperature=0, max_tokens=None, fallbacks=())`: `name=None` means the default
 model of `sx.runtime`, and `fallbacks` lists models tried in order when the provider keeps failing.

@@ -4,7 +4,7 @@ import asyncio
 
 import swarmax as sx
 from examples.support import provider
-from swarmax.core.types import Completion, ToolCall
+from swarmax.types import Completion, ToolCall
 
 
 @sx.tool(effect="compute")

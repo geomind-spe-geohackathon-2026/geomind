@@ -3,8 +3,8 @@
 import pytest
 
 import swarmax as sx
-from swarmax.core import runtime
-from swarmax.core.agents import Assistant, CodeAssistant
+from swarmax import runtime
+from swarmax.agents import Assistant, CodeAssistant
 from swarmax.errors import ProviderError, RequestError, RunError
 from swarmax.providers import FakeLLM
 from tests.fixtures.runs import call, of_type, says, uses

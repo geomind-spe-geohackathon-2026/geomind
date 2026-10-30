@@ -2,7 +2,7 @@
 
 import swarmax as sx
 from examples.support import provider
-from swarmax.core.types import Completion, ToolCall
+from swarmax.types import Completion, ToolCall
 
 CODE = "print(sum(range(1, 101)))"
 SCRIPT = [
