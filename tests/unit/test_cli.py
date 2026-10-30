@@ -109,7 +109,7 @@ def test_show_prints_prompts_answers_and_tokens(service, capsys):
     capsys.readouterr()
     assert cli.main(["show", run_folder(), "--format", "md"]) == 0
     output = capsys.readouterr().out
-    assert output.startswith("# Run ") and "## Step 1 (assistant)" in output
+    assert output.startswith("# Run ") and "## Step 1 (analyst)" in output
     assert "user: Say hello" in output and "answer: Hello" in output
     assert "7 tokens in" in output and "## Totals" in output
 

@@ -39,6 +39,9 @@ and `Agent.help()`.
 There is no `Team` and no agent container: the order of agents is a policy, and policies are
 [loops](engine.md#loops).
 
+A run gets its agent from the routing tables in `geomind/run.py`; see
+[Shipped agents](#shipped-agents).
+
 ## Calling
 
 `async def forward(self, context) -> Action` renders the context and awaits `self.complete`.
@@ -68,6 +71,42 @@ its JSON schema to the system prompt.
 
 ## Shipped agents
 
-`gd.agents.Assistant` is the agent of S1. `CodeAssistant` adds `run_python`, `read_file` and
-`write_file`; `Run` uses it when a sandbox is configured, so a run without one offers the model no
-tool that can only fail.
+| Agent | Folder | Status | In `AGENTS` of `run.py` |
+|---|---|---|---|
+| `Analyst` | `analysis/` | complete, the sample; its gemini tools wait for gemini | yes, the default |
+| `Assistant`, `CodeAssistant` | `general/` | complete; `Run` uses `CodeAssistant` with a sandbox | `code_assistant` |
+| `Summarizer` | `general/` | complete; only compaction calls it | no |
+| `Coordinator` | `coordination/` | skeleton; declares `Output(Route)`, `Run` does not call it yet | no |
+| `Designer` | `design/` | skeleton | no |
+| `Verifier` | `verification/` | skeleton | no |
+| `Economist` | `economics/` | skeleton | no |
+| `Explainer` | `reporting/` | skeleton | no |
+
+All are exported from `gd.agents`. A skeleton is a real `Agent` with a docstring stating its job, its
+prompt file and its model setting, the tools that already exist, and no `forward`. It constructs and
+runs, but it knows nothing until someone fills its prompt.
+
+## How to add or fill an agent
+
+The analyst is the worked example: `geomind/agents/analysis/analyst.py` and
+`geomind/prompts/analysis/analyst.md`.
+
+1. **The folder.** A skeleton has its file already. A new agent goes in
+   `geomind/agents/<area>/<name>.py`, exported from `geomind/agents/__init__.py`, with
+   `tests/unit/agents/<area>/test_<name>.py`.
+2. **The prompt.** `geomind/prompts/<area>/<name>.md`, loaded with `Prompt("<name>")`, with six
+   headings in this order: `## Role`, `## Inputs`, `## Tools`, `## Rules`, `## Output`, `## Examples`.
+   Name in `## Tools` only tools the agent has; `test_its_prompt_names_only_tools_it_has` shows how to
+   check that.
+3. **The tools.** Declare them in `# Tools` in the order they matter, and give the agent as few as it
+   needs. A tool's `effect` decides who approves it: `read` and `compute` run freely, while `write`,
+   `execute` and `external` ask in `ask` mode. See [tools.md](tools.md). An agent that declares
+   `read_skill` gets the list of skills in its system prompt, and `update_state` needs no approval.
+4. **The model.** `Model(setting="<name>_model")`, with the setting in `geomind/runtime.py`: `None` for
+   the default model, or a cheap model for a call that needs no thought.
+5. **The routing.** Add one row to `AGENTS` in `geomind/run.py`. A new way of ordering agents is a
+   loop, and a row in `LOOPS`.
+6. **Test it by hand.** `geomind chat --agent <name> --live`; see [api.md](api.md#command-line).
+7. **Test it by tasks.** Write `evals/tasks/<name>/<task>.yaml` and run
+   `python -m evals.run --agent <name> --live` once to record it; see `evals.md`.
+8. **Update this table,** and change its status from skeleton to complete.

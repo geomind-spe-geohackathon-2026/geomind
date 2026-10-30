@@ -68,7 +68,7 @@ geomind/
 ├── providers/        # LLM protocol, retry layer, OpenRouter, FakeLLM
 ├── sandbox/          # Sandbox and SandboxProvider protocols, Manifest, local, docker
 ├── tools/            # Tool, tool decorator, dispatch, built-ins, code tools, Delegate
-├── agents/           # Agent, AgentResult, Model, Output, general/assistant.py
+├── agents/           # Agent, AgentResult, Model, Output, and one folder per area of agents
 ├── engine/           # engine, session, step, delegation, log, recovery, state, context,
 │                     # callbacks, hooks, permissions, replay, compaction
 └── loops/            # Loop, ToolLoop

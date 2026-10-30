@@ -62,8 +62,8 @@ def take_turn(store, llm, number):
         llm=llm,
         store=store,
         permissions=Permissions("auto"),
+        agent=Assistant(),
     )
-    run.loop.agent = Assistant()
     result = run.start()
     store.add_message("long", Message(role="user", content=message))
     store.add_message("long", Message(role="assistant", content=result.answer))

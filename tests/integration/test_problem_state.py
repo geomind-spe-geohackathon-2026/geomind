@@ -1,7 +1,5 @@
 """The problem state through a whole run: events, recovery, replay and a chat."""
 
-import pytest
-
 from geomind.agents import Agent
 from geomind.engine import Context, Engine, Permissions
 from geomind.engine.recovery import recover
@@ -52,14 +50,13 @@ def note(*changes, call_id="c1"):
 def chat_run(store, llm, message, permissions=None):
     """Return a run of the chat ``c``."""
     return Run(
-        message, chat="c", llm=llm, store=store, permissions=permissions or Permissions("auto")
+        message,
+        chat="c",
+        llm=llm,
+        store=store,
+        permissions=permissions or Permissions("auto"),
+        agent=Noter(),
     )
-
-
-@pytest.fixture
-def noter_runs(monkeypatch):
-    """Make ``Run`` use the noter."""
-    monkeypatch.setattr("geomind.run.Assistant", Noter)
 
 
 async def run_engine(script, agent=None, **options):
@@ -133,7 +130,7 @@ async def test_a_run_without_a_chat_saves_no_state():
     assert engine.store.states == {}
 
 
-def test_the_state_persists_across_two_messages_of_a_chat(noter_runs):
+def test_the_state_persists_across_two_messages_of_a_chat():
     """The next message continues the versions and the model sees the first note."""
     store = MemoryRunStore()
     chat_run(store, FakeLLM([note(GOAL), says()]), "first").start()
@@ -145,7 +142,7 @@ def test_the_state_persists_across_two_messages_of_a_chat(noter_runs):
     assert store.load_state("c")["assumptions"][0]["id"] == "A1"
 
 
-def test_notes_need_no_approval_in_ask_mode(noter_runs):
+def test_notes_need_no_approval_in_ask_mode():
     """``update_state`` only touches the run's own notes."""
     store = MemoryRunStore()
     result = chat_run(store, FakeLLM([note(GOAL), says()]), "go", Permissions("ask")).start()
@@ -154,7 +151,7 @@ def test_notes_need_no_approval_in_ask_mode(noter_runs):
     assert permission.rule == "allow:update_state"
 
 
-def test_an_ask_rule_still_wins_over_the_default(noter_runs):
+def test_an_ask_rule_still_wins_over_the_default():
     """A caller who wants to approve notes can."""
     store = MemoryRunStore()
     permissions = Permissions("ask", ask=["update_state"])
@@ -162,7 +159,7 @@ def test_an_ask_rule_still_wins_over_the_default(noter_runs):
     assert result.status == "waiting"
 
 
-def test_readonly_refuses_notes(noter_runs):
+def test_readonly_refuses_notes():
     """``readonly`` keeps its promise: nothing is written."""
     store = MemoryRunStore()
     chat_run(store, FakeLLM([note(GOAL), says()]), "go", Permissions("readonly")).start()

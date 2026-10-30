@@ -2,7 +2,7 @@
 
 import asyncio
 
-from geomind.agents import Assistant, CodeAssistant
+from geomind.agents import Analyst, CodeAssistant
 from geomind.context import ProblemState, restore
 from geomind.engine import Context, Engine, Permissions
 from geomind.engine.context import new_run_id
@@ -13,6 +13,9 @@ from geomind.loops import ToolLoop
 from geomind.providers import OpenRouter
 from geomind.stores.run import MemoryRunStore
 from geomind.types import Message
+
+LOOPS = {"tool": ToolLoop}
+AGENTS = {"analyst": Analyst, "code_assistant": CodeAssistant}
 
 
 def _sync(coroutine):
@@ -28,8 +31,10 @@ def _sync(coroutine):
 class Run:
     """One message answered by the harness, with ``start``, ``load``, ``resume`` and ``cancel``.
 
-    In S1 a run uses ``ToolLoop`` with ``Assistant``, or ``CodeAssistant`` when a sandbox is
-    configured. S2 replaces this with the coordinator, without changing this signature.
+    A run uses a loop of ``LOOPS`` with an agent of ``AGENTS``: for now ``ToolLoop`` with
+    ``Analyst``, or ``CodeAssistant`` when a sandbox is configured. ``agent`` replaces that choice,
+    for testing one agent by hand. The coordinator takes over the routing later, without changing
+    this signature, and a new agent is one row in ``AGENTS``.
     """
 
     def __init__(
@@ -46,6 +51,7 @@ class Run:
         permissions=None,
         callbacks=(),
         hooks=(),
+        agent=None,
     ):
         """Prepare a run; nothing happens before ``start``."""
         self.id = new_run_id()
@@ -64,7 +70,8 @@ class Run:
             store=self.store,
             workspace=workspace,
         )
-        self.loop = ToolLoop(CodeAssistant() if sandbox is not None else Assistant())
+        routed = AGENTS["code_assistant" if sandbox is not None else "analyst"]
+        self.loop = LOOPS["tool"](agent if agent is not None else routed())
 
     @classmethod
     def load(
@@ -93,7 +100,7 @@ class Run:
         state = recover(run.store.load_events(run_id), run_id)
         run.chat = state.chat
         run.project = state.project
-        run.loop = ToolLoop(agent_class(state)())
+        run.loop = LOOPS["tool"](agent_class(state)())
         return run
 
     async def astart(self):

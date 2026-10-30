@@ -1,0 +1,1 @@
+"""Agents that propose configurations."""

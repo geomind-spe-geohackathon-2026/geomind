@@ -22,7 +22,8 @@ print(result.answer, result.usage)
 
 ```python
 run = gd.Run(message=..., chat=..., project=..., history=..., llm=..., store=...,
-             workspace=None, sandbox=None, permissions=None, callbacks=[...], hooks=[...])
+             workspace=None, sandbox=None, permissions=None, callbacks=[...], hooks=[...],
+             agent=None)
 result = run.start()                     # or: result = await run.astart()
 run = gd.Run.load(run_id, llm=..., store=..., workspace=None, sandbox=None,
                   permissions=None, callbacks=[...], hooks=[...])
@@ -33,8 +34,9 @@ run.cancel()
 
 Defaults: `chat=None`, `project=None`, `history=()`, `store=MemoryRunStore()`, `workspace=None`,
 `sandbox=None`, `permissions=Permissions(mode="ask")`, `llm=OpenRouter()`; the engine adds the
-retry layer to any provider. In S1 a run uses `ToolLoop` with `Assistant`, or `CodeAssistant` when a
-sandbox is configured. `answer` is `{"approved": true}`, `{"approved": false, "reason": "..."}` or
+retry layer to any provider. A run uses `ToolLoop` with `Analyst`, or `CodeAssistant` when a sandbox is
+configured, through the tables `LOOPS` and `AGENTS` of `geomind/run.py`; `agent` replaces that choice,
+for testing one agent by hand. `answer` is `{"approved": true}`, `{"approved": false, "reason": "..."}` or
 `{"text": "..."}`. `run.start()` inside an event loop raises `RunError`: use `astart`.
 
 ## Command line

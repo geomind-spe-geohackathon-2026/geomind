@@ -4,9 +4,10 @@ import pytest
 
 import geomind as gd
 from geomind import runtime
-from geomind.agents import Assistant, CodeAssistant
+from geomind.agents import Analyst, Assistant, CodeAssistant
 from geomind.errors import ProviderError, RequestError, RunError
 from geomind.providers import FakeLLM
+from geomind.stores import MemoryRunStore
 from tests.fixtures.runs import call, of_type, says, uses
 
 
@@ -54,7 +55,7 @@ def test_run_started_reports_the_tool_loop():
     run = run_of([says()], store=store, chat="c1", project="p1")
     run.start()
     event = of_type(store.load_events(run.id), "run.started")[0]
-    assert event.data() == {"run": run.id, "loop": "tool", "agent": "assistant", "parent": None}
+    assert event.data() == {"run": run.id, "loop": "tool", "agent": "analyst", "parent": None}
     assert (event.chat, event.project) == ("c1", "p1")
 
 
@@ -67,7 +68,7 @@ def test_default_llm_is_openrouter(monkeypatch):
 
 def test_a_sandbox_chooses_the_code_assistant(tmp_path):
     """Without a sandbox the model is not offered code tools."""
-    assert type(run_of([]).loop.agent) is Assistant
+    assert type(run_of([]).loop.agent) is Analyst
     assert type(run_of([], sandbox=gd.sandbox.LocalSandbox(tmp_path)).loop.agent) is CodeAssistant
 
 
@@ -163,3 +164,11 @@ def test_answering_twice_raises():
     run.resume(first.request.id, {"text": "x"})
     with pytest.raises(RequestError):
         run.resume(first.request.id, {"text": "x"})
+
+
+def test_an_agent_replaces_the_routing():
+    """One agent can be tried by hand, and it is the one a loaded run rebuilds."""
+    store = MemoryRunStore()
+    run = run_of([says()], agent=Assistant(), store=store)
+    result = run.start()
+    assert type(gd.Run.load(result.run_id, llm=FakeLLM([]), store=store).loop.agent) is Assistant
