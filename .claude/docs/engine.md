@@ -97,7 +97,8 @@ Loops are written as resumable steps, never with state held only in local variab
 `Run.load`, `Engine.resume`, `Engine.replay` and crash recovery all read `store.load_events(run_id)`
 and nothing else.
 
-`Engine.resume(run_id, request_id, answer)` rebuilds the state from the log. An unknown or already answered request raises `RequestError`, and a run that ended
+`Engine.resume(run_id, request_id, answer)` rebuilds the state from the log. An unknown or already
+answered request raises `RequestError`, and a run that ended
 raises `RunError`. Approval runs the stored call without asking again; denial becomes the tool
 result; a reply to `ask_user` becomes its result. Without a request, it continues a run whose
 process died: the recorded completion is reused, and a started tool without a result runs again

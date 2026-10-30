@@ -15,7 +15,6 @@ from geomind.types.decisions import Request
 from geomind.types.messages import Completion, Message, Record, ToolCall, Usage
 from geomind.types.patch import operation_problem
 
-EVENT_LOG_VERSION = 1
 BASE_FIELDS = ("run_id", "sequence", "time", "agent", "parent")
 
 

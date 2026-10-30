@@ -1,8 +1,9 @@
 # Contracts
 
 How geomind implements the backend contract: [contracts.md](../../../docs/contracts.md), file
-version 9, sections 2 and 3, interface version 2.3. A change to the contract is a change to that file first, announced to all
-repositories. `tests/unit/test_contract_map.py` checks that every code path below exists.
+version 9, sections 2 and 3, interface version 2.3. A change to the contract is a change to that
+file first, announced to all repositories. `tests/unit/test_contract_map.py` checks that every code
+path below exists.
 
 ## Section 2: live run events
 

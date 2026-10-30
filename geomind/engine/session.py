@@ -48,11 +48,6 @@ class RunSession:
         return self.engine.store
 
     @property
-    def workspace(self):
-        """Return the workspace of the run, for the tools of S2."""
-        return self.engine.workspace
-
-    @property
     def fields(self):
         """Return what every event of this run carries."""
         return dict(run_id=self.state.run_id, agent=self.state.agent, parent=self.state.parent)
