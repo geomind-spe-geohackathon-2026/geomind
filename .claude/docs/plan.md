@@ -143,7 +143,9 @@ check it before writing a tool, because gemini's names change.
 | S3.3 | `estimate_costs`: gemini's economics with the assumptions used, and LCTS | `cf07cdc` | done |
 | S3.4 | `Designer`, `Verifier`, `Economist`, `Explainer`, `Coordinator` filled, with the `designing-a-plant` skill and one offline task each (hand-written recordings); `read_plant` reads examples and templates (`253bf05`); co-produced gas check (`e7719f4`) | `ef7c64b` | done |
 | S3.5 | `DesignLoop`: a rule-based driver delegates design, verification, costs and explanation in one root run, routes failures by domain, and replays offline (nested state changes and artifacts reused) | `4fc16ed` | done |
-| S3.7 | Routing: `Run.start` asks the `Coordinator` (a nested run logged first) and follows its `Route`; `geomind run --loop/--project/--recording/--record` | this commit | done |
+| S3.7 | Routing: `Run.start` asks the `Coordinator` (a nested run logged first) and follows its `Route`; `geomind run --loop/--project/--recording/--record` | `27f3161` | done |
+| S3 e2e | the official brief through `geomind run --loop design`, offline from a scripted recording, replays | `b1c9cd3` | done; the live run waits for `OPENROUTER_API_KEY` |
+| S4.5 | `geomind show --format md`: tokens by agent, by step and in total, each prompt once, full answers | this commit | done |
 | S2 gemini tools | the assessment tools of the catalogue | none | **stubs**: see section 7 |
 
 No live OpenRouter run has been made yet. It needs `OPENROUTER_API_KEY` in geomind's own
@@ -258,7 +260,7 @@ gemini.
    reservoir, a tighter budget). `evals/reports/summary.md` compares `ToolLoop`, `DesignLoop`,
    `MakerCheckerLoop` and `CompareLoop` on criteria met, steps, tokens, cost and time.
    - Done when: the report holds all four for every task.
-5. **Export.** `geomind show <run> --format md` exists; extend it to the form the competition asks
+5. **Export.** Done. `geomind show <run> --format md` exists; extend it to the form the competition asks
    for: prompts, answers and token usage.
    - Tests: `tests/unit/test_cli.py`.
    - Done when: the export of the final run goes into the report as it is.

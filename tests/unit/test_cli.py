@@ -123,6 +123,22 @@ def test_show_prints_prompts_answers_and_tokens(service, capsys):
     assert "7 tokens in" in output and "## Totals" in output
 
 
+def test_show_md_has_token_tables_prompts_once_and_full_answers(service, capsys):
+    """The export the report includes: tokens per agent, per step and in total; each prompt once."""
+    long = "word " * 900
+    service += [routed_answer(), answer(long)]
+    cli.main(["run", "Say hello"])
+    capsys.readouterr()
+    cli.main(["show", run_folder(), "--format", "md"])
+    output = capsys.readouterr().out
+    assert "## Tokens by agent" in output and "## Tokens by step" in output
+    assert "| analyst | 1 | 7 | 3 | 0.002 |" in output
+    assert "| coordinator | 1 | 7 | 3 | 0.002 |" in output
+    assert "| Total | 2 | 14 | 6 | 0.004 |" in output
+    assert "## Prompts" in output and output.count("## Role") == 2
+    assert long.strip() in output
+
+
 def test_show_prints_tools_and_plain_text(service, monkeypatch, capsys):
     """Without a format it is plain text, and tools appear."""
     service += [routed_answer(), tool_call("ask_user", {"question": "Which?"}), answer("Thanks")]

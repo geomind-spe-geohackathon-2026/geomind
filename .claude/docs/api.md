@@ -59,7 +59,10 @@ the routing, for testing one agent by hand, and so does a `run.loop` set before 
   are saved in `.runs/`, so `geomind show` works on them.
 - `geomind replay <run dir>` reruns offline and prints pass or the first mismatch.
 - `geomind show <run dir> [--format md]` prints the log per step and the totals, built from
-  `gd.runlog`.
+  `gd.runlog`. `--format md` is the export a report includes as it is: tokens by agent, by step and
+  in total (the routing call and nested runs included, rule steps not counted as model calls), each
+  agent's system prompt once, then every step with the messages new to it, its answers in full and
+  its tool calls, whose output is cut at 2000 characters.
 
 ## Examples
 

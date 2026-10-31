@@ -18,11 +18,12 @@ from geomind.run import LOOPS, Run, loop_of
 from geomind.sandbox import DockerSandbox, LocalSandbox
 from geomind.stores import FileWorkspace
 from geomind.stores.run import FileRunStore
-from geomind.types import Message
+from geomind.types import RULE_MODEL, Message
 from geomind.types.runlog import runlog
 
 RUNS_FOLDER = ".runs"
 MESSAGE_CHARACTERS = 2000
+COUNTS = "LLM calls | Tokens in | Tokens out | Cost"
 
 
 class _Printer(callbacks.Callback):
@@ -240,22 +241,139 @@ def _tool_lines(tool_call, heading):
 
 
 def render_log(log, is_markdown):
-    """Return the text of a run log: steps, then totals."""
-    step_heading = "## " if is_markdown else ""
-    heading = "### " if is_markdown else "- "
+    """Return the text of a run log: steps, then totals; Markdown is the export of a report."""
+    if is_markdown:
+        return render_markdown(log)
     run = log["run"]
-    lines = [f"{'# ' if is_markdown else ''}Run {run['id']}: {run['status']}"]
+    lines = [f"Run {run['id']}: {run['status']}"]
     for step in log["steps"]:
         parent = f", delegated by step {step['parent']}" if step["parent"] is not None else ""
-        lines.append(f"{step_heading}Step {step['index']} ({step['agent']}{parent})")
+        lines.append(f"Step {step['index']} ({step['agent']}{parent})")
         for llm_call in step["llm_calls"]:
-            lines += _llm_lines(llm_call, heading)
+            lines += _llm_lines(llm_call, "- ")
         for tool_call in step["tool_calls"]:
-            lines += _tool_lines(tool_call, heading)
+            lines += _tool_lines(tool_call, "- ")
     usage = run["usage"]
     lines.append(
-        f"{step_heading}Totals: {usage['input_tokens']} tokens in, "
-        f"{usage['output_tokens']} out, cost {usage['cost']}"
+        f"Totals: {usage['input_tokens']} tokens in, {usage['output_tokens']} out, "
+        f"cost {usage['cost']}"
+    )
+    return "\n".join(lines)
+
+
+def _token_row(name, calls):
+    """Return one table row: a name, the number of model calls and their tokens and cost.
+
+    NOTE: a rule step is logged as a completion of the model ``rule``; it calls no model, so it is
+    not counted.
+    """
+    calls = [call for call in calls if call["model"] != RULE_MODEL]
+    tokens_in = sum(call["input_tokens"] for call in calls)
+    tokens_out = sum(call["output_tokens"] for call in calls)
+    cost = round(sum(call["cost"] for call in calls), 6)
+    return f"| {name} | {len(calls)} | {tokens_in} | {tokens_out} | {cost} |"
+
+
+def _token_tables(log):
+    """Return the tables of tokens by agent and by step, each with the total."""
+    by_agent, every = {}, []
+    step_rows = []
+    for number, step in enumerate(log["steps"], 1):
+        calls = list(step["llm_calls"])
+        by_agent.setdefault(step["agent"], []).extend(calls)
+        every += calls
+        models = ", ".join(sorted({call["model"] for call in calls})) or "none"
+        delegated = step["parent"] if step["parent"] is not None else ""
+        step_rows.append(
+            _token_row(
+                f"{number} | {step['index']} | {step['agent']} | {delegated} | {models}", calls
+            )
+        )
+    head = f"| Agent | {COUNTS} |"
+    step_head = f"| # | Step | Agent | Delegated by step | Model | {COUNTS} |"
+    agents = [_token_row(name, calls) for name, calls in by_agent.items()]
+    total = _token_row("Total", every)
+    return [
+        "## Tokens by agent",
+        "",
+        head,
+        "|---|---|---|---|---|",
+        *agents,
+        total,
+        "",
+        "## Tokens by step",
+        "",
+        step_head,
+        "|---|---|---|---|---|---|---|---|---|",
+        *step_rows,
+        _token_row("Total | | | |", every),
+        "",
+    ]
+
+
+def _prompts(log):
+    """Return each agent's system prompt, the first part of its first LLM call."""
+    found = {}
+    for step in log["steps"]:
+        for call in step["llm_calls"]:
+            first = call["messages"][0] if call["messages"] else None
+            if first and first["role"] == "system" and step["agent"] not in found:
+                found[step["agent"]] = first["content"]
+    return found
+
+
+def _step_lines(step, prompts, seen):
+    """Return the Markdown of one step: new messages, answers in full, then tool calls."""
+    parent = f", delegated by step {step['parent']}" if step["parent"] is not None else ""
+    lines = [f"## Step {step['index']} ({step['agent']}{parent})"]
+    key = (step["agent"], step["parent"])
+    for call in step["llm_calls"]:
+        lines.append(
+            f"### LLM call: {call['model']}, {call['input_tokens']} tokens in, "
+            f"{call['output_tokens']} out, cost {call['cost']}"
+        )
+        users = [item for item in call["messages"] if item["role"] == "user"]
+        lines += [f"  user: {item['content']}" for item in users[seen.get(key, 0) :]]
+        seen[key] = len(users)
+        context = [
+            item["content"]
+            for item in call["messages"][1:]
+            if item["role"] == "system" and item["content"] != prompts.get(step["agent"])
+        ]
+        lines += [f"  context: {text}" for text in context]
+        lines.append(f"  answer: {call['answer']}")
+    for tool_call in step["tool_calls"]:
+        lines += _tool_lines(tool_call, "### ")
+    return lines
+
+
+def render_markdown(log):
+    """Return the export of a run for a report: tokens, prompts, then every step.
+
+    Tokens are by agent, by step and in total, the routing call and nested runs included. Each
+    agent's system prompt is printed once; a step shows the messages new to it, its answers in
+    full and its tool calls, whose output is cut at ``MESSAGE_CHARACTERS``.
+    """
+    run = log["run"]
+    usage = run["usage"]
+    prompts = _prompts(log)
+    lines = [
+        f"# Run {run['id']}: {run['status']}",
+        "",
+        f"Loop: {run['loop']}. Started {run['started']}, ended {run['ended']}.",
+        "",
+        *_token_tables(log),
+        "## Prompts",
+        "",
+    ]
+    for agent, text in prompts.items():
+        lines += [f"### {agent}", "", text, ""]
+    seen = {}
+    for step in log["steps"]:
+        lines += _step_lines(step, prompts, seen)
+    lines.append(
+        f"## Totals: {usage['input_tokens']} tokens in, {usage['output_tokens']} out, "
+        f"cost {usage['cost']}"
     )
     return "\n".join(lines)
 
