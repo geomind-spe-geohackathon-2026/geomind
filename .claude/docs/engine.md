@@ -143,10 +143,14 @@ decision `wait` and pauses on the same request id, and an answer to the parent p
 `FakeLLM.from_events`, without network and with permissive permissions, since the log holds the
 outcome of the original decisions. A rule step calls no model, so the replay never stops it. A
 reused nested run is not run again: the problem-state changes it logged are applied again with its
-answer, and the artifacts it saved are read from the recorded run's store. `read` and `compute` tools run again; others reuse recorded
-results, as do calls that were denied or answered. A paused run stops where its log ends, so it
-never runs its pending tool. A different call, count or answer raises `ReplayError` naming the
-first differing step.
+answer, and the artifacts it saved are read from the recorded run's store. A nested run belongs to
+the call whose step and task it started with (`parent_step` and its first message), not to every
+call open while it ran, so parallel delegates keep their own changes. `read` and `compute` tools
+run again; others reuse recorded results, as do calls that were denied or answered. A paused run
+stops where its log ends, so it never runs its pending tool. Calls are compared by their place in
+the run (the step, then the position in the model's `tool_calls`), not by the order parallel calls
+finished in. A different tool, input, output, `is_error`, count or answer raises `ReplayError`
+naming the first differing step.
 
 ## Stores and workspaces
 

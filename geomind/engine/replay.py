@@ -1,5 +1,7 @@
 """Rerun a stored run offline and check that it behaves the same."""
 
+from math import inf
+
 from geomind import runtime
 from geomind.agents import Agent
 from geomind.context import ProblemState
@@ -76,27 +78,40 @@ def _results(events):
     return [e for e in events if e.type == "tool.result" and e.call_id is not None]
 
 
+def _child_calls(events, run_id):
+    """Return, by nested run id, the call of ``run_id`` that started it, at any depth.
+
+    A delegate's nested run starts at the call's step with the call's task as its first message;
+    a run nested deeper belongs to the call of its parent. Parallel calls of one step overlap in the
+    log, so the order of events cannot tell them apart.
+    """
+    calls = {
+        (e.index, e.input.get("task")): e.call_id
+        for e in events
+        if e.type == "tool.started" and e.run_id == run_id
+    }
+    owners = {}
+    for e in events:
+        if e.type != "run.started" or e.parent is None or e.run_id == run_id:
+            continue
+        task = e.messages[0].content if e.messages else None
+        is_direct = e.parent == run_id
+        owners[e.run_id] = calls.get((e.parent_step, task)) if is_direct else owners.get(e.parent)
+    return owners
+
+
 def _nested_changes(events, run_id):
     """Return, by call id of the run, the problem-state changes its nested runs logged.
 
-    A nested run is not run again in a replay; its recorded answer is reused. What it wrote in the
-    shared problem state happened between the call's ``tool.started`` and ``tool.result``, so the
-    replay applies those changes again with the reused answer.
+    A nested run is not run again in a replay; its recorded answer is reused, and the replay
+    applies again what it wrote in the shared problem state, in log order.
     """
-    started = {
-        e.call_id: e.sequence for e in events if e.type == "tool.started" and e.run_id == run_id
-    }
-    changes = {}
-    for result in _results(e for e in events if e.run_id == run_id):
-        begin = started.get(result.call_id)
-        changes[result.call_id] = [
-            e.changes
-            for e in events
-            if e.type == "state.changed"
-            and e.run_id != run_id
-            and begin is not None
-            and begin < e.sequence < result.sequence
-        ]
+    owners = _child_calls(events, run_id)
+    changes = {result.call_id: [] for result in _results(e for e in events if e.run_id == run_id)}
+    for e in events:
+        call_id = owners.get(e.run_id)
+        if e.type == "state.changed" and call_id in changes:
+            changes[call_id].append(e.changes)
     return changes
 
 
@@ -105,8 +120,23 @@ def _signature(event):
     return event.index, event.tool, event.input, event.output, event.is_error
 
 
+def _in_step_order(results, events):
+    """Return ``results`` by their place in the run: the step, then the call's position in it.
+
+    Calls of one step run in parallel and finish in any order, so the log order of their results
+    is not theirs. A result without a logged completion keeps its log order after the others.
+    """
+    places = {
+        call.id: (event.index, position)
+        for event in events
+        if event.type == "llm.completed"
+        for position, call in enumerate(event.completion.tool_calls)
+    }
+    return sorted(results, key=lambda result: places.get(result.call_id, (result.index, inf)))
+
+
 def _compare_calls(recorded, replayed, is_complete):
-    """Raise for the first call that differs."""
+    """Raise for the first call that differs, matching calls by their place in the run."""
     for old, new in zip(recorded, replayed):
         if _signature(old) != _signature(new):
             raise ReplayError(
@@ -163,7 +193,11 @@ async def replay_run(engine_class, store, run_id):
         result = await engine.run(agent, context, max_steps=started.max_steps)
     finished = next((event for event in events if event.type == "run.finished"), None)
     replayed = engine.store.load_events(context.run_id)
-    _compare_calls(_results(events), _results(replayed), finished is not None)
+    _compare_calls(
+        _in_step_order(_results(events), events),
+        _in_step_order(_results(replayed), replayed),
+        finished is not None,
+    )
     if finished is not None:
         _compare_end(finished, result)
     return result

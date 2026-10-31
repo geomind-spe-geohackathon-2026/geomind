@@ -1,15 +1,18 @@
 """Replay: offline, faithful, and honest about differences."""
 
+import asyncio
+
 import pytest
 
-from geomind.agents import Agent
+from geomind.agents import Agent, Model
 from geomind.engine import Engine, Permissions
 from geomind.engine.hooks import Hook, RequireApproval
+from geomind.engine.replay import _nested_changes
 from geomind.errors import ReplayError
 from geomind.stores.run import MemoryRunStore
 from geomind.tools import Delegate, tool, update_state
-from geomind.types import Action, Deny, ToolCall
-from geomind.types.events import ToolRecorded
+from geomind.types import Action, Deny, Message, ToolCall
+from geomind.types.events import RunStarted, StateChanged, ToolRecorded, ToolStarted
 from tests.fixtures.runs import EXECUTED, Worker, call, context, engine_for, lookup, run, says, uses
 
 
@@ -222,3 +225,117 @@ async def test_a_replay_reads_the_artifacts_of_the_recorded_run():
     )
     replayed = await Engine.replay(engine.store, result.run_id)
     assert replayed.answer == result.answer == "kept: a design"
+
+
+DELAYS = {"first": 0.0, "second": 0.0, "third": 0.0}
+"""Seconds each racing tool waits before it returns; a test sets them per run."""
+VALUES = {"third": 3}
+
+
+@tool(effect="compute")
+async def first():
+    """Return 1 after its delay."""
+    await asyncio.sleep(DELAYS["first"])
+    return 1
+
+
+@tool(effect="compute")
+async def second():
+    """Return 2 after its delay."""
+    await asyncio.sleep(DELAYS["second"])
+    return 2
+
+
+@tool(effect="compute")
+async def third():
+    """Return the third value after its delay."""
+    await asyncio.sleep(DELAYS["third"])
+    return VALUES["third"]
+
+
+class Racer(Agent):
+    """Calls three tools in one step."""
+
+    def __init__(self):
+        """Declare the racing tools."""
+        super().__init__()
+
+        # Tools
+        self.first = first
+        self.second = second
+        self.third = third
+
+        # Model
+        self.model = Model("fake/model")
+
+
+async def raced(order):
+    """Run the three tools in one step, finishing in ``order``; return the result and engine."""
+    DELAYS.update({name: 0.01 * position for position, name in enumerate(order)})
+    step = uses(call("first", "r1"), call("second", "r2"), call("third", "r3"))
+    return await run([step, says("end")], agent=Racer())
+
+
+async def test_parallel_calls_replay_whatever_order_they_finish_in():
+    """Calls of one step are matched by their place in the step, not by when they finish."""
+    result, engine, _ = await raced(("first", "second", "third"))
+    DELAYS.update({"first": 0.02, "second": 0.01, "third": 0.0})
+    replayed = await Engine.replay(engine.store, result.run_id)
+    assert (replayed.answer, replayed.steps) == ("end", 2)
+
+
+async def test_a_changed_output_of_a_parallel_call_still_fails():
+    """A parallel call whose output differs is a mismatch, whatever the finishing order."""
+    result, engine, _ = await raced(("third", "second", "first"))
+    DELAYS.update({"first": 0.0, "second": 0.01, "third": 0.02})
+    VALUES["third"] = 4
+    try:
+        with pytest.raises(ReplayError, match="step 1: tool third"):
+            await Engine.replay(engine.store, result.run_id)
+    finally:
+        VALUES["third"] = 3
+
+
+def delegated_log():
+    """Return a log where two delegates of one step run at once and change the state in turn."""
+
+    def started(run, task, sequence):
+        return RunStarted(
+            run_id=run,
+            sequence=sequence,
+            parent="root",
+            run=run,
+            root="root",
+            agent_class="tests.Helper",
+            max_steps=5,
+            parent_step=1,
+            messages=(Message(role="user", content=task),),
+        )
+
+    def changed(run, sequence, value):
+        change = {"op": "replace", "path": "/design", "value": {"by": value}}
+        return StateChanged(
+            run_id=run, sequence=sequence, parent="root", version=sequence, changes=(change,)
+        )
+
+    return [
+        ToolStarted(
+            run_id="root", sequence=1, index=1, call_id="a", tool="helper", input={"task": "A"}
+        ),
+        ToolStarted(
+            run_id="root", sequence=2, index=1, call_id="b", tool="helper", input={"task": "B"}
+        ),
+        started("child-a", "A", 3),
+        started("child-b", "B", 4),
+        changed("child-b", 5, "from b"),
+        changed("child-a", 6, "from a"),
+        ToolRecorded(run_id="root", sequence=7, index=1, call_id="b", tool="helper"),
+        ToolRecorded(run_id="root", sequence=8, index=1, call_id="a", tool="helper"),
+    ]
+
+
+def test_parallel_delegates_keep_their_own_state_changes():
+    """A nested run's state changes belong to the call that started it, not to every open call."""
+    changes = _nested_changes(delegated_log(), "root")
+    assert [change[0]["value"]["by"] for change in changes["a"]] == ["from a"]
+    assert [change[0]["value"]["by"] for change in changes["b"]] == ["from b"]
