@@ -1,5 +1,11 @@
 """gemini's hackathon example as a stored design: its spec with the inputs kept in ``boundary``."""
 
+from geomind.context import preset
+from geomind.tools.gemini.brief import schedule_rules
+
+SCHEDULE_RULES = schedule_rules(preset("hackathon_2027"))
+"""The rules ``simulate`` uses with the hackathon brief, or with no brief in the state."""
+
 INPUTS = {
     "heat_pump": {"temperature_setpoint": "100 degC"},
     "boiler": {"temperature_setpoint": "100 degC"},
@@ -29,8 +35,6 @@ def flat_inputs():
 def hackathon_run(gm, start="2027-01-01", end="2027-01-31"):
     """Return gemini's own hackathon plant and its run on both demand profiles, in a window."""
     import pandas as pd
-
-    from geomind.tools.gemini.brief import SCHEDULE_RULES
 
     plant = gm.plants.example("HackathonPlant")
     plant.set_inputs(flat_inputs())
@@ -93,7 +97,6 @@ def base_run(gm, start="2027-01-01", end="2027-01-31"):
     """Return the base design and its run on both demand profiles, in a window."""
     import pandas as pd
 
-    from geomind.tools.gemini.brief import SCHEDULE_RULES
     from geomind.tools.gemini.plants import apply_inputs
 
     spec = base_spec(gm)

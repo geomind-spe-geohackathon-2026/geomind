@@ -4,6 +4,7 @@ import copy
 
 import pytest
 
+from geomind.context import preset
 from geomind.tools.gemini import verification
 from geomind.tools.gemini.verification import TOLERANCE, assess, challenge_limits, domain_of
 from tests.fixtures.hackathon import hackathon_run
@@ -52,7 +53,7 @@ def names(assessment):
 def test_the_hard_limits_follow_the_plant_s_doublets_and_grids(gm, january):
     """One limit per doublet and grid output the brief bounds, at the brief's numbers."""
     plant, _ = january
-    limits = challenge_limits(plant).to_dict()["limits"]
+    limits = challenge_limits(plant, preset("hackathon_2027")).to_dict()["limits"]
     targets = {f"{item['pattern']}.{item['output']}" for item in limits}
     assert targets >= {
         "d0.flow",
@@ -137,7 +138,7 @@ def test_what_gemini_cannot_judge_is_not_assessed_with_its_reason(gm, assessed):
 def test_a_failed_day_fails_the_failed_days_check(gm):
     """A day gemini could not run is never a passed day."""
     plant = gm.plants.example("DoubletHeatPlant")
-    from geomind.tools.gemini.brief import SCHEDULE_RULES
+    from tests.fixtures.hackathon import SCHEDULE_RULES
 
     demand = gm.profiles.get("heating_demand").loc["2027-01-01":"2027-01-03"]
     results = gm.simulate(plant, gm.schedule(plant, demand, SCHEDULE_RULES), on_error="record")

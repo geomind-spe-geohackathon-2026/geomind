@@ -19,7 +19,8 @@ def unverified(name, reason):
 def verify_design(context):
     """Return the verdict of ``design.reference`` on ``verification.result`` of the problem state.
 
-    The run is loaded from the store and checked again with gemini, with the state's requirements.
+    The run is loaded from the store and checked again with gemini, with the state's requirements
+    and the limits of its brief.
     NOTE: a ``passed`` written in the state is never read, and a result whose plant is not the
     design's is stale.
     """
@@ -42,4 +43,4 @@ def verify_design(context):
             f"{result} is stale: it ran another plant than {design}; simulate the current design "
             "and check it",
         )
-    return verify(plant, results, requirements=problem.requirements)
+    return verify(plant, results, requirements=problem.requirements, brief=problem.brief)

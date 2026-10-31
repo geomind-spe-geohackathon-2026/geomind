@@ -146,7 +146,10 @@ check it before writing a tool, because gemini's names change.
 | S3.7 | Routing: `Run.start` asks the `Coordinator` (a nested run logged first) and follows its `Route`; `geomind run --loop/--project/--recording/--record` | `27f3161` | done |
 | S3 e2e | the official brief through `geomind run --loop design`, offline from a scripted recording, replays | `b1c9cd3` | done; the live run waits for `OPENROUTER_API_KEY` |
 | S4.5 | `geomind show --format md`: tokens by agent, by step and in total, each prompt once, full answers | `1ac2af1` | done |
-| Manifest | `run_manifest.json` beside each `geomind run`: commits, versions, input hashes, models per agent, settings, seeds | this commit | done |
+| Manifest | `run_manifest.json` beside each `geomind run`: commits, versions, input hashes, models per agent, settings, seeds | `0af2695` | done |
+| Replay | parallel calls matched by their place in the step; nested state changes by the call that started them | `55632cc` | done |
+| Usage | `RunResult.usage` counts every nested run, the routing call included, after a resume too | `4971938` | done |
+| Brief | the brief as data: `Brief` in the problem state, the `hackathon_2027` preset (`8970af0`); `set_brief`, and `simulate` and verification on the state's brief; the design loop asks the user for a missing demand | this commit | done |
 | S2 gemini tools | the assessment tools of the catalogue | none | **stubs**: see section 7 |
 
 No live OpenRouter run has been made yet. It needs `OPENROUTER_API_KEY` in geomind's own

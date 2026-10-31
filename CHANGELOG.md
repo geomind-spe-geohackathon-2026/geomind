@@ -6,14 +6,27 @@ the list of frozen interfaces are in [.claude/docs/api.md](.claude/docs/api.md#f
 
 ## 0.1.1 (unreleased)
 
-Additive changes only: a new key of the problem state. Nothing the backend uses
+Additive changes only: a new key of the problem state, a new tool and new output fields. Nothing the backend uses
 changes shape, and an existing caller sees the same behaviour.
 
 - `ProblemState.brief`: a `Brief` (or `null`), the brief as data, and `brief` among the keys a
   patch may change. The backend stores it with the state; an older state without it loads as
   `null`. `geomind.context` exports `Brief`, `PRESETS`, `preset` and `with_changes`; the one preset
   is `hackathon_2027`.
+- New tool `set_brief(preset=None, changes=None)` (effect `write`).
+- `simulate` and `check_results` use the state's brief; without one they keep the hackathon numbers
+  as before. `simulate`'s summary adds `brief`, `demand` and `rules`, and its result id now covers
+  the rules. `check_results` and `gd.verify.verify` add `not_given` and `brief`; `verify` takes
+  `brief=None`.
 - `RunResult.usage` includes the routing call's tokens, as the run's log always did.
+
+- `geomind run` takes `--loop`, `--project`, `--recording` and `--record`: `--loop` chooses the loop
+  and skips the routing, `--recording` runs from recorded completions and `--record` writes them.
+- `gd.Run.start` asks the `Coordinator` first when no agent or loop is given; the routing call is a
+  nested run of the run, logged before it starts. The backend still names no loop and no agent.
+- `read_plant` reads `example/<Name>` and `template/<name>` and returns the plant's spec beside its
+  description; `check_results` returns `failures` and `not_assessed` beside `passed` and `checks`;
+  `estimate_costs` returns `lcts`.
 
 ## 0.1.0 (2026-10-31)
 

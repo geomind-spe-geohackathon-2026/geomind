@@ -8,7 +8,7 @@ from typing import Any
 
 from geomind.errors import ToolError
 from geomind.tools.base import tool
-from geomind.tools.gemini.brief import SCHEDULE_RULES
+from geomind.tools.gemini.brief import brief_of, schedule_rules
 from geomind.tools.gemini.plants import load_plant
 
 SHOWN_ERRORS = 5
@@ -86,18 +86,35 @@ def stored_series(results):
     }
 
 
+def demand_names(brief, profile):
+    """Return the profiles to run on: ``profile``, else the brief's demand, which must be given."""
+    if profile:
+        return [profile]
+    given = brief.demand
+    names = [name for name in (given.heating, given.cooling) if name] if given else []
+    if not names:
+        raise ToolError(
+            "simulate: brief = no demand; expected the heating or cooling profile in the brief's "
+            "demand, or profile. Ask the user for the demand",
+            path="profile",
+        )
+    return names
+
+
 def run_plant(context, design, changes, profile, start, end):
     """Schedule and simulate a plant on the demand; return what ``simulate`` stores and says."""
     import gemini as gm
 
+    brief, source = brief_of(context)
+    rules = schedule_rules(brief)
+    names = demand_names(brief, profile)
     plant = load_plant(context, design, "simulate")
     for path, params in (changes or {}).items():
         plant.set_params(path, params)
-    names = [profile] if profile else gm.profiles.names()
-    plan = gm.schedule(plant, demand(names, start, end, "simulate"), SCHEDULE_RULES)
+    plan = gm.schedule(plant, demand(names, start, end, "simulate"), rules)
     results = gm.simulate(plant, plan, on_error="record")
     spec = plant.to_dict()
-    key = json.dumps([spec, names, start, end], sort_keys=True, default=str)
+    key = json.dumps([spec, names, start, end, rules], sort_keys=True, default=str)
     identifier = hashlib.sha256(key.encode()).hexdigest()[:16]
     errors = results.errors()
     summary = {
@@ -107,6 +124,9 @@ def run_plant(context, design, changes, profile, start, end):
         "failed_steps": len(errors),
         "errors": errors[:SHOWN_ERRORS],
         "totals": gm.kpi.totals(plant, results),
+        "brief": source,
+        "demand": names,
+        "rules": rules,
     }
     return identifier, stored_series(results), results.to_bytes(), spec, summary
 
@@ -125,10 +145,12 @@ async def simulate(
     ``design`` is a stored design, or the project's plant without one. ``changes`` holds parameters
     by module path, for this run only. ``profile`` names a demand profile.
 
-    NOTE: a run is ``gm.schedule`` with the brief's rules, then ``gm.simulate`` with
+    NOTE: a run is ``gm.schedule`` with the rules of the state's brief, then ``gm.simulate`` with
     ``on_error="record"``, so a day that fails is one of gemini's problems and the year still
-    runs. Without ``profile`` the run takes every demand profile. Beside ``result/<id>`` it keeps
-    ``<id>.results`` (``Results.to_bytes()``) and ``<id>.plant`` (the spec that ran).
+    runs. Without ``profile`` the run takes the brief's demand. A state without a brief runs on the
+    ``hackathon_2027`` preset, as before briefs were data, and the summary says which brief, demand
+    and rules ran. Beside ``result/<id>`` it keeps ``<id>.results`` (``Results.to_bytes()``) and
+    ``<id>.plant`` (the spec that ran); the id covers the rules too.
     """
     identifier, stored, data, spec, summary = await asyncio.to_thread(
         run_plant, context, design, changes, profile, start, end

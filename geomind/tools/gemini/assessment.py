@@ -4,6 +4,7 @@ from typing import Any
 
 from geomind.errors import NotImplementedYet, ToolError
 from geomind.tools.base import tool
+from geomind.tools.gemini.brief import brief_of
 from geomind.tools.gemini.plants import apply_inputs
 from geomind.tools.gemini.verification import assess
 from geomind.utils.strings import did_you_mean, join_names
@@ -31,11 +32,14 @@ def stored_run(context, reference, where):
 def check_results(context, reference: str, limits: dict[str, Any] | None = None):
     """Check stored results: energy and mass balances, limits and the hard limits.
 
-    Returns ``{passed, checks, failures, not_assessed}``: gemini's checks with the brief's hard
-    limits always among them, the domain of each failed check, and what gemini cannot judge yet.
-    ``limits`` (what ``gm.checks.Limits.to_dict`` returns) are checked beside the brief's.
+    Returns ``{passed, checks, failures, not_assessed, not_given, brief}``: gemini's checks with
+    the limits of the state's brief always among them, the domain of each failed check, what gemini
+    cannot judge yet, and the limits the brief does not give. ``limits`` (what
+    ``gm.checks.Limits.to_dict`` returns) are checked beside the brief's.
     """
-    return assess(*stored_run(context, reference, "check_results"), limits)
+    brief, source = brief_of(context)
+    plant, results = stored_run(context, reference, "check_results")
+    return assess(plant, results, limits, brief, source)
 
 
 def kpis(plant, results):

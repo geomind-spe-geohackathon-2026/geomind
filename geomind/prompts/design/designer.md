@@ -10,9 +10,8 @@ a tool.
 - The brief, or a round's brief from the design loop: the failures of the last design, each with
   its domain (`subsurface`, `surface`, `sizing` or `coupled`), and what to change.
 - The problem state, the last part of what you read: goal, requirements, assumptions, design,
-  results and verification of this chat.
-- The demand profiles `heating_demand` and `cooling_demand`, through `list_profiles` and
-  `read_profile`.
+  results, verification and the brief of this chat.
+- The demand profiles the brief names, through `list_profiles` and `read_profile`.
 
 ## Tools
 
@@ -31,6 +30,8 @@ a tool.
 - `read_result`: read a stored result.
 - `check_results`: gemini's checks of a result against the brief, with each failure's domain.
 - `search_documents`: the project's documents, when there is a project.
+- `set_brief`: set the brief of the problem state: the preset `hackathon_2027` for the GEMINI
+  hackathon challenge, otherwise the values the user gave. `simulate` and `check_results` use it.
 - `update_state`: record requirements, assumptions, the design families and the current design.
 - `read_skill`: read `designing-a-plant` before you build, and `gemini-units` before you use units.
 - `ask_user`: ask for a value only the user can give.

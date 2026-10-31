@@ -8,7 +8,8 @@ is a new version.
 Every tool up to S4 exists now as a real `Tool`. Names, schemas and effects are
 [frozen](api.md#frozen-interfaces). A **stub** raises `NotImplementedYet("<tool> comes in <phase>")`,
 so a call is an error result with `code: "not_implemented"`. `gd.tools.gemini.<name>` is the public
-path; the package has one file per group. All are idempotent.
+path; the package has one file per group. All are idempotent except `set_brief`, which writes the
+problem state as `update_state` does.
 
 | Tool | File | Effect | Inputs | Returns | Status |
 |---|---|---|---|---|---|
@@ -18,12 +19,13 @@ path; the package has one file per group. All are idempotent.
 | `list_plants` | `plants.py` | `read` | none | `[{name, summary}]` of the registered plants | built |
 | `read_plant` | `plants.py` | `read` | `design=None`: `None` is the project's plant from `Workspace.plant`, otherwise a design reference, `example/<Name>` (`gm.plants.example`) or `template/<name>` (`gm.plants.from_template`) | gemini's description with current values, and the plant file under `spec` | built |
 | `build_plant` | `plants.py` | `write` | `plant` (input schema: gemini's plant schema), `name` | `{design, problems}`; a plant that fails validation returns the problems and stores nothing | built |
+| `set_brief` | `brief.py` | `write` | `preset=None, changes=None`: a preset name (`hackathon_2027`), and the JSON of a partial `Brief` | `{brief, version}`; the state's `brief` replaced; an amount `gm.units` cannot read as its quantity is an `invalid_input` error | built |
 | `list_profiles` | `runs.py` | `read` | none | `[{name, quantity, unit, start, end}]` | built |
 | `read_profile` | `runs.py` | `read` | `name, start=None, end=None` (ISO 8601) | a Value series | built |
-| `simulate` | `runs.py` | `compute` | `design=None, changes=None, profile=None, start=None, end=None` | `{reference, summary}`; full results stored | built |
+| `simulate` | `runs.py` | `compute` | `design=None, changes=None, profile=None, start=None, end=None` | `{reference, summary}`; full results stored; the summary names the `brief`, `demand` and `rules` that ran | built |
 | `read_result` | `results.py` | `read` | `reference, path=None, field=None, start=None, end=None` (sample positions) | a Value series with `path` and `field`, otherwise `{path: {field: {min, max, mean}}}` | built |
 | `search_documents` | `results.py` | `read` | `query` | `[{id, title, text, score}]` | built |
-| `check_results` | `assessment.py` | `compute` | `reference, limits=None` | `{passed, checks: [Check], failures: [{name, domain}], not_assessed}` | built |
+| `check_results` | `assessment.py` | `compute` | `reference, limits=None` | `{passed, checks: [Check], failures: [{name, domain}], not_assessed, not_given, brief}` | built |
 | `compute_kpis` | `assessment.py` | `compute` | `reference, names=None` | `{name: Value}`: `gm.kpi.compute` and `gm.kpi.totals` | built |
 | `estimate_costs` | `assessment.py` | `compute` | `reference, assumptions=None` | `{capex, opex, lcoh, lcoc, npv, co2, lcts}` as Values, plus the assumptions used | built |
 | `test_module` | `assessment.py` | `execute` | `path` | gemini's `check_module` report, run in the sandbox | stub, S3 |
@@ -43,9 +45,10 @@ filling a stub, because gemini's names change.
 | `list_plants` | `gm.plants.names`, `gm.plants.get(name).describe()` | real |
 | `read_plant` | `gm.plants.from_dict`, `plant.describe()` | real |
 | `build_plant` | `gm.plants.validate(plant, on_error="record")`, `gm.plants.spec_schema` | real |
+| `set_brief` | `gm.units.parse`, `gm.units.fits` | real |
 | `list_profiles` | `gm.profiles.names`, `gm.profiles.get` | real; `quantity` needs `attrs["quantities"]`, which `api.md` does not list |
 | `read_profile` | `gm.profiles.get` | real |
-| `simulate` | `gm.simulate`, `gm.plants.from_dict`, `plant.set_params`, `Results.summary`, `Results.get`, `Results.names`, `Results.to_bytes` | real |
+| `simulate` | `gm.schedule`, `gm.simulate`, `gm.plants.from_dict`, `plant.set_params`, `Results.summary`, `Results.get`, `Results.names`, `Results.to_bytes` | real |
 | `read_result` | none: it reads the stored JSON | built |
 | `search_documents` | none: it reads `Workspace.documents` | built |
 | `check_results` | `gm.checks.run_all`, `gm.checks.limits`, `gm.checks.Limits.from_dict`, `gm.Results.from_bytes` | real |
@@ -66,16 +69,22 @@ accept the `/`; `check_run_store` tests it. An artifact belongs to its root run.
   `values` is the list of samples, `unit` their unit, and `time`, when there is one, the list of ISO
   8601 times. `simulate` leaves `time` out: every series has the same times, which would triple the
   size, and the summary gives `start`, `end` and `steps`. `<id>` is a hash of the plant that ran,
-  the profiles and the window, so a replay finds the same result. Beside it, `simulate` keeps
+  the profiles, the window and the schedule rules, so a replay finds the same result and a run
+  under another brief never overwrites it. Beside it, `simulate` keeps
   `<id>.results` (`Results.to_bytes()`) and `<id>.plant` (the spec that ran).
 
 ### How `simulate` runs
 
-`gm.schedule(plant, demand, SCHEDULE_RULES)`, then `gm.simulate(plant, plan, on_error="record")`:
-a day that fails is one of gemini's problems in the summary (`failed_steps`, the first five
-`errors`) and the year still runs. `SCHEDULE_RULES` in `tools/gemini/brief.py` holds the brief's
-numbers in one place. Without `profile` the run takes every gemini demand profile. The summary
-adds `gm.kpi.totals`.
+`gm.schedule(plant, demand, rules)`, then `gm.simulate(plant, plan, on_error="record")`: a day
+that fails is one of gemini's problems in the summary (`failed_steps`, the first five `errors`)
+and the year still runs. The rules come from the problem state's [brief](context.md#the-brief)
+through `schedule_rules` in `tools/gemini/brief.py`: its `doublet_flow` and `max_brine_cooling`,
+the source order `geothermal, heat_pump, boiler`, and `operating_days` `None` (gemini raises
+`NotImplementedYet` for any other value). A brief without the flow range or the brine cooling is
+an `invalid_input` error on `brief`, since `gm.schedule` needs both. Without `profile` the run takes
+the brief's demand, and a brief without one is an error that says to ask the user. A state with no
+brief runs on the `hackathon_2027` preset, as before briefs were data; the summary always names
+the `brief`, the `demand` and the `rules` that ran, and adds `gm.kpi.totals`.
 
 **The input bridge.** A design keeps its setpoints and other inputs (a heat pump's
 `temperature_setpoint`, the air temperature) in its spec under `boundary[""]["inputs"]`,
@@ -86,28 +95,38 @@ one call outside gemini's `api.md`; it stays until gemini reads these inputs its
 ## Verification
 
 `tools/gemini/verification.py` holds the one verification, used by `check_results` and by
-`gd.verify.verify` (`verify/` may import `tools`, not the other way). It returns
-`{passed, checks, failures, not_assessed}`:
+`gd.verify.verify` (`verify/` may import `tools`, not the other way). It checks the limits of the
+problem state's [brief](context.md#the-brief) (`check_results` and `verify_design` read it; `verify`
+takes `brief=`), and without one those of the `hackathon_2027` preset, as before briefs were data.
+It returns `{passed, checks, failures, not_assessed, not_given, brief}`:
 
 - `checks` are gemini Checks, unchanged in shape: `gm.checks.run_all`, `gm.checks.plant_balance`
-  and `gm.checks.limits` over the brief's hard limits, built for the plant's own doublets and grids
-  (each doublet's `flow` within 50 to 300 m3/h while it runs and `brine_cooling` at most 40 K; each
-  heating grid's `supply_in.temperature` at 100 degC and `unmet_demand` at 0 on every day; each
-  cooling grid's supply at 20 degC and `unmet_sensible`, `unmet_latent` at 0). Five checks count
-  what gemini gives: `doublets` (1 to 3), `heating_grid`, `cooling_grid`, `failed_days` (0) and
-  `co_produced_gas_burned` (0): the base design meets the demand without the co-produced methane, so
-  a degasser's `gas_out` may not feed a `GasMakeup`, `Boiler` or `CHP`; burning it is a separate
-  scenario.
+  and `gm.checks.limits` over the brief's limits, built for the plant's own doublets and grids:
+  each doublet's `flow` within the brief's `doublet_flow` while it runs and `brine_cooling` at most
+  its `max_brine_cooling`; each heating or cooling grid's `supply_in.temperature` at the brief's
+  supply; and, whatever the brief gives, `unmet_demand` (heating) or `unmet_sensible` and
+  `unmet_latent` (cooling) at 0 on every day. More checks count what gemini gives: `doublets`
+  (the brief's range), `heating_grid` and `cooling_grid` (for the demand the brief names),
+  `failed_days` (0) and `co_produced_gas_burned` (0): the base design meets the demand without the
+  co-produced methane, so a degasser's `gas_out` may not feed a `GasMakeup`, `Boiler` or `CHP`;
+  burning it is a separate scenario. For the hackathon preset (1 to 3 doublets, 50 to 300 m3/h,
+  40 K, 100 and 20 degC) these are exactly the checks before briefs were data.
   Extra `limits` and requirements are checked beside the brief's, never instead.
-- The numbers of the brief and the one numerical tolerance (`TOLERANCE`, by quantity, for
-  floating-point noise only) are in `tools/gemini/brief.py`.
+- `not_given` names each limit the brief does not give (`demand`, `doublets`, `doublet_flow`,
+  `max_brine_cooling`, `heating.supply`, `cooling.supply`, `operating_days`, `pump_efficiency`,
+  `volume_balance`): none of them is checked, or passed. `brief` says which brief was used.
+- `tools/gemini/brief.py` holds no number of a brief: it turns one into gemini's rules and SI
+  amounts through `gm.units`, and holds the one numerical tolerance (`TOLERANCE`, by quantity, for
+  floating-point noise only).
 - `failures` names the domain of each failed check: `subsurface` (a doublet, its wells, the doublet
   count), `surface` (any other module, a supply temperature, a missing grid), `sizing` (unmet
   demand: the topology works, the sizes do not) or `coupled` (the whole plant: its balance, the
   ledger checks, failed days). The domain stays outside the Check.
-- `not_assessed` lists what gemini cannot judge yet, never as passed: `operating_days` (`BLOCKED`,
-  with gemini's `NotImplementedYet` message), `volume_balance` and `pump_efficiency`
-  (`NOT_ASSESSED`, with the design's value), and any requirement that names no `<path>.<output>`.
+- `not_assessed` lists what the brief gives and gemini cannot judge yet, never as passed:
+  `operating_days` (`BLOCKED`, with gemini's `NotImplementedYet` message), `volume_balance` and
+  `pump_efficiency` (`NOT_ASSESSED`, with the design's value), a return temperature (a design input
+  of the grid, not an output gemini's limits check), and any requirement that names no
+  `<path>.<output>`.
 - A limit the run cannot judge (no column) is a check with `passed: null` and its reason, as gemini
   does; a run where every day failed is judged by `failed_days` only.
 

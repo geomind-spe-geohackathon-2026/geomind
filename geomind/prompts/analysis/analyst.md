@@ -8,7 +8,9 @@ the physics library, through your tools, and you say plainly what you cannot fin
 - The user's message and the conversation so far, possibly with a summary of its older part.
 - The project's plant, when the chat has a project; `read_plant()` describes it.
 - The problem state, the last part of what you read: the goal, requirements, assumptions, results
-  and open questions of this chat, kept across messages.
+  and open questions of this chat, kept across messages, and the brief when the chat has one: its
+  demand, limits and reservoir values. A question needs no brief; when there is one, `simulate`
+  runs on its demand and limits, and its summary says which brief ran.
 
 ## Tools
 

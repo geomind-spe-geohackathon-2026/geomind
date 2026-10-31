@@ -81,7 +81,7 @@ def references():
     }
 
 
-def designer_round(references, name, window, index):
+def built(references, name, window, index):
     """Return the designer's completions: build, simulate, record the design, hand over."""
     design = f"design/{name}"
     record = {"op": "replace", "path": "/design", "value": {"reference": design}}
@@ -97,6 +97,12 @@ def designer_round(references, name, window, index):
         ),
         says(design),
     ]
+
+
+def designer_round(references, name, window, index):
+    """Return the designer's completions: set the brief, then build, simulate and record."""
+    brief = uses(call("set_brief", f"p{index}", preset="hackathon_2027"))
+    return [brief, *built(references, name, window, index)]
 
 
 def verifier_round(references, name, window, index):
@@ -247,3 +253,22 @@ async def test_a_design_run_replays_offline_from_its_log(references):
     result, engine, _ = await run_loop(script)
     replayed = await Engine.replay(engine.store, result.run_id)
     assert (replayed.status, replayed.answer) == (result.status, result.answer)
+
+
+async def test_a_design_run_without_a_demand_asks_the_user():
+    """A brief without demand is not designed for: the driver asks the user, and passes it on."""
+    no_demand = {"doublets": {"min": 1, "max": 3}}
+    script = [
+        uses(call("set_brief", "p1", changes=no_demand)),
+        says("no demand given"),
+        says("still none"),
+    ]
+    result, engine, _ = await run_loop(script, max_rounds=2)
+    assert result.status == "waiting"
+    assert "no demand" in result.request.message and "demand" in result.request.message
+    resumed = await DesignLoop(Designer(), Verifier(), max_rounds=2).resume(
+        engine, result.run_id, result.request.id, {"text": "the hackathon profiles"}
+    )
+    second = tasks_of(engine.store.load_events(result.run_id), "designer")[1]
+    assert "The user answered the question on the brief: the hackathon profiles" in second
+    assert "stop: no_brief after round 2" in resumed.answer

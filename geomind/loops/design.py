@@ -13,6 +13,11 @@ from geomind.types import Action, ToolCall
 from geomind.verify.design import verify_design
 
 MARK = "design loop: "
+SET_BRIEF = (
+    "First set the brief of the problem state with set_brief: the preset hackathon_2027 when the "
+    "request is the GEMINI hackathon challenge, otherwise the values the request gives. Never "
+    "take the hackathon's numbers for another brief; ask the user for a demand it does not give."
+)
 DESIGN_TOKENS = 1000
 EXPLANATION_TOKENS = 6000
 SIDES = (
@@ -107,6 +112,7 @@ class DesignDriver(Agent):
         self.economist = Delegate(Economist(), max_summary_tokens=DESIGN_TOKENS)
         self.explainer = Delegate(Explainer(), max_summary_tokens=EXPLANATION_TOKENS)
         self.update_state = tools.update_state
+        self.ask_user = tools.ask_user
         self.finish = tools.finish
 
         # Model
@@ -122,7 +128,9 @@ class DesignDriver(Agent):
         name, output = calls[-1]
         note = {"round": rounds(calls)}
         if name == "designer":
-            return act(note, index, "verifier", task=verifier_task(context))
+            return self.after_design(context, note, index)
+        if name == "ask_user":
+            return act(note, index, "designer", task=answered_task(context, output))
         if name == "verifier":
             return await self.after_verification(context, calls)
         if name == "economist":
@@ -136,9 +144,28 @@ class DesignDriver(Agent):
         """Return the designer's first brief: the user's request and the rules of the rounds."""
         request = next(item.content for item in context.messages if item.role == "user")
         return (
-            f"{request}\n\nRound 1 of at most {self._max_rounds}. Propose the design families, "
-            "build one design, simulate the whole year, check it and record design.reference."
+            f"{request}\n\nRound 1 of at most {self._max_rounds}. {SET_BRIEF} Then propose the "
+            "design families, build one design, simulate the whole year, check it and record "
+            "design.reference."
         )
+
+    def after_design(self, context, note, index):
+        """Verify the design, or ask the user for the brief the design run still lacks."""
+        missing = missing_brief(context.problem)
+        if missing is None:
+            return act(note, index, "verifier", task=verifier_task(context))
+        if note["round"] >= self._max_rounds:
+            answer = (
+                f"No design was verified: the brief has {missing}. {MARK}stop: no_brief after "
+                f"round {note['round']}."
+            )
+            return act({**note, "stop": "no_brief"}, index, "finish", answer=answer)
+        question = (
+            f"The design needs a brief, and the problem state has {missing}. Which heating and "
+            "cooling demand should the design meet (profile names or daily values), and which "
+            "limits (doublets, flow per doublet, brine cooling, supply temperatures)?"
+        )
+        return act({**note, "missing": missing}, index, "ask_user", question=question)
 
     async def after_verification(self, context, calls):
         """Check the design again with gemini, then cost it, route its failures, or stop."""
@@ -159,6 +186,22 @@ class DesignDriver(Agent):
             return stop(context, {**note, "stop": "repeated_failure"}, index)
         brief = routed_brief(round_number + 1, self._max_rounds, design, result, found)
         return act(note, index, "designer", task=brief)
+
+
+def missing_brief(problem):
+    """Return what a design run lacks in the state's brief: the brief, or its demand; else None."""
+    brief = problem.brief
+    if brief is None:
+        return "no brief"
+    if brief.demand is None or not (brief.demand.heating or brief.demand.cooling):
+        return "no demand"
+    return None
+
+
+def answered_task(context, answer):
+    """Return the designer's task after the user answered the driver's question on the brief."""
+    request = next(item.content for item in context.messages if item.role == "user")
+    return f"{request}\n\nThe user answered the question on the brief: {answer}\n\n{SET_BRIEF}"
 
 
 def rounds(calls):
@@ -219,6 +262,9 @@ class DesignLoop(Loop):
     ``Explainer``. The loop stops when gemini's checks pass, at ``max_rounds``, when one round fails
     exactly as the one before, or when an agent asks the user; a token or cost budget is a hook of
     the run. Each stop is written in the driver's step text and in the answer as ``stop: <reason>``.
+    A design run needs a brief with a demand in the problem state: when the designer leaves none,
+    the driver asks the user and hands the answer back to the designer, and stops with
+    ``no_brief`` at ``max_rounds``.
     """
 
     name = "design"

@@ -690,6 +690,45 @@
       "late_schemas": [],
       "name": "search_documents"
     },
+    "set_brief": {
+      "description": "Set the brief of the problem state: a named preset, the values the user gave, or both.",
+      "effect": "write",
+      "idempotent": false,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "changes": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Changes"
+          },
+          "preset": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Preset"
+          }
+        },
+        "title": "set_brief_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "set_brief"
+    },
     "simulate": {
       "description": "Simulate a plant and store the full results; return their reference and a summary.",
       "effect": "compute",

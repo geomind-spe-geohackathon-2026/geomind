@@ -1,15 +1,17 @@
-"""Verification of a design against the brief, built only from gemini's checks.
+"""Verification of a design against a brief, built only from gemini's checks.
 
 The checks are gemini's: ``gm.checks.run_all``, ``gm.checks.plant_balance`` and
-``gm.checks.limits`` over the brief's hard limits. Five more come from the plant's structure and the
-run's failed rows, in gemini's Check shape: the number of doublets, a heating and a cooling grid,
-the failed days, and whether the co-produced gas reaches a burner. NOTE: the base design must meet
-the demand without the co-produced methane; burning it is a separate scenario, never the base. What
-gemini cannot judge yet is listed under ``not_assessed``, never passed.
+``gm.checks.limits`` over the limits the brief gives. More come from the plant's structure and the
+run's failed rows, in gemini's Check shape: the number of doublets, a heating and a cooling grid
+for the demand the brief gives, the failed days, and whether the co-produced gas reaches a burner.
+NOTE: the base design must meet the demand without the co-produced methane; burning it is a
+separate scenario, never the base. A limit the brief does not give is listed under ``not_given``,
+never checked or passed; what gemini cannot judge yet is listed under ``not_assessed``.
 """
 
-from geomind.tools.gemini import brief
-from geomind.tools.gemini.brief import TOLERANCE
+from geomind.context import preset
+from geomind.errors import ToolError
+from geomind.tools.gemini.brief import FALLBACK, TOLERANCE, schedule_rules, si, text
 
 HEATING_GRID = "HeatingGrid"
 COOLING_GRID = "CoolingGrid"
@@ -18,6 +20,18 @@ WHOLE_PLANT = {"energy_balance", "mass_balance", "bounds", "failed_days"}
 UNMET = ("unmet_demand", "unmet_sensible", "unmet_latent")
 DEGASSER = "Degasser"
 BURNERS = {"GasMakeup", "Boiler", "CHP"}
+LIMITS = (
+    "demand",
+    "doublets",
+    "doublet_flow",
+    "max_brine_cooling",
+    "heating.supply",
+    "cooling.supply",
+    "operating_days",
+    "pump_efficiency",
+    "volume_balance",
+)
+"""The limits a brief can give, by the name ``not_given`` lists them under."""
 
 
 def module_types(plant):
@@ -37,39 +51,50 @@ def paths_of(types, kind):
     return [path for path, found in types.items() if found == kind]
 
 
-def si(amount):
-    """Return a ``(value, unit)`` of the brief in SI, through ``gm.units``."""
-    import gemini as gm
-
-    value, unit = amount
-    target = {"m3/h": "m3/s", "degC": "K", "K": "K"}[unit]
-    return gm.units.convert(value, unit, target)
+def bounds(span, unit, tolerance):
+    """Return ``(min, max)`` of a span of amounts in ``unit``, widened by ``tolerance``."""
+    low = si(span.min, unit) - tolerance if span.min is not None else None
+    high = si(span.max, unit) + tolerance if span.max is not None else None
+    return low, high
 
 
-def challenge_limits(plant):
-    """Return ``gm.checks.Limits`` of the brief's hard limits for the plant's doublets and grids."""
+def doublet_limits(limits, path, brief):
+    """Add the flow and brine-cooling limits the brief gives to one doublet."""
+    span = brief.doublet_flow
+    if span is not None and (span.min, span.max) != (None, None):
+        low, high = bounds(span, "m3/s", TOLERANCE["volume_flow"])
+        limits.add(f"{path}.flow", min=low, max=high)
+    if brief.max_brine_cooling is not None:
+        cooling = si(brief.max_brine_cooling, "K") + TOLERANCE["temperature"]
+        limits.add(f"{path}.brine_cooling", max=cooling)
+
+
+def grid_limits(limits, path, network, unmet):
+    """Add the fixed supply temperature the brief gives, and the met demand, to one grid."""
+    if network is not None and network.supply is not None:
+        fixed, tolerance = si(network.supply, "K"), TOLERANCE["temperature"]
+        limits.add(f"{path}.supply_in.temperature", min=fixed - tolerance, max=fixed + tolerance)
+    for output in unmet:
+        limits.add(f"{path}.{output}", max=TOLERANCE["power"])
+
+
+def challenge_limits(plant, brief):
+    """Return ``gm.checks.Limits`` of the brief's limits for the plant's doublets and grids.
+
+    The demand must be met on every day of every grid, whatever the brief gives.
+    """
     import gemini as gm
 
     types = module_types(plant)
     limits = gm.checks.Limits()
-    low, high = (si(flow) for flow in brief.DOUBLET_FLOW)
     for path in paths_of(types, DOUBLET):
-        tolerance = TOLERANCE["volume_flow"]
-        limits.add(f"{path}.flow", min=low - tolerance, max=high + tolerance)
-        limits.add(
-            f"{path}.brine_cooling", max=si(brief.MAX_BRINE_COOLING) + TOLERANCE["temperature"]
-        )
-    for kind, supply, unmet in (
-        (HEATING_GRID, brief.HEATING_SUPPLY, UNMET[:1]),
-        (COOLING_GRID, brief.COOLING_SUPPLY, UNMET[1:]),
+        doublet_limits(limits, path, brief)
+    for kind, network, unmet in (
+        (HEATING_GRID, brief.heating, UNMET[:1]),
+        (COOLING_GRID, brief.cooling, UNMET[1:]),
     ):
         for path in paths_of(types, kind):
-            fixed, tolerance = si(supply), TOLERANCE["temperature"]
-            limits.add(
-                f"{path}.supply_in.temperature", min=fixed - tolerance, max=fixed + tolerance
-            )
-            for output in unmet:
-                limits.add(f"{path}.{output}", max=TOLERANCE["power"])
+            grid_limits(limits, path, network, unmet)
     return limits
 
 
@@ -94,68 +119,114 @@ def burned_gas(plant, types):
     return sum(types.get(target) in BURNERS for target in targets)
 
 
-def structure_checks(plant, types, results):
-    """Return the checks of the doublet count, the two grids and the failed days."""
+def grid_check(name, types, kind):
+    """Return the check that the plant has at least one grid of ``kind``."""
+    count = len(paths_of(types, kind))
+    return check(name, count > 0, count, [1, None])
+
+
+def structure_checks(plant, types, results, brief):
+    """Return the checks of the doublet count and the grids the brief gives, and the failed days."""
     count = len(paths_of(types, DOUBLET))
-    low, high = brief.DOUBLETS
     failed = len(results.errors())
-    return [
-        check("doublets", low <= count <= high, count, [low, high]),
-        check(
-            "heating_grid",
-            bool(paths_of(types, HEATING_GRID)),
-            len(paths_of(types, HEATING_GRID)),
-            [1, None],
-        ),
-        check(
-            "cooling_grid",
-            bool(paths_of(types, COOLING_GRID)),
-            len(paths_of(types, COOLING_GRID)),
-            [1, None],
-        ),
-        check("failed_days", failed == 0, failed, 0),
-        check("co_produced_gas_burned", burned_gas(plant, types) == 0, burned_gas(plant, types), 0),
-    ]
+    burned = burned_gas(plant, types)
+    checks = []
+    if brief.doublets is not None:
+        low, high = brief.doublets.min, brief.doublets.max
+        passed = (low is None or count >= low) and (high is None or count <= high)
+        checks.append(check("doublets", passed, count, [low, high]))
+    demand = brief.demand
+    if demand is not None and demand.heating:
+        checks.append(grid_check("heating_grid", types, HEATING_GRID))
+    if demand is not None and demand.cooling:
+        checks.append(grid_check("cooling_grid", types, COOLING_GRID))
+    checks.append(check("failed_days", failed == 0, failed, 0))
+    checks.append(check("co_produced_gas_burned", burned == 0, burned, 0))
+    return checks
 
 
-def operating_days_reason(plant):
-    """Return why the 330 operating days cannot be checked: gemini's own message, when it raises."""
+def operating_days_reason(plant, brief):
+    """Return why the brief's operating days cannot be checked: gemini's own message."""
     import gemini as gm
 
-    demand = gm.profiles.get("heating_demand").iloc[:1]
+    demand = gm.profiles.get(gm.profiles.names()[0]).iloc[:1]
     try:
-        gm.schedule(plant, demand, {**brief.SCHEDULE_RULES, "operating_days": 330})
+        rules = schedule_rules(brief, "check_results")
+        gm.schedule(plant, demand, {**rules, "operating_days": brief.operating_days})
     except gm.errors.NotImplementedYet as error:
         return "BLOCKED", f"gm.schedule raises NotImplementedYet: {error}"
-    except gm.errors.GeminiError as error:
-        return "BLOCKED", f"gm.schedule refused operating_days = 330: {error}"
+    except (gm.errors.GeminiError, ToolError) as error:
+        return "BLOCKED", f"gm.schedule refused operating_days = {brief.operating_days}: {error}"
     return "NOT_ASSESSED", "gm.schedule takes operating_days now; geomind does not check it yet"
 
 
-def not_assessed(plant, types):
+def return_items(brief):
+    """Return the return temperatures the brief gives, as not assessed: they are design inputs."""
+    items = []
+    for name, network in (("heating", brief.heating), ("cooling", brief.cooling)):
+        if network is None or network.return_temperature is None:
+            continue
+        items.append(
+            {
+                "id": f"{name}.return_temperature",
+                "status": "NOT_ASSESSED",
+                "reason": "a return temperature is a design input of the grid, not an output "
+                "gemini's limits check; the design must set it to the brief's value",
+                "limit": text(network.return_temperature),
+            }
+        )
+    return items
+
+
+def not_assessed(plant, types, brief):
     """Return the brief's limits gemini cannot judge yet, each with its status and reason."""
-    status, reason = operating_days_reason(plant)
-    efficiency = {
-        path: plant.params_at(path).get("pump_efficiency") for path in paths_of(types, DOUBLET)
+    items = []
+    if brief.operating_days is not None:
+        status, reason = operating_days_reason(plant, brief)
+        limit = f"{brief.operating_days} days"
+        items.append({"id": "operating_days", "status": status, "reason": reason, "limit": limit})
+    if brief.volume_balance:
+        items.append(
+            {
+                "id": "volume_balance",
+                "status": "NOT_ASSESSED",
+                "reason": "no gemini output gives the produced minus the injected liquid volume "
+                "of a doublet (gemini request 5)",
+                "limit": "equal volumes",
+            }
+        )
+    if brief.pump_efficiency is not None:
+        efficiency = {
+            path: plant.params_at(path).get("pump_efficiency") for path in paths_of(types, DOUBLET)
+        }
+        items.append(
+            {
+                "id": "pump_efficiency",
+                "status": "NOT_ASSESSED",
+                "reason": "gm.checks.Limits checks outputs, and the pump efficiency is a "
+                "parameter (gemini request 6); the value is the design's",
+                "limit": text(brief.pump_efficiency),
+                "value": efficiency,
+            }
+        )
+    return items + return_items(brief)
+
+
+def not_given(brief):
+    """Return the names of the limits the brief does not give: none of them is checked."""
+    flow = brief.doublet_flow
+    given = {
+        "demand": brief.demand is not None and bool(brief.demand.heating or brief.demand.cooling),
+        "doublets": brief.doublets is not None,
+        "doublet_flow": flow is not None and (flow.min, flow.max) != (None, None),
+        "max_brine_cooling": brief.max_brine_cooling is not None,
+        "heating.supply": brief.heating is not None and brief.heating.supply is not None,
+        "cooling.supply": brief.cooling is not None and brief.cooling.supply is not None,
+        "operating_days": brief.operating_days is not None,
+        "pump_efficiency": brief.pump_efficiency is not None,
+        "volume_balance": brief.volume_balance is not None,
     }
-    return [
-        {"id": "operating_days", "status": status, "reason": reason, "limit": "330 days"},
-        {
-            "id": "volume_balance",
-            "status": "NOT_ASSESSED",
-            "reason": "no gemini output gives the produced minus the injected liquid volume of a "
-            "doublet (gemini request 5)",
-            "limit": "equal volumes",
-        },
-        {
-            "id": "pump_efficiency",
-            "status": "NOT_ASSESSED",
-            "reason": "gm.checks.Limits checks outputs, and the pump efficiency is a parameter "
-            "(gemini request 6); the value is the design's",
-            "limit": brief.PUMP_EFFICIENCY,
-            "value": efficiency,
-        },
-    ]
+    return [name for name in LIMITS if not given[name]]
 
 
 def domain_of(name, types):
@@ -211,22 +282,26 @@ def limit_checks(plant, results, limits):
     return checks
 
 
-def assess(plant, results, limits=None):
-    """Return ``{passed, checks, failures, not_assessed}`` of a plant and its run.
+def assess(plant, results, limits=None, brief=None, source=None):
+    """Return ``{passed, checks, failures, not_assessed, not_given, brief}`` of a plant and its run.
 
-    ``limits`` (``Limits.to_dict()``) are checked beside the brief's, never instead of them. A
-    check whose ``passed`` is ``None`` had nothing to judge and does not fail the design.
+    ``brief`` gives the limits; without one, the ``hackathon_2027`` preset does, as before briefs
+    were data, and ``brief`` of the result says so. ``limits`` (``Limits.to_dict()``) are checked
+    beside the brief's, never instead of them. A check whose ``passed`` is ``None`` had nothing to
+    judge and does not fail the design.
     """
     import gemini as gm
 
+    if brief is None:
+        brief, source = preset(FALLBACK), f"no brief in the state: the {FALLBACK} preset"
     types = module_types(plant)
-    merged = challenge_limits(plant).to_dict()
+    merged = challenge_limits(plant, brief).to_dict()
     merged["limits"] += (limits or {}).get("limits", [])
     checks = [
         *gm.checks.run_all(plant, results)["checks"],
         *gm.checks.plant_balance(plant, results),
         *limit_checks(plant, results, merged),
-        *structure_checks(plant, types, results),
+        *structure_checks(plant, types, results, brief),
     ]
     failures = [
         {"name": item["name"], "domain": domain_of(item["name"], types)}
@@ -237,5 +312,7 @@ def assess(plant, results, limits=None):
         "passed": not failures,
         "checks": checks,
         "failures": failures,
-        "not_assessed": not_assessed(plant, types),
+        "not_assessed": not_assessed(plant, types, brief),
+        "not_given": not_given(brief),
+        "brief": source or f"the brief ({brief.source or 'no source'})",
     }

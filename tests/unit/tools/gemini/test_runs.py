@@ -6,8 +6,8 @@ import pytest
 
 import geomind as gd
 from geomind.stores import MemoryWorkspace
-from geomind.tools.gemini.brief import SCHEDULE_RULES
 from tests.fixtures.calls import call
+from tests.fixtures.hackathon import SCHEDULE_RULES
 from tests.fixtures.sessions import StubSession
 
 TOOLS = gd.tools.gemini

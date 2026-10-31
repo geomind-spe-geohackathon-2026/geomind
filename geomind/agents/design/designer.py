@@ -32,6 +32,7 @@ class Designer(Agent):
         self.read_result = tools.read_result
         self.check_results = tools.gemini.check_results
         self.search_documents = tools.search_documents
+        self.set_brief = tools.gemini.set_brief
         self.update_state = tools.update_state
         self.read_skill = tools.read_skill
         self.ask_user = tools.ask_user

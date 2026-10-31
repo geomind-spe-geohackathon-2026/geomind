@@ -61,8 +61,15 @@ An amount is what gemini takes: a text `"<number> <unit>"` or a Value `{value, u
   40 K, 70 % pump efficiency, equal volumes, 330 operating days, supply 100 and 20 degC. It gives
   no return temperature: 60 and 25 degC are assumptions of a design. `preset(name)` returns one,
   and `with_changes(brief, changes)` merges the JSON of a partial brief into one.
-- **Setting it.** `update_state` on `/brief` sets or changes it, and `render` shows it to every
-  agent. The tools still use the hackathon numbers of `tools/gemini/brief.py`.
+- **Who sets it.** The Designer (or any agent) sets it with `set_brief(preset=None, changes=None)`,
+  or with `update_state` on `/brief`. In a design run the designer sets it first: the preset when
+  the request is the hackathon challenge, otherwise the values the request gives; it asks the user
+  for a demand the request does not give, and never takes the hackathon's numbers for another
+  brief. The `DesignLoop` driver checks after each designer round that the brief has a demand, and
+  asks the user when it has not.
+- **Who reads it.** `simulate` builds `gm.schedule`'s rules and takes the demand from it, and
+  verification checks its limits. Without a brief both use the `hackathon_2027` preset, as before
+  briefs were data, and say so in their output. `render` shows it to every agent.
 
 ## Long conversations
 

@@ -22,6 +22,7 @@ def test_it_is_complete():
             "read_result",
             "check_results",
             "search_documents",
+            "set_brief",
             "update_state",
             "read_skill",
             "ask_user",

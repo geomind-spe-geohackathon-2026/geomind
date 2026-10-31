@@ -1,5 +1,6 @@
 """Verify a design against its requirements and limits."""
 
+from geomind.context import Brief
 from geomind.context.state import Requirement
 from geomind.tools.gemini.verification import assess
 
@@ -36,16 +37,20 @@ def requirement_limits(requirements):
     return limits.to_dict()["limits"], skipped
 
 
-def verify(plant, results, *, requirements=(), limits=None):
-    """Return ``{passed, checks, failures, not_assessed}`` for a plant and its results.
+def verify(plant, results, *, requirements=(), limits=None, brief=None):
+    """Return ``{passed, checks, failures, not_assessed, not_given, brief}`` for a plant and run.
 
-    ``checks`` holds one gemini Check per balance, limit and requirement, the brief's hard limits
-    always among them. ``requirements`` are items of the problem state, and ``limits`` is what
-    ``gm.checks.Limits.to_dict`` returns. ``failures`` names the domain of each failed check, and
-    ``not_assessed`` what gemini cannot judge yet, with the reason.
+    ``checks`` holds one gemini Check per balance, limit and requirement, the limits of ``brief``
+    (a ``Brief``, or its JSON) always among them; without one, those of the ``hackathon_2027``
+    preset, and ``brief`` of the result says so. ``requirements`` are items of the problem state,
+    and ``limits`` is what ``gm.checks.Limits.to_dict`` returns. ``failures`` names the domain of
+    each failed check, ``not_assessed`` what gemini cannot judge yet, with the reason, and
+    ``not_given`` the limits the brief does not give, which are not checked.
     """
     from_requirements, skipped = requirement_limits(requirements)
     extra = {"limits": [*(limits or {}).get("limits", []), *from_requirements]}
-    found = assess(plant, results, extra)
+    if isinstance(brief, dict):
+        brief = Brief.model_validate(brief)
+    found = assess(plant, results, extra, brief)
     found["not_assessed"] = [*found["not_assessed"], *skipped]
     return found

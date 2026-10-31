@@ -71,7 +71,9 @@ async def test_check_results_names_a_broken_hard_limit_and_its_domain(stored):
     output = result.output
     assert output["passed"] is False
     assert {"name": "heat_users.supply_in.temperature", "domain": "surface"} in output["failures"]
-    assert set(output) == {"passed", "checks", "failures", "not_assessed"}
+    assert set(output) == {"passed", "checks", "failures", "not_assessed", "not_given", "brief"}
+    assert output["brief"] == "no brief in the state: the hackathon_2027 preset"
+    assert output["not_given"] == []
 
 
 async def test_check_results_passes_a_run_that_meets_the_brief(stored):

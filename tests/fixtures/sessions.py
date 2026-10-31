@@ -24,6 +24,7 @@ class StubSession:
         self.state = StubState()
         self.workspace = workspace
         self.artifacts = {}
+        self.changes = []
         self.errors = []
         self.sandbox_root = sandbox_root
         self.current_sandbox = None
@@ -39,6 +40,11 @@ class StubSession:
     def load_artifact(self, key):
         """Return a kept artifact, or ``None``."""
         return self.artifacts.get(key)
+
+    async def change_state(self, changes):
+        """Keep a change of the problem state; return the version it gives."""
+        self.changes.append(list(changes))
+        return len(self.changes)
 
     async def report_error(self, error, where):
         """Keep an internal error."""
