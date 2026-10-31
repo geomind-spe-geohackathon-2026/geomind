@@ -153,7 +153,9 @@ check it before writing a tool, because gemini's names change.
 | Profiles | `save_profile`: demand profiles the user gives, stored as `profile/<name>`, listed, read and simulated beside gemini's | `164eb62` | done |
 | Skill | `designing-a-plant` general for any brief, the hackathon's numbers in the `hackathon-2027` note; Designer and Explainer prompts without the hand-found answer | `fb93b32` | done |
 | Evals | `challenge2`: the hackathon brief and three variants through the design loop, offline; the `verified` criterion; reservoir and off-brief checks | `6cf623c` | done |
-| Caching | OpenRouter prompt caching on the system prompt of Anthropic models; `Usage.cached_tokens` | this commit | done |
+| Caching | OpenRouter prompt caching on the system prompt of Anthropic models; `Usage.cached_tokens` | `7286e6d` | done |
+| Spending cap | `geomind run --max-tokens/--max-cost`; budgets count the whole run, nested runs included | `65c576a` | done |
+| Terminal | `geomind run` no longer prints the coordinator's route JSON; plan corrections from the audit | this commit | done |
 | S2 gemini tools | the assessment tools of the catalogue | none | **stubs**: see section 7 |
 
 No live OpenRouter run has been made yet. It needs `OPENROUTER_API_KEY` in geomind's own
@@ -198,8 +200,9 @@ gemini.
      what the S3 tools need: `Results.to_bytes()` and the plant. The keys of those two are free.
    - `read_result` in `geomind/tools/gemini/results.py` is already built and reads that format.
    - Tests: `tests/unit/tools/gemini/test_runs.py`, on the example doublet.
-   - Done when: a `simulate` of `gm.plants.example("DoubletHeatPlant")` stores a result that
-     `read_result` reads, with the numbers equal to gemini's own run.
+   - Done when: a `simulate` of `HackathonPlant` stores a result that `read_result` reads, with the
+     numbers equal to gemini's own run (`test_simulate_stores_what_read_result_reads_with_gemini_s_numbers`);
+     the example doublet's failed days are gemini's problems in the summary.
 4. **The Analyst.** Done. Added the tools to `geomind/agents/analysis/analyst.py` and its prompt, and update
    the `gemini-units` skill to the units gemini accepts.
    - Tests: `tests/unit/agents/analysis/test_analyst.py`.
@@ -215,7 +218,8 @@ gemini.
 1. **Verification.** Done; see [tools.md](tools.md#verification). Replaced the stub `gd.verify.verify` in `geomind/verify/verify.py` and the stubs
    `check_results`, `compute_kpis` in `geomind/tools/gemini/assessment.py`.
    - The checks are gemini's and never an LLM: energy and mass balances, demand coverage per day,
-     bounds and limits including the hard limits of section 1, and unit consistency.
+     bounds and limits including the brief's limits. Units are checked by gemini when a value is
+     set or bound, not by a `Check`: `gm.checks.run_all` has no unit check.
    - Tests: `tests/unit/verify/test_verify.py`, `tests/unit/tools/gemini/test_assessment.py`.
    - Done when: a design that breaks a hard limit fails with a `Check` that names it.
 2. **The `Verified` hook.** Done. Replaced the stub in `geomind/engine/hooks.py`.
@@ -234,8 +238,8 @@ gemini.
    stop reason is explicit and logged.
    - Tests: `tests/unit/loops/test_design.py`.
    - Done when: `geomind run --loop design <brief>` returns a verified design with capacities, a
-     description of the schematic, the numbers and an explanation, for the official brief. The
-     option `--loop` does not exist yet; adding it is an additive change of the CLI snapshot.
+     description of the schematic, the numbers and an explanation, for the official brief
+     (`tests/e2e/test_official_brief.py`, offline; the live run waits for the key).
 6. **`MakerCheckerLoop`.** Replaces the stub in `geomind/loops/makerchecker.py`: the designer proposes
    and the verifier checks.
    - Tests: `tests/unit/loops/test_makerchecker.py`.
@@ -264,9 +268,11 @@ gemini.
    `geomind/tools/gemini/assessment.py`, once `gm.optim.sample` is real; it is `later` in gemini. Run
    the chosen design over P10, P50 and P90 reservoir and demand cases.
    - Done when: it returns `{metric: {p10, p50, p90}}` as Values.
-4. **Evals.** `evals/tasks/challenge2/`: the official brief plus variants (more cooling, a colder
-   reservoir, a tighter budget). `evals/reports/summary.md` compares `ToolLoop`, `DesignLoop`,
-   `MakerCheckerLoop` and `CompareLoop` on criteria met, steps, tokens, cost and time.
+4. **Evals.** Partly done: `evals/tasks/challenge2/` holds the official brief and three variants
+   (more cooling, a colder reservoir, a user's 30-day profile), passing offline through `DesignLoop`
+   ([evals.md](evals.md#suites)). Still open: a tighter-budget variant, and
+   `evals/reports/summary.md` comparing `ToolLoop`, `DesignLoop`, `MakerCheckerLoop` and
+   `CompareLoop` on criteria met, steps, tokens, cost and time; two of those loops are stubs.
    - Done when: the report holds all four for every task.
 5. **Export.** Done. `geomind show <run> --format md` exists; extend it to the form the competition asks
    for: prompts, answers and token usage.

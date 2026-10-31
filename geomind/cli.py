@@ -28,13 +28,16 @@ from geomind.utils.json import write_json
 RUNS_FOLDER = ".runs"
 MESSAGE_CHARACTERS = 2000
 COUNTS = "LLM calls | Tokens in | Tokens out | Cost"
+ROUTER = "coordinator"
 
 
 class _Printer(callbacks.Callback):
     """Print text as it streams, and tools as they run."""
 
     def on_text(self, engine, event):
-        """Print a piece of text."""
+        """Print a piece of text; the coordinator's route is JSON for the harness, not the user."""
+        if event.agent == ROUTER:
+            return
         print(event.text, end="", flush=True)
 
     def on_tool_start(self, engine, event):
