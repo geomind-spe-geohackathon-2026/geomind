@@ -73,6 +73,8 @@ The suite must remain safe under `pytest -n auto`:
   `else` after an early exit, builtin raises, framework names and the former package name.
 - `tests/unit/test_public_api.py`: the curated `gd` names, documented, and the version.
 - `tests/unit/test_docs_links.py`: every link in `AGENTS.md` and `.claude/docs/` resolves.
+- `tests/unit/test_frozen_api.py`: the snapshots and schemas of
+  [the frozen interfaces](api.md#frozen-interfaces), and that the samples load.
 
 ## Contract tests
 

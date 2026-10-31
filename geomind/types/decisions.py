@@ -44,6 +44,23 @@ class Request(Record):
         return self
 
 
+class Approval(Record):
+    """The answer to an approval: ``approved``, with a ``reason`` on a refusal."""
+
+    approved: bool
+    reason: str | None = None
+
+
+class Reply(Record):
+    """The answer to a question: free text, or the value of one option."""
+
+    text: str
+
+
+Answer = Approval | Reply
+"""The shapes of an answer; ``validate_answer`` checks one against its request."""
+
+
 class Allow(Record):
     """No objection; ``input`` optionally replaces the tool input."""
 

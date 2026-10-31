@@ -5,10 +5,13 @@ Imports only ``geomind.utils``, ``geomind.errors`` and itself.
 
 from geomind.types.decisions import (
     Allow,
+    Answer,
+    Approval,
     Cancel,
     Deny,
     Finish,
     Option,
+    Reply,
     Request,
     validate_answer,
 )
@@ -30,6 +33,8 @@ __all__ = [
     "TOOL_ERROR_CODES",
     "Action",
     "Allow",
+    "Answer",
+    "Approval",
     "Cancel",
     "Completion",
     "Deny",
@@ -38,6 +43,7 @@ __all__ = [
     "Option",
     "Problem",
     "Record",
+    "Reply",
     "Request",
     "RunResult",
     "ToolCall",

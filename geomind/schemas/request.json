@@ -1,0 +1,78 @@
+{
+  "$defs": {
+    "Option": {
+      "additionalProperties": false,
+      "description": "One fixed choice of a question: ``value`` is the answer, ``label`` what the user reads.",
+      "properties": {
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "label"
+      ],
+      "title": "Option",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A pause for the user; the engine fills in ``id`` when it pauses the run.\n\n``options`` are the fixed choices of a question. Plain strings become options with the same\nvalue and label, which is also how a run stored by S1 holds them.",
+  "properties": {
+    "call_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Call Id"
+    },
+    "id": {
+      "default": "",
+      "title": "Id",
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "approval",
+        "question"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "message": {
+      "title": "Message",
+      "type": "string"
+    },
+    "options": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/Option"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Options"
+    }
+  },
+  "required": [
+    "kind",
+    "message"
+  ],
+  "title": "Request",
+  "type": "object"
+}

@@ -1,0 +1,22 @@
+{
+  "changes": [
+    {
+      "op": "add",
+      "path": "/requirements/-",
+      "value": {
+        "id": "R3",
+        "text": "Cover peak cooling"
+      }
+    },
+    {
+      "op": "replace",
+      "path": "/assumptions/A1/confirmed",
+      "value": true
+    },
+    {
+      "op": "remove",
+      "path": "/questions/Q2"
+    }
+  ],
+  "version": 4
+}

@@ -1,0 +1,328 @@
+{
+  "$defs": {
+    "LLMCallLog": {
+      "additionalProperties": false,
+      "description": "One LLM call of a step.",
+      "properties": {
+        "answer": {
+          "title": "Answer",
+          "type": "string"
+        },
+        "cost": {
+          "title": "Cost",
+          "type": "number"
+        },
+        "duration": {
+          "title": "Duration",
+          "type": "number"
+        },
+        "input_tokens": {
+          "title": "Input Tokens",
+          "type": "integer"
+        },
+        "messages": {
+          "items": {
+            "$ref": "#/$defs/Message"
+          },
+          "title": "Messages",
+          "type": "array"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "output_tokens": {
+          "title": "Output Tokens",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "model",
+        "messages",
+        "answer",
+        "input_tokens",
+        "output_tokens",
+        "cost",
+        "duration"
+      ],
+      "title": "LLMCallLog",
+      "type": "object"
+    },
+    "Message": {
+      "additionalProperties": false,
+      "description": "One message of a conversation.",
+      "properties": {
+        "content": {
+          "default": "",
+          "title": "Content",
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "user",
+            "assistant",
+            "tool",
+            "system"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "tool_call_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tool Call Id"
+        },
+        "tool_calls": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ToolCall"
+          },
+          "title": "Tool Calls",
+          "type": "array"
+        }
+      },
+      "required": [
+        "role"
+      ],
+      "title": "Message",
+      "type": "object"
+    },
+    "RunSummary": {
+      "additionalProperties": false,
+      "description": "The run of a log.",
+      "properties": {
+        "chat": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Chat"
+        },
+        "ended": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Ended"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "loop": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Loop"
+        },
+        "started": {
+          "title": "Started",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "usage": {
+          "$ref": "#/$defs/Usage"
+        }
+      },
+      "required": [
+        "id",
+        "chat",
+        "status",
+        "loop",
+        "started",
+        "ended",
+        "usage"
+      ],
+      "title": "RunSummary",
+      "type": "object"
+    },
+    "StepLog": {
+      "additionalProperties": false,
+      "description": "One step; ``parent`` is the step of the parent run that delegated it.",
+      "properties": {
+        "agent": {
+          "title": "Agent",
+          "type": "string"
+        },
+        "index": {
+          "title": "Index",
+          "type": "integer"
+        },
+        "llm_calls": {
+          "items": {
+            "$ref": "#/$defs/LLMCallLog"
+          },
+          "title": "Llm Calls",
+          "type": "array"
+        },
+        "parent": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Parent"
+        },
+        "tool_calls": {
+          "items": {
+            "$ref": "#/$defs/ToolCallLog"
+          },
+          "title": "Tool Calls",
+          "type": "array"
+        }
+      },
+      "required": [
+        "index",
+        "agent",
+        "parent",
+        "llm_calls",
+        "tool_calls"
+      ],
+      "title": "StepLog",
+      "type": "object"
+    },
+    "ToolCall": {
+      "additionalProperties": false,
+      "description": "One call a model asks for; ``id`` comes from the model and pairs the result with it.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "input": {
+          "additionalProperties": true,
+          "default": {},
+          "title": "Input",
+          "type": "object"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "ToolCall",
+      "type": "object"
+    },
+    "ToolCallLog": {
+      "additionalProperties": false,
+      "description": "One tool call of a step; ``error`` is ``true`` on an error result, else absent.",
+      "properties": {
+        "call_id": {
+          "title": "Call Id",
+          "type": "string"
+        },
+        "duration": {
+          "title": "Duration",
+          "type": "number"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "const": true,
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
+        },
+        "input": {
+          "additionalProperties": true,
+          "title": "Input",
+          "type": "object"
+        },
+        "output": {
+          "title": "Output"
+        },
+        "tool": {
+          "title": "Tool",
+          "type": "string"
+        }
+      },
+      "required": [
+        "call_id",
+        "tool",
+        "input",
+        "output",
+        "duration"
+      ],
+      "title": "ToolCallLog",
+      "type": "object"
+    },
+    "Usage": {
+      "additionalProperties": false,
+      "description": "Tokens and cost; ``a + b`` adds them up.",
+      "properties": {
+        "cost": {
+          "default": 0.0,
+          "title": "Cost",
+          "type": "number"
+        },
+        "input_tokens": {
+          "default": 0,
+          "title": "Input Tokens",
+          "type": "integer"
+        },
+        "output_tokens": {
+          "default": 0,
+          "title": "Output Tokens",
+          "type": "integer"
+        }
+      },
+      "title": "Usage",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "What ``runlog`` returns; its shape is frozen through ``runlog.json``.",
+  "properties": {
+    "run": {
+      "$ref": "#/$defs/RunSummary"
+    },
+    "steps": {
+      "items": {
+        "$ref": "#/$defs/StepLog"
+      },
+      "title": "Steps",
+      "type": "array"
+    }
+  },
+  "required": [
+    "run",
+    "steps"
+  ],
+  "title": "RunLogDocument",
+  "type": "object"
+}

@@ -1,0 +1,38 @@
+{
+  "assumptions": [
+    {
+      "confirmed": false,
+      "id": "A1",
+      "source": "default",
+      "text": "Return at 60 degC",
+      "value": 60
+    }
+  ],
+  "design": {},
+  "goal": "Heat 30 MW",
+  "questions": [
+    {
+      "id": "Q1",
+      "text": "Which depth?"
+    }
+  ],
+  "requirements": [
+    {
+      "id": "R1",
+      "metric": "heating_coverage",
+      "status": "open",
+      "target": 1.0,
+      "text": "Cover peak heat",
+      "tolerance": 0.0
+    }
+  ],
+  "results": [
+    {
+      "id": "S1",
+      "reference": "result/r1",
+      "summary": "5 MW"
+    }
+  ],
+  "verification": {},
+  "version": 2
+}

@@ -63,7 +63,41 @@ for testing one agent by hand. `answer` is `{"approved": true}`, `{"approved": f
 
 ## Frozen interfaces
 
-The list, the snapshots and the change rule arrive with the freeze commits.
+The interfaces the backend and the agent developer depend on are final and pinned by tests, so the
+backend never breaks later. `gd.__version__` follows semver below 1.0, the same rule as gemini.
+
+| What | Pinned in |
+|---|---|
+| `gd.Run` and its methods, `RunResult` with statuses and stop reasons | `tests/unit/snapshots/api.json` |
+| The protocols `RunStore`, `Workspace`, `LLM`, `Sandbox`, `SandboxProvider`, and `Callback` | `api.json` |
+| `gd.Permissions`, the shipped hooks, `Completion`, `Usage`, `Message` | `api.json` |
+| Every event type with its `data()` keys, the answer shapes, `gd.runlog`, `gd.__all__` | `api.json` |
+| Every tool: name, first line of the description, effect, idempotent, input schema | `tests/unit/snapshots/tools.json` |
+| `Agent` methods, the declaration sections, `Prompt`, `Model`, `Output`, `Route` | `tests/unit/snapshots/agents.json` |
+| The names of `LOOPS` and `AGENTS`, the loop constructors, the eval task, the CLI | `agents.json` |
+| The documents exchanged with the backend | `geomind/schemas/*.json`, with one sample each in `samples/` |
+
+The schemas are package data: `events.json` (one schema per public event's `data()`),
+`problem_state.json`, `state_changed.json` (the JSON Patch subset), `request.json`, `answer.json`,
+`runlog.json`, `tool_error.json` and `eval_task.json`. Each is generated from the model that defines
+it, never edited by hand. Validate through the models, not with a schema library.
+`tests/unit/test_frozen_api.py` compares all of it with the live package and names each item that
+differs. `tests/unit/test_contract_map.py` checks that every item of the shared contract is in
+`api.json`.
+
+**The change rule.** A change to a frozen item needs, in the same commit:
+
+1. a version raise in `geomind/__init__.py` and `pyproject.toml`: a breaking change raises the minor
+   version, an addition or a fix the patch version;
+2. `python scripts/snapshot_api.py`, which refuses to overwrite a snapshot of the current version;
+   `--allow-same-version` is for an additive, non-breaking change only, and the changelog says which;
+3. an entry in [CHANGELOG.md](../../CHANGELOG.md);
+4. a note to Sahand when the shared contract is affected.
+
+A stub keeps its signature when it is filled: filling one changes no snapshot.
+
+**Not frozen:** prompt texts, skill texts, internal modules (anything not in a snapshot), and the
+model ids in `runtime.py`.
 
 ## Errors
 

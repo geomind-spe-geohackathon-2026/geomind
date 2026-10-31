@@ -1,0 +1,501 @@
+{
+  "items": {
+    "AGENTS": [
+      "analyst",
+      "code_assistant"
+    ],
+    "Agent": {
+      "__call__": "(self, context)",
+      "__init__": "(self)",
+      "children": "(self)",
+      "complete": "(self, context, messages)",
+      "forward": "(self, context)",
+      "help": "(cls)",
+      "named_agents": "(self)",
+      "tool_schemas": "(self)",
+      "tools": "(self, recurse=False)"
+    },
+    "LOOPS": {
+      "compare": "(self, loop, alternatives, criteria)",
+      "design": "(self, designer, verifier, max_rounds=5)",
+      "makerchecker": "(self, maker, checker, max_rounds=3)",
+      "tool": "(self, agent, max_steps=None)"
+    },
+    "Model": {
+      "additionalProperties": false,
+      "description": "Which model an agent wants; ``name=None`` means a model of ``gd.runtime``.\n\n``setting`` names the runtime setting of an agent's role, such as ``analyst_model``. Unset, or\nset to ``None``, it means the default model. ``fallbacks`` lists models tried in order when the\nprovider keeps failing.",
+      "properties": {
+        "fallbacks": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Fallbacks",
+          "type": "array"
+        },
+        "max_tokens": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Tokens"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "setting": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Setting"
+        },
+        "temperature": {
+          "default": 0,
+          "title": "Temperature",
+          "type": "number"
+        }
+      },
+      "title": "Model",
+      "type": "object"
+    },
+    "Output": {
+      "__init__": "(self, kind=<class 'str'>, max_retries=2)",
+      "instructions": "(self)",
+      "validate": "(self, answer)"
+    },
+    "Prompt": {
+      "__init__": "(self, role)",
+      "render": "(self)",
+      "text": "(cls, content)"
+    },
+    "Route": {
+      "additionalProperties": false,
+      "description": "Where a message goes: a short direct answer, or a loop with an agent and a brief.\n\n``loop`` and ``agent`` name rows of ``LOOPS`` and ``AGENTS`` in ``run.py``, which sits to the\nright of this package, so a test keeps the two lists equal.",
+      "properties": {
+        "agent": {
+          "default": "analyst",
+          "enum": [
+            "analyst",
+            "code_assistant"
+          ],
+          "title": "Agent",
+          "type": "string"
+        },
+        "answer": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Answer"
+        },
+        "brief": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Brief"
+        },
+        "kind": {
+          "enum": [
+            "answer",
+            "loop"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "loop": {
+          "default": "tool",
+          "enum": [
+            "tool",
+            "design",
+            "makerchecker",
+            "compare"
+          ],
+          "title": "Loop",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "Route",
+      "type": "object"
+    },
+    "cli": {
+      "chat": [
+        "/log",
+        "/quit",
+        "/reset",
+        "/state"
+      ],
+      "subcommands": {
+        "chat": {
+          "--agent": {
+            "choices": null,
+            "default": "analyst"
+          },
+          "--live": {
+            "choices": null,
+            "default": false
+          },
+          "--max-steps": {
+            "choices": null,
+            "default": null
+          },
+          "--model": {
+            "choices": null,
+            "default": null
+          },
+          "--project": {
+            "choices": null,
+            "default": null
+          },
+          "--recording": {
+            "choices": null,
+            "default": null
+          }
+        },
+        "replay": {
+          "run": {
+            "choices": null,
+            "default": null
+          }
+        },
+        "run": {
+          "--max-steps": {
+            "choices": null,
+            "default": null
+          },
+          "--mode": {
+            "choices": [
+              "ask",
+              "auto",
+              "readonly",
+              "plan"
+            ],
+            "default": "ask"
+          },
+          "--model": {
+            "choices": null,
+            "default": null
+          },
+          "--sandbox": {
+            "choices": [
+              "local",
+              "docker"
+            ],
+            "default": null
+          },
+          "message": {
+            "choices": null,
+            "default": null
+          }
+        },
+        "show": {
+          "--format": {
+            "choices": [
+              "text",
+              "md"
+            ],
+            "default": "text"
+          },
+          "run": {
+            "choices": null,
+            "default": null
+          }
+        }
+      }
+    },
+    "eval_task": {
+      "$defs": {
+        "Message": {
+          "additionalProperties": false,
+          "description": "One message of a conversation.",
+          "properties": {
+            "content": {
+              "default": "",
+              "title": "Content",
+              "type": "string"
+            },
+            "role": {
+              "enum": [
+                "user",
+                "assistant",
+                "tool",
+                "system"
+              ],
+              "title": "Role",
+              "type": "string"
+            },
+            "tool_call_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Tool Call Id"
+            },
+            "tool_calls": {
+              "default": [],
+              "items": {
+                "$ref": "#/$defs/ToolCall"
+              },
+              "title": "Tool Calls",
+              "type": "array"
+            }
+          },
+          "required": [
+            "role"
+          ],
+          "title": "Message",
+          "type": "object"
+        },
+        "NumberCriterion": {
+          "additionalProperties": false,
+          "description": "The answer holds a number within ``tolerance`` of ``value``, in ``unit`` if one is given.",
+          "properties": {
+            "kind": {
+              "const": "number",
+              "title": "Kind",
+              "type": "string"
+            },
+            "tolerance": {
+              "title": "Tolerance",
+              "type": "number"
+            },
+            "unit": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Unit"
+            },
+            "value": {
+              "title": "Value",
+              "type": "number"
+            }
+          },
+          "required": [
+            "kind",
+            "value",
+            "tolerance"
+          ],
+          "title": "NumberCriterion",
+          "type": "object"
+        },
+        "QuestionCriterion": {
+          "additionalProperties": false,
+          "description": "The agent asked the user a question holding ``contains``.",
+          "properties": {
+            "contains": {
+              "title": "Contains",
+              "type": "string"
+            },
+            "kind": {
+              "const": "question",
+              "title": "Kind",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "contains"
+          ],
+          "title": "QuestionCriterion",
+          "type": "object"
+        },
+        "StateCriterion": {
+          "additionalProperties": false,
+          "description": "A field of the final problem state is set; ``path`` is a JSON Pointer, by id in lists.",
+          "properties": {
+            "kind": {
+              "const": "state",
+              "title": "Kind",
+              "type": "string"
+            },
+            "path": {
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "path"
+          ],
+          "title": "StateCriterion",
+          "type": "object"
+        },
+        "ToolCall": {
+          "additionalProperties": false,
+          "description": "One call a model asks for; ``id`` comes from the model and pairs the result with it.",
+          "properties": {
+            "id": {
+              "title": "Id",
+              "type": "string"
+            },
+            "input": {
+              "additionalProperties": true,
+              "default": {},
+              "title": "Input",
+              "type": "object"
+            },
+            "name": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "name"
+          ],
+          "title": "ToolCall",
+          "type": "object"
+        },
+        "ToolCriterion": {
+          "additionalProperties": false,
+          "description": "A tool was called, or with ``called: false`` was not.",
+          "properties": {
+            "called": {
+              "default": true,
+              "title": "Called",
+              "type": "boolean"
+            },
+            "kind": {
+              "const": "tool",
+              "title": "Kind",
+              "type": "string"
+            },
+            "tool": {
+              "title": "Tool",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "tool"
+          ],
+          "title": "ToolCriterion",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "description": "One task file; ``plant`` is a project folder and ``answers`` reply to questions in order.",
+      "properties": {
+        "answers": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Answers",
+          "type": "array"
+        },
+        "criteria": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "number": "#/$defs/NumberCriterion",
+                "question": "#/$defs/QuestionCriterion",
+                "state": "#/$defs/StateCriterion",
+                "tool": "#/$defs/ToolCriterion"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/NumberCriterion"
+              },
+              {
+                "$ref": "#/$defs/ToolCriterion"
+              },
+              {
+                "$ref": "#/$defs/QuestionCriterion"
+              },
+              {
+                "$ref": "#/$defs/StateCriterion"
+              }
+            ]
+          },
+          "title": "Criteria",
+          "type": "array"
+        },
+        "history": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Message"
+          },
+          "title": "History",
+          "type": "array"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "plant": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Plant"
+        }
+      },
+      "required": [
+        "message",
+        "criteria"
+      ],
+      "title": "Task",
+      "type": "object"
+    },
+    "sections": [
+      "Agents",
+      "Prompt",
+      "Tools",
+      "Output",
+      "Model"
+    ]
+  },
+  "version": "0.1.0"
+}

@@ -1,0 +1,253 @@
+{
+  "$defs": {
+    "Message": {
+      "additionalProperties": false,
+      "description": "One message of a conversation.",
+      "properties": {
+        "content": {
+          "default": "",
+          "title": "Content",
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "user",
+            "assistant",
+            "tool",
+            "system"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "tool_call_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tool Call Id"
+        },
+        "tool_calls": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ToolCall"
+          },
+          "title": "Tool Calls",
+          "type": "array"
+        }
+      },
+      "required": [
+        "role"
+      ],
+      "title": "Message",
+      "type": "object"
+    },
+    "NumberCriterion": {
+      "additionalProperties": false,
+      "description": "The answer holds a number within ``tolerance`` of ``value``, in ``unit`` if one is given.",
+      "properties": {
+        "kind": {
+          "const": "number",
+          "title": "Kind",
+          "type": "string"
+        },
+        "tolerance": {
+          "title": "Tolerance",
+          "type": "number"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "kind",
+        "value",
+        "tolerance"
+      ],
+      "title": "NumberCriterion",
+      "type": "object"
+    },
+    "QuestionCriterion": {
+      "additionalProperties": false,
+      "description": "The agent asked the user a question holding ``contains``.",
+      "properties": {
+        "contains": {
+          "title": "Contains",
+          "type": "string"
+        },
+        "kind": {
+          "const": "question",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "contains"
+      ],
+      "title": "QuestionCriterion",
+      "type": "object"
+    },
+    "StateCriterion": {
+      "additionalProperties": false,
+      "description": "A field of the final problem state is set; ``path`` is a JSON Pointer, by id in lists.",
+      "properties": {
+        "kind": {
+          "const": "state",
+          "title": "Kind",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "path"
+      ],
+      "title": "StateCriterion",
+      "type": "object"
+    },
+    "ToolCall": {
+      "additionalProperties": false,
+      "description": "One call a model asks for; ``id`` comes from the model and pairs the result with it.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "input": {
+          "additionalProperties": true,
+          "default": {},
+          "title": "Input",
+          "type": "object"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "ToolCall",
+      "type": "object"
+    },
+    "ToolCriterion": {
+      "additionalProperties": false,
+      "description": "A tool was called, or with ``called: false`` was not.",
+      "properties": {
+        "called": {
+          "default": true,
+          "title": "Called",
+          "type": "boolean"
+        },
+        "kind": {
+          "const": "tool",
+          "title": "Kind",
+          "type": "string"
+        },
+        "tool": {
+          "title": "Tool",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "tool"
+      ],
+      "title": "ToolCriterion",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One task file; ``plant`` is a project folder and ``answers`` reply to questions in order.",
+  "properties": {
+    "answers": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Answers",
+      "type": "array"
+    },
+    "criteria": {
+      "items": {
+        "discriminator": {
+          "mapping": {
+            "number": "#/$defs/NumberCriterion",
+            "question": "#/$defs/QuestionCriterion",
+            "state": "#/$defs/StateCriterion",
+            "tool": "#/$defs/ToolCriterion"
+          },
+          "propertyName": "kind"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/NumberCriterion"
+          },
+          {
+            "$ref": "#/$defs/ToolCriterion"
+          },
+          {
+            "$ref": "#/$defs/QuestionCriterion"
+          },
+          {
+            "$ref": "#/$defs/StateCriterion"
+          }
+        ]
+      },
+      "title": "Criteria",
+      "type": "array"
+    },
+    "history": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Message"
+      },
+      "title": "History",
+      "type": "array"
+    },
+    "message": {
+      "title": "Message",
+      "type": "string"
+    },
+    "plant": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Plant"
+    }
+  },
+  "required": [
+    "message",
+    "criteria"
+  ],
+  "title": "Task",
+  "type": "object"
+}

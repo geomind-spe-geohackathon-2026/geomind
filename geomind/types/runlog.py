@@ -1,8 +1,62 @@
 """Build the contract's ``runlog`` object from the events of a run, nested runs included."""
 
+from typing import Any, Literal
+
 from geomind.errors import RunError
 from geomind.types.events import LLM_EVENTS
-from geomind.types.messages import Usage
+from geomind.types.messages import Message, Record, Usage
+
+
+class LLMCallLog(Record):
+    """One LLM call of a step."""
+
+    model: str
+    messages: tuple[Message, ...]
+    answer: str
+    input_tokens: int
+    output_tokens: int
+    cost: float
+    duration: float
+
+
+class ToolCallLog(Record):
+    """One tool call of a step; ``error`` is ``true`` on an error result, else absent."""
+
+    call_id: str
+    tool: str
+    input: dict[str, Any]
+    output: Any
+    duration: float
+    error: Literal[True] | None = None
+
+
+class StepLog(Record):
+    """One step; ``parent`` is the step of the parent run that delegated it."""
+
+    index: int
+    agent: str
+    parent: int | None
+    llm_calls: tuple[LLMCallLog, ...]
+    tool_calls: tuple[ToolCallLog, ...]
+
+
+class RunSummary(Record):
+    """The run of a log."""
+
+    id: str
+    chat: str | None
+    status: str
+    loop: str | None
+    started: str
+    ended: str | None
+    usage: Usage
+
+
+class RunLogDocument(Record):
+    """What ``runlog`` returns; its shape is frozen through ``runlog.json``."""
+
+    run: RunSummary
+    steps: tuple[StepLog, ...]
 
 
 def _llm_call(event):

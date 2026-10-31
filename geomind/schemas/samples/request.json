@@ -1,0 +1,12 @@
+{
+  "call_id": "c2",
+  "id": "request-1",
+  "kind": "question",
+  "message": "Which depth?",
+  "options": [
+    {
+      "label": "2500 m",
+      "value": "2500"
+    }
+  ]
+}

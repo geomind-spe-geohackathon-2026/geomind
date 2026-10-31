@@ -131,7 +131,7 @@ check it before writing a tool, because gemini's names change.
 | S2 | `Analyst` (complete sample, the default agent without a sandbox), `Summarizer`; skeletons of `Coordinator`, `Designer`, `Verifier`, `Economist`, `Explainer`, each with a six-heading prompt file | `ad01b96` | done |
 | S2 | `geomind chat` and the eval runner | `55296c1` | done |
 | S2b | `FileWorkspace.plant` through `gm.plants.from_dict` | `957c119` | done |
-| Freeze | Every interface below, pinned by snapshots; the tool catalogue and the loops as stubs | see `git log` from `docs: plan.md` on, and [CHANGELOG.md](../../CHANGELOG.md) | done |
+| Freeze | Every interface below, pinned by snapshots; the tool catalogue and the loops as stubs; see [CHANGELOG.md](../../CHANGELOG.md) | `fab5524` and the `api:` commit after it | done |
 | S2 gemini tools | `list_modules`, `describe_module`, `evaluate_module`, `read_plant`, `simulate` and the rest of the catalogue | none | **stubs**: see section 7 |
 
 No live OpenRouter run has been made yet. It needs `OPENROUTER_API_KEY` in geomind's own

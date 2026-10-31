@@ -48,6 +48,8 @@ and to read one back `event_from_dict`.
 | Memory and file stores | `geomind/stores/run.py` | `tests/unit/stores/test_run.py` |
 | Memory and file workspaces | `geomind/stores/workspace.py` | `tests/unit/stores/test_workspace.py` |
 | Internal `compaction` event | `geomind/types/events.py` | `tests/unit/engine/test_compaction.py` |
+| Everything in this section, name by name | `tests/unit/snapshots/api.json` | `tests/unit/test_contract_map.py` |
+| The schemas and samples of the exchanged documents | `geomind/schemas/` | `tests/unit/test_frozen_api.py` |
 | `gd.Run`, `start`, `astart`, `load`, `resume`, `aresume`, `cancel` | `geomind/run.py` | `tests/unit/test_run.py` |
 | `gd.Permissions` | `geomind/engine/permissions.py` | `tests/unit/engine/test_permissions.py` |
 | `gd.hooks.TokenBudget`, `RequireApproval`, `Cancellation` | `geomind/engine/hooks.py` | `tests/unit/engine/test_hooks.py` |
@@ -62,6 +64,7 @@ and to read one back `event_from_dict`.
 | Contract item | Code | Test |
 |---|---|---|
 | `runlog` through `gd.runlog(events)` | `geomind/types/runlog.py` | `tests/unit/types/test_runlog.py` |
+| `tool_call.error` is `true`, the Problem is in `tool_call.output` | `geomind/types/runlog.py` | `tests/unit/test_frozen_api.py` |
 
 ## For the backend
 
@@ -73,3 +76,5 @@ and to read one back `event_from_dict`.
 - Pass `sandbox` and `permissions` again to `Run.load`, like hooks and callbacks; a run does not
   store them.
 - `event.to_dict()` holds every field a store must keep, and `event_from_dict` restores it.
+- `save_artifact` keys may hold a `/`: `design/<name>` and `result/<id>`. `check_run_store` tests it.
+- `RunResult.stop_reason` may be `not_implemented`, with `status="failed"`.

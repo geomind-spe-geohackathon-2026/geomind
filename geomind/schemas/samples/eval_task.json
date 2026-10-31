@@ -1,0 +1,27 @@
+{
+  "answers": [
+    "2100 m"
+  ],
+  "criteria": [
+    {
+      "kind": "number",
+      "tolerance": 1,
+      "unit": "m",
+      "value": 2100
+    },
+    {
+      "kind": "tool",
+      "tool": "update_state"
+    },
+    {
+      "contains": "depth",
+      "kind": "question"
+    },
+    {
+      "kind": "state",
+      "path": "/goal"
+    }
+  ],
+  "message": "How deep is the well?",
+  "plant": "evals/plants/doublet"
+}

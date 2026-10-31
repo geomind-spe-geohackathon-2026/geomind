@@ -1,0 +1,845 @@
+{
+  "items": {
+    "Delegate": {
+      "description": "Run ``agent`` in a nested engine run with a clean context: the task text only.",
+      "effect": "compute",
+      "idempotent": false,
+      "input_schema": {
+        "additionalProperties": false,
+        "description": "What the model passes: the task text.",
+        "properties": {
+          "task": {
+            "title": "Task",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task"
+        ],
+        "title": "DelegateInput",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "Delegate"
+    },
+    "ask_user": {
+      "description": "Ask the user a question and wait for the answer, with fixed options if there are any.",
+      "effect": "read",
+      "idempotent": true,
+      "input_schema": {
+        "$defs": {
+          "Option": {
+            "additionalProperties": false,
+            "description": "One fixed choice of a question: ``value`` is the answer, ``label`` what the user reads.",
+            "properties": {
+              "label": {
+                "title": "Label",
+                "type": "string"
+              },
+              "value": {
+                "title": "Value",
+                "type": "string"
+              }
+            },
+            "required": [
+              "value",
+              "label"
+            ],
+            "title": "Option",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "options": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/$defs/Option"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Options"
+          },
+          "question": {
+            "title": "Question",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question"
+        ],
+        "title": "ask_user_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "ask_user"
+    },
+    "build_plant": {
+      "description": "Validate a plant and store it as design/<name>; a plant with problems is not stored.",
+      "effect": "write",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "plant": {
+            "additionalProperties": true,
+            "title": "Plant",
+            "type": "object"
+          }
+        },
+        "required": [
+          "plant",
+          "name"
+        ],
+        "title": "build_plant_input",
+        "type": "object"
+      },
+      "late_schemas": [
+        "plant"
+      ],
+      "name": "build_plant"
+    },
+    "check_results": {
+      "description": "Check stored results: energy and mass balances, limits and the hard limits.",
+      "effect": "compute",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "limits": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Limits"
+          },
+          "reference": {
+            "title": "Reference",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reference"
+        ],
+        "title": "check_results_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "check_results"
+    },
+    "compute_kpis": {
+      "description": "Compute KPIs of stored results, all of them without ``names``.",
+      "effect": "compute",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "names": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Names"
+          },
+          "reference": {
+            "title": "Reference",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reference"
+        ],
+        "title": "compute_kpis_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "compute_kpis"
+    },
+    "describe_module": {
+      "description": "Describe one module: its parameters, ports, outputs and children.",
+      "effect": "read",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "describe_module_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "describe_module"
+    },
+    "estimate_costs": {
+      "description": "Estimate capex, opex, LCOH, LCOC, NPV and CO2, and return the assumptions used.",
+      "effect": "compute",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "assumptions": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Assumptions"
+          },
+          "reference": {
+            "title": "Reference",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reference"
+        ],
+        "title": "estimate_costs_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "estimate_costs"
+    },
+    "evaluate_module": {
+      "description": "Run one module at one point; numbers may be SI or text such as '150 m3/h'.",
+      "effect": "compute",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "controls": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Controls"
+          },
+          "inlets": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Inlets"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "title": "Parameters",
+            "type": "object"
+          }
+        },
+        "required": [
+          "name",
+          "parameters"
+        ],
+        "title": "evaluate_module_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "evaluate_module"
+    },
+    "finish": {
+      "description": "End the run with the final answer.",
+      "effect": "read",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "answer": {
+            "title": "Answer"
+          }
+        },
+        "required": [
+          "answer"
+        ],
+        "title": "finish_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "finish"
+    },
+    "list_modules": {
+      "description": "List the modules gemini has, with their name, category and summary.",
+      "effect": "read",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Category"
+          }
+        },
+        "title": "list_modules_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "list_modules"
+    },
+    "list_plants": {
+      "description": "List the registered plants, with their name and summary.",
+      "effect": "read",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "title": "list_plants_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "list_plants"
+    },
+    "list_profiles": {
+      "description": "List the demand profiles, with their name, quantity, unit, start and end.",
+      "effect": "read",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "title": "list_profiles_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "list_profiles"
+    },
+    "optimize": {
+      "description": "Optimise a stored design and return the best design, its objective and the history.",
+      "effect": "compute",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "budget": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Budget"
+          },
+          "constraints": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Constraints"
+          },
+          "design": {
+            "title": "Design",
+            "type": "string"
+          },
+          "objective": {
+            "title": "Objective",
+            "type": "string"
+          },
+          "variables": {
+            "additionalProperties": true,
+            "title": "Variables",
+            "type": "object"
+          }
+        },
+        "required": [
+          "design",
+          "variables",
+          "objective"
+        ],
+        "title": "optimize_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "optimize"
+    },
+    "read_file": {
+      "description": "Read a text file from the sandbox.",
+      "effect": "execute",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "title": "read_file_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "read_file"
+    },
+    "read_plant": {
+      "description": "Describe a plant with its current values: the project's plant, or a stored design.",
+      "effect": "read",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "design": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Design"
+          }
+        },
+        "title": "read_plant_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "read_plant"
+    },
+    "read_profile": {
+      "description": "Return a demand profile as a series; ``start`` and ``end`` are ISO 8601 times.",
+      "effect": "read",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "end": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "End"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Start"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "read_profile_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "read_profile"
+    },
+    "read_result": {
+      "description": "Return one stored series as a value, or a summary of a result or of one module path.",
+      "effect": "read",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "end": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "End"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Field"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Path"
+          },
+          "reference": {
+            "title": "Reference",
+            "type": "string"
+          },
+          "start": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Start"
+          }
+        },
+        "required": [
+          "reference"
+        ],
+        "title": "read_result_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "read_result"
+    },
+    "read_skill": {
+      "description": "Return the instructions of one skill, by its name in the system prompt.",
+      "effect": "read",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "read_skill_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "read_skill"
+    },
+    "run_python": {
+      "description": "Run Python code in the sandbox and return its exit code and output.",
+      "effect": "execute",
+      "idempotent": false,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "run_python_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "run_python"
+    },
+    "sample_uncertainty": {
+      "description": "Sample a stored design over its uncertain inputs; return P10, P50 and P90 per metric.",
+      "effect": "compute",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "design": {
+            "title": "Design",
+            "type": "string"
+          },
+          "distributions": {
+            "additionalProperties": true,
+            "title": "Distributions",
+            "type": "object"
+          },
+          "metrics": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Metrics",
+            "type": "array"
+          },
+          "samples": {
+            "title": "Samples",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "design",
+          "distributions",
+          "samples",
+          "metrics"
+        ],
+        "title": "sample_uncertainty_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "sample_uncertainty"
+    },
+    "search_documents": {
+      "description": "Search the documents of the project; return the best matches with id, title and text.",
+      "effect": "read",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "title": "Query",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "search_documents_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "search_documents"
+    },
+    "simulate": {
+      "description": "Simulate a plant and store the full results; return their reference and a summary.",
+      "effect": "compute",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "changes": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Changes"
+          },
+          "design": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Design"
+          },
+          "end": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "End"
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile"
+          },
+          "start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Start"
+          }
+        },
+        "title": "simulate_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "simulate"
+    },
+    "test_module": {
+      "description": "Check an agent-written module file in the sandbox and return gemini's report.",
+      "effect": "execute",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "title": "test_module_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "test_module"
+    },
+    "update_state": {
+      "description": "Change the problem state with JSON Patch operations (add, replace, remove).",
+      "effect": "write",
+      "idempotent": false,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "changes": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Changes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "changes"
+        ],
+        "title": "update_state_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "update_state"
+    },
+    "write_file": {
+      "description": "Write a text file in the sandbox.",
+      "effect": "write",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "text"
+        ],
+        "title": "write_file_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "write_file"
+    }
+  },
+  "version": "0.1.0"
+}

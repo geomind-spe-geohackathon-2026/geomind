@@ -86,6 +86,32 @@ All are exported from `gd.agents`. A skeleton is a real `Agent` with a docstring
 prompt file and its model setting, the tools that already exist, and no `forward`. It constructs and
 runs, but it knows nothing until someone fills its prompt.
 
+### Tools of each agent
+
+What each agent declares now, and what it gets when it is filled. The second column is the plan, not
+frozen; the tools themselves are in [tools.md](tools.md#catalogue). Every agent keeps `ask_user`,
+`update_state`, `read_skill` and `finish` when it needs them.
+
+| Agent | Tools now | Tools when filled | Phase |
+|---|---|---|---|
+| `Analyst` | `read_result`, `search_documents`, `update_state`, `read_skill`, `ask_user`, `finish` | adds `list_modules`, `describe_module`, `evaluate_module`, `list_plants`, `read_plant`, `list_profiles`, `read_profile`, `simulate` | S2b |
+| `Coordinator` | none | none: it answers with a `Route` | S3 |
+| `Designer` | `read_result`, `search_documents`, `update_state`, `read_skill`, `ask_user`, `finish` | adds `list_modules`, `describe_module`, `evaluate_module`, `list_plants`, `read_plant`, `build_plant`, `list_profiles`, `read_profile`, `simulate`; `optimize` in S4 | S3 |
+| `Verifier` | `read_result`, `update_state`, `read_skill`, `finish` | adds `read_plant`, `check_results`, `compute_kpis` | S3 |
+| `Economist` | `read_result`, `update_state`, `read_skill`, `finish` | adds `read_plant`, `compute_kpis`, `estimate_costs`; `sample_uncertainty` in S4 | S3 |
+| `Explainer` | `read_result`, `finish` | adds `read_plant`, `search_documents` | S3 |
+| `CodeAssistant` | `ask_user`, `finish`, `run_python`, `read_file`, `write_file` | adds `test_module` | S3 |
+| `Assistant` | `ask_user`, `finish` | no change | none |
+| `Summarizer` | none | no change | none |
+
+### Route
+
+`Route` is what `Coordinator` answers, in `geomind/agents/coordination/coordinator.py`: `kind` is
+`answer` or `loop`, `answer` the short direct answer of an `answer` route, `loop` a name of `LOOPS`,
+`agent` a name of `AGENTS`, and `brief` what the loop is told. `Run` does not call the coordinator
+yet. `loop_of(route)` in `run.py` builds the loop, and a stub loop ends the run with
+`stop_reason="not_implemented"`.
+
 ## How to add or fill an agent
 
 The analyst is the worked example: `geomind/agents/analysis/analyst.py` and

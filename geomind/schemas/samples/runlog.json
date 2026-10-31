@@ -1,0 +1,55 @@
+{
+  "run": {
+    "chat": "chat-1",
+    "ended": "2026-10-31T12:00:09+00:00",
+    "id": "run-1",
+    "loop": "tool",
+    "started": "2026-10-31T12:00:00+00:00",
+    "status": "done",
+    "usage": {
+      "cost": 0.01,
+      "input_tokens": 10,
+      "output_tokens": 5
+    }
+  },
+  "steps": [
+    {
+      "agent": "analyst",
+      "index": 1,
+      "llm_calls": [
+        {
+          "answer": "",
+          "cost": 0.01,
+          "duration": 1.5,
+          "input_tokens": 10,
+          "messages": [
+            {
+              "content": "Go",
+              "role": "user"
+            }
+          ],
+          "model": "anthropic/claude-sonnet-5.5",
+          "output_tokens": 5
+        }
+      ],
+      "parent": null,
+      "tool_calls": [
+        {
+          "call_id": "c1",
+          "duration": 0.01,
+          "error": true,
+          "input": {},
+          "output": {
+            "error": {
+              "code": "not_implemented",
+              "message": "simulate comes in S2b",
+              "path": null,
+              "suggestions": []
+            }
+          },
+          "tool": "simulate"
+        }
+      ]
+    }
+  ]
+}

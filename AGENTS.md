@@ -47,6 +47,9 @@ the [harness review](../docs/open-source-harnesses.md) and the [phases](../docs/
 When a commit changes behaviour, structure or conventions, update the relevant document in the
 same commit, so a new session can read the docs and know the current state.
 
+Frozen interfaces change only with a version raise; see
+[api.md](.claude/docs/api.md#frozen-interfaces).
+
 ## Branching
 
 Work directly on `main`: commit after each step and push `origin main` when a phase ends. Do not
@@ -71,6 +74,7 @@ geomind/
 ├── prompts/          # <area>/<role>.md files, skills/*.md and Prompt
 ├── context/          # problem state, compaction, skills: the deterministic part
 ├── providers/        # LLM protocol, retry layer, OpenRouter, FakeLLM
+├── schemas/          # JSON schemas and samples of the exchanged documents, generated
 ├── sandbox/          # Sandbox and SandboxProvider protocols, Manifest, local, docker
 ├── tools/            # Tool, tool decorator, dispatch, built-ins, code tools, Delegate, gemini/
 ├── verify/           # verification of a design over gemini's checks
@@ -79,7 +83,7 @@ geomind/
 │                     # callbacks, hooks, permissions, replay, compaction
 └── loops/            # Loop, ToolLoop, DesignLoop, MakerCheckerLoop, CompareLoop
 examples/             # area/category/NN_name.py
-scripts/              # test_changed.py, the development test profile
+scripts/              # test_changed.py, the development test profile; snapshot_api.py
 evals/                # tasks/, recordings/, reports/ and the runner, run.py
 tests/                # unit mirror, integration, e2e and recorded fixtures
 ```

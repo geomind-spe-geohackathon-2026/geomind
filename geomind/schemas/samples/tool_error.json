@@ -1,0 +1,10 @@
+{
+  "error": {
+    "code": "unknown_name",
+    "message": "describe_module: name = 'Pip'; did you mean 'Pipe'?",
+    "path": "name",
+    "suggestions": [
+      "Pipe"
+    ]
+  }
+}

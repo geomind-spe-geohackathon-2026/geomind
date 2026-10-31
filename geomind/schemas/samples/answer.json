@@ -1,0 +1,12 @@
+[
+  {
+    "approved": true
+  },
+  {
+    "approved": false,
+    "reason": "too costly"
+  },
+  {
+    "text": "2500"
+  }
+]

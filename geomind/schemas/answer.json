@@ -1,0 +1,54 @@
+{
+  "$defs": {
+    "Approval": {
+      "additionalProperties": false,
+      "description": "The answer to an approval: ``approved``, with a ``reason`` on a refusal.",
+      "properties": {
+        "approved": {
+          "title": "Approved",
+          "type": "boolean"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        }
+      },
+      "required": [
+        "approved"
+      ],
+      "title": "Approval",
+      "type": "object"
+    },
+    "Reply": {
+      "additionalProperties": false,
+      "description": "The answer to a question: free text, or the value of one option.",
+      "properties": {
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Reply",
+      "type": "object"
+    }
+  },
+  "anyOf": [
+    {
+      "$ref": "#/$defs/Approval"
+    },
+    {
+      "$ref": "#/$defs/Reply"
+    }
+  ]
+}

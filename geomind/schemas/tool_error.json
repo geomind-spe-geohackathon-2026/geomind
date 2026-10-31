@@ -1,0 +1,56 @@
+{
+  "$defs": {
+    "Problem": {
+      "additionalProperties": false,
+      "description": "What went wrong: ``path`` is the input field at fault, ``code`` the stable key.",
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path"
+        },
+        "suggestions": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Suggestions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "Problem",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "The output of a tool call that failed.",
+  "properties": {
+    "error": {
+      "$ref": "#/$defs/Problem"
+    }
+  },
+  "required": [
+    "error"
+  ],
+  "title": "ToolErrorOutput",
+  "type": "object"
+}

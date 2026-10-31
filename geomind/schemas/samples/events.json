@@ -1,0 +1,153 @@
+{
+  "request": {
+    "agent": "analyst",
+    "call": null,
+    "parent": null,
+    "point": "tool",
+    "request": {
+      "call_id": "c2",
+      "id": "request-1",
+      "kind": "question",
+      "message": "Which depth?",
+      "options": [
+        {
+          "label": "2000 m",
+          "value": "2000 m"
+        },
+        {
+          "label": "2500 m",
+          "value": "2500 m"
+        }
+      ]
+    },
+    "run_id": "run-1",
+    "sequence": 1,
+    "time": "2026-10-31T12:00:00+00:00",
+    "type": "request"
+  },
+  "run.finished": {
+    "agent": "analyst",
+    "answer": null,
+    "message": "DesignLoop comes in S3",
+    "parent": null,
+    "run_id": "run-1",
+    "sequence": 1,
+    "status": "failed",
+    "stop_reason": "not_implemented",
+    "time": "2026-10-31T12:00:00+00:00",
+    "type": "run.finished"
+  },
+  "run.started": {
+    "agent": "analyst",
+    "agent_class": "geomind.agents.analysis.analyst.Analyst",
+    "chat": null,
+    "loop": "tool",
+    "loop_state": {},
+    "max_steps": 30,
+    "messages": [],
+    "parent": null,
+    "parent_step": null,
+    "problem": {},
+    "project": null,
+    "root": "run-1",
+    "run": "run-1",
+    "run_id": "run-1",
+    "sequence": 1,
+    "settings": {},
+    "time": "2026-10-31T12:00:00+00:00",
+    "type": "run.started"
+  },
+  "state.changed": {
+    "agent": "analyst",
+    "changes": [
+      {
+        "op": "add",
+        "path": "/requirements/-",
+        "value": {
+          "id": "R1",
+          "text": "Cover the peak"
+        }
+      }
+    ],
+    "parent": null,
+    "run_id": "run-1",
+    "sequence": 1,
+    "time": "2026-10-31T12:00:00+00:00",
+    "type": "state.changed",
+    "version": 1
+  },
+  "step.finished": {
+    "agent": "analyst",
+    "index": 1,
+    "loop_state": {},
+    "parent": null,
+    "run_id": "run-1",
+    "sequence": 1,
+    "text": "The well delivers 5 MW.",
+    "time": "2026-10-31T12:00:00+00:00",
+    "type": "step.finished",
+    "usage": {
+      "cost": 0.01,
+      "input_tokens": 10,
+      "output_tokens": 5
+    }
+  },
+  "step.started": {
+    "agent": "analyst",
+    "index": 1,
+    "model": "anthropic/claude-sonnet-5.5",
+    "parent": null,
+    "run_id": "run-1",
+    "sequence": 1,
+    "time": "2026-10-31T12:00:00+00:00",
+    "type": "step.started"
+  },
+  "text.delta": {
+    "agent": "analyst",
+    "index": 1,
+    "parent": null,
+    "run_id": "run-1",
+    "sequence": 1,
+    "text": "The well",
+    "time": "2026-10-31T12:00:00+00:00",
+    "type": "text.delta"
+  },
+  "tool.finished": {
+    "agent": "analyst",
+    "call_id": "c1",
+    "duration": 0.01,
+    "error": null,
+    "index": 1,
+    "output_summary": "{'value': [1.0], 'unit': 'W'}",
+    "parent": null,
+    "run_id": "run-1",
+    "sequence": 1,
+    "time": "2026-10-31T12:00:00+00:00",
+    "type": "tool.finished"
+  },
+  "tool.started": {
+    "agent": "analyst",
+    "call_id": "c1",
+    "index": 1,
+    "input": {
+      "reference": "result/r1"
+    },
+    "parent": null,
+    "run_id": "run-1",
+    "sequence": 1,
+    "time": "2026-10-31T12:00:00+00:00",
+    "tool": "read_result",
+    "type": "tool.started"
+  },
+  "usage": {
+    "agent": "analyst",
+    "cost": 0.01,
+    "input_tokens": 10,
+    "output_tokens": 5,
+    "parent": null,
+    "run_id": "run-1",
+    "sequence": 1,
+    "time": "2026-10-31T12:00:00+00:00",
+    "type": "usage"
+  }
+}

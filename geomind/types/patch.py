@@ -1,6 +1,9 @@
 """JSON Patch operations on the problem state, the subset the contract allows."""
 
 import re
+from typing import Any, Literal
+
+from geomind.types.messages import Record
 
 OPERATIONS = ("add", "replace", "remove")
 STATE_KEYS = (
@@ -14,6 +17,21 @@ STATE_KEYS = (
 )
 ITEM_LISTS = ("requirements", "assumptions", "results", "questions")
 _POINTER = re.compile(r"^(/([^~/]|~0|~1)*)+$")
+
+
+class PatchOperation(Record):
+    """One JSON Patch operation; ``value`` is absent on a ``remove``."""
+
+    op: Literal["add", "replace", "remove"]
+    path: str
+    value: Any = None
+
+
+class StateChange(Record):
+    """The JSON of ``state.changed``: the version after the change, and the operations."""
+
+    version: int
+    changes: tuple[PatchOperation, ...]
 
 
 def _path_problem(operation, path):

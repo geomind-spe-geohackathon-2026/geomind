@@ -1,0 +1,1041 @@
+{
+  "items": {
+    "Callback": {
+      "on_error": "(self, engine, event)",
+      "on_event": "(self, engine, event)",
+      "on_llm_call": "(self, engine, event)",
+      "on_permission": "(self, engine, event)",
+      "on_request": "(self, engine, event)",
+      "on_run_end": "(self, engine, event)",
+      "on_run_start": "(self, engine, event)",
+      "on_state_change": "(self, engine, event)",
+      "on_step_end": "(self, engine, event)",
+      "on_step_start": "(self, engine, event)",
+      "on_text": "(self, engine, event)",
+      "on_tool_end": "(self, engine, event)",
+      "on_tool_start": "(self, engine, event)"
+    },
+    "Completion": {
+      "$defs": {
+        "ToolCall": {
+          "additionalProperties": false,
+          "description": "One call a model asks for; ``id`` comes from the model and pairs the result with it.",
+          "properties": {
+            "id": {
+              "title": "Id",
+              "type": "string"
+            },
+            "input": {
+              "additionalProperties": true,
+              "default": {},
+              "title": "Input",
+              "type": "object"
+            },
+            "name": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "name"
+          ],
+          "title": "ToolCall",
+          "type": "object"
+        },
+        "Usage": {
+          "additionalProperties": false,
+          "description": "Tokens and cost; ``a + b`` adds them up.",
+          "properties": {
+            "cost": {
+              "default": 0.0,
+              "title": "Cost",
+              "type": "number"
+            },
+            "input_tokens": {
+              "default": 0,
+              "title": "Input Tokens",
+              "type": "integer"
+            },
+            "output_tokens": {
+              "default": 0,
+              "title": "Output Tokens",
+              "type": "integer"
+            }
+          },
+          "title": "Usage",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "description": "What a provider returns for one LLM call; ``raw`` is the JSON-safe provider response.",
+      "properties": {
+        "model": {
+          "default": "",
+          "title": "Model",
+          "type": "string"
+        },
+        "raw": {
+          "default": null,
+          "title": "Raw"
+        },
+        "text": {
+          "default": "",
+          "title": "Text",
+          "type": "string"
+        },
+        "tool_calls": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ToolCall"
+          },
+          "title": "Tool Calls",
+          "type": "array"
+        },
+        "usage": {
+          "$ref": "#/$defs/Usage",
+          "default": {
+            "cost": 0.0,
+            "input_tokens": 0,
+            "output_tokens": 0
+          }
+        }
+      },
+      "title": "Completion",
+      "type": "object"
+    },
+    "Message": {
+      "$defs": {
+        "ToolCall": {
+          "additionalProperties": false,
+          "description": "One call a model asks for; ``id`` comes from the model and pairs the result with it.",
+          "properties": {
+            "id": {
+              "title": "Id",
+              "type": "string"
+            },
+            "input": {
+              "additionalProperties": true,
+              "default": {},
+              "title": "Input",
+              "type": "object"
+            },
+            "name": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "name"
+          ],
+          "title": "ToolCall",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "description": "One message of a conversation.",
+      "properties": {
+        "content": {
+          "default": "",
+          "title": "Content",
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "user",
+            "assistant",
+            "tool",
+            "system"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "tool_call_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tool Call Id"
+        },
+        "tool_calls": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ToolCall"
+          },
+          "title": "Tool Calls",
+          "type": "array"
+        }
+      },
+      "required": [
+        "role"
+      ],
+      "title": "Message",
+      "type": "object"
+    },
+    "Permissions": "(self, mode='ask', allow=(), ask=(), deny=())",
+    "Run": {
+      "__init__": "(self, message=None, *, chat=None, project=None, history=(), llm=None, store=None, workspace=None, sandbox=None, permissions=None, callbacks=(), hooks=(), agent=None)",
+      "aresume": "(self, request_id=None, answer=None)",
+      "astart": "(self)",
+      "cancel": "(self)",
+      "load": "(cls, run_id, *, llm=None, store=None, workspace=None, sandbox=None, permissions=None, callbacks=(), hooks=())",
+      "resume": "(self, request_id=None, answer=None)",
+      "start": "(self)"
+    },
+    "RunResult": {
+      "$defs": {
+        "Option": {
+          "additionalProperties": false,
+          "description": "One fixed choice of a question: ``value`` is the answer, ``label`` what the user reads.",
+          "properties": {
+            "label": {
+              "title": "Label",
+              "type": "string"
+            },
+            "value": {
+              "title": "Value",
+              "type": "string"
+            }
+          },
+          "required": [
+            "value",
+            "label"
+          ],
+          "title": "Option",
+          "type": "object"
+        },
+        "Request": {
+          "additionalProperties": false,
+          "description": "A pause for the user; the engine fills in ``id`` when it pauses the run.\n\n``options`` are the fixed choices of a question. Plain strings become options with the same\nvalue and label, which is also how a run stored by S1 holds them.",
+          "properties": {
+            "call_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Call Id"
+            },
+            "id": {
+              "default": "",
+              "title": "Id",
+              "type": "string"
+            },
+            "kind": {
+              "enum": [
+                "approval",
+                "question"
+              ],
+              "title": "Kind",
+              "type": "string"
+            },
+            "message": {
+              "title": "Message",
+              "type": "string"
+            },
+            "options": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/Option"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Options"
+            }
+          },
+          "required": [
+            "kind",
+            "message"
+          ],
+          "title": "Request",
+          "type": "object"
+        },
+        "Usage": {
+          "additionalProperties": false,
+          "description": "Tokens and cost; ``a + b`` adds them up.",
+          "properties": {
+            "cost": {
+              "default": 0.0,
+              "title": "Cost",
+              "type": "number"
+            },
+            "input_tokens": {
+              "default": 0,
+              "title": "Input Tokens",
+              "type": "integer"
+            },
+            "output_tokens": {
+              "default": 0,
+              "title": "Output Tokens",
+              "type": "integer"
+            }
+          },
+          "title": "Usage",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "description": "How a run ended, or that it waits for an answer to ``request``.",
+      "properties": {
+        "answer": {
+          "default": null,
+          "title": "Answer"
+        },
+        "request": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Request"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "steps": {
+          "default": 0,
+          "title": "Steps",
+          "type": "integer"
+        },
+        "stop_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Stop Reason"
+        },
+        "usage": {
+          "$ref": "#/$defs/Usage",
+          "default": {
+            "cost": 0.0,
+            "input_tokens": 0,
+            "output_tokens": 0
+          }
+        }
+      },
+      "required": [
+        "run_id",
+        "status"
+      ],
+      "title": "RunResult",
+      "type": "object"
+    },
+    "Usage": {
+      "additionalProperties": false,
+      "description": "Tokens and cost; ``a + b`` adds them up.",
+      "properties": {
+        "cost": {
+          "default": 0.0,
+          "title": "Cost",
+          "type": "number"
+        },
+        "input_tokens": {
+          "default": 0,
+          "title": "Input Tokens",
+          "type": "integer"
+        },
+        "output_tokens": {
+          "default": 0,
+          "title": "Output Tokens",
+          "type": "integer"
+        }
+      },
+      "title": "Usage",
+      "type": "object"
+    },
+    "all": [
+      "Action",
+      "Agent",
+      "Allow",
+      "Context",
+      "Deny",
+      "Engine",
+      "Message",
+      "Model",
+      "Output",
+      "Permissions",
+      "Prompt",
+      "Request",
+      "Run",
+      "RunResult",
+      "Tool",
+      "__version__",
+      "agents",
+      "callbacks",
+      "errors",
+      "event_from_dict",
+      "hooks",
+      "loops",
+      "providers",
+      "runlog",
+      "runtime",
+      "sandbox",
+      "stores",
+      "testing",
+      "tool",
+      "tools",
+      "verify"
+    ],
+    "answers": {
+      "$defs": {
+        "Approval": {
+          "additionalProperties": false,
+          "description": "The answer to an approval: ``approved``, with a ``reason`` on a refusal.",
+          "properties": {
+            "approved": {
+              "title": "Approved",
+              "type": "boolean"
+            },
+            "reason": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Reason"
+            }
+          },
+          "required": [
+            "approved"
+          ],
+          "title": "Approval",
+          "type": "object"
+        },
+        "Reply": {
+          "additionalProperties": false,
+          "description": "The answer to a question: free text, or the value of one option.",
+          "properties": {
+            "text": {
+              "title": "Text",
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "title": "Reply",
+          "type": "object"
+        }
+      },
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Approval"
+        },
+        {
+          "$ref": "#/$defs/Reply"
+        }
+      ]
+    },
+    "events": {
+      "compaction": {
+        "class": "Compacted",
+        "data": [
+          "completion",
+          "duration",
+          "index",
+          "messages",
+          "turns"
+        ],
+        "is_public": false
+      },
+      "error": {
+        "class": "ErrorRaised",
+        "data": [
+          "error_class",
+          "message",
+          "where"
+        ],
+        "is_public": false
+      },
+      "llm.completed": {
+        "class": "LLMCompleted",
+        "data": [
+          "completion",
+          "duration",
+          "index",
+          "messages"
+        ],
+        "is_public": false
+      },
+      "permission": {
+        "class": "PermissionDecided",
+        "data": [
+          "call",
+          "call_id",
+          "child",
+          "decision",
+          "index",
+          "input",
+          "point",
+          "reason",
+          "request",
+          "rule",
+          "tool"
+        ],
+        "is_public": false
+      },
+      "request": {
+        "class": "RequestMade",
+        "data": [
+          "agent",
+          "call_id",
+          "kind",
+          "message",
+          "options",
+          "parent",
+          "request"
+        ],
+        "is_public": true
+      },
+      "retry": {
+        "class": "Retried",
+        "data": [
+          "attempt",
+          "delay",
+          "error",
+          "model"
+        ],
+        "is_public": false
+      },
+      "run.finished": {
+        "class": "RunFinished",
+        "data": [
+          "message",
+          "status",
+          "stop_reason"
+        ],
+        "is_public": true
+      },
+      "run.started": {
+        "class": "RunStarted",
+        "data": [
+          "loop",
+          "run"
+        ],
+        "is_public": true
+      },
+      "sandbox.closed": {
+        "class": "SandboxClosed",
+        "data": [
+          "is_lost"
+        ],
+        "is_public": false
+      },
+      "sandbox.provisioned": {
+        "class": "SandboxProvisioned",
+        "data": [
+          "provider"
+        ],
+        "is_public": false
+      },
+      "state.changed": {
+        "class": "StateChanged",
+        "data": [
+          "changes",
+          "version"
+        ],
+        "is_public": true
+      },
+      "step.finished": {
+        "class": "StepFinished",
+        "data": [
+          "index",
+          "text",
+          "usage"
+        ],
+        "is_public": true
+      },
+      "step.started": {
+        "class": "StepStarted",
+        "data": [
+          "index",
+          "model"
+        ],
+        "is_public": true
+      },
+      "text.delta": {
+        "class": "TextDelta",
+        "data": [
+          "index",
+          "text"
+        ],
+        "is_public": true
+      },
+      "tool.finished": {
+        "class": "ToolFinished",
+        "data": [
+          "call_id",
+          "duration",
+          "error",
+          "index",
+          "output_summary"
+        ],
+        "is_public": true
+      },
+      "tool.result": {
+        "class": "ToolRecorded",
+        "data": [
+          "call_id",
+          "duration",
+          "feedback",
+          "index",
+          "input",
+          "is_error",
+          "is_finish",
+          "is_validation",
+          "output",
+          "reference",
+          "source",
+          "tool",
+          "usage"
+        ],
+        "is_public": false
+      },
+      "tool.started": {
+        "class": "ToolStarted",
+        "data": [
+          "call_id",
+          "index",
+          "input",
+          "tool"
+        ],
+        "is_public": true
+      },
+      "usage": {
+        "class": "UsageUpdated",
+        "data": [
+          "cost",
+          "input_tokens",
+          "output_tokens"
+        ],
+        "is_public": true
+      }
+    },
+    "hooks": {
+      "Cancellation": {
+        "__init__": "(self, is_cancelled)",
+        "before_finish": "(self, context, agent, action)",
+        "before_llm_call": "(self, context, agent, messages)",
+        "before_tool_call": "(self, context, agent, call)"
+      },
+      "CostBudget": {
+        "__init__": "(self, max_cost)",
+        "before_llm_call": "(self, context, agent, messages)"
+      },
+      "Hook": {
+        "before_finish": "(self, context, agent, action)",
+        "before_llm_call": "(self, context, agent, messages)",
+        "before_tool_call": "(self, context, agent, call)"
+      },
+      "RequireApproval": {
+        "__init__": "(self, tools)"
+      },
+      "TokenBudget": {
+        "__init__": "(self, max_tokens)",
+        "before_llm_call": "(self, context, agent, messages)"
+      },
+      "Verified": {
+        "before_finish": "(self, context, agent, action)"
+      }
+    },
+    "protocols": {
+      "LLM": {
+        "complete": "(self, messages, tools, *, model, settings, on_text=None)"
+      },
+      "RunStore": {
+        "load_artifact": "(self, run_id, key)",
+        "load_events": "(self, run_id)",
+        "load_history": "(self, chat_id)",
+        "load_state": "(self, chat_id)",
+        "save_artifact": "(self, run_id, key, data)",
+        "save_event": "(self, run_id, event)",
+        "save_state": "(self, chat_id, state)"
+      },
+      "Sandbox": {
+        "close": "(self)",
+        "execute": "(self, command, *, timeout)",
+        "read": "(self, path)",
+        "write": "(self, path, data)"
+      },
+      "SandboxProvider": {
+        "provision": "(self, manifest)"
+      },
+      "Workspace": {
+        "documents": "(self, project_id, query)",
+        "plant": "(self, project_id)"
+      }
+    },
+    "runlog": {
+      "$defs": {
+        "LLMCallLog": {
+          "additionalProperties": false,
+          "description": "One LLM call of a step.",
+          "properties": {
+            "answer": {
+              "title": "Answer",
+              "type": "string"
+            },
+            "cost": {
+              "title": "Cost",
+              "type": "number"
+            },
+            "duration": {
+              "title": "Duration",
+              "type": "number"
+            },
+            "input_tokens": {
+              "title": "Input Tokens",
+              "type": "integer"
+            },
+            "messages": {
+              "items": {
+                "$ref": "#/$defs/Message"
+              },
+              "title": "Messages",
+              "type": "array"
+            },
+            "model": {
+              "title": "Model",
+              "type": "string"
+            },
+            "output_tokens": {
+              "title": "Output Tokens",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "model",
+            "messages",
+            "answer",
+            "input_tokens",
+            "output_tokens",
+            "cost",
+            "duration"
+          ],
+          "title": "LLMCallLog",
+          "type": "object"
+        },
+        "Message": {
+          "additionalProperties": false,
+          "description": "One message of a conversation.",
+          "properties": {
+            "content": {
+              "default": "",
+              "title": "Content",
+              "type": "string"
+            },
+            "role": {
+              "enum": [
+                "user",
+                "assistant",
+                "tool",
+                "system"
+              ],
+              "title": "Role",
+              "type": "string"
+            },
+            "tool_call_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Tool Call Id"
+            },
+            "tool_calls": {
+              "default": [],
+              "items": {
+                "$ref": "#/$defs/ToolCall"
+              },
+              "title": "Tool Calls",
+              "type": "array"
+            }
+          },
+          "required": [
+            "role"
+          ],
+          "title": "Message",
+          "type": "object"
+        },
+        "RunSummary": {
+          "additionalProperties": false,
+          "description": "The run of a log.",
+          "properties": {
+            "chat": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Chat"
+            },
+            "ended": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ended"
+            },
+            "id": {
+              "title": "Id",
+              "type": "string"
+            },
+            "loop": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Loop"
+            },
+            "started": {
+              "title": "Started",
+              "type": "string"
+            },
+            "status": {
+              "title": "Status",
+              "type": "string"
+            },
+            "usage": {
+              "$ref": "#/$defs/Usage"
+            }
+          },
+          "required": [
+            "id",
+            "chat",
+            "status",
+            "loop",
+            "started",
+            "ended",
+            "usage"
+          ],
+          "title": "RunSummary",
+          "type": "object"
+        },
+        "StepLog": {
+          "additionalProperties": false,
+          "description": "One step; ``parent`` is the step of the parent run that delegated it.",
+          "properties": {
+            "agent": {
+              "title": "Agent",
+              "type": "string"
+            },
+            "index": {
+              "title": "Index",
+              "type": "integer"
+            },
+            "llm_calls": {
+              "items": {
+                "$ref": "#/$defs/LLMCallLog"
+              },
+              "title": "Llm Calls",
+              "type": "array"
+            },
+            "parent": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Parent"
+            },
+            "tool_calls": {
+              "items": {
+                "$ref": "#/$defs/ToolCallLog"
+              },
+              "title": "Tool Calls",
+              "type": "array"
+            }
+          },
+          "required": [
+            "index",
+            "agent",
+            "parent",
+            "llm_calls",
+            "tool_calls"
+          ],
+          "title": "StepLog",
+          "type": "object"
+        },
+        "ToolCall": {
+          "additionalProperties": false,
+          "description": "One call a model asks for; ``id`` comes from the model and pairs the result with it.",
+          "properties": {
+            "id": {
+              "title": "Id",
+              "type": "string"
+            },
+            "input": {
+              "additionalProperties": true,
+              "default": {},
+              "title": "Input",
+              "type": "object"
+            },
+            "name": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "name"
+          ],
+          "title": "ToolCall",
+          "type": "object"
+        },
+        "ToolCallLog": {
+          "additionalProperties": false,
+          "description": "One tool call of a step; ``error`` is ``true`` on an error result, else absent.",
+          "properties": {
+            "call_id": {
+              "title": "Call Id",
+              "type": "string"
+            },
+            "duration": {
+              "title": "Duration",
+              "type": "number"
+            },
+            "error": {
+              "anyOf": [
+                {
+                  "const": true,
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Error"
+            },
+            "input": {
+              "additionalProperties": true,
+              "title": "Input",
+              "type": "object"
+            },
+            "output": {
+              "title": "Output"
+            },
+            "tool": {
+              "title": "Tool",
+              "type": "string"
+            }
+          },
+          "required": [
+            "call_id",
+            "tool",
+            "input",
+            "output",
+            "duration"
+          ],
+          "title": "ToolCallLog",
+          "type": "object"
+        },
+        "Usage": {
+          "additionalProperties": false,
+          "description": "Tokens and cost; ``a + b`` adds them up.",
+          "properties": {
+            "cost": {
+              "default": 0.0,
+              "title": "Cost",
+              "type": "number"
+            },
+            "input_tokens": {
+              "default": 0,
+              "title": "Input Tokens",
+              "type": "integer"
+            },
+            "output_tokens": {
+              "default": 0,
+              "title": "Output Tokens",
+              "type": "integer"
+            }
+          },
+          "title": "Usage",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "description": "What ``runlog`` returns; its shape is frozen through ``runlog.json``.",
+      "properties": {
+        "run": {
+          "$ref": "#/$defs/RunSummary"
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/StepLog"
+          },
+          "title": "Steps",
+          "type": "array"
+        }
+      },
+      "required": [
+        "run",
+        "steps"
+      ],
+      "title": "RunLogDocument",
+      "type": "object"
+    },
+    "stop_reasons": {
+      "answer": "done",
+      "cancelled": "cancelled",
+      "denied": "failed",
+      "error": "failed",
+      "finish": "done",
+      "not_implemented": "failed",
+      "request": "waiting",
+      "step_limit": "failed"
+    }
+  },
+  "version": "0.1.0"
+}
