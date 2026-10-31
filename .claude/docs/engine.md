@@ -135,7 +135,7 @@ and `FileRunStore(root=".runs")` add `add_message(chat_id, message)`.
 `<root>/chats/<chat id>/history.jsonl` and `state.json`. Unsafe ids raise `RunError`.
 
 `Workspace` has `plant(project_id)` and `documents(project_id, query)`. `MemoryWorkspace(plants,
-documents)` holds values; `FileWorkspace(root)` reads `<root>/<project id>/plant.json`, loaded by
-the class the file names, and text files in `documents/`, searched by keyword count. The S1
-agents do not use it; the S2 tools will. `gd.testing.check_run_store` and `check_workspace` are the
+documents)` holds values; `FileWorkspace(root)` reads `<root>/<project id>/plant.json`, loaded with
+`gm.plants.from_dict`, and text files in `documents/`, searched by keyword count.
+`gd.testing.check_run_store` and `check_workspace` are the
 conformance checks.

@@ -23,9 +23,9 @@ A package may import only the packages to its left:
   explicitly; nothing reaches the run through hidden state.
 - `geomind.utils` and `geomind.errors` are leaf packages: they import only the standard library,
   installed dependencies and themselves.
-- `import geomind` does not import `gemini`, which takes more than a second. `FileWorkspace.plant`
-  reaches it only through the class a plant file names. `dispatch` recognises `gemini.errors`
-  classes by the module path in their class hierarchy.
+- `import geomind` does not import `gemini`, which takes more than a second. Code that needs it
+  imports it inside a function, and only as `import gemini as gm`, as `FileWorkspace.plant` does.
+  `dispatch` recognises `gemini.errors` classes by the module path in their class hierarchy.
 
 The folder `types` shares its name with the standard library module. This is safe because every
 import is absolute (`geomind.types`); never put the package folder itself on `sys.path`.
@@ -103,7 +103,7 @@ The package avoids hidden behaviour. These are the only implicit mechanisms, eac
 - `gd.runtime.settings()` is a context setting built on `geomind.utils.context.ContextSetting`: a
   context variable change usable as a `with` block and as a decorator, restored on exit.
 - `class_path`/`import_class` in `utils/imports.py` are the only import-by-string: `run.started`
-  names the agent class that rebuilds a run, and a plant file names its plant class.
+  names the agent class that rebuilds a run.
 - `Callback.on_<event>` methods are found through the `CALLBACK_METHODS` table in
   `engine/callbacks.py`, so a callback overrides only the methods it needs.
 

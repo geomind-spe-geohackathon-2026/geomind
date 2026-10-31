@@ -4,7 +4,6 @@ import re
 from pathlib import Path
 from typing import Protocol
 
-from geomind.utils.imports import import_class
 from geomind.utils.json import read_json
 
 _WORD = re.compile(r"\w+")
@@ -53,8 +52,8 @@ class MemoryWorkspace:
 class FileWorkspace:
     """Read ``<root>/<project id>/plant.json`` and the text files in ``documents/``.
 
-    A plant file names its own class, which loads it. NOTE: gemini is imported only here, by that
-    name, and only when a plant is read, because ``import geomind`` should not pay for it.
+    A plant file is gemini's plant spec. NOTE: gemini is imported only here, and only when a plant
+    is read, because ``import geomind`` should not pay for it.
     """
 
     def __init__(self, root):
@@ -66,8 +65,9 @@ class FileWorkspace:
         path = self.root / project_id / "plant.json"
         if not path.exists():
             return None
-        data = read_json(path)
-        return import_class(data["plant_type"]).from_dict(data)
+        import gemini as gm
+
+        return gm.plants.from_dict(read_json(path))
 
     def documents(self, project_id, query):
         """Search the text files of a project."""
