@@ -292,8 +292,9 @@ gemini.
 
 ## 9. Open questions (ask Sahand)
 
-- The OpenRouter model ids per role. The default `anthropic/claude-sonnet-5.5` has not been checked
-  against OpenRouter yet.
+Settled: the model ids `anthropic/claude-sonnet-5.5` and `anthropic/claude-haiku-5.5` are both in
+OpenRouter's public model list (checked 2026-10-31).
+
 - Return temperatures of the heating and cooling networks (assumed 60 °C and 25 °C until Sahand
   confirms).
 - Whether outage days are chosen automatically (lowest demand) or by date. `gm.schedule` raises
