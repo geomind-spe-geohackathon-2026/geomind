@@ -1,9 +1,19 @@
-"""The skeleton of the explainer."""
+"""The explainer: explains the verified design from the tools and the problem state."""
 
 from geomind.agents import Explainer
-from tests.unit.agents.structure import check_skeleton
+from tests.unit.agents.structure import check_complete
 
 
-def test_the_skeleton_is_complete():
-    """It constructs, its prompt has the six headings and its sections are in order."""
-    check_skeleton(Explainer, "explainer")
+def test_it_is_complete():
+    """Its tools in order, every heading of its prompt filled, and only its tools named."""
+    check_complete(
+        Explainer,
+        "explainer",
+        [
+            "read_plant",
+            "read_result",
+            "compute_kpis",
+            "search_documents",
+            "finish",
+        ],
+    )

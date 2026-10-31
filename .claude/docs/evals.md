@@ -72,7 +72,11 @@ the task with `run: error`.
 number in a criterion is gemini's, from the same inputs as the recorded tool call.
 `tests/integration/test_evals.py` runs them offline.
 
-Their recordings are written by hand (`model: hand-written`, no usage) until the first live run
+`tasks/designer/`, `verifier/`, `economist/`, `explainer/` and `coordinator/` hold one task each; the
+verifier and economist run the base design (`evals/projects/base/plant.json`) over the year. Their
+recordings are written by hand too, with every reference and number from the real tool calls.
+
+The recordings are written by hand (`model: hand-written`, no usage) until the first live run
 writes them anew; see [plan.md](plan.md) S2b.6. The tasks give mass flows in kg/s beside m3/h,
 because a module inlet takes a mass flow and the agent converts nothing itself. The runner and every
 kind of criterion are tested in `tests/integration/test_evals.py`, with the real `Analyst`.

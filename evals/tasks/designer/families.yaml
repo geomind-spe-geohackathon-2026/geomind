@@ -1,0 +1,11 @@
+message: Design a deep-geothermal plant that meets the official 2027 heating and cooling demand of the
+  GEMINI hackathon brief, within its hard limits.
+criteria:
+- kind: tool
+  tool: read_skill
+- kind: state
+  path: /assumptions/heating-return
+- kind: state
+  path: /design/families
+- kind: state
+  path: /goal

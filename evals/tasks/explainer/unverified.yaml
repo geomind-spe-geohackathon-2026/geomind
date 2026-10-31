@@ -1,0 +1,8 @@
+message: Explain the project's plant.
+plant: evals/projects/base
+criteria:
+- kind: tool
+  tool: read_plant
+- kind: tool
+  tool: compute_kpis
+  called: false

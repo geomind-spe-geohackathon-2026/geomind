@@ -140,7 +140,8 @@ check it before writing a tool, because gemini's names change.
 | S2b.6 | one live run, recorded, with its token cost | none | **blocked**: no `OPENROUTER_API_KEY` in geomind's environment |
 | S3.1 | `gd.verify.verify`, `check_results`, `compute_kpis`: gemini's checks with the brief's hard limits, failure domains, `NOT_ASSESSED`/`BLOCKED` items | `7afb1d0` | done |
 | S3.2 | the `Verified` hook: gemini's checks run again on the design's stored run before any answer | `8ee1444` | done |
-| S3.3 | `estimate_costs`: gemini's economics with the assumptions used, and LCTS | this commit | done |
+| S3.3 | `estimate_costs`: gemini's economics with the assumptions used, and LCTS | `cf07cdc` | done |
+| S3.4 | `Designer`, `Verifier`, `Economist`, `Explainer`, `Coordinator` filled, with the `designing-a-plant` skill and one offline task each (hand-written recordings); `read_plant` reads examples and templates (`253bf05`); co-produced gas check (`e7719f4`) | this commit | done |
 | S2 gemini tools | the assessment tools of the catalogue | none | **stubs**: see section 7 |
 
 No live OpenRouter run has been made yet. It needs `OPENROUTER_API_KEY` in geomind's own
@@ -211,7 +212,7 @@ gemini.
      reaches the user without passing every verifier**.
 3. **Costs.** Done; see [tools.md](tools.md#costs). Replaced the stub `estimate_costs` in `geomind/tools/gemini/assessment.py`.
    - Done when: capex, opex, LCOH, LCOC, NPV and CO₂ come back as Values with the assumptions used.
-4. **Fill the skeleton agents** of [agents.md](agents.md#shipped-agents): prompts, tools and eval
+4. **Fill the skeleton agents.** Done. of [agents.md](agents.md#shipped-agents): prompts, tools and eval
    tasks. `Designer` proposes configurations and sizes, `Verifier` runs the checks and reviews,
    `Economist` gives the costs, `Explainer` writes the explanation, and `Coordinator` routes.
    - Done when: each agent's status in the table is complete, with its tasks passing offline.

@@ -155,3 +155,15 @@ def test_the_shipped_analyst_tasks_pass_offline(gemini_loaded):
     outcomes = evals.run_agent("analyst")
     assert len(outcomes) == 5
     assert [outcome.problems for outcome in outcomes] == [[]] * 5
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("agent", ["designer", "verifier", "economist", "explainer", "coordinator"])
+def test_the_shipped_tasks_of_the_design_agents_pass_offline(gemini_loaded, agent):
+    """Each agent's tasks pass from their recordings, with the real tools.
+
+    NOTE: slow, because the verifier and economist tasks simulate the whole demand year.
+    """
+    outcomes = evals.run_agent(agent)
+    assert outcomes
+    assert [outcome.problems for outcome in outcomes] == [[]] * len(outcomes)

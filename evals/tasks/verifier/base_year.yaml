@@ -1,0 +1,9 @@
+message: Verify the project's plant over the demand year.
+plant: evals/projects/base
+criteria:
+- kind: tool
+  tool: simulate
+- kind: tool
+  tool: check_results
+- kind: state
+  path: /verification/result

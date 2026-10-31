@@ -30,3 +30,22 @@ def check_skeleton(agent_class, role):
     assert "Prompt" in found and "Model" in found
     assert "forward" not in vars(agent_class)
     assert "NOTE: the structure is fixed now" in " ".join(agent_class.__doc__.split())
+
+
+def named_tools(text):
+    """Return the tools a prompt names in its ``## Tools`` section."""
+    section = text.split("## Tools")[1].split("## Rules")[0]
+    return re.findall(r"^- `(\w+)`", section, flags=re.MULTILINE)
+
+
+def check_complete(agent_class, role, tools):
+    """Check a filled agent: its tools in order, every heading filled, only its tools named."""
+    agent = agent_class()
+    text = role_files()[role].read_text()
+    assert list(agent.tools()) == tools
+    assert headings(text) == HEADINGS
+    sections = re.split(r"^## .*$", text, flags=re.MULTILINE)[1:]
+    assert all(section.strip() for section in sections)
+    assert len(text.splitlines()) > 25
+    assert sorted(named_tools(text)) == sorted(tools)
+    assert "NOTE: the structure is fixed now" not in " ".join(agent_class.__doc__.split())

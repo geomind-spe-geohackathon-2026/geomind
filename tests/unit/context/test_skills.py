@@ -7,8 +7,8 @@ from geomind.errors import UnknownNameError
 
 
 def test_the_first_skills_ship():
-    """The two skills of S2 exist."""
-    assert skill_names() == ["gemini-units", "reading-results"]
+    """The two skills of S2 and the designer's skill of S3 exist."""
+    assert skill_names() == ["designing-a-plant", "gemini-units", "reading-results"]
 
 
 def test_a_skill_loads_by_name():
@@ -31,5 +31,5 @@ def test_a_name_cannot_leave_the_folder():
 def test_the_listing_has_one_line_per_skill():
     """The system prompt holds names and one line each, not the text."""
     lines = skill_listing().splitlines()
-    assert len(lines) == 3
-    assert lines[1].startswith("- gemini-units: Units gemini accepts")
+    assert len(lines) == 4
+    assert lines[2].startswith("- gemini-units: Units gemini accepts")

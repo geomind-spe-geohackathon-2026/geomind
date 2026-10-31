@@ -1,4 +1,4 @@
-"""The skeleton of the coordinator."""
+"""The coordinator: it routes a message to an answer or a loop."""
 
 from typing import get_args
 
@@ -8,12 +8,12 @@ from pydantic import ValidationError
 from geomind.agents import Coordinator, Route
 from geomind.run import AGENTS, LOOPS
 from geomind.runtime import FIXED_CHEAP_MODEL
-from tests.unit.agents.structure import check_skeleton
+from tests.unit.agents.structure import check_complete
 
 
-def test_the_skeleton_is_complete():
-    """It constructs, its prompt has the six headings and its sections are in order."""
-    check_skeleton(Coordinator, "coordinator")
+def test_it_is_complete():
+    """No tools: it answers with a route; every heading of its prompt is filled."""
+    check_complete(Coordinator, "coordinator", [])
 
 
 def test_it_declares_a_typed_route():

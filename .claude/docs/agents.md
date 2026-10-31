@@ -76,13 +76,14 @@ its JSON schema to the system prompt.
 | `Analyst` | `analysis/` | complete, the sample, with the gemini tools of S2b | yes, the default |
 | `Assistant`, `CodeAssistant` | `general/` | complete; `Run` uses `CodeAssistant` with a sandbox | `code_assistant` |
 | `Summarizer` | `general/` | complete; only compaction calls it | no |
-| `Coordinator` | `coordination/` | skeleton; declares `Output(Route)`, `Run` does not call it yet | no |
-| `Designer` | `design/` | skeleton | no |
-| `Verifier` | `verification/` | skeleton | no |
-| `Economist` | `economics/` | skeleton | no |
-| `Explainer` | `reporting/` | skeleton | no |
+| `Coordinator` | `coordination/` | complete; answers with a `Route` | no |
+| `Designer` | `design/` | complete; families, then one design built, simulated and checked | no |
+| `Verifier` | `verification/` | complete; simulates afresh and records gemini's checks | no |
+| `Economist` | `economics/` | complete; gemini's economics and LCTS | no |
+| `Explainer` | `reporting/` | complete; the explanation, from the state and the tools | no |
 
-All are exported from `gd.agents`. A skeleton is a real `Agent` with a docstring stating its job, its
+All are exported from `gd.agents`. The skill `designing-a-plant` gives the designer the brief's
+numbers, the plant file and what gemini can run. A skeleton is a real `Agent` with a docstring stating its job, its
 prompt file and its model setting, the tools that already exist, and no `forward`. It constructs and
 runs, but it knows nothing until someone fills its prompt.
 
@@ -96,10 +97,10 @@ frozen; the tools themselves are in [tools.md](tools.md#catalogue). Every agent 
 |---|---|---|---|
 | `Analyst` | `list_modules`, `describe_module`, `evaluate_module`, `list_plants`, `read_plant`, `list_profiles`, `read_profile`, `simulate`, `read_result`, `search_documents`, `update_state`, `read_skill`, `ask_user`, `finish` | no change | S2b, done |
 | `Coordinator` | none | none: it answers with a `Route` | S3 |
-| `Designer` | `read_result`, `search_documents`, `update_state`, `read_skill`, `ask_user`, `finish` | adds `list_modules`, `describe_module`, `evaluate_module`, `list_plants`, `read_plant`, `build_plant`, `list_profiles`, `read_profile`, `simulate`; `optimize` in S4 | S3 |
-| `Verifier` | `read_result`, `update_state`, `read_skill`, `finish` | adds `read_plant`, `check_results`, `compute_kpis` | S3 |
-| `Economist` | `read_result`, `update_state`, `read_skill`, `finish` | adds `read_plant`, `compute_kpis`, `estimate_costs`; `sample_uncertainty` in S4 | S3 |
-| `Explainer` | `read_result`, `finish` | adds `read_plant`, `search_documents` | S3 |
+| `Designer` | `list_plants`, `read_plant`, `list_modules`, `describe_module`, `evaluate_module`, `build_plant`, `list_profiles`, `read_profile`, `simulate`, `read_result`, `check_results`, `search_documents`, `update_state`, `read_skill`, `ask_user`, `finish` | `optimize` in S4 | S3, done |
+| `Verifier` | `read_plant`, `simulate`, `check_results`, `compute_kpis`, `read_result`, `update_state`, `read_skill`, `finish` | no change | S3, done |
+| `Economist` | `read_plant`, `simulate`, `compute_kpis`, `estimate_costs`, `read_result`, `update_state`, `read_skill`, `finish` | `sample_uncertainty` in S4 | S3, done |
+| `Explainer` | `read_plant`, `read_result`, `compute_kpis`, `search_documents`, `finish` | no change | S3, done |
 | `CodeAssistant` | `ask_user`, `finish`, `run_python`, `read_file`, `write_file` | adds `test_module` | S3 |
 | `Assistant` | `ask_user`, `finish` | no change | none |
 | `Summarizer` | none | no change | none |

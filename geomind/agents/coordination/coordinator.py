@@ -22,11 +22,7 @@ class Route(Record):
 
 
 class Coordinator(Agent):
-    """Route each message: answer it directly, or choose the loop and the agent.
-
-    NOTE: the structure is fixed now, so another person can fill the prompt, tools and tasks without
-    changing the layout. ``Run`` does not call it yet.
-    """
+    """Route each message: answer it directly, or choose the loop and the agent."""
 
     def __init__(self):
         """Declare the prompt, the typed route and the role's model."""
