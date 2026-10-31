@@ -80,3 +80,11 @@ The recordings are written by hand (`model: hand-written`, no usage) until the f
 writes them anew; see [plan.md](plan.md) S2b.6. The tasks give mass flows in kg/s beside m3/h,
 because a module inlet takes a mass flow and the agent converts nothing itself. The runner and every
 kind of criterion are tested in `tests/integration/test_evals.py`, with the real `Analyst`.
+
+## The official brief
+
+`evals/runs/official_brief_scripted.jsonl` is a scripted recording of the design loop on the
+official brief: hand-written completions in the order the loop asks its agents, with every
+reference and number from the real tools on the base design over the year. `tests/e2e/
+test_official_brief.py` runs `geomind run --loop design --recording` on it and replays the run. It
+checks the path to a verified design, not a model; the live run replaces it.
