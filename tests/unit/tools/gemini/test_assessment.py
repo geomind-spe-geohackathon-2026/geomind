@@ -6,7 +6,7 @@ import pytest
 
 import geomind as gd
 from tests.fixtures.calls import call
-from tests.fixtures.hackathon import PRICES, hackathon_spec
+from tests.fixtures.hackathon import PRICES, base_spec, hackathon_spec
 from tests.fixtures.sessions import StubSession
 from tests.fixtures.stubs import check_stub
 
@@ -44,10 +44,10 @@ def gm():
     return gemini
 
 
-async def run_in(session, gm, start, end):
-    """Store the hackathon design, simulate it in a window and return the result reference."""
-    await call(TOOLS.build_plant, {"plant": hackathon_spec(gm), "name": "hackathon"}, session)
-    window = {"design": "design/hackathon", "start": start, "end": end}
+async def run_in(session, spec, start, end):
+    """Store a design, simulate it in a window and return the result reference."""
+    await call(TOOLS.build_plant, {"plant": spec, "name": spec["name"]}, session)
+    window = {"design": f"design/{spec['name']}", "start": start, "end": end}
     return (await call(TOOLS.simulate, window, session)).output["reference"]
 
 
@@ -55,11 +55,12 @@ async def run_in(session, gm, start, end):
 def stored(gm):
     """Return a session holding two runs of the hackathon design, and their references.
 
-    ``spring`` (late March) supplies heat below 100 degC; ``winter`` (January) meets the brief.
+    ``spring`` is gemini's example in late March, which supplies heat below 100 degC; ``winter`` is
+    the base design in January, which meets the brief.
     """
     session = StubSession()
-    spring = asyncio.run(run_in(session, gm, "2027-03-20", "2027-03-31"))
-    winter = asyncio.run(run_in(session, gm, "2027-01-01", "2027-01-10"))
+    spring = asyncio.run(run_in(session, hackathon_spec(gm), "2027-03-20", "2027-03-31"))
+    winter = asyncio.run(run_in(session, base_spec(gm), "2027-01-01", "2027-01-10"))
     return session, {"spring": spring, "winter": winter}
 
 
@@ -74,7 +75,7 @@ async def test_check_results_names_a_broken_hard_limit_and_its_domain(stored):
 
 
 async def test_check_results_passes_a_run_that_meets_the_brief(stored):
-    """In January the example meets every hard limit."""
+    """In January the base design meets every check."""
     session, references = stored
     result = await call(TOOLS.check_results, {"reference": references["winter"]}, session)
     assert result.output["passed"] is True
@@ -138,7 +139,7 @@ def costed(gm, stored):
     made here because each takes most of one test call's budget.
     """
     session, _ = stored
-    may = asyncio.run(run_in(session, gm, "2027-05-01", "2027-05-10"))
+    may = asyncio.run(run_in(session, base_spec(gm), "2027-05-01", "2027-05-10"))
     sets = {
         "share": {**PRICES, "heat_cost_share": 0.8},
         "prices": PRICES,

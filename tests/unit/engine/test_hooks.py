@@ -19,7 +19,7 @@ from geomind.engine.hooks import (
 from geomind.engine.recovery import recover
 from geomind.types import Action, Allow, Deny, Request
 from tests.fixtures.calls import call as call_tool
-from tests.fixtures.hackathon import hackathon_spec
+from tests.fixtures.hackathon import base_spec, hackathon_spec
 from tests.fixtures.runs import (
     EXECUTED,
     Worker,
@@ -229,7 +229,7 @@ ANSWER = Action(text="Here is the design.")
 
 @pytest.fixture(scope="module")
 def stored():
-    """Return a session with the hackathon design, a run that fails and one that passes."""
+    """Return a session with the example run in spring (fails) and the base design in winter."""
     import gemini as gm
 
     session = StubSession()
@@ -237,14 +237,13 @@ def stored():
     async def store():
         spec = hackathon_spec(gm)
         await call_tool(TOOLS.build_plant, {"plant": spec, "name": "hackathon"}, session)
-        changed = {**spec, "name": "Other"}
-        await call_tool(TOOLS.build_plant, {"plant": changed, "name": "other"}, session)
+        await call_tool(TOOLS.build_plant, {"plant": base_spec(gm), "name": "base"}, session)
         runs = {}
-        for name, start, end in (
-            ("spring", "2027-03-20", "2027-03-31"),
-            ("winter", "2027-01-01", "2027-01-10"),
+        for name, design, start, end in (
+            ("spring", "design/hackathon", "2027-03-20", "2027-03-31"),
+            ("winter", "design/base", "2027-01-01", "2027-01-10"),
         ):
-            window = {"design": "design/hackathon", "start": start, "end": end}
+            window = {"design": design, "start": start, "end": end}
             runs[name] = (await call_tool(TOOLS.simulate, window, session)).output["reference"]
         return runs
 
@@ -262,7 +261,7 @@ def decide(session, design=None, verification=None):
 def test_a_design_that_passed_gemini_s_checks_reaches_the_user(stored):
     """The hook verifies the named result again, and it passes."""
     session, runs = stored
-    decision = decide(session, {"reference": "design/hackathon"}, {"result": runs["winter"]})
+    decision = decide(session, {"reference": "design/base"}, {"result": runs["winter"]})
     assert decision is None
 
 
@@ -293,7 +292,7 @@ def test_a_design_without_a_verified_result_is_refused(stored):
 def test_a_result_of_another_design_is_stale(stored):
     """After a change, earlier results of a design are stale and never reused."""
     session, runs = stored
-    decision = decide(session, {"reference": "design/other"}, {"result": runs["winter"]})
+    decision = decide(session, {"reference": "design/hackathon"}, {"result": runs["winter"]})
     assert isinstance(decision, Deny)
     assert "stale" in decision.reason
 

@@ -36,10 +36,9 @@ def assessed(spring):
 
 
 def test_a_design_that_meets_every_limit_passes(january):
-    """In January gemini's example meets the brief: nothing failed."""
+    """In January gemini's example meets every hard limit; only its gas use breaks the policy."""
     found = assess(*january)
-    assert found["passed"] is True
-    assert found["failures"] == []
+    assert found["failures"] == [{"name": "co_produced_gas_burned", "domain": "surface"}]
 
 
 def names(assessment):
@@ -158,3 +157,15 @@ def test_more_limits_add_to_the_brief_s(gm, spring):
     found = names(assess(plant, results, copy.deepcopy(extra)))
     assert found[False].count("d0.brine_cooling") == 1
     assert "heat_users.supply_in.temperature" in found[False]
+
+
+def test_burning_the_co_produced_gas_fails_the_base_design(gm, january):
+    """The brief's base design meets demand without the co-produced methane.
+
+    gemini's example feeds the degasser's gas to the boiler through ``GasMakeup``.
+    """
+    plant, results = january
+    found = {check["name"]: check for check in assess(plant, results)["checks"]}
+    assert found["co_produced_gas_burned"]["passed"] is False
+    assert found["co_produced_gas_burned"]["value"] == {"value": 1, "unit": "-"}
+    assert domain_of("co_produced_gas_burned", verification.module_types(plant)) == "surface"

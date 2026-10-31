@@ -1,9 +1,11 @@
 """Verification of a design against the brief, built only from gemini's checks.
 
 The checks are gemini's: ``gm.checks.run_all``, ``gm.checks.plant_balance`` and
-``gm.checks.limits`` over the brief's hard limits. Four more come from the plant's structure and the
+``gm.checks.limits`` over the brief's hard limits. Five more come from the plant's structure and the
 run's failed rows, in gemini's Check shape: the number of doublets, a heating and a cooling grid,
-and the failed days. What gemini cannot judge yet is listed under ``not_assessed``, never passed.
+the failed days, and whether the co-produced gas reaches a burner. NOTE: the base design must meet
+the demand without the co-produced methane; burning it is a separate scenario, never the base. What
+gemini cannot judge yet is listed under ``not_assessed``, never passed.
 """
 
 from geomind.tools.gemini import brief
@@ -14,6 +16,8 @@ COOLING_GRID = "CoolingGrid"
 DOUBLET = "Doublet"
 WHOLE_PLANT = {"energy_balance", "mass_balance", "bounds", "failed_days"}
 UNMET = ("unmet_demand", "unmet_sensible", "unmet_latent")
+DEGASSER = "Degasser"
+BURNERS = {"GasMakeup", "Boiler", "CHP"}
 
 
 def module_types(plant):
@@ -79,7 +83,18 @@ def check(name, passed, value, limit, unit="-"):
     }
 
 
-def structure_checks(types, results):
+def burned_gas(plant, types):
+    """Return how many burners the co-produced gas reaches: a degasser's ``gas_out`` feeding one."""
+    sources = {f"{path}.gas_out" for path in paths_of(types, DEGASSER)}
+    targets = [
+        item["target"].split(".")[0]
+        for item in plant.to_dict()["connections"]
+        if item["source"] in sources
+    ]
+    return sum(types.get(target) in BURNERS for target in targets)
+
+
+def structure_checks(plant, types, results):
     """Return the checks of the doublet count, the two grids and the failed days."""
     count = len(paths_of(types, DOUBLET))
     low, high = brief.DOUBLETS
@@ -99,6 +114,7 @@ def structure_checks(types, results):
             [1, None],
         ),
         check("failed_days", failed == 0, failed, 0),
+        check("co_produced_gas_burned", burned_gas(plant, types) == 0, burned_gas(plant, types), 0),
     ]
 
 
@@ -150,7 +166,7 @@ def domain_of(name, types):
     """
     if name == "doublets":
         return "subsurface"
-    if name in ("heating_grid", "cooling_grid"):
+    if name in ("heating_grid", "cooling_grid", "co_produced_gas_burned"):
         return "surface"
     if name in WHOLE_PLANT or name.startswith("plant "):
         return "coupled"
@@ -210,7 +226,7 @@ def assess(plant, results, limits=None):
         *gm.checks.run_all(plant, results)["checks"],
         *gm.checks.plant_balance(plant, results),
         *limit_checks(plant, results, merged),
-        *structure_checks(types, results),
+        *structure_checks(plant, types, results),
     ]
     failures = [
         {"name": item["name"], "domain": domain_of(item["name"], types)}

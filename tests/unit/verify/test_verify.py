@@ -6,7 +6,7 @@ import pytest
 
 import geomind as gd
 from geomind.context.state import Requirement
-from tests.fixtures.hackathon import hackathon_run
+from tests.fixtures.hackathon import base_run
 
 
 @pytest.fixture(scope="module")
@@ -19,8 +19,8 @@ def gm():
 
 @pytest.fixture(scope="module")
 def january(gm):
-    """Return gemini's hackathon plant and its January run, which meets every hard limit."""
-    return hackathon_run(gm)
+    """Return the base design and its January run, which meets every check."""
+    return base_run(gm)
 
 
 def test_requirements_and_limits_are_keywords():

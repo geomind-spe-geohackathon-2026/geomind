@@ -93,8 +93,11 @@ one call outside gemini's `api.md`; it stays until gemini reads these inputs its
   and `gm.checks.limits` over the brief's hard limits, built for the plant's own doublets and grids
   (each doublet's `flow` within 50 to 300 m3/h while it runs and `brine_cooling` at most 40 K; each
   heating grid's `supply_in.temperature` at 100 degC and `unmet_demand` at 0 on every day; each
-  cooling grid's supply at 20 degC and `unmet_sensible`, `unmet_latent` at 0). Four checks count
-  what gemini gives: `doublets` (1 to 3), `heating_grid`, `cooling_grid` and `failed_days` (0).
+  cooling grid's supply at 20 degC and `unmet_sensible`, `unmet_latent` at 0). Five checks count
+  what gemini gives: `doublets` (1 to 3), `heating_grid`, `cooling_grid`, `failed_days` (0) and
+  `co_produced_gas_burned` (0): the base design meets the demand without the co-produced methane, so
+  a degasser's `gas_out` may not feed a `GasMakeup`, `Boiler` or `CHP`; burning it is a separate
+  scenario.
   Extra `limits` and requirements are checked beside the brief's, never instead.
 - The numbers of the brief and the one numerical tolerance (`TOLERANCE`, by quantity, for
   floating-point noise only) are in `tools/gemini/brief.py`.
