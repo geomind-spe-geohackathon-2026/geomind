@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import math
 
 from geomind.agents import Agent, Model
 from geomind.engine import Context, Engine, Permissions
@@ -9,6 +10,7 @@ from geomind.prompts import Prompt
 from geomind.providers import FakeLLM
 from geomind.tools import Delegate, ask_user, finish, run_python, tool
 from geomind.types import Completion, Message, ToolCall, Usage
+from geomind.types.events import LLM_EVENTS
 
 USAGE = Usage(input_tokens=10, output_tokens=5, cost=0.01)
 EXECUTED = []
@@ -127,6 +129,24 @@ async def run(completions, agent=None, max_steps=None, **options):
 def types(events):
     """Return the types of events."""
     return [event.type for event in events]
+
+
+def logged(events):
+    """Return the usage of every completion in a log, nested runs included."""
+    usage = Usage()
+    for event in events:
+        if event.type in LLM_EVENTS:
+            usage += event.completion.usage
+    return usage
+
+
+def same_usage(first, second):
+    """Tell whether two usages have the same tokens and, up to rounding, the same cost."""
+    tokens = (first.input_tokens, first.output_tokens) == (
+        second.input_tokens,
+        second.output_tokens,
+    )
+    return tokens and math.isclose(first.cost, second.cost, rel_tol=1e-9)
 
 
 def of_type(events, kind):

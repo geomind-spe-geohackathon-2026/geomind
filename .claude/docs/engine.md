@@ -27,7 +27,10 @@ to `Permissions(mode="ask")`.
 
 - `await run(agent, context, *, max_steps=None, loop=None) -> RunResult`
 - `await run_first(agent, context, *, root) -> RunResult`: the routing call, a nested run of `root`
-  in its log before `root` starts; `run` of `root` then continues the numbering
+  in its log before `root` starts, with no `parent_step`; `run` of `root` (or `decline`) then
+  continues the numbering and starts from its usage, and `recover` adds the usage of such a run
+  from its completions, so `RunResult.usage` counts the routing call after a resume too. Delegates
+  add theirs with their `tool.result`, and a summary with its `compaction` event.
 - `await resume(run_id, request_id=None, answer=None, *, agent=None, loop=None) -> RunResult`
 - `await Engine.replay(store, run_id) -> RunResult`
 - `register_hook(hook)` returns a handle with `.remove()`; `hooks()` lists them.

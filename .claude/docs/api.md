@@ -37,7 +37,7 @@ Defaults: `chat=None`, `project=None`, `history=()`, `store=MemoryRunStore()`, `
 retry layer to any provider. `start` asks the `Coordinator` first: its `Route` picks the loop and the
 agent through the tables `LOOPS` and `AGENTS` of `geomind/run.py`, so the backend names neither. The
 routing call is a nested run of the run (`parent` and `root` are the run's id), logged before the run
-starts; its tokens are in the log, not in `RunResult.usage`. A routing run that fails keeps the
+starts; its tokens are in `RunResult.usage`, with every delegate, loop round and summary. A routing run that fails keeps the
 default: `ToolLoop` with `Analyst`, or `CodeAssistant` when a sandbox is configured. `agent` replaces
 the routing, for testing one agent by hand, and so does a `run.loop` set before `start`. `answer` is `{"approved": true}`, `{"approved": false, "reason": "..."}` or
 `{"text": "..."}`. `run.start()` inside an event loop raises `RunError`: use `astart`.

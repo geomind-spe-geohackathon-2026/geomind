@@ -14,7 +14,7 @@ from geomind.loops.design import DesignDriver, repeated, routed_brief
 from geomind.types import ToolCall
 from tests.fixtures.calls import call as call_tool
 from tests.fixtures.hackathon import base_spec, hackathon_spec
-from tests.fixtures.runs import call, context, engine_for, of_type, says, uses
+from tests.fixtures.runs import call, context, engine_for, logged, of_type, same_usage, says, uses
 from tests.fixtures.sessions import StubSession
 
 TOOLS = gd.tools.gemini
@@ -173,6 +173,7 @@ async def test_a_design_that_passes_is_costed_explained_and_answered(references)
     ]
     assert any(isinstance(hook, Verified) for hook in engine.hooks())
     assert "stop: verified" in of_type(events, "run.finished")[-1].answer
+    assert same_usage(result.usage, logged(events)) and result.usage.input_tokens > 0
 
 
 @pytest.mark.slow

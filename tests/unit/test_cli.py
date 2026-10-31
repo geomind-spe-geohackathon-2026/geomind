@@ -62,7 +62,7 @@ def test_run_prints_streamed_text_and_totals(service, capsys):
     service += [routed_answer(), answer("Hello")]
     assert cli.main(["run", "Say hello"]) == 0
     output = capsys.readouterr().out
-    assert "Hello" in output and "done (answer)" in output and "tokens 7 in" in output
+    assert "Hello" in output and "done (answer)" in output and "tokens 14 in" in output
 
 
 def test_run_asks_in_the_terminal(service, monkeypatch, capsys):

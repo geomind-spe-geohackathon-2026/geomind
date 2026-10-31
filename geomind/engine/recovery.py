@@ -9,6 +9,7 @@ from geomind.context.history import replace_older
 from geomind.engine.state import PendingAction, RunState
 from geomind.errors import RunError
 from geomind.types import Action, Message, Usage
+from geomind.types.events import LLM_EVENTS
 from geomind.utils.imports import import_class
 from geomind.utils.json import to_jsonable
 
@@ -193,7 +194,9 @@ def recover(events, run_id=None):
     """Return the state of a run from its events; by default, the root run.
 
     Nested runs share the log, so their events count for the sequence only, and for the problem
-    state, which the whole tree of runs shares from the moment this run began.
+    state, which the whole tree of runs shares from the moment this run began. A delegate's usage
+    comes with its result; the usage of a run that ran first for this one, without a step of it
+    (the routing call), is added from its completions.
     """
     events = list(events)
     started = [event for event in events if event.type == "run.started"]
@@ -201,12 +204,15 @@ def recover(events, run_id=None):
         run_id = next((event.run_id for event in started if event.parent is None), None)
     if not any(event.run_id == run_id for event in started):
         raise RunError(f"recover: run = {run_id!r}; expected a log with its run.started")
+    first = {e.run_id for e in started if e.parent == run_id and e.parent_step is None}
     state = RunState(run_id=run_id)
     for event in events:
         state.sequence = event.sequence
         is_shared = event.type == "state.changed" and state.root != ""
         if event.run_id == run_id or is_shared:
             apply(state, event)
+        if event.run_id in first and event.type in LLM_EVENTS:
+            state.usage += event.completion.usage
     return state
 
 

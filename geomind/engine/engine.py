@@ -17,7 +17,7 @@ from geomind.engine.step import record_result, run_step, settle_interrupted, tex
 from geomind.errors import NotImplementedYet, RequestError, RunError
 from geomind.providers import with_retries
 from geomind.stores.run import MemoryRunStore
-from geomind.types import RunResult, status_of, validate_answer
+from geomind.types import RunResult, Usage, status_of, validate_answer
 from geomind.types.events import PermissionDecided, RunFinished, ToolRecorded
 from geomind.utils.hooks import RemovableHandle
 
@@ -68,6 +68,7 @@ class Engine:
         self.recorded = {}
         self.recorded_changes = {}
         self._sequences = {}
+        self._usages = {}
 
     def register_hook(self, hook):
         """Add a hook; the returned handle has ``.remove()``."""
@@ -81,20 +82,27 @@ class Engine:
         """Run ``agent`` as a nested run of ``root`` before ``root`` starts, in its log.
 
         NOTE: this is the routing call: the coordinator decides which loop the root run is, so it
-        runs first, with ``parent`` and ``root`` set to the root run, and the root run continues the
-        numbering of the same log.
+        runs first, with ``parent`` and ``root`` set to the root run and no ``parent_step``. The
+        root run continues the numbering of the same log and starts with the routing call's usage,
+        as ``recover`` counts it.
         """
         log = RunLog(self, root)
         session = RunSession(self, log, RunState(root=root), agent)
         await session.start(context, max_steps=runtime.get("max_steps"), parent=root, root=root)
         result = await self.drive(session)
         self._sequences[root] = log.sequence
+        self._usages[root] = result.usage
         return result
+
+    def _root_session(self, context, agent, loop):
+        """Return the session of a new root run, after what ran first for it."""
+        log = RunLog(self, context.run_id, self._sequences.pop(context.run_id, 0))
+        state = RunState(root=context.run_id, usage=self._usages.pop(context.run_id, Usage()))
+        return RunSession(self, log, state, agent, loop)
 
     async def run(self, agent, context, *, max_steps=None, loop=None):
         """Run ``agent`` from ``context`` until it stops."""
-        log = RunLog(self, context.run_id, self._sequences.pop(context.run_id, 0))
-        session = RunSession(self, log, RunState(root=context.run_id), agent, loop)
+        session = self._root_session(context, agent, loop)
         await session.start(context, max_steps=max_steps or runtime.get("max_steps"))
         return await self.drive(session)
 
@@ -122,8 +130,7 @@ class Engine:
 
     async def decline(self, loop, context, error):
         """Log a run of a loop that is not built yet, so a client sees it start and end."""
-        log = RunLog(self, context.run_id)
-        session = RunSession(self, log, RunState(root=context.run_id), loop.agent, loop)
+        session = self._root_session(context, loop.agent, loop)
         await session.start(context, max_steps=runtime.get("max_steps"))
         await session.report_error(error, where=f"loop {loop.name}")
         return await self.end(session, Stop("not_implemented", str(error)))
