@@ -181,7 +181,8 @@ def _command_run(args):
         write_manifest(RUNS_FOLDER, result.run_id, args)
     print(f"\n\nrun {result.run_id}: {result.status} ({result.stop_reason})")
     usage = result.usage
-    print(f"tokens {usage.input_tokens} in, {usage.output_tokens} out; cost {usage.cost}")
+    cached = f" ({usage.cached_tokens} from the cache)" if usage.cached_tokens else ""
+    print(f"tokens {usage.input_tokens} in{cached}, {usage.output_tokens} out; cost {usage.cost}")
     return 0 if result.status == "done" else 1
 
 

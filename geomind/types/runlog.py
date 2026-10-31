@@ -3,7 +3,7 @@
 from typing import Any, Literal
 
 from geomind.errors import RunError
-from geomind.types.events import LLM_EVENTS
+from geomind.types.events import LLM_EVENTS, public_usage
 from geomind.types.messages import Message, Record, Usage
 
 
@@ -130,7 +130,7 @@ def _run(events, root):
         "loop": root.loop,
         "started": root.time,
         "ended": finished.time if finished else None,
-        "usage": usage.model_dump(mode="json"),
+        "usage": public_usage(usage.model_dump(mode="json")),
     }
 
 

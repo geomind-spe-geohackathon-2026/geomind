@@ -45,8 +45,13 @@
         },
         "Usage": {
           "additionalProperties": false,
-          "description": "Tokens and cost; ``a + b`` adds them up.",
+          "description": "Tokens and cost; ``a + b`` adds them up.\n\n``cached_tokens`` are the input tokens read from the provider's prompt cache, part of\n``input_tokens``.",
           "properties": {
+            "cached_tokens": {
+              "default": 0,
+              "title": "Cached Tokens",
+              "type": "integer"
+            },
             "cost": {
               "default": 0.0,
               "title": "Cost",
@@ -95,6 +100,7 @@
         "usage": {
           "$ref": "#/$defs/Usage",
           "default": {
+            "cached_tokens": 0,
             "cost": 0.0,
             "input_tokens": 0,
             "output_tokens": 0
@@ -268,8 +274,13 @@
         },
         "Usage": {
           "additionalProperties": false,
-          "description": "Tokens and cost; ``a + b`` adds them up.",
+          "description": "Tokens and cost; ``a + b`` adds them up.\n\n``cached_tokens`` are the input tokens read from the provider's prompt cache, part of\n``input_tokens``.",
           "properties": {
+            "cached_tokens": {
+              "default": 0,
+              "title": "Cached Tokens",
+              "type": "integer"
+            },
             "cost": {
               "default": 0.0,
               "title": "Cost",
@@ -336,6 +347,7 @@
         "usage": {
           "$ref": "#/$defs/Usage",
           "default": {
+            "cached_tokens": 0,
             "cost": 0.0,
             "input_tokens": 0,
             "output_tokens": 0
@@ -351,8 +363,13 @@
     },
     "Usage": {
       "additionalProperties": false,
-      "description": "Tokens and cost; ``a + b`` adds them up.",
+      "description": "Tokens and cost; ``a + b`` adds them up.\n\n``cached_tokens`` are the input tokens read from the provider's prompt cache, part of\n``input_tokens``.",
       "properties": {
+        "cached_tokens": {
+          "default": 0,
+          "title": "Cached Tokens",
+          "type": "integer"
+        },
         "cost": {
           "default": 0.0,
           "title": "Cost",
@@ -983,8 +1000,13 @@
         },
         "Usage": {
           "additionalProperties": false,
-          "description": "Tokens and cost; ``a + b`` adds them up.",
+          "description": "Tokens and cost; ``a + b`` adds them up.\n\n``cached_tokens`` are the input tokens read from the provider's prompt cache, part of\n``input_tokens``.",
           "properties": {
+            "cached_tokens": {
+              "default": 0,
+              "title": "Cached Tokens",
+              "type": "integer"
+            },
             "cost": {
               "default": 0.0,
               "title": "Cost",

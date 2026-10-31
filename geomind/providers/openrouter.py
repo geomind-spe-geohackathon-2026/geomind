@@ -11,6 +11,8 @@ from geomind.types import Completion, ToolCall, Usage
 
 BASE_URL = "https://openrouter.ai/api/v1"
 INVALID_ARGUMENTS = "invalid_json_arguments"
+CACHED_MODELS = ("anthropic/",)
+"""Model prefixes whose prompt is cached with a ``cache_control`` breakpoint."""
 
 
 def is_retryable_status(status):
@@ -33,6 +35,23 @@ def _message_json(message):
             for call in message.tool_calls
         ]
     return wire
+
+
+def _with_cache_breakpoint(messages, model):
+    """Return wire messages with the first system message cached, for a model that caches.
+
+    NOTE: the prompt is cached in the order tools, system, messages, so one breakpoint at the end
+    of the agent's system prompt caches the tool schemas too. The rendered problem state, a later
+    system message, changes with every call and is never cached.
+    """
+    if not runtime.get("prompt_caching") or not model.startswith(CACHED_MODELS):
+        return messages
+    position = next((i for i, item in enumerate(messages) if item["role"] == "system"), None)
+    if position is None or not messages[position]["content"]:
+        return messages
+    part = {"type": "text", "text": messages[position]["content"]}
+    cached = {**messages[position], "content": [{**part, "cache_control": {"type": "ephemeral"}}]}
+    return [*messages[:position], cached, *messages[position + 1 :]]
 
 
 def _tool_json(tool):
@@ -82,11 +101,12 @@ class _Stream:
                 self.raw["finish_reason"] = choice["finish_reason"]
 
     def _add_usage(self, usage):
-        """Keep the usage the service reports, with its cost."""
+        """Keep the usage the service reports, with its cost and the tokens read from the cache."""
         self.usage = Usage(
             input_tokens=usage.get("prompt_tokens", 0),
             output_tokens=usage.get("completion_tokens", 0),
             cost=usage.get("cost") or 0.0,
+            cached_tokens=(usage.get("prompt_tokens_details") or {}).get("cached_tokens") or 0,
         )
 
     def _add_delta(self, delta):
@@ -151,7 +171,7 @@ class OpenRouter:
         """Return the JSON of one request."""
         body = {
             "model": model,
-            "messages": [_message_json(message) for message in messages],
+            "messages": _with_cache_breakpoint([_message_json(item) for item in messages], model),
             "stream": True,
             "usage": {"include": True},
             "temperature": settings.get("temperature", 0),

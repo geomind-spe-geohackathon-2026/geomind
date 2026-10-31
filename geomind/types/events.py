@@ -19,6 +19,15 @@ BASE_FIELDS = ("run_id", "sequence", "time", "agent", "parent")
 LLM_EVENTS = ("llm.completed", "compaction")
 
 
+PUBLIC_USAGE = ("input_tokens", "output_tokens", "cost")
+"""The usage fields of the contract's JSON; ``cached_tokens`` is kept in the log only."""
+
+
+def public_usage(usage):
+    """Return the usage JSON the contract fixes."""
+    return {name: usage[name] for name in PUBLIC_USAGE}
+
+
 class Event(Record):
     """One entry of a run's log; ``parent`` is the parent run id of a nested run."""
 
@@ -37,6 +46,8 @@ class Event(Record):
         dumped = self.model_dump(mode="json")
         names = self.public_fields if self.is_public else set(dumped) - set(BASE_FIELDS)
         values = {name: dumped[name] for name in names if dumped[name] is not None}
+        if isinstance(values.get("usage"), dict):
+            values["usage"] = public_usage(values["usage"])
         return {**values, "agent": self.agent, "parent": self.parent}
 
     def to_dict(self):

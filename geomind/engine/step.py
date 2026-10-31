@@ -246,7 +246,13 @@ async def close_step(session):
         text=state.action.text if state.action else "",
         loop_state=session.loop_state(),
     )
-    await session.emit(UsageUpdated, **state.usage.model_dump())
+    usage = state.usage
+    await session.emit(
+        UsageUpdated,
+        input_tokens=usage.input_tokens,
+        output_tokens=usage.output_tokens,
+        cost=usage.cost,
+    )
 
 
 async def run_step(session, agent):

@@ -30,6 +30,16 @@ raise `ProviderError` with `status` and the message; 429, 5xx, timeouts and conn
 retryable. Tool arguments that are not valid JSON stay visible as `{invalid_json_arguments: text}`,
 so validation sends them back to the model. `transport` replaces the network in tests.
 
+**Prompt caching.** With the setting `prompt_caching` (on by default), a request to a model of
+`CACHED_MODELS` (`anthropic/`) sends its first system message, the agent's prompt, as one text
+part with `cache_control: {"type": "ephemeral"}` (five minutes). The prompt is cached in the order
+tools, system, messages, so this one breakpoint caches the tool schemas too; OpenRouter documents
+breakpoints on content parts, not on tools, so none is set on a tool. The rendered problem state,
+a later system message, changes with every call and is not cached, and no top-level automatic
+breakpoint is sent, since it would write the cache again on every call. The tokens read from the
+cache (`usage.prompt_tokens_details.cached_tokens`) fill `Usage.cached_tokens`, part of
+`input_tokens`; they stay out of the contract's usage JSON (`step.finished`, the run log).
+
 ## FakeLLM
 
 `FakeLLM(completions)` returns scripted completions in order and streams their text; an exception

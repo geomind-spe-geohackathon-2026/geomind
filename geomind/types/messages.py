@@ -23,11 +23,16 @@ class ToolCall(Record):
 
 
 class Usage(Record):
-    """Tokens and cost; ``a + b`` adds them up."""
+    """Tokens and cost; ``a + b`` adds them up.
+
+    ``cached_tokens`` are the input tokens read from the provider's prompt cache, part of
+    ``input_tokens``.
+    """
 
     input_tokens: int = 0
     output_tokens: int = 0
     cost: float = 0.0
+    cached_tokens: int = 0
 
     def __add__(self, other):
         """Return the sum of two usages."""
@@ -35,6 +40,7 @@ class Usage(Record):
             input_tokens=self.input_tokens + other.input_tokens,
             output_tokens=self.output_tokens + other.output_tokens,
             cost=self.cost + other.cost,
+            cached_tokens=self.cached_tokens + other.cached_tokens,
         )
 
 

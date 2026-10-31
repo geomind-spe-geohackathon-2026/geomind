@@ -152,7 +152,8 @@ check it before writing a tool, because gemini's names change.
 | Brief | the brief as data: `Brief` in the problem state, the `hackathon_2027` preset (`8970af0`); `set_brief`, and `simulate` and verification on the state's brief; the design loop asks the user for a missing demand | `7e74274` | done |
 | Profiles | `save_profile`: demand profiles the user gives, stored as `profile/<name>`, listed, read and simulated beside gemini's | `164eb62` | done |
 | Skill | `designing-a-plant` general for any brief, the hackathon's numbers in the `hackathon-2027` note; Designer and Explainer prompts without the hand-found answer | `fb93b32` | done |
-| Evals | `challenge2`: the hackathon brief and three variants through the design loop, offline; the `verified` criterion; reservoir and off-brief checks | this commit | done |
+| Evals | `challenge2`: the hackathon brief and three variants through the design loop, offline; the `verified` criterion; reservoir and off-brief checks | `6cf623c` | done |
+| Caching | OpenRouter prompt caching on the system prompt of Anthropic models; `Usage.cached_tokens` | this commit | done |
 | S2 gemini tools | the assessment tools of the catalogue | none | **stubs**: see section 7 |
 
 No live OpenRouter run has been made yet. It needs `OPENROUTER_API_KEY` in geomind's own

@@ -1,5 +1,6 @@
 """OpenRouter against a fake HTTP transport."""
 
+import asyncio
 import json
 
 import httpx
@@ -135,3 +136,61 @@ def test_missing_key_raises(monkeypatch):
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     with pytest.raises(ProviderError, match="OPENROUTER_API_KEY"):
         OpenRouter()
+
+
+def body_of(model, messages, **options):
+    """Return the request body a call to ``model`` sends."""
+    seen = {}
+
+    def handler(request):
+        seen.update(json.loads(request.content))
+        return httpx.Response(200, text=stream_of({"choices": []}))
+
+    async def run():
+        await provider(handler).complete(messages, [], model=model, settings=SETTINGS)
+
+    with runtime.settings(**options):
+        asyncio.run(run())
+    return seen
+
+
+PROMPT = [
+    Message(role="system", content="You are the designer."),
+    Message(role="user", content="Design it."),
+    Message(role="system", content="Problem state, version 3"),
+]
+
+
+def test_an_anthropic_model_caches_the_system_prompt():
+    """The first system message, after the tools, ends with a cache breakpoint; nothing else."""
+    body = body_of("anthropic/claude-sonnet-5.5", PROMPT)
+    first = body["messages"][0]
+    assert first["content"] == [
+        {"type": "text", "text": "You are the designer.", "cache_control": {"type": "ephemeral"}}
+    ]
+    assert body["messages"][1]["content"] == "Design it."
+    assert body["messages"][2]["content"] == "Problem state, version 3"
+    assert "cache_control" not in body
+
+
+def test_other_models_and_the_setting_turned_off_send_no_hint():
+    """Only Anthropic models get the hint, and ``prompt_caching=False`` removes it."""
+    for body in (
+        body_of("openai/gpt-5", PROMPT),
+        body_of("anthropic/claude-sonnet-5.5", PROMPT, prompt_caching=False),
+    ):
+        assert body["messages"][0]["content"] == "You are the designer."
+
+
+async def test_cached_tokens_are_reported_in_usage():
+    """The tokens read from the cache come from OpenRouter's ``prompt_tokens_details``."""
+    usage = {
+        "prompt_tokens": 10339,
+        "completion_tokens": 60,
+        "cost": 0.01,
+        "prompt_tokens_details": {"cached_tokens": 10318, "cache_write_tokens": 0},
+    }
+    body = stream_of({"choices": [], "usage": usage})
+    result = await complete(provider(lambda request: httpx.Response(200, text=body)))
+    assert (result.usage.input_tokens, result.usage.cached_tokens) == (10339, 10318)
+    assert (result.usage + result.usage).cached_tokens == 20636

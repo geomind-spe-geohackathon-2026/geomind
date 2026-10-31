@@ -27,6 +27,10 @@ changes shape, and an existing caller sees the same behaviour.
   (`result_off_brief`); `simulate` keeps `<id>.run`.
 - The eval format adds the `verified` criterion and `equals` on the `state` criterion; the suite
   `challenge2` runs through the design loop.
+- `Usage.cached_tokens`: input tokens read from OpenRouter's prompt cache, which an Anthropic
+  model now gets on the agent's system prompt (setting `prompt_caching`, on by default). The
+  public usage JSON of `step.finished` and the run log keeps its three fields; the schemas list
+  the new one as optional.
 - `RunResult.usage` includes the routing call's tokens, as the run's log always did.
 
 - `geomind run` takes `--loop`, `--project`, `--recording` and `--record`: `--loop` chooses the loop
