@@ -29,30 +29,30 @@ def list_plants():
     ]
 
 
-def project_plant(context):
+def project_plant(context, where):
     """Return the plant of the run's project, or raise a result the model can act on."""
     workspace = context.session.workspace
     if workspace is None or context.project is None:
         raise ToolError(
-            "read_plant: this run has no project; expected a workspace and one, or a design",
+            f"{where}: this run has no project; expected a workspace and one, or a design",
             code="not_allowed",
         )
     plant = workspace.plant(context.project)
     if plant is None:
         raise ToolError(
-            f"read_plant: project {context.project!r} has no plant; expected a design reference",
+            f"{where}: project {context.project!r} has no plant; expected a design reference",
             code="unknown_name",
             path="design",
         )
     return plant
 
 
-def stored_design(context, design):
+def stored_design(context, design, where):
     """Return the spec stored under a design reference, or raise ``unknown_name``."""
     spec = context.session.load_artifact(design) if design.startswith(DESIGN) else None
     if spec is None:
         raise ToolError(
-            f"read_plant: design = {design!r}; expected a reference that build_plant returned,"
+            f"{where}: design = {design!r}; expected a reference that build_plant returned,"
             " such as 'design/<name>'",
             code="unknown_name",
             path="design",
@@ -60,14 +60,43 @@ def stored_design(context, design):
     return spec
 
 
+def apply_inputs(plant, spec):
+    """Set the inputs a spec keeps in ``boundary[""]["inputs"]``, by module path and name.
+
+    NOTE: a bridge until gemini reads them itself. Setpoints such as a heat pump's
+    ``temperature_setpoint`` can be set only through ``plant.set_inputs``, which ``api.md`` does not
+    list and ``to_dict`` does not keep, while ``gm.schedule`` and ``gm.simulate`` need them. The
+    spec's ``boundary`` validates and round-trips them, so a design stores them there and this one
+    call applies them. It is item 13 of the gemini requests.
+    """
+    stored = (spec.get("boundary") or {}).get("", {}).get("inputs") or {}
+    inputs = {
+        f"{path}.{name}" if path else name: value
+        for path, values in stored.items()
+        for name, value in values.items()
+    }
+    if inputs:
+        plant.set_inputs(inputs)
+    return plant
+
+
+def load_plant(context, design, where):
+    """Return a new gemini plant: the project's plant without a design, else the stored one.
+
+    NOTE: the project's plant goes through its spec too, so a run never changes the workspace's
+    plant object.
+    """
+    import gemini as gm
+
+    spec = project_plant(context, where).to_dict() if design is None else None
+    spec = spec or stored_design(context, design, where)
+    return apply_inputs(gm.plants.from_dict(spec), spec)
+
+
 @tool(effect="read")
 def read_plant(context, design: str | None = None):
     """Describe a plant with its current values: the project's plant, or a stored design."""
-    import gemini as gm
-
-    if design is None:
-        return project_plant(context).describe()
-    return gm.plants.from_dict(stored_design(context, design)).describe()
+    return load_plant(context, design, "read_plant").describe()
 
 
 @tool(effect="write", late_schemas={"plant": plant_schema})

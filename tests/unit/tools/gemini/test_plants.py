@@ -6,6 +6,7 @@ import pytest
 
 import geomind as gd
 from geomind.stores import MemoryWorkspace
+from geomind.tools.gemini.plants import apply_inputs
 from tests.fixtures.calls import call
 from tests.fixtures.sessions import StubSession
 
@@ -59,7 +60,7 @@ async def test_read_plant_describes_the_project_plant_with_its_values(gm, spec):
     workspace = MemoryWorkspace(plants={"p1": gm.plants.from_dict(spec)})
     result = await call(TOOLS.read_plant, {}, StubSession(workspace=workspace), project="p1")
     assert not result.is_error
-    assert result.output == gm.plants.from_dict(spec).describe()
+    assert result.output == apply_inputs(gm.plants.from_dict(spec), spec).describe()
     assert result.output["values"]["parameters"]
 
 
@@ -83,7 +84,17 @@ async def test_a_valid_plant_is_stored_and_read_back_by_its_reference(gm, spec):
     assert built.output == {"design": "design/base-1", "problems": []}
     assert session.artifacts["design/base-1"] == spec
     read = await call(TOOLS.read_plant, {"design": "design/base-1"}, session)
-    assert read.output == gm.plants.from_dict(spec).describe()
+    assert read.output == apply_inputs(gm.plants.from_dict(spec), spec).describe()
+
+
+async def test_the_inputs_a_spec_keeps_are_applied(gm, spec):
+    """The bridge: ``boundary[""]["inputs"]`` reaches the plant, which ``from_dict`` alone skips."""
+    inputs = spec["boundary"][""]["inputs"]
+    session = StubSession()
+    await call(TOOLS.build_plant, {"plant": spec, "name": "base"}, session)
+    read = await call(TOOLS.read_plant, {"design": "design/base"}, session)
+    assert inputs == {"injection_pump": {"pressure_setpoint": 5150000.0}}
+    assert read.output["values"]["controls"]["injection_pump.pressure_setpoint"] == 5150000.0
 
 
 async def test_a_plant_with_problems_returns_them_and_stores_nothing(gm, broken):

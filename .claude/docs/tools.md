@@ -18,9 +18,9 @@ path; the package has one file per group. All are idempotent.
 | `list_plants` | `plants.py` | `read` | none | `[{name, summary}]` of the registered plants | built |
 | `read_plant` | `plants.py` | `read` | `design=None`: `None` is the project's plant from `Workspace.plant`, otherwise a design reference | the description with current values | built |
 | `build_plant` | `plants.py` | `write` | `plant` (input schema: gemini's plant schema), `name` | `{design, problems}`; a plant that fails validation returns the problems and stores nothing | built |
-| `list_profiles` | `runs.py` | `read` | none | `[{name, quantity, unit, start, end}]` | stub, S2b |
-| `read_profile` | `runs.py` | `read` | `name, start=None, end=None` (ISO 8601) | a Value series | stub, S2b |
-| `simulate` | `runs.py` | `compute` | `design=None, changes=None, profile=None, start=None, end=None` | `{reference, summary}`; full results stored | stub, S2b |
+| `list_profiles` | `runs.py` | `read` | none | `[{name, quantity, unit, start, end}]` | built |
+| `read_profile` | `runs.py` | `read` | `name, start=None, end=None` (ISO 8601) | a Value series | built |
+| `simulate` | `runs.py` | `compute` | `design=None, changes=None, profile=None, start=None, end=None` | `{reference, summary}`; full results stored | built |
 | `read_result` | `results.py` | `read` | `reference, path=None, field=None, start=None, end=None` (sample positions) | a Value series with `path` and `field`, otherwise `{path: {field: {min, max, mean}}}` | built |
 | `search_documents` | `results.py` | `read` | `query` | `[{id, title, text, score}]` | built |
 | `check_results` | `assessment.py` | `compute` | `reference, limits=None` | `{passed, checks: [Check]}` | stub, S3 |
@@ -64,7 +64,24 @@ accept the `/`; `check_run_store` tests it. An artifact belongs to its root run.
   returns that text. `<name>` is letters, digits, `.`, `_` or `-`.
 - **A result** is stored under `result/<id>` as JSON: `{path: {field: {unit, values, time?}}}`.
   `values` is the list of samples, `unit` their unit, and `time`, when there is one, the list of ISO
-  8601 times.
+  8601 times. `simulate` leaves `time` out: every series has the same times, which would triple the
+  size, and the summary gives `start`, `end` and `steps`. `<id>` is a hash of the plant that ran,
+  the profiles and the window, so a replay finds the same result. Beside it, `simulate` keeps
+  `<id>.results` (`Results.to_bytes()`) and `<id>.plant` (the spec that ran).
+
+### How `simulate` runs
+
+`gm.schedule(plant, demand, SCHEDULE_RULES)`, then `gm.simulate(plant, plan, on_error="record")`:
+a day that fails is one of gemini's problems in the summary (`failed_steps`, the first five
+`errors`) and the year still runs. `SCHEDULE_RULES` in `tools/gemini/brief.py` holds the brief's
+numbers in one place. Without `profile` the run takes every gemini demand profile. The summary
+adds `gm.kpi.totals`.
+
+**The input bridge.** A design keeps its setpoints and other inputs (a heat pump's
+`temperature_setpoint`, the air temperature) in its spec under `boundary[""]["inputs"]`,
+`{module path: {name: value}}`, which gemini validates and round-trips. `apply_inputs` in
+`tools/gemini/plants.py` sets them with `plant.set_inputs` whenever a plant is loaded. This is the
+one call outside gemini's `api.md`; it stays until gemini reads these inputs itself.
 
 ## Tool
 

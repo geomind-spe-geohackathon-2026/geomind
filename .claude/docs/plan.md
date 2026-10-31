@@ -133,8 +133,9 @@ check it before writing a tool, because gemini's names change.
 | S2b | `FileWorkspace.plant` through `gm.plants.from_dict` | `957c119` | done |
 | Freeze | Every interface below, pinned by snapshots; the tool catalogue and the loops as stubs; see [CHANGELOG.md](../../CHANGELOG.md) | `fab5524`, `09096d8` | done |
 | S2b.1 | `list_modules`, `describe_module`, `evaluate_module` over `gm.modules` and `gm.evaluate` | `599a660` | done |
-| S2b.2 | `list_plants`, `read_plant`, `build_plant` over `gm.plants`; a design is stored only when `gm.plants.validate` finds no problem | this commit | done |
-| S2 gemini tools | `simulate` and the rest of the catalogue | none | **stubs**: see section 7 |
+| S2b.2 | `list_plants`, `read_plant`, `build_plant` over `gm.plants`; a design is stored only when `gm.plants.validate` finds no problem | `2d3efa1` | done |
+| S2b.3 | `list_profiles`, `read_profile`, `simulate` (schedule with the brief's rules, record failed days); the input bridge for setpoints | this commit | done |
+| S2 gemini tools | the assessment tools of the catalogue | none | **stubs**: see section 7 |
 
 No live OpenRouter run has been made yet. It needs `OPENROUTER_API_KEY` in geomind's own
 environment, never the backend's key.
@@ -170,7 +171,9 @@ gemini.
    - Done when: `read_plant()` describes `Workspace.plant`, a plant that fails
      `gm.plants.validate(plant, on_error="record")` returns its problems and stores nothing, and a
      valid one is read back through its `design/<name>` reference.
-3. **Profiles and simulation.** Replaces the stubs `list_profiles`, `read_profile` and `simulate` in
+3. **Profiles and simulation.** Done. The numbers are checked on `HackathonPlant`, because
+   gemini's example doublet fails every day of the demand year (`out_of_range`); its failures are
+   checked instead. Replaced the stubs `list_profiles`, `read_profile` and `simulate` in
    `geomind/tools/gemini/runs.py`.
    - `simulate` stores the [result format](tools.md#references) under `result/<id>`, and beside it
      what the S3 tools need: `Results.to_bytes()` and the plant. The keys of those two are free.
