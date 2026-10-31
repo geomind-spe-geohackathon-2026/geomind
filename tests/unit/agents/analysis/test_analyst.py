@@ -2,6 +2,8 @@
 
 import re
 
+import pytest
+
 from geomind import runtime
 from geomind.agents import Analyst
 from geomind.engine import Context
@@ -10,8 +12,16 @@ from tests.unit.agents.structure import HEADINGS, headings
 
 
 def test_it_declares_the_tools_it_needs():
-    """Results and documents, the problem state, skills, questions and the answer."""
+    """The gemini catalogue, plants, profiles and runs, then results, documents, state, answer."""
     assert list(Analyst().tools()) == [
+        "list_modules",
+        "describe_module",
+        "evaluate_module",
+        "list_plants",
+        "read_plant",
+        "list_profiles",
+        "read_profile",
+        "simulate",
         "read_result",
         "search_documents",
         "update_state",
@@ -50,3 +60,20 @@ def test_the_system_prompt_lists_the_skills_by_name():
     system = Context().messages_for(Analyst())[0].content
     assert "- gemini-units: Units gemini accepts" in system
     assert "metres, kilograms" not in system
+
+
+@pytest.fixture(scope="module")
+def gm():
+    """Return gemini; importing it takes more than one test call's budget."""
+    import gemini
+
+    return gemini
+
+
+def test_the_units_skill_names_only_units_gemini_knows(gm):
+    """Every unit the skill says works is one ``gm.units`` knows, and each it rules out is not."""
+    text = (role_files()["analyst"].parents[1] / "skills" / "gemini-units.md").read_text()
+    works, fails = re.search(r"These work: (.*?)\. These do not: (.*?)\.", text, re.S).groups()
+    known = set(gm.units.names())
+    assert all(unit in known for unit in re.findall(r"`([^`]+)`", works))
+    assert not any(unit in known for unit in re.findall(r"`([^`]+)`", fails))

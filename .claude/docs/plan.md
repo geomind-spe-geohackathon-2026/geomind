@@ -134,7 +134,8 @@ check it before writing a tool, because gemini's names change.
 | Freeze | Every interface below, pinned by snapshots; the tool catalogue and the loops as stubs; see [CHANGELOG.md](../../CHANGELOG.md) | `fab5524`, `09096d8` | done |
 | S2b.1 | `list_modules`, `describe_module`, `evaluate_module` over `gm.modules` and `gm.evaluate` | `599a660` | done |
 | S2b.2 | `list_plants`, `read_plant`, `build_plant` over `gm.plants`; a design is stored only when `gm.plants.validate` finds no problem | `2d3efa1` | done |
-| S2b.3 | `list_profiles`, `read_profile`, `simulate` (schedule with the brief's rules, record failed days); the input bridge for setpoints | this commit | done |
+| S2b.3 | `list_profiles`, `read_profile`, `simulate` (schedule with the brief's rules, record failed days); the input bridge for setpoints | `f4732aa` | done |
+| S2b.4 | the `Analyst` with the gemini tools, its prompt, and the `gemini-units` skill checked against `gm.units.names()` | this commit | done |
 | S2 gemini tools | the assessment tools of the catalogue | none | **stubs**: see section 7 |
 
 No live OpenRouter run has been made yet. It needs `OPENROUTER_API_KEY` in geomind's own
@@ -181,7 +182,7 @@ gemini.
    - Tests: `tests/unit/tools/gemini/test_runs.py`, on the example doublet.
    - Done when: a `simulate` of `gm.plants.example("DoubletHeatPlant")` stores a result that
      `read_result` reads, with the numbers equal to gemini's own run.
-4. **The Analyst.** Add the tools to `geomind/agents/analysis/analyst.py` and its prompt, and update
+4. **The Analyst.** Done. Added the tools to `geomind/agents/analysis/analyst.py` and its prompt, and update
    the `gemini-units` skill to the units gemini accepts.
    - Tests: `tests/unit/agents/analysis/test_analyst.py`.
    - Done when: `test_its_prompt_names_only_tools_it_has` passes with the new tools.

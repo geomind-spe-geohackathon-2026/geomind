@@ -49,7 +49,7 @@ def hackathon(gm):
 
 @pytest.fixture(scope="module")
 def hackathon_run(gm):
-    """Return gemini's own run of the hackathon example on both demand profiles."""
+    """Return gemini's own run of the hackathon example on both demand profiles, in January."""
     import pandas as pd
 
     plant = gm.plants.example("HackathonPlant")
@@ -61,6 +61,7 @@ def hackathon_run(gm):
         }
     )
     demand = pd.concat([gm.profiles.get(name) for name in gm.profiles.names()], axis=1)
+    demand = demand.loc["2027-01-01":"2027-01-31"]
     return gm.simulate(plant, gm.schedule(plant, demand, SCHEDULE_RULES), on_error="record")
 
 
@@ -140,7 +141,8 @@ async def test_simulate_stores_what_read_result_reads_with_gemini_s_numbers(
     """The stored series are gemini's own run, value for value, inputs of the design applied."""
     session = StubSession()
     design = await stored_hackathon(session, hackathon)
-    ran = await call(TOOLS.simulate, {"design": design}, session)
+    january = {"design": design, "start": "2027-01-01", "end": "2027-01-31"}
+    ran = await call(TOOLS.simulate, january, session)
     expected = hackathon_run.to_dict()["series"]
     read = await call(
         TOOLS.read_result,

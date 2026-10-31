@@ -6,21 +6,24 @@ from geomind.prompts import Prompt
 
 
 class Analyst(Agent):
-    """Answer questions about a plant with numbers that come from tools.
-
-    NOTE: the gemini tools (``list_modules``, ``describe_module``, ``evaluate_module``,
-    ``read_plant``, ``simulate``) are declared here, and named in its prompt, once gemini provides
-    what they need; until then it reads results and documents and keeps the problem state.
-    """
+    """Answer questions about a plant with numbers that come from gemini through tools."""
 
     def __init__(self):
-        """Declare the prompt, the tools that exist, a text answer and the role's model."""
+        """Declare the prompt, the gemini tools and the rest, a text answer and the model."""
         super().__init__()
 
         # Prompt
         self.prompt = Prompt("analyst")
 
         # Tools
+        self.list_modules = tools.gemini.list_modules
+        self.describe_module = tools.gemini.describe_module
+        self.evaluate_module = tools.gemini.evaluate_module
+        self.list_plants = tools.gemini.list_plants
+        self.read_plant = tools.gemini.read_plant
+        self.list_profiles = tools.gemini.list_profiles
+        self.read_profile = tools.gemini.read_profile
+        self.simulate = tools.gemini.simulate
         self.read_result = tools.read_result
         self.search_documents = tools.search_documents
         self.update_state = tools.update_state

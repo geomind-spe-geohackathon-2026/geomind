@@ -73,7 +73,7 @@ its JSON schema to the system prompt.
 
 | Agent | Folder | Status | In `AGENTS` of `run.py` |
 |---|---|---|---|
-| `Analyst` | `analysis/` | complete, the sample; its gemini tools are not built yet, see [plan.md](plan.md) | yes, the default |
+| `Analyst` | `analysis/` | complete, the sample, with the gemini tools of S2b | yes, the default |
 | `Assistant`, `CodeAssistant` | `general/` | complete; `Run` uses `CodeAssistant` with a sandbox | `code_assistant` |
 | `Summarizer` | `general/` | complete; only compaction calls it | no |
 | `Coordinator` | `coordination/` | skeleton; declares `Output(Route)`, `Run` does not call it yet | no |
@@ -94,7 +94,7 @@ frozen; the tools themselves are in [tools.md](tools.md#catalogue). Every agent 
 
 | Agent | Tools now | Tools when filled | Phase |
 |---|---|---|---|
-| `Analyst` | `read_result`, `search_documents`, `update_state`, `read_skill`, `ask_user`, `finish` | adds `list_modules`, `describe_module`, `evaluate_module`, `list_plants`, `read_plant`, `list_profiles`, `read_profile`, `simulate` | S2b |
+| `Analyst` | `list_modules`, `describe_module`, `evaluate_module`, `list_plants`, `read_plant`, `list_profiles`, `read_profile`, `simulate`, `read_result`, `search_documents`, `update_state`, `read_skill`, `ask_user`, `finish` | no change | S2b, done |
 | `Coordinator` | none | none: it answers with a `Route` | S3 |
 | `Designer` | `read_result`, `search_documents`, `update_state`, `read_skill`, `ask_user`, `finish` | adds `list_modules`, `describe_module`, `evaluate_module`, `list_plants`, `read_plant`, `build_plant`, `list_profiles`, `read_profile`, `simulate`; `optimize` in S4 | S3 |
 | `Verifier` | `read_result`, `update_state`, `read_skill`, `finish` | adds `read_plant`, `check_results`, `compute_kpis` | S3 |
