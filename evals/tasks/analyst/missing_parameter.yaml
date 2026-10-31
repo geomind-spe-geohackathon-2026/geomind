@@ -1,0 +1,15 @@
+message: What is the pressure drop of a 2000 m long, level surface pipe carrying 40 kg/s of water at 80
+  degC and 10 bar? Its heat transfer coefficient is 1 W/m2/K and the air is at 10 degC.
+answers:
+- 0.2 m
+criteria:
+- kind: question
+  contains: diameter
+- kind: number
+  value: 136235
+  tolerance: 100
+  unit: Pa
+- kind: tool
+  tool: describe_module
+- kind: state
+  path: /assumptions

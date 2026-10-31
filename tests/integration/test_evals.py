@@ -140,3 +140,18 @@ def test_a_task_file_is_checked_when_it_loads(tmp_path):
     path.write_text(yaml.safe_dump({"message": "x", "criteria": [{"kind": "feeling"}]}))
     with pytest.raises(ValueError):
         load_task(path)
+
+
+@pytest.fixture(scope="module")
+def gemini_loaded():
+    """Import gemini once; it takes more than one test call's budget."""
+    import gemini
+
+    return gemini
+
+
+def test_the_shipped_analyst_tasks_pass_offline(gemini_loaded):
+    """The tasks of ``evals/tasks/analyst`` pass from their recordings, with the real tools."""
+    outcomes = evals.run_agent("analyst")
+    assert len(outcomes) == 5
+    assert [outcome.problems for outcome in outcomes] == [[]] * 5

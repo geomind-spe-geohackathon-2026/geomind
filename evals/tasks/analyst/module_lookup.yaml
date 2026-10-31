@@ -1,0 +1,9 @@
+message: Which gemini modules can produce cooling?
+criteria:
+- kind: tool
+  tool: list_modules
+- kind: tool
+  tool: evaluate_module
+  called: false
+- kind: state
+  path: /goal

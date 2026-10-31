@@ -1,0 +1,2 @@
+{"text": "", "tool_calls": [{"id": "c1", "name": "update_state", "input": {"changes": [{"op": "replace", "path": "/goal", "value": "List the cooling modules"}]}}, {"id": "c2", "name": "list_modules", "input": {"category": "cooling"}}], "usage": {}, "model": "hand-written"}
+{"text": "", "tool_calls": [{"id": "c1", "name": "finish", "input": {"answer": "gemini's cooling modules are AbsorptionUnit, AdsorptionChiller, from list_modules."}}], "usage": {}, "model": "hand-written"}

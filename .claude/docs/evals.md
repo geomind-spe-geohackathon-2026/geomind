@@ -66,7 +66,13 @@ the task with `run: error`.
 
 ## Status
 
-There is no task yet: the sample task, the heat of the example doublet at 150 m3/h, needs the gemini
-tools, whose number will be checked against gemini's own result. `tasks/<agent>/` exists for the
-analyst and every skeleton. The runner and every kind of criterion are tested in
-`tests/integration/test_evals.py`, with the real `Analyst`.
+`tasks/analyst/` holds five tasks on gemini's example doublet (`evals/projects/doublet/plant.json`,
+`gm.plants.example("DoubletHeatPlant")`): the ESP operating point, the heat the exchanger delivers at
+150 m3/h, a missing pipe diameter that needs `ask_user`, a module lookup, and the ESP at 45 Hz. Each
+number in a criterion is gemini's, from the same inputs as the recorded tool call.
+`tests/integration/test_evals.py` runs them offline.
+
+Their recordings are written by hand (`model: hand-written`, no usage) until the first live run
+writes them anew; see [plan.md](plan.md) S2b.6. The tasks give mass flows in kg/s beside m3/h,
+because a module inlet takes a mass flow and the agent converts nothing itself. The runner and every
+kind of criterion are tested in `tests/integration/test_evals.py`, with the real `Analyst`.

@@ -1,0 +1,12 @@
+message: What head does the doublet's ESP give at 45 Hz instead of 60 Hz, with 42.92 kg/s of brine at
+  80 degC and 20 bar at the suction?
+plant: evals/projects/doublet
+criteria:
+- kind: number
+  value: 1988577
+  tolerance: 1000
+  unit: Pa
+- kind: tool
+  tool: evaluate_module
+- kind: state
+  path: /goal

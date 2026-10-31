@@ -1,0 +1,14 @@
+message: At its setting of 60 Hz, with 42.92 kg/s of brine at 80 degC and 20 bar at the suction, what
+  discharge pressure does the doublet's ESP give?
+plant: evals/projects/doublet
+criteria:
+- kind: number
+  value: 5535247
+  tolerance: 1000
+  unit: Pa
+- kind: tool
+  tool: read_plant
+- kind: tool
+  tool: evaluate_module
+- kind: state
+  path: /goal

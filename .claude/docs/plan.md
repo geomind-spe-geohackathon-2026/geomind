@@ -135,7 +135,8 @@ check it before writing a tool, because gemini's names change.
 | S2b.1 | `list_modules`, `describe_module`, `evaluate_module` over `gm.modules` and `gm.evaluate` | `599a660` | done |
 | S2b.2 | `list_plants`, `read_plant`, `build_plant` over `gm.plants`; a design is stored only when `gm.plants.validate` finds no problem | `2d3efa1` | done |
 | S2b.3 | `list_profiles`, `read_profile`, `simulate` (schedule with the brief's rules, record failed days); the input bridge for setpoints | `f4732aa` | done |
-| S2b.4 | the `Analyst` with the gemini tools, its prompt, and the `gemini-units` skill checked against `gm.units.names()` | this commit | done |
+| S2b.4 | the `Analyst` with the gemini tools, its prompt, and the `gemini-units` skill checked against `gm.units.names()` | `05dd940` | done |
+| S2b.5 | five analyst eval tasks on the example doublet, passing offline; recordings written by hand until S2b.6 | this commit | done |
 | S2 gemini tools | the assessment tools of the catalogue | none | **stubs**: see section 7 |
 
 No live OpenRouter run has been made yet. It needs `OPENROUTER_API_KEY` in geomind's own
@@ -186,7 +187,7 @@ gemini.
    the `gemini-units` skill to the units gemini accepts.
    - Tests: `tests/unit/agents/analysis/test_analyst.py`.
    - Done when: `test_its_prompt_names_only_tools_it_has` passes with the new tools.
-5. **First eval tasks** on the example doublet, in `evals/tasks/analyst/`: the operating point, heat
+5. **First eval tasks.** Done; the recordings are hand-written until S2b.6. On the example doublet, in `evals/tasks/analyst/`: the operating point, heat
    delivered at 150 m³/h, a missing parameter that needs `ask_user`, a module lookup, and the ESP at
    another frequency.
    - Done when: `python -m evals.run --agent analyst` passes offline from recordings.
