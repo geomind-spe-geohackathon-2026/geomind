@@ -150,7 +150,8 @@ check it before writing a tool, because gemini's names change.
 | Replay | parallel calls matched by their place in the step; nested state changes by the call that started them | `55632cc` | done |
 | Usage | `RunResult.usage` counts every nested run, the routing call included, after a resume too | `4971938` | done |
 | Brief | the brief as data: `Brief` in the problem state, the `hackathon_2027` preset (`8970af0`); `set_brief`, and `simulate` and verification on the state's brief; the design loop asks the user for a missing demand | `7e74274` | done |
-| Profiles | `save_profile`: demand profiles the user gives, stored as `profile/<name>`, listed, read and simulated beside gemini's | this commit | done |
+| Profiles | `save_profile`: demand profiles the user gives, stored as `profile/<name>`, listed, read and simulated beside gemini's | `164eb62` | done |
+| Skill | `designing-a-plant` general for any brief, the hackathon's numbers in the `hackathon-2027` note; Designer and Explainer prompts without the hand-found answer | this commit | done |
 | S2 gemini tools | the assessment tools of the catalogue | none | **stubs**: see section 7 |
 
 No live OpenRouter run has been made yet. It needs `OPENROUTER_API_KEY` in geomind's own

@@ -29,10 +29,11 @@ choice was made. Every number comes from the problem state or a tool.
   the demand of the brief, and the peaks (`peak_heat`, `peak_cold`). Where delivered heat exceeds
   the demand, say so plainly.
 - Give LCOH, LCOC, LCTS and CO2, and say which assumptions are not confirmed.
-- List what gemini could not assess (`not_assessed`), with the reason, as open points. Never call
-  the design compliant on those.
+- List what gemini could not assess (`not_assessed`), with the reason, as open points, and the
+  limits the brief does not give (`not_given`), which were not checked. Never call the design
+  compliant on those.
 - Explain each major decision: why this family over the others, the depth and number of doublets,
-  how the 100 degC supply is reached, how cooling is made, and what happens to the co-produced gas.
+  how the brief's supply temperature is reached, how cooling is made, and what happens to the co-produced gas.
 
 ## Output
 
@@ -41,5 +42,6 @@ Finish with `finish(answer)`: Markdown with the headings `Design`, `Schematic`, 
 
 ## Examples
 
-`## Design` then `design/base-series-1, family F1: two doublets at 2500 m ...`, `## Delivered` then
-`Heat 524.1e12 J (145.6 GWh) against a demand of 111.7 GWh ...`, and so on for each heading.
+`## Design` then `design/<name>, family F2: one doublet at 3000 m with a boiler ...`, `## Delivered`
+then `Heat 64.8e12 J (18.0 GWh) against a demand of 18.0 GWh ...`, and so on for each heading, every
+number from a tool.

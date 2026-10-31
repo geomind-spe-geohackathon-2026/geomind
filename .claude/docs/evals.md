@@ -88,3 +88,11 @@ official brief: hand-written completions in the order the loop asks its agents, 
 reference and number from the real tools on the base design over the year. `tests/e2e/
 test_official_brief.py` runs `geomind run --loop design --recording` on it and replays the run. It
 checks the path to a verified design, not a model; the live run replaces it.
+
+**The base design of this recording was found by hand**, in this repository's development, not by
+an agent: the absorption chiller's generator in series between the heat pump and the boiler, and
+the co-produced gas to the flare (`base_spec` in `tests/fixtures/hackathon.py`). Before 1 November
+2026 the `designing-a-plant` skill and the Designer's prompt described that topology; since then
+the skill is general and names no answer, and the hackathon's numbers are in the `hackathon-2027`
+note. A live run therefore shows what the agents find on their own; the scripted run shows only that
+the harness carries a verified design from the command line to the report.

@@ -1,16 +1,54 @@
-How to design the brief's plant in gemini: the numbers, the plant file and what gemini can run.
+How to design a geothermal heating and cooling plant in gemini for any brief: reading the brief, choosing families, sizing, and what gemini can run.
 
-The brief (GEMINI hackathon, 28 October 2026):
+Reading the brief:
 
-- Demand: `heating_demand` and `cooling_demand`, 365 daily values of 2027; heating peaks at 30 MW
-  (111.7 GWh a year), cooling at 10 MW (23.7 GWh a year).
-- Reservoir: mid depth 2500 m TVD, 100 m thick, 30 K/km from 12 degC at the surface, 250 barg,
-  200 mD; another depth may be chosen, with hydrostatic pressure and the same gradient.
-- Brine: 1030 kg/m3, 0.4 mPa*s, 0.8 Nm3 of gas per m3 of liquid, the gas 80 % methane and 20 % CO2.
-- Hard limits: 1 to 3 doublets; 50 to 300 m3/h per doublet while it runs; the brine cooled by at
-  most 40 K from producer to injector; pump efficiency 0.7; produced volume equal to injected volume;
-  heating supply fixed at 100 degC, cooling supply fixed at 20 degC; demand met on every day.
-- gemini cannot schedule the 330 operating days yet; every doublet runs every day.
+- Set the brief of the problem state first with `set_brief`: a preset when the request names one
+  (`hackathon_2027` for the GEMINI hackathon challenge; read the `hackathon-2027` skill then),
+  otherwise the values the request gives. Never take a preset's numbers for another brief.
+- A design needs a demand. When the request gives none, ask the user; a profile they give as daily
+  values goes in with `save_profile`, and its `profile/<name>` into the brief's demand.
+- A limit the brief does not give is not checked: `check_results` lists it under `not_given`. Do
+  not invent one. A value the design needs and the brief lacks (a return temperature, a price) is
+  an assumption: record it with its value, `source: "default"` and `confirmed: false`.
+- Read the demand with `read_profile` before you size: the peak day, the annual energy, and when
+  heating and cooling overlap.
+
+Choosing families:
+
+- Propose 4 to 6 materially different families, each `{id, summary, status}`: vary the number and
+  depth of the doublets, how the supply temperature is reached (direct geothermal heat, a heat
+  pump, a boiler, deeper wells), how cold is made (absorption chiller, compression chiller, heat
+  pump) and storage or backup. Mark a family gemini cannot run `blocked`, with the reason.
+- Start the one most likely to pass within gemini's limits below; keep the others for later rounds.
+
+Sizing:
+
+- A doublet's heat is its flow times its brine cooling times the brine's heat capacity, so the
+  brief's flow cap and brine-cooling cap bound what one doublet gives. Get the numbers from gemini
+  (`evaluate_module` on a doublet, or `simulate` on a short window around the peak day), never by
+  hand.
+- Size the doublets against the peak demand within those caps; when they cannot reach it, add
+  doublets (within the brief's count), deeper wells, or top-up heat from a heat pump or boiler.
+- The reservoir temperature follows the gradient and depth. When it is below the brief's heating
+  supply, a heat pump, a boiler or deeper wells must close the gap: `evaluate_module` on the
+  doublet gives the production temperature.
+- A chiller's cold depends on its drive heat or electricity: size it against the cooling peak, and
+  check where its drive water or reject heat goes.
+
+What gemini can run today (facts about gemini, not a design):
+
+- A run plans each day by rule: the doublets first, then at most one `HeatPump`, then at most one
+  `Boiler`. One `AbsorptionUnit` is the only chiller the plan dispatches; a compression chiller or
+  a second heat pump cannot be planned yet.
+- No water circuit may return to itself: a loop needs a `state` connection, which gemini cannot
+  run yet. Water that leaves a unit colder (a chiller's drive water, a user's return) cannot be
+  mixed back into a fixed-temperature supply without lowering it; plan where each stream goes.
+- The 330 operating days of a brief cannot be planned yet: every doublet runs every day, and
+  verification lists `operating_days` as blocked.
+- The base design meets the demand without co-produced methane: a degasser's gas goes to a flare,
+  never to a boiler, a CHP or a gas makeup. Burning it is a separate scenario only.
+- Templates (`template/<name>`) have no values; examples (`example/<Name>`) have values, but none is
+  a solution to any brief.
 
 The plant file (`spec`) is what `read_plant` returns under `spec` and what `build_plant` takes:
 `modules` (`{id: {type, params}}`), `connections` (`[{source, target}]`, ends `"module.port"`),
@@ -19,18 +57,3 @@ port. A `Doublet` is designed from its `depth`, `gradient`, `surface_temperature
 `thickness`, `nominal_flow` and `pump_efficiency`. Setpoints and other inputs (a heat pump's,
 boiler's or chiller's `temperature_setpoint`, the air temperature, indoor conditions) go in
 `boundary[""]["inputs"]` as `{module: {name: value}}`.
-
-What gemini runs:
-
-- A run plans each day with the brief's rules: the doublets first, then at most one `HeatPump`, then
-  at most one `Boiler`; one `AbsorptionUnit` is the only chiller the plan dispatches. A compression
-  chiller or a second heat pump cannot be planned yet.
-- A water circuit that returns to itself needs a `state` connection, which gemini cannot run yet.
-  So an absorption chiller's drive water cannot flow back into the heating supply without lowering
-  it; placing the chiller's generator between the heat pump and the boiler, which reheats to
-  100 degC, keeps the supply at 100 degC.
-- At 2500 m the reservoir is about 87 degC, below the 100 degC supply: a heat pump, a boiler or
-  deeper wells (about 3000 m for 102 degC) close the gap. One doublet gives at most about 14 MW at
-  40 K, so the 30 MW peak needs two or three doublets or top-up heat.
-- Templates have no values; `example/HackathonPlant` has the brief's reservoir and brine, but it
-  mixes the chiller's return into the heating supply and burns the co-produced gas.

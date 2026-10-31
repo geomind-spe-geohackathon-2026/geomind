@@ -82,8 +82,10 @@ its JSON schema to the system prompt.
 | `Economist` | `economics/` | complete; gemini's economics and LCTS | no |
 | `Explainer` | `reporting/` | complete; the explanation, from the state and the tools | no |
 
-All are exported from `gd.agents`. The skill `designing-a-plant` gives the designer the brief's
-numbers, the plant file and what gemini can run. A skeleton is a real `Agent` with a docstring stating its job, its
+All are exported from `gd.agents`. The skill `designing-a-plant` is general: how to read any brief,
+choose families and size doublets, the plant file, and what gemini can and cannot run today, as facts
+about gemini. It names no topology for any brief. The skill `hackathon-2027` holds the hackathon's
+numbers only, the same as the `hackathon_2027` preset, and the Designer reads it for that brief. A skeleton is a real `Agent` with a docstring stating its job, its
 prompt file and its model setting, the tools that already exist, and no `forward`. It constructs and
 runs, but it knows nothing until someone fills its prompt.
 
