@@ -28,8 +28,13 @@ so they are passed again when a run resumes in another process.
 - `Cancellation(is_cancelled)` calls the function the caller gives before every LLM and tool call
   and before the answer, and ends the run with `cancelled`. The function may read anything, so this
   works across processes.
-- `Verified()` refuses to finish while the last verification failed. It is a stub until S3: a run
-  that uses it now ends with `stop_reason="not_implemented"`.
+- `Verified()` refuses to finish while the design fails verification, so no design reaches the user
+  without passing every check. The problem state names the design (`design.reference`, a
+  `design/<name>`) and its result (`verification.result`, a `result/<id>` of `simulate`). Before
+  the answer the hook runs gemini's checks again on that stored run, with the state's requirements
+  (`gd.verify.verify`), and refuses with each failed check and its domain. A `passed` the model
+  wrote is never trusted; a result whose plant is not the design's is stale. A state with no
+  design and no verification has nothing to verify, so an answer to a question finishes.
 
 ## Pausing
 

@@ -14,9 +14,9 @@ frozen: a change is a new state.
 | `goal` | text |
 | `requirements` | `[{id, text, metric, target, tolerance, status}]`, testable; `status` starts `open` |
 | `assumptions` | `[{id, text, value, source, confirmed}]`; `source` is `user`, `agent` or `default` |
-| `design` | an object, free in shape |
+| `design` | an object, free in shape; `reference` names the current `design/<name>` |
 | `results` | `[{id, summary, reference}]`; `reference` names the stored data |
-| `verification` | an object, free in shape |
+| `verification` | an object, free in shape; `result` names the `result/<id>` that verifies the design, which `Verified` checks again |
 | `questions` | `[{id, text}]` |
 
 - **Writing.** The model writes through `update_state(changes)`. `apply_changes(state, changes)`

@@ -138,7 +138,8 @@ check it before writing a tool, because gemini's names change.
 | S2b.4 | the `Analyst` with the gemini tools, its prompt, and the `gemini-units` skill checked against `gm.units.names()` | `05dd940` | done |
 | S2b.5 | five analyst eval tasks on the example doublet, passing offline; recordings written by hand until S2b.6 | `40a8d72` | done |
 | S2b.6 | one live run, recorded, with its token cost | none | **blocked**: no `OPENROUTER_API_KEY` in geomind's environment |
-| S3.1 | `gd.verify.verify`, `check_results`, `compute_kpis`: gemini's checks with the brief's hard limits, failure domains, `NOT_ASSESSED`/`BLOCKED` items | this commit | done |
+| S3.1 | `gd.verify.verify`, `check_results`, `compute_kpis`: gemini's checks with the brief's hard limits, failure domains, `NOT_ASSESSED`/`BLOCKED` items | `7afb1d0` | done |
+| S3.2 | the `Verified` hook: gemini's checks run again on the design's stored run before any answer | this commit | done |
 | S2 gemini tools | the assessment tools of the catalogue | none | **stubs**: see section 7 |
 
 No live OpenRouter run has been made yet. It needs `OPENROUTER_API_KEY` in geomind's own
@@ -203,7 +204,7 @@ gemini.
      bounds and limits including the hard limits of section 1, and unit consistency.
    - Tests: `tests/unit/verify/test_verify.py`, `tests/unit/tools/gemini/test_assessment.py`.
    - Done when: a design that breaks a hard limit fails with a `Check` that names it.
-2. **The `Verified` hook.** Replaces the stub in `geomind/engine/hooks.py`.
+2. **The `Verified` hook.** Done. Replaced the stub in `geomind/engine/hooks.py`.
    - Tests: `tests/unit/engine/test_hooks.py`.
    - Done when: `before_finish` refuses to finish while the last verification failed, so **no design
      reaches the user without passing every verifier**.

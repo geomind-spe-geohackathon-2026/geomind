@@ -1,7 +1,12 @@
 """The decision table of the hooks and the shipped hooks."""
 
+import asyncio
+
 import pytest
 
+import geomind as gd
+from geomind.context.state import ProblemState
+from geomind.engine import Context
 from geomind.engine.hooks import (
     Cancellation,
     CostBudget,
@@ -12,7 +17,9 @@ from geomind.engine.hooks import (
     ask_hooks,
 )
 from geomind.engine.recovery import recover
-from geomind.types import Allow, Deny, Request
+from geomind.types import Action, Allow, Deny, Request
+from tests.fixtures.calls import call as call_tool
+from tests.fixtures.hackathon import hackathon_spec
 from tests.fixtures.runs import (
     EXECUTED,
     Worker,
@@ -25,6 +32,7 @@ from tests.fixtures.runs import (
     types,
     uses,
 )
+from tests.fixtures.sessions import StubSession
 
 
 class Fixed(Hook):
@@ -113,11 +121,10 @@ async def test_deny_of_the_finish_tool_is_its_result():
     assert of_type(events, "tool.result")[0].output == "verify first"
 
 
-async def test_the_verified_stub_ends_the_run_as_not_implemented():
-    """It comes in S3; a run that uses it now ends with the stop reason of a missing part."""
-    result, _, events = await run([says()], hooks=[Verified()])
-    assert (result.status, result.stop_reason) == ("failed", "not_implemented")
-    assert "Verified comes in S3" in of_type(events, "run.finished")[0].message
+async def test_verified_lets_a_run_without_a_design_finish():
+    """An answer that proposes no design has nothing to verify."""
+    result, _, _ = await run([says()], hooks=[Verified()])
+    assert (result.status, result.stop_reason) == ("done", "answer")
 
 
 @pytest.mark.parametrize("point", ["llm", "tool", "finish"])
@@ -214,3 +221,85 @@ async def test_cancellation_stops_before_the_answer():
     answers = iter([False, True])
     result, _, _ = await run([says()], hooks=[Cancellation(lambda: next(answers))])
     assert result.stop_reason == "cancelled"
+
+
+TOOLS = gd.tools.gemini
+ANSWER = Action(text="Here is the design.")
+
+
+@pytest.fixture(scope="module")
+def stored():
+    """Return a session with the hackathon design, a run that fails and one that passes."""
+    import gemini as gm
+
+    session = StubSession()
+
+    async def store():
+        spec = hackathon_spec(gm)
+        await call_tool(TOOLS.build_plant, {"plant": spec, "name": "hackathon"}, session)
+        changed = {**spec, "name": "Other"}
+        await call_tool(TOOLS.build_plant, {"plant": changed, "name": "other"}, session)
+        runs = {}
+        for name, start, end in (
+            ("spring", "2027-03-20", "2027-03-31"),
+            ("winter", "2027-01-01", "2027-01-10"),
+        ):
+            window = {"design": "design/hackathon", "start": start, "end": end}
+            runs[name] = (await call_tool(TOOLS.simulate, window, session)).output["reference"]
+        return runs
+
+    return session, asyncio.run(store())
+
+
+def decide(session, design=None, verification=None):
+    """Return the hook's decision on a final answer, for a problem state."""
+    problem = ProblemState(design=design or {}, verification=verification or {})
+    return asyncio.run(
+        Verified().before_finish(Context(problem=problem, session=session), None, ANSWER)
+    )
+
+
+def test_a_design_that_passed_gemini_s_checks_reaches_the_user(stored):
+    """The hook verifies the named result again, and it passes."""
+    session, runs = stored
+    decision = decide(session, {"reference": "design/hackathon"}, {"result": runs["winter"]})
+    assert decision is None
+
+
+def test_a_design_that_fails_a_check_is_refused_with_the_failures(stored):
+    """The reason names the failed check and its domain, so the model knows what to fix."""
+    session, runs = stored
+    decision = decide(session, {"reference": "design/hackathon"}, {"result": runs["spring"]})
+    assert isinstance(decision, Deny)
+    assert "heat_users.supply_in.temperature (surface)" in decision.reason
+
+
+def test_a_passed_flag_written_by_the_model_is_not_trusted(stored):
+    """Only gemini's checks on the stored run count."""
+    session, runs = stored
+    verification = {"result": runs["spring"], "passed": True}
+    decision = decide(session, {"reference": "design/hackathon"}, verification)
+    assert isinstance(decision, Deny)
+
+
+def test_a_design_without_a_verified_result_is_refused(stored):
+    """A design with no result to check never reaches the user."""
+    session, _ = stored
+    decision = decide(session, {"reference": "design/hackathon"})
+    assert isinstance(decision, Deny)
+    assert "check_results" in decision.reason
+
+
+def test_a_result_of_another_design_is_stale(stored):
+    """After a change, earlier results of a design are stale and never reused."""
+    session, runs = stored
+    decision = decide(session, {"reference": "design/other"}, {"result": runs["winter"]})
+    assert isinstance(decision, Deny)
+    assert "stale" in decision.reason
+
+
+def test_an_unknown_result_is_refused(stored):
+    """A reference simulate never returned cannot verify anything."""
+    session, _ = stored
+    decision = decide(session, {"reference": "design/hackathon"}, {"result": "result/missing"})
+    assert isinstance(decision, Deny)

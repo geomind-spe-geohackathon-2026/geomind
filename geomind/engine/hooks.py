@@ -1,8 +1,12 @@
 """Decision points that can deny or pause, and the shipped hooks."""
 
+import asyncio
+
 from geomind.engine.callbacks import call_maybe_async
-from geomind.errors import NotImplementedYet
+from geomind.errors import ToolError
+from geomind.tools.gemini.assessment import stored_run
 from geomind.types import Allow, Cancel, Deny, Request
+from geomind.verify import verify
 
 
 class Hook:
@@ -82,11 +86,47 @@ class RequireApproval(Hook):
 
 
 class Verified(Hook):
-    """Refuse to finish while the last verification failed, so no failed design reaches the user."""
+    """Refuse to finish while the last verification failed, so no failed design reaches the user.
 
-    def before_finish(self, context, agent, action):
-        """Deny the answer while the problem state records a failed verification."""
-        raise NotImplementedYet("Verified comes in S3")
+    The problem state names the design (``design.reference``, a ``design/<name>``) and the result
+    that verifies it (``verification.result``, a ``result/<id>`` of ``simulate``). Before the answer
+    the hook runs gemini's checks again on that stored run, with the requirements of the state.
+    NOTE: a ``passed`` the model wrote is never trusted, and a result whose plant is not the
+    design's is stale. A state with no design has nothing to verify.
+    """
+
+    async def before_finish(self, context, agent, action):
+        """Deny the answer unless the design's stored run passes every check now."""
+        problem = context.problem
+        design = (problem.design or {}).get("reference")
+        result = (problem.verification or {}).get("result")
+        if design is None and result is None:
+            return None
+        return await asyncio.to_thread(verdict, context, design, result)
+
+
+def verdict(context, design, result):
+    """Return ``None`` when the design's stored run passes every check, else the ``Deny``."""
+    if design is None or result is None:
+        return Deny(
+            reason="verification: the design and its result are not both in the problem state; "
+            "simulate the design, run check_results, and record design.reference and "
+            "verification.result"
+        )
+    try:
+        plant, results = stored_run(context, result, "Verified")
+    except ToolError as error:
+        return Deny(reason=f"verification: {error}")
+    if plant.to_dict() != context.session.load_artifact(design):
+        return Deny(
+            reason=f"verification: {result} is stale; it ran another plant than {design}. "
+            "Simulate the current design and check it again"
+        )
+    found = verify(plant, results, requirements=context.problem.requirements)
+    if found["passed"]:
+        return None
+    failed = ", ".join(f"{item['name']} ({item['domain']})" for item in found["failures"])
+    return Deny(reason=f"verification: {design} fails {failed}; change the design and verify again")
 
 
 class Cancellation(Hook):
