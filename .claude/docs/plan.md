@@ -136,7 +136,9 @@ check it before writing a tool, because gemini's names change.
 | S2b.2 | `list_plants`, `read_plant`, `build_plant` over `gm.plants`; a design is stored only when `gm.plants.validate` finds no problem | `2d3efa1` | done |
 | S2b.3 | `list_profiles`, `read_profile`, `simulate` (schedule with the brief's rules, record failed days); the input bridge for setpoints | `f4732aa` | done |
 | S2b.4 | the `Analyst` with the gemini tools, its prompt, and the `gemini-units` skill checked against `gm.units.names()` | `05dd940` | done |
-| S2b.5 | five analyst eval tasks on the example doublet, passing offline; recordings written by hand until S2b.6 | this commit | done |
+| S2b.5 | five analyst eval tasks on the example doublet, passing offline; recordings written by hand until S2b.6 | `40a8d72` | done |
+| S2b.6 | one live run, recorded, with its token cost | none | **blocked**: no `OPENROUTER_API_KEY` in geomind's environment |
+| S3.1 | `gd.verify.verify`, `check_results`, `compute_kpis`: gemini's checks with the brief's hard limits, failure domains, `NOT_ASSESSED`/`BLOCKED` items | this commit | done |
 | S2 gemini tools | the assessment tools of the catalogue | none | **stubs**: see section 7 |
 
 No live OpenRouter run has been made yet. It needs `OPENROUTER_API_KEY` in geomind's own
@@ -195,7 +197,7 @@ gemini.
 
 ### S3: design agents and verified loops (Challenge 2)
 
-1. **Verification.** Replaces the stub `gd.verify.verify` in `geomind/verify/verify.py` and the stubs
+1. **Verification.** Done; see [tools.md](tools.md#verification). Replaced the stub `gd.verify.verify` in `geomind/verify/verify.py` and the stubs
    `check_results`, `compute_kpis` in `geomind/tools/gemini/assessment.py`.
    - The checks are gemini's and never an LLM: energy and mass balances, demand coverage per day,
      bounds and limits including the hard limits of section 1, and unit consistency.

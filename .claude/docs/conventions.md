@@ -31,7 +31,7 @@ The folder `types` shares its name with the standard library module. This is saf
 import is absolute (`geomind.types`); never put the package folder itself on `sys.path`.
 
 `context/` holds what is deterministic about the problem state, compaction and skills; an LLM call
-or an event stays in the engine. `verify/` is a stub until S3.
+or an event stays in the engine. `verify/` verifies a design over `tools/gemini/verification.py`.
 
 The import alias is `gd` (`import geomind as gd`), not `gm`, which is gemini's.
 

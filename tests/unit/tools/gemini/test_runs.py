@@ -1,5 +1,7 @@
 """The tools that read profiles and run a plant, against real gemini profiles and plants."""
 
+import asyncio
+
 import pytest
 
 import geomind as gd
@@ -202,18 +204,29 @@ async def test_the_same_run_gets_the_same_reference(gm, spec):
     assert first.output["reference"] == second.output["reference"]
 
 
-async def test_changes_apply_for_this_run_only(gm, hackathon):
-    """``changes`` are ``set_params`` by module path; the stored design is not changed."""
+@pytest.fixture(scope="module")
+def changed_runs(gm, hackathon):
+    """Return a session with the hackathon design run for a week, as it is and with a change."""
     session = StubSession()
-    design = await stored_hackathon(session, hackathon)
     changes = {"hx": {"thermal_conductance": "500000 W/K"}}
-    week = {"design": design, "start": "2027-01-01", "end": "2027-01-07"}
-    base = await call(TOOLS.simulate, week, session)
-    changed = await call(TOOLS.simulate, {**week, "changes": changes}, session)
-    identifier = changed.output["reference"].removeprefix("result/")
+
+    async def both():
+        design = await stored_hackathon(session, hackathon)
+        week = {"design": design, "start": "2027-01-01", "end": "2027-01-07"}
+        base = await call(TOOLS.simulate, week, session)
+        changed = await call(TOOLS.simulate, {**week, "changes": changes}, session)
+        return design, base.output["reference"], changed.output["reference"]
+
+    return session, *asyncio.run(both())
+
+
+def test_changes_apply_for_this_run_only(gm, hackathon, changed_runs):
+    """``changes`` are ``set_params`` by module path; the stored design is not changed."""
+    session, design, base, changed = changed_runs
+    identifier = changed.removeprefix("result/")
     plant = gm.plants.from_dict(session.artifacts[f"{identifier}.plant"])
     assert plant.params_at("hx")["thermal_conductance"] == 500000
-    assert changed.output["reference"] != base.output["reference"]
+    assert changed != base
     assert session.artifacts[design] == hackathon
 
 

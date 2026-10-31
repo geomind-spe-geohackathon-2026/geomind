@@ -23,8 +23,8 @@ path; the package has one file per group. All are idempotent.
 | `simulate` | `runs.py` | `compute` | `design=None, changes=None, profile=None, start=None, end=None` | `{reference, summary}`; full results stored | built |
 | `read_result` | `results.py` | `read` | `reference, path=None, field=None, start=None, end=None` (sample positions) | a Value series with `path` and `field`, otherwise `{path: {field: {min, max, mean}}}` | built |
 | `search_documents` | `results.py` | `read` | `query` | `[{id, title, text, score}]` | built |
-| `check_results` | `assessment.py` | `compute` | `reference, limits=None` | `{passed, checks: [Check]}` | stub, S3 |
-| `compute_kpis` | `assessment.py` | `compute` | `reference, names=None` | `{name: Value}` | stub, S3 |
+| `check_results` | `assessment.py` | `compute` | `reference, limits=None` | `{passed, checks: [Check], failures: [{name, domain}], not_assessed}` | built |
+| `compute_kpis` | `assessment.py` | `compute` | `reference, names=None` | `{name: Value}`: `gm.kpi.compute` and `gm.kpi.totals` | built |
 | `estimate_costs` | `assessment.py` | `compute` | `reference, assumptions=None` | `{capex, opex, lcoh, lcoc, npv, co2}` as Values, plus the assumptions used | stub, S3 |
 | `test_module` | `assessment.py` | `execute` | `path` | gemini's `check_module` report, run in the sandbox | stub, S3 |
 | `optimize` | `assessment.py` | `compute` | `design, variables, objective, constraints=None, budget=None` | `{design, objective, history}` | stub, S4 (bonus) |
@@ -82,6 +82,31 @@ adds `gm.kpi.totals`.
 `{module path: {name: value}}`, which gemini validates and round-trips. `apply_inputs` in
 `tools/gemini/plants.py` sets them with `plant.set_inputs` whenever a plant is loaded. This is the
 one call outside gemini's `api.md`; it stays until gemini reads these inputs itself.
+
+## Verification
+
+`tools/gemini/verification.py` holds the one verification, used by `check_results` and by
+`gd.verify.verify` (`verify/` may import `tools`, not the other way). It returns
+`{passed, checks, failures, not_assessed}`:
+
+- `checks` are gemini Checks, unchanged in shape: `gm.checks.run_all`, `gm.checks.plant_balance`
+  and `gm.checks.limits` over the brief's hard limits, built for the plant's own doublets and grids
+  (each doublet's `flow` within 50 to 300 m3/h while it runs and `brine_cooling` at most 40 K; each
+  heating grid's `supply_in.temperature` at 100 degC and `unmet_demand` at 0 on every day; each
+  cooling grid's supply at 20 degC and `unmet_sensible`, `unmet_latent` at 0). Four checks count
+  what gemini gives: `doublets` (1 to 3), `heating_grid`, `cooling_grid` and `failed_days` (0).
+  Extra `limits` and requirements are checked beside the brief's, never instead.
+- The numbers of the brief and the one numerical tolerance (`TOLERANCE`, by quantity, for
+  floating-point noise only) are in `tools/gemini/brief.py`.
+- `failures` names the domain of each failed check: `subsurface` (a doublet, its wells, the doublet
+  count), `surface` (any other module, a supply temperature, a missing grid), `sizing` (unmet
+  demand: the topology works, the sizes do not) or `coupled` (the whole plant: its balance, the
+  ledger checks, failed days). The domain stays outside the Check.
+- `not_assessed` lists what gemini cannot judge yet, never as passed: `operating_days` (`BLOCKED`,
+  with gemini's `NotImplementedYet` message), `volume_balance` and `pump_efficiency`
+  (`NOT_ASSESSED`, with the design's value), and any requirement that names no `<path>.<output>`.
+- A limit the run cannot judge (no column) is a check with `passed: null` and its reason, as gemini
+  does; a run where every day failed is judged by `failed_days` only.
 
 ## Tool
 
