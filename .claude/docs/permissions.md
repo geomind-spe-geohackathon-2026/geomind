@@ -22,9 +22,9 @@ Every tool call is decided in this fixed order:
 Allow rules come before the mode because the mode decides every remaining call, so an allow rule
 after it could never apply.
 
-Steps 3 and 4 are swapped against the S1 prompt, where the mode came after ask rules. There, an
-approval through an ask rule would run a `write` tool in `readonly`, which the modes promise never
-to do. An ask rule on a `read` tool still asks in `readonly`.
+The limits of the mode come before ask rules on purpose. The other way round, an approval through an
+ask rule would run a `write` tool in `readonly`, which the modes promise never to do. An ask rule on
+a `read` tool still asks in `readonly`.
 
 ## Decisions
 

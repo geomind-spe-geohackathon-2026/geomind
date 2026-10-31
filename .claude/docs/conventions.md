@@ -37,14 +37,7 @@ The import alias is `gd` (`import geomind as gd`), not `gm`, which is gemini's.
 
 ## Agent rules
 
-1. Declare in `__init__`, after `super().__init__()`.
-2. Constructor sections are `# Agents`, `# Prompt`, `# Tools`, `# Output`, `# Model`, in that
-   order, with empty sections omitted.
-3. `forward` is exactly `async def forward(self, context)` and returns an `Action`. Override it
-   only for a rule-based step.
-4. Do not construct `AgentResult` in agent code; `Agent.__call__` creates it.
-5. There is no `Team` and no agent container: the order of agents is a policy, and policies are
-   loops.
+The rules of declaring and calling an agent are in [agents.md](agents.md#declarations).
 
 ## Naming
 
@@ -55,7 +48,7 @@ one word, lower case, without underscores.
 Never name the framework that gemini's module design resembles, nor any other agent framework, in
 code, docstrings, examples or documents; describe the concept itself.
 `test_no_framework_names_in_tracked_text_files` in `tests/unit/test_code_quality.py` fails on any
-occurrence in a tracked file. The shared `../docs/` research notes are outside this repository.
+occurrence in a tracked file. The shared `../docs/` research notes are outside this repository, so the test does not read them.
 
 ## Comments
 
@@ -121,8 +114,7 @@ Each one also has a `NOTE:` in the docstring that makes it.
 - Hooks can deny or pause. gemini's pre-hooks observe or adjust inputs.
 - `Agent` has no `__getattr__` and keeps no values: declarations are plain attributes, and values
   of one run live in the session.
-- `engine/session.py` is one file beyond the layout of the S1 prompt: the object behind
-  `context.session`.
+- `engine/session.py` has no counterpart in gemini: it is the object behind `context.session`.
 - Tool names follow the attribute of the agent that declares them, on a copy of the tool.
 
 ## Parallels with gemini

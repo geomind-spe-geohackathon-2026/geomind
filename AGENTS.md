@@ -11,6 +11,9 @@ The name `geomind` on PyPI belongs to an unrelated, abandoned package. Keep `nam
 
 ## Start here
 
+- [Plan](.claude/docs/plan.md): the goal, the decisions and their reasons, what is built, and the
+  numbered remaining work. Start with this file.
+
 Test with the development profile (`make test`); see
 [Testing: Test profiles](.claude/docs/testing.md#test-profiles).
 
@@ -35,10 +38,11 @@ Read every file in `.claude/docs/` before changing the repository:
 - [Testing](.claude/docs/testing.md): tiers, test profiles, budgets, fixtures and CI.
 - [Utilities](.claude/docs/utils.md): the `geomind.utils` helpers and how to add one.
 
-The shared documents of all repositories are outside this one: the
-[agreed design](../docs/geomind-design.md), the [contracts](../docs/contracts.md), the
-[engineering layers](../docs/agent-engineering-layers.md), the
-[harness review](../docs/open-source-harnesses.md) and the [phases](../docs/phases.md).
+Every rule a contributor needs is in `.claude/docs/`, so this repository works on its own. The
+shared documents of all repositories are optional background, in a sibling folder that a clone of
+this repository does not have: the [agreed design](../docs/geomind-design.md), the
+[contracts](../docs/contracts.md), the [engineering layers](../docs/agent-engineering-layers.md),
+the [harness review](../docs/open-source-harnesses.md) and the [phases](../docs/phases.md).
 
 When a commit changes behaviour, structure or conventions, update the relevant document in the
 same commit, so a new session can read the docs and know the current state.

@@ -6,9 +6,18 @@ LLM call or an event stays in the engine.
 ## Problem state
 
 `ProblemState` (`context/state.py`) holds the notes of one chat, outside the message window: `version`,
-`goal`, `requirements`, `assumptions`, `design`, `results`, `verification` and `questions`, with the
-item shapes of [design section 3](../../../docs/geomind-design.md). It is frozen: a change is a new
-state.
+`goal`, `requirements`, `assumptions`, `design`, `results`, `verification` and `questions`. It is
+frozen: a change is a new state.
+
+| Key | Shape |
+|---|---|
+| `goal` | text |
+| `requirements` | `[{id, text, metric, target, tolerance, status}]`, testable; `status` starts `open` |
+| `assumptions` | `[{id, text, value, source, confirmed}]`; `source` is `user`, `agent` or `default` |
+| `design` | an object, free in shape |
+| `results` | `[{id, summary, reference}]`; `reference` names the stored data |
+| `verification` | an object, free in shape |
+| `questions` | `[{id, text}]` |
 
 - **Writing.** The model writes through `update_state(changes)`. `apply_changes(state, changes)`
   takes the contract's JSON Patch operations, validates each one and returns a new state with

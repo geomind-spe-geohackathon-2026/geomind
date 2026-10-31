@@ -45,15 +45,15 @@ A run gets its agent from the routing tables in `geomind/run.py`; see
 ## Calling
 
 `async def forward(self, context) -> Action` renders the context and awaits `self.complete`.
-Override it only for a rule-based step; the engine logs its action as a completion of the model
-`rule`. `self.complete(context, messages)` calls the LLM of the run with this agent's model and
+Its signature is exactly that. Override it only for a rule-based step; the engine logs its action as
+a completion of the model `rule`. `self.complete(context, messages)` calls the LLM of the run with this agent's model and
 tools. The run is passed explicitly: `context.session` is the session of the run, and a context
 outside a run raises `RunError`. An agent declares *which model*; the run supplies *which
 provider*, so agents stay free of keys and HTTP.
 
 `await agent(context)` returns `AgentResult(action, messages, usage, duration, decision)`. The
 order is `before_llm_call` hooks → `forward` → `on_llm_call` callbacks. `decision` is set when a
-hook stopped the call, and then `action` is `None`.
+hook stopped the call, and then `action` is `None`. Agent code never constructs an `AgentResult`.
 
 ## Prompt, Model, Output
 
@@ -73,7 +73,7 @@ its JSON schema to the system prompt.
 
 | Agent | Folder | Status | In `AGENTS` of `run.py` |
 |---|---|---|---|
-| `Analyst` | `analysis/` | complete, the sample; its gemini tools wait for gemini | yes, the default |
+| `Analyst` | `analysis/` | complete, the sample; its gemini tools are not built yet, see [plan.md](plan.md) | yes, the default |
 | `Assistant`, `CodeAssistant` | `general/` | complete; `Run` uses `CodeAssistant` with a sandbox | `code_assistant` |
 | `Summarizer` | `general/` | complete; only compaction calls it | no |
 | `Coordinator` | `coordination/` | skeleton; declares `Output(Route)`, `Run` does not call it yet | no |

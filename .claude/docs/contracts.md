@@ -27,8 +27,7 @@ path below exists.
 | Every event but `text.delta` through `RunStore.save_event` | `geomind/engine/session.py` | `tests/unit/engine/test_log.py` |
 | Public events reach a publisher | `geomind/engine/callbacks.py` | `tests/integration/test_delegate.py` |
 
-Events that S1 stored
-have no `model` on `step.started`; that key is left out of their JSON. A backend publisher overrides
+Events that S1 stored have no `model` on `step.started`; that key is left out of their JSON. A backend publisher overrides
 `Callback.on_event` and forwards `event.type` and `event.data()` when `event.is_public`.
 `examples/backend/general/01_queue_and_resume.py` shows it. To store an event use `event.to_dict()`,
 and to read one back `event_from_dict`.

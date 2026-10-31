@@ -76,8 +76,8 @@ The suite must remain safe under `pytest -n auto`:
 
 ## Contract tests
 
-`tests/unit/types/test_events.py` pins `event.data()` to the table of
-`../docs/contracts.md` section 2. `gd.testing.check_run_store` and `gd.testing.check_workspace`
+`tests/unit/types/test_events.py` pins `event.data()` to the table in
+[events.md](events.md#public-events), which is section 2 of the shared contract. `gd.testing.check_run_store` and `gd.testing.check_workspace`
 run against the memory and file implementations in `tests/unit/testing/`; the backend runs the
 same functions against its own.
 
@@ -94,7 +94,7 @@ default.
 
 ## CI
 
-`.github/workflows/python_lint.yaml` runs Flake8, Black and isort. `python_test.yaml` runs the
-development profile on pull requests and the full suite on pushes to `main`, on Python 3.11 to
-3.14. It checks gemini out into `gemini-checkout/`, because geomind needs it as an
-editable path dependency.
+`.github/workflows/python_lint.yaml` runs Flake8, Black and isort. `python_test.yaml` runs the full
+suite on pushes to `main` and the development profile on everything else, on Python 3.11 to 3.14.
+It checks out the `refactor` branch of gemini into `gemini-checkout/`, because geomind needs it as
+an editable path dependency.
