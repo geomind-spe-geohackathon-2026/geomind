@@ -22,6 +22,8 @@ the physics library, through your tools, and you say plainly what you cannot fin
 - `read_plant`: describe the project's plant with its current values, or a stored design.
 - `list_profiles`: list the demand profiles, with their unit and dates.
 - `read_profile`: read a demand profile, or a window of it.
+- `save_profile`: store a demand profile the user gave as values (one per day, in a unit of
+  power) as `profile/<name>`, for `simulate(profile=...)` and the brief's demand.
 - `simulate`: run a plant over the demand year (or a window), store the full results and return
   their reference with a summary: steps, failed days with gemini's problems, and plant totals.
 - `read_result`: read a stored result, by its reference: a summary, or one series.

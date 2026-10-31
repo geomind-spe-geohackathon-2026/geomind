@@ -20,8 +20,9 @@ problem state as `update_state` does.
 | `read_plant` | `plants.py` | `read` | `design=None`: `None` is the project's plant from `Workspace.plant`, otherwise a design reference, `example/<Name>` (`gm.plants.example`) or `template/<name>` (`gm.plants.from_template`) | gemini's description with current values, and the plant file under `spec` | built |
 | `build_plant` | `plants.py` | `write` | `plant` (input schema: gemini's plant schema), `name` | `{design, problems}`; a plant that fails validation returns the problems and stores nothing | built |
 | `set_brief` | `brief.py` | `write` | `preset=None, changes=None`: a preset name (`hackathon_2027`), and the JSON of a partial `Brief` | `{brief, version}`; the state's `brief` replaced; an amount `gm.units` cannot read as its quantity is an `invalid_input` error | built |
-| `list_profiles` | `runs.py` | `read` | none | `[{name, quantity, unit, start, end}]` | built |
-| `read_profile` | `runs.py` | `read` | `name, start=None, end=None` (ISO 8601) | a Value series | built |
+| `list_profiles` | `runs.py` | `read` | none | `[{name, quantity, unit, start, end}]`: gemini's profiles, then those stored in the run as `profile/<name>` | built |
+| `read_profile` | `runs.py` | `read` | `name, start=None, end=None` (ISO 8601); `name` is gemini's or a stored `profile/<name>` | a Value series | built |
+| `save_profile` | `runs.py` | `write` | `name, values, unit, start, step="1D", quantity="heating_demand"` | `{profile, steps, start, unit}`; the values, converted to W by `gm.units`, stored as `profile/<name>`; negative or missing values, a unit not of power, an unknown quantity or step are `invalid_input` | built |
 | `simulate` | `runs.py` | `compute` | `design=None, changes=None, profile=None, start=None, end=None` | `{reference, summary}`; full results stored; the summary names the `brief`, `demand` and `rules` that ran | built |
 | `read_result` | `results.py` | `read` | `reference, path=None, field=None, start=None, end=None` (sample positions) | a Value series with `path` and `field`, otherwise `{path: {field: {min, max, mean}}}` | built |
 | `search_documents` | `results.py` | `read` | `query` | `[{id, title, text, score}]` | built |
@@ -48,6 +49,7 @@ filling a stub, because gemini's names change.
 | `set_brief` | `gm.units.parse`, `gm.units.fits` | real |
 | `list_profiles` | `gm.profiles.names`, `gm.profiles.get` | real; `quantity` needs `attrs["quantities"]`, which `api.md` does not list |
 | `read_profile` | `gm.profiles.get` | real |
+| `save_profile` | `gm.units.fits`, `gm.units.convert` | real |
 | `simulate` | `gm.schedule`, `gm.simulate`, `gm.plants.from_dict`, `plant.set_params`, `Results.summary`, `Results.get`, `Results.names`, `Results.to_bytes` | real |
 | `read_result` | none: it reads the stored JSON | built |
 | `search_documents` | none: it reads `Workspace.documents` | built |
@@ -72,6 +74,10 @@ accept the `/`; `check_run_store` tests it. An artifact belongs to its root run.
   the profiles, the window and the schedule rules, so a replay finds the same result and a run
   under another brief never overwrites it. Beside it, `simulate` keeps
   `<id>.results` (`Results.to_bytes()`) and `<id>.plant` (the spec that ran).
+- **A profile** the user gave is stored under `profile/<name>` as JSON `{quantity, unit, start,
+  step, values}`, in W; the artifact `profiles` lists the stored names for `list_profiles`. A
+  profile from a project file is not read yet: `Workspace.documents` only searches, and reading a
+  file by name would be a new Workspace method of the contract.
 
 ### How `simulate` runs
 
@@ -81,8 +87,9 @@ and the year still runs. The rules come from the problem state's [brief](context
 through `schedule_rules` in `tools/gemini/brief.py`: its `doublet_flow` and `max_brine_cooling`,
 the source order `geothermal, heat_pump, boiler`, and `operating_days` `None` (gemini raises
 `NotImplementedYet` for any other value). A brief without the flow range or the brine cooling is
-an `invalid_input` error on `brief`, since `gm.schedule` needs both. Without `profile` the run takes
-the brief's demand, and a brief without one is an error that says to ask the user. A state with no
+an `invalid_input` error on `brief`, since `gm.schedule` needs both. `profile` and the brief's demand name
+gemini's profiles or stored `profile/<name>` ones, which `gm.schedule` takes as any UTC frame in W.
+Without `profile` the run takes the brief's demand, and a brief without one is an error that says to ask the user. A state with no
 brief runs on the `hackathon_2027` preset, as before briefs were data; the summary always names
 the `brief`, the `demand` and the `rules` that ran, and adds `gm.kpi.totals`.
 

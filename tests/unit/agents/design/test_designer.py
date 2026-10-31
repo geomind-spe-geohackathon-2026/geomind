@@ -18,6 +18,7 @@ def test_it_is_complete():
             "build_plant",
             "list_profiles",
             "read_profile",
+            "save_profile",
             "simulate",
             "read_result",
             "check_results",

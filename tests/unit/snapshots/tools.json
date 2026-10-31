@@ -669,6 +669,55 @@
       "late_schemas": [],
       "name": "sample_uncertainty"
     },
+    "save_profile": {
+      "description": "Store a demand profile the user gave as values, one per step; return its reference.",
+      "effect": "write",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "quantity": {
+            "default": "heating_demand",
+            "title": "Quantity",
+            "type": "string"
+          },
+          "start": {
+            "title": "Start",
+            "type": "string"
+          },
+          "step": {
+            "default": "1D",
+            "title": "Step",
+            "type": "string"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          },
+          "values": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Values",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "values",
+          "unit",
+          "start"
+        ],
+        "title": "save_profile_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "save_profile"
+    },
     "search_documents": {
       "description": "Search the documents of the project; return the best matches with id, title and text.",
       "effect": "read",

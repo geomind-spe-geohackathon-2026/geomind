@@ -243,3 +243,69 @@ async def test_a_design_gemini_cannot_schedule_is_gemini_s_problem(gm):
     await call(TOOLS.build_plant, {"plant": plant, "name": "hackathon"}, session)
     ran = await call(TOOLS.simulate, {"design": "design/hackathon"}, session)
     assert ran.output["error"]["code"] == "invalid_design"
+
+
+def daily_megawatts(days):
+    """Return a user's daily heating demand in MW: a winter month between 18 and 26 MW."""
+    return [18 + 8 * (day % 7) / 6 for day in range(days)]
+
+
+async def test_save_profile_stores_a_user_profile_in_watts(gm):
+    """Values in MW are converted by ``gm.units`` and listed and read beside gemini's profiles."""
+    session = StubSession()
+    saved = await call(
+        TOOLS.save_profile,
+        {"name": "user-heat", "values": [1.0, 2.5], "unit": "MW", "start": "2027-01-01"},
+        session,
+    )
+    assert saved.output["profile"] == "profile/user-heat"
+    listed = await call(TOOLS.list_profiles, {}, session)
+    row = next(item for item in listed.output if item["name"] == "profile/user-heat")
+    assert (row["quantity"], row["unit"], row["end"][:10]) == ("heating_demand", "W", "2027-01-02")
+    read = await call(TOOLS.read_profile, {"name": "profile/user-heat"}, session)
+    assert read.output["value"] == [1.0e6, 2.5e6] and read.output["unit"] == "W"
+
+
+@pytest.mark.parametrize(
+    ("change", "message"),
+    [
+        ({"values": [1.0, -2.0]}, "non-negative"),
+        ({"values": []}, "at least one value"),
+        ({"unit": "m3/h"}, "a unit of power"),
+        ({"quantity": "steam_demand"}, "heating_demand"),
+        ({"step": "fortnight"}, "step"),
+        ({"name": "a/b"}, "name"),
+    ],
+)
+async def test_save_profile_refuses_a_profile_it_cannot_run(gm, change, message):
+    """Negative values, no values, a wrong unit, quantity, step or name are input errors."""
+    profile = {"name": "p", "values": [1.0], "unit": "MW", "start": "2027-01-01", **change}
+    result = await call(TOOLS.save_profile, profile)
+    assert result.is_error and message in result.output["error"]["message"]
+
+
+async def test_a_30_day_user_profile_simulates_and_its_result_reads_back(gm):
+    """The brief's demand mixes a user's heating profile with gemini's cooling profile."""
+    from geomind.context import ProblemState, preset, with_changes
+    from tests.fixtures.hackathon import base_spec
+
+    session = StubSession()
+    values = daily_megawatts(30)
+    profile = {"name": "jan", "values": values, "unit": "MW", "start": "2027-01-01"}
+    await call(TOOLS.save_profile, profile, session)
+    demand = {"demand": {"heating": "profile/jan", "cooling": "cooling_demand"}}
+    problem = ProblemState(brief=with_changes(preset("hackathon_2027"), demand))
+    await call(TOOLS.build_plant, {"plant": base_spec(gm), "name": "base"}, session)
+    window = {"design": "design/base", "start": "2027-01-01", "end": "2027-01-30"}
+    ran = await call(TOOLS.simulate, window, session, problem=problem)
+    summary = ran.output["summary"]
+    assert (summary["steps"], summary["failed_steps"]) == (30, 0)
+    assert summary["demand"] == ["profile/jan", "cooling_demand"]
+    read = await call(
+        TOOLS.read_result,
+        {"reference": ran.output["reference"], "path": "heat_users", "field": "unmet_demand"},
+        session,
+    )
+    assert len(read.output["value"]) == 30 and max(read.output["value"]) < 1e-3
+    demanded = sum(values) * 1e6 * 86400
+    assert summary["totals"]["heat_delivered"]["value"] >= demanded * (1 - 1e-9)

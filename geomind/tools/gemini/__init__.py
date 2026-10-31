@@ -16,7 +16,7 @@ from geomind.tools.gemini.brief import set_brief
 from geomind.tools.gemini.catalogue import describe_module, evaluate_module, list_modules
 from geomind.tools.gemini.plants import build_plant, list_plants, read_plant
 from geomind.tools.gemini.results import read_result, search_documents
-from geomind.tools.gemini.runs import list_profiles, read_profile, simulate
+from geomind.tools.gemini.runs import list_profiles, read_profile, save_profile, simulate
 
 __all__ = [
     "build_plant",
@@ -33,6 +33,7 @@ __all__ = [
     "read_profile",
     "read_result",
     "sample_uncertainty",
+    "save_profile",
     "search_documents",
     "set_brief",
     "simulate",

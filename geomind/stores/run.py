@@ -11,7 +11,7 @@ from geomind.types.events import event_from_dict
 from geomind.utils.json import append_line, read_json, read_lines, write_json
 
 _SAFE_NAME = re.compile(r"^[\w.-]+$")
-REFERENCE_KINDS = ("design", "result")
+REFERENCE_KINDS = ("design", "result", "profile")
 
 
 class RunStore(Protocol):
@@ -101,7 +101,7 @@ class FileRunStore:
     A run has ``<root>/<run id>/events.jsonl`` and ``artifacts/``; a chat has
     ``<root>/chats/<chat id>/history.jsonl`` and ``state.json``. Ids become path parts, so unsafe
     ones raise. An artifact key is one such part, or the frozen ``design/<name>`` or
-    ``result/<id>``.
+    ``result/<id>``, or ``profile/<name>``.
     """
 
     def __init__(self, root=".runs"):

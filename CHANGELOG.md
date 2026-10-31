@@ -18,6 +18,10 @@ changes shape, and an existing caller sees the same behaviour.
   as before. `simulate`'s summary adds `brief`, `demand` and `rules`, and its result id now covers
   the rules. `check_results` and `gd.verify.verify` add `not_given` and `brief`; `verify` takes
   `brief=None`.
+- New tool `save_profile` (effect `write`): a demand profile the user gave, stored as
+  `profile/<name>` in W. `list_profiles` and `read_profile` include stored profiles, and
+  `simulate` and the brief's demand take them. A store must accept the key `profile/<name>`;
+  `check_run_store` tests it.
 - `RunResult.usage` includes the routing call's tokens, as the run's log always did.
 
 - `geomind run` takes `--loop`, `--project`, `--recording` and `--record`: `--loop` chooses the loop

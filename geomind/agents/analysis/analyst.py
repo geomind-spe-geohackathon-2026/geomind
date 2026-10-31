@@ -23,6 +23,7 @@ class Analyst(Agent):
         self.read_plant = tools.gemini.read_plant
         self.list_profiles = tools.gemini.list_profiles
         self.read_profile = tools.gemini.read_profile
+        self.save_profile = tools.gemini.save_profile
         self.simulate = tools.gemini.simulate
         self.read_result = tools.read_result
         self.search_documents = tools.search_documents

@@ -3,6 +3,8 @@
 import asyncio
 import hashlib
 import json
+import math
+import re
 from datetime import datetime, timezone
 from typing import Any
 
@@ -30,44 +32,149 @@ def parse_time(value, field, where):
     return moment.astimezone(timezone.utc)
 
 
-def demand(names, start, end, where):
-    """Return the run input of gemini profiles side by side, from ``start`` to ``end``."""
-    import gemini as gm
+PROFILE = "profile/"
+PROFILE_INDEX = "profiles"
+"""The artifact that lists the names of the profiles stored in a run."""
+QUANTITIES = ("heating_demand", "cooling_demand")
+PROFILE_NAME = re.compile(r"[A-Za-z0-9._-]+")
+
+
+def stored_frame(context, name, where):
+    """Return a stored profile ``profile/<name>`` as gemini's profiles are: a UTC frame in W."""
     import pandas as pd
 
-    frame = pd.concat([gm.profiles.get(name) for name in names], axis=1)
+    stored = context.session.load_artifact(name)
+    if stored is None:
+        raise ToolError(f"{where}: profile = {name!r}; no such stored profile", path="profile")
+    index = pd.date_range(stored["start"], periods=len(stored["values"]), freq=stored["step"])
+    frame = pd.DataFrame({stored["quantity"]: stored["values"]}, index=index)
+    frame.attrs["units"] = {stored["quantity"]: stored["unit"]}
+    frame.attrs["quantities"] = {stored["quantity"]: stored["quantity"]}
+    return frame
+
+
+def profile_frame(context, name, where):
+    """Return one profile: a stored ``profile/<name>``, else gemini's profile ``name``."""
+    import gemini as gm
+
+    if name.startswith(PROFILE):
+        return stored_frame(context, name, where)
+    return gm.profiles.get(name)
+
+
+def demand(context, names, start, end, where):
+    """Return the run input of profiles side by side, from ``start`` to ``end``."""
+    import pandas as pd
+
+    frames = [profile_frame(context, name, where) for name in names]
+    frame = pd.concat(frames, axis=1)
+    frame.attrs["units"] = {k: v for item in frames for k, v in item.attrs["units"].items()}
     return frame.loc[parse_time(start, "start", where) : parse_time(end, "end", where)]
 
 
+def profile_row(name, frame):
+    """Return the listing of one profile."""
+    column = frame.columns[0]
+    return {
+        "name": name,
+        "quantity": frame.attrs.get("quantities", {}).get(column, column),
+        "unit": frame.attrs["units"][column],
+        "start": frame.index[0].isoformat(),
+        "end": frame.index[-1].isoformat(),
+    }
+
+
 @tool(effect="read")
-def list_profiles():
-    """List the demand profiles, with their name, quantity, unit, start and end."""
+def list_profiles(context):
+    """List the demand profiles, with their name, quantity, unit, start and end.
+
+    gemini's named profiles come first, then the profiles stored in this run as ``profile/<name>``.
+    """
     import gemini as gm
 
-    rows = []
-    for name in gm.profiles.names():
-        frame = gm.profiles.get(name)
-        rows.append(
-            {
-                "name": name,
-                "quantity": frame.attrs.get("quantities", {}).get(name),
-                "unit": frame.attrs["units"][name],
-                "start": frame.index[0].isoformat(),
-                "end": frame.index[-1].isoformat(),
-            }
-        )
+    rows = [profile_row(name, gm.profiles.get(name)) for name in gm.profiles.names()]
+    for name in context.session.load_artifact(PROFILE_INDEX) or []:
+        rows.append(profile_row(name, stored_frame(context, name, "list_profiles")))
     return rows
 
 
 @tool(effect="read")
-def read_profile(name: str, start: str | None = None, end: str | None = None):
-    """Return a demand profile as a series; ``start`` and ``end`` are ISO 8601 times."""
-    frame = demand([name], start, end, "read_profile")
+def read_profile(context, name: str, start: str | None = None, end: str | None = None):
+    """Return a demand profile as a series; ``start`` and ``end`` are ISO 8601 times.
+
+    ``name`` is a gemini profile or a stored ``profile/<name>``.
+    """
+    frame = demand(context, [name], start, end, "read_profile")
+    column = frame.columns[0]
     return {
         "time": [moment.isoformat() for moment in frame.index],
-        "value": frame[name].tolist(),
-        "unit": frame.attrs["units"][name],
+        "value": frame[column].tolist(),
+        "unit": frame.attrs["units"][column],
     }
+
+
+def profile_problem(name, values, quantity, step):
+    """Return ``(field, message)`` of what makes a user's profile unusable, or ``None``."""
+    import pandas as pd
+
+    if not PROFILE_NAME.fullmatch(name) or set(name) == {"."}:
+        return "name", f"name = {name!r}; expected letters, digits, '.', '_' or '-'"
+    if quantity not in QUANTITIES:
+        return "quantity", f"quantity = {quantity!r}; expected heating_demand or cooling_demand"
+    if not values:
+        return "values", "values = []; expected at least one value, one per step"
+    if min(values) < 0 or not all(math.isfinite(value) for value in values):
+        return "values", "values: expected finite, non-negative demand on every step"
+    try:
+        pd.tseries.frequencies.to_offset(step)
+    except ValueError:
+        return "step", f"step = {step!r}; expected a pandas frequency such as '1D'"
+    return None
+
+
+def stored_profile(name, values, unit, start, step, quantity):
+    """Return the stored form of a user's profile: its values converted to W by ``gm.units``."""
+    import gemini as gm
+
+    problem = profile_problem(name, values, quantity, step)
+    if problem is not None:
+        raise ToolError(f"save_profile: {problem[1]}", path=problem[0])
+    if not gm.units.fits(unit, "power"):
+        raise ToolError(f"save_profile: unit = {unit!r}; expected a unit of power", path="unit")
+    moment = parse_time(start, "start", "save_profile")
+    return {
+        "quantity": quantity,
+        "unit": "W",
+        "start": moment.isoformat(),
+        "step": step,
+        "values": [gm.units.convert(value, unit, "W") for value in values],
+    }
+
+
+@tool(effect="write")
+async def save_profile(
+    context,
+    name: str,
+    values: list[float],
+    unit: str,
+    start: str,
+    step: str = "1D",
+    quantity: str = "heating_demand",
+):
+    """Store a demand profile the user gave as values, one per step; return its reference.
+
+    ``unit`` is a unit of power (such as ``MW``), ``start`` the ISO 8601 time of the first value
+    and ``step`` a pandas frequency. ``quantity`` is heating_demand or cooling_demand. The profile
+    is stored as ``profile/<name>`` in W, for ``simulate(profile=...)`` and the brief's demand.
+    """
+    stored = await asyncio.to_thread(stored_profile, name, values, unit, start, step, quantity)
+    reference = f"{PROFILE}{name}"
+    await context.session.save_artifact(reference, stored)
+    known = context.session.load_artifact(PROFILE_INDEX) or []
+    if reference not in known:
+        await context.session.save_artifact(PROFILE_INDEX, [*known, reference])
+    count = len(stored["values"])
+    return {"profile": reference, "steps": count, "start": stored["start"], "unit": "W"}
 
 
 def stored_series(results):
@@ -111,7 +218,7 @@ def run_plant(context, design, changes, profile, start, end):
     plant = load_plant(context, design, "simulate")
     for path, params in (changes or {}).items():
         plant.set_params(path, params)
-    plan = gm.schedule(plant, demand(names, start, end, "simulate"), rules)
+    plan = gm.schedule(plant, demand(context, names, start, end, "simulate"), rules)
     results = gm.simulate(plant, plan, on_error="record")
     spec = plant.to_dict()
     key = json.dumps([spec, names, start, end, rules], sort_keys=True, default=str)
@@ -143,7 +250,8 @@ async def simulate(
     """Simulate a plant and store the full results; return their reference and a summary.
 
     ``design`` is a stored design, or the project's plant without one. ``changes`` holds parameters
-    by module path, for this run only. ``profile`` names a demand profile.
+    by module path, for this run only. ``profile`` names a demand profile, gemini's or a stored
+    ``profile/<name>``.
 
     NOTE: a run is ``gm.schedule`` with the rules of the state's brief, then ``gm.simulate`` with
     ``on_error="record"``, so a day that fails is one of gemini's problems and the year still

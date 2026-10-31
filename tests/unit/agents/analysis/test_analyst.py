@@ -21,6 +21,7 @@ def test_it_declares_the_tools_it_needs():
         "read_plant",
         "list_profiles",
         "read_profile",
+        "save_profile",
         "simulate",
         "read_result",
         "search_documents",

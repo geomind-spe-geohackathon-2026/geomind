@@ -26,6 +26,8 @@ a tool.
   stored.
 - `list_profiles`: the demand profiles and their dates.
 - `read_profile`: a demand profile, or a window of it.
+- `save_profile`: store a demand profile the user gave as values (one per day, in a unit of
+  power) as `profile/<name>`, for `simulate(profile=...)` and the brief's demand.
 - `simulate`: run a design over the demand year; it returns a result reference and a summary.
 - `read_result`: read a stored result.
 - `check_results`: gemini's checks of a result against the brief, with each failure's domain.
