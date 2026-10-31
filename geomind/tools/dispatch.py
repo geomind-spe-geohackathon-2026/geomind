@@ -9,11 +9,22 @@ from time import perf_counter
 import pydantic
 
 from geomind import runtime
-from geomind.errors import GeomindError, ToolError
-from geomind.types import Finish, Request, ToolResult
+from geomind.errors import (
+    GeomindError,
+    NotImplementedYet,
+    SandboxError,
+    ToolError,
+    UnknownNameError,
+)
+from geomind.types import Finish, Problem, Request, ToolResult
 from geomind.utils.json import to_jsonable
 
 SUMMARY_CHARACTERS = 500
+CODE_OF_ERROR = {
+    NotImplementedYet: "not_implemented",
+    SandboxError: "not_allowed",
+    UnknownNameError: "unknown_name",
+}
 
 
 def is_reported_error(error):
@@ -27,9 +38,30 @@ def is_reported_error(error):
     return any(kind.__module__.startswith("gemini.errors") for kind in type(error).__mro__)
 
 
+def _validation_problem(error):
+    """Return the problem of an input that does not fit: its first field, with the whole text."""
+    fields = error.errors()[0]["loc"]
+    path = ".".join(str(field) for field in fields) or None
+    return Problem(path=path, code="invalid_input", message=str(error))
+
+
+def _problem(error):
+    """Return the problem of a geomind error or an input that does not fit."""
+    if isinstance(error, pydantic.ValidationError):
+        return _validation_problem(error)
+    if isinstance(error, ToolError):
+        return Problem(path=error.path, code=error.code, message=str(error))
+    return Problem(code=CODE_OF_ERROR.get(type(error), "invalid_input"), message=str(error))
+
+
 def error_output(error):
-    """Return the result a model reads for an error."""
-    return {"error": {"class": type(error).__name__, "message": str(error)}}
+    """Return the result a model reads for an error, in gemini's Problem shape.
+
+    A gemini error passes through its own ``to_dict()`` unchanged.
+    """
+    if not isinstance(error, (GeomindError, pydantic.ValidationError)):
+        return {"error": error.to_dict()}
+    return {"error": _problem(error).model_dump(mode="json")}
 
 
 async def _call(tool, arguments, context):
@@ -73,13 +105,13 @@ async def dispatch(tool, call, context):
     try:
         output = await _call(tool, arguments, context)
     except TimeoutError:
-        error = ToolError(f"{tool.name}: timed out after {tool.timeout} s")
+        error = ToolError(f"{tool.name}: timed out after {tool.timeout} s", code="timeout")
         return _result(tool, call, started, error_output(error), is_error=True)
     except Exception as error:
         if is_reported_error(error):
             return _result(tool, call, started, error_output(error), is_error=True)
         await context.session.report_error(error, where=f"tool {tool.name}")
-        hidden = ToolError(f"{tool.name}: internal error")
+        hidden = ToolError(f"{tool.name}: internal error", code="internal")
         return _result(tool, call, started, error_output(hidden), is_error=True)
     if isinstance(output, (Request, Finish)):
         return output

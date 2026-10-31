@@ -12,6 +12,7 @@ STATUS_OF_STOP = {
     "denied": "failed",
     "step_limit": "failed",
     "error": "failed",
+    "not_implemented": "failed",
     "cancelled": "cancelled",
 }
 

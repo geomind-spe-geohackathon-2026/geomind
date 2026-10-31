@@ -91,7 +91,7 @@ async def test_an_invalid_patch_is_a_result_and_changes_nothing():
     events = engine.store.load_events(start.run_id)
     assert of_type(events, "state.changed") == []
     output = of_type(events, "tool.result")[0].output
-    assert output["error"]["class"] == "StateError"
+    assert output["error"]["code"] == "invalid_input"
 
 
 async def test_recover_rebuilds_the_state_from_the_events():

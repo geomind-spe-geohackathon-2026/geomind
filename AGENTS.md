@@ -72,11 +72,12 @@ geomind/
 ├── context/          # problem state, compaction, skills: the deterministic part
 ├── providers/        # LLM protocol, retry layer, OpenRouter, FakeLLM
 ├── sandbox/          # Sandbox and SandboxProvider protocols, Manifest, local, docker
-├── tools/            # Tool, tool decorator, dispatch, built-ins, code tools, Delegate
+├── tools/            # Tool, tool decorator, dispatch, built-ins, code tools, Delegate, gemini/
+├── verify/           # verification of a design over gemini's checks
 ├── agents/           # Agent, AgentResult, Model, Output, and one folder per area of agents
 ├── engine/           # engine, session, step, delegation, log, recovery, state, context,
 │                     # callbacks, hooks, permissions, replay, compaction
-└── loops/            # Loop, ToolLoop
+└── loops/            # Loop, ToolLoop, DesignLoop, MakerCheckerLoop, CompareLoop
 examples/             # area/category/NN_name.py
 scripts/              # test_changed.py, the development test profile
 evals/                # tasks/, recordings/, reports/ and the runner, run.py

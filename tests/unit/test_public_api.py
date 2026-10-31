@@ -28,6 +28,7 @@ EXPECTED = (
     "event_from_dict",
     "agents",
     "tools",
+    "verify",
     "loops",
     "hooks",
     "callbacks",

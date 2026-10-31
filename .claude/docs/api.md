@@ -2,8 +2,8 @@
 
 Use `import geomind as gd`. The curated top level is `Run`, `Agent`, `Engine`, `Tool`, `tool`,
 `Prompt`, `Model`, `Output`, `Context`, `Message`, `Action`, `Request`, `Allow`, `Deny`,
-`Permissions`, `RunResult`, `runlog`, `event_from_dict`, `agents`, `tools`, `loops`, `hooks`, `callbacks`, `providers`,
-`sandbox`, `stores`, `testing`, `runtime`, `errors` and `__version__`.
+`Permissions`, `RunResult`, `runlog`, `event_from_dict`, `agents`, `tools`, `verify`, `loops`, `hooks`,
+`callbacks`, `providers`, `sandbox`, `stores`, `testing`, `runtime`, `errors` and `__version__`.
 `tests/unit/test_public_api.py` pins this list. New top-level names require a concrete common user
 workflow, documentation, and a public-API test.
 

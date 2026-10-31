@@ -6,10 +6,10 @@ import pytest
 
 from geomind import runtime
 from geomind.engine import Context
-from geomind.errors import ToolError
+from geomind.errors import NotImplementedYet, SandboxError, ToolError, UnknownNameError
 from geomind.tools import ask_user, dispatch, finish, tool
-from geomind.tools.dispatch import is_reported_error
-from geomind.types import Finish, Request, ToolCall
+from geomind.tools.dispatch import error_output, is_reported_error
+from geomind.types import TOOL_ERROR_CODES, Finish, Request, ToolCall
 from tests.fixtures.sessions import StubSession
 
 
@@ -56,6 +56,12 @@ def raises_tool_error():
 
 
 @tool(effect="read")
+def raises_not_built():
+    """Exist only as a signature."""
+    raise NotImplementedYet("raises_not_built comes in S2b")
+
+
+@tool(effect="read")
 def raises_bug():
     """Have a bug."""
     raise ZeroDivisionError("secret detail")
@@ -89,14 +95,26 @@ async def test_validation_error_is_a_result_for_the_model(session, context):
     """A wrong call is marked so the engine can count it."""
     result = await dispatch(add, call(left="x", right=1), context)
     assert result.is_error and result.is_validation
-    assert result.output["error"]["class"] == "ValidationError"
+    problem = result.output["error"]
+    assert (problem["code"], problem["path"], problem["suggestions"]) == (
+        "invalid_input",
+        "left",
+        [],
+    )
 
 
 async def test_geomind_error_is_a_result(session, context):
-    """A deliberate error reaches the model with class and message."""
+    """A deliberate error reaches the model as a problem, with its message."""
     result = await dispatch(raises_tool_error, call(), context)
     assert result.is_error and not result.is_validation
-    assert result.output == {"error": {"class": "ToolError", "message": "bad parameter"}}
+    assert result.output == {
+        "error": {
+            "path": None,
+            "code": "invalid_input",
+            "message": "bad parameter",
+            "suggestions": [],
+        }
+    }
 
 
 async def test_gemini_error_is_a_result(session, context):
@@ -109,10 +127,56 @@ async def test_gemini_error_is_a_result(session, context):
     assert is_reported_error(UnitError("bad unit"))
 
 
+@pytest.mark.parametrize(
+    ("error", "code"),
+    [
+        (NotImplementedYet("list_modules comes in S2b"), "not_implemented"),
+        (UnknownNameError("no such skill"), "unknown_name"),
+        (SandboxError("no sandbox is configured"), "not_allowed"),
+        (ToolError("bad field", code="unknown_name", path="name"), "unknown_name"),
+    ],
+)
+def test_each_geomind_error_has_its_code(error, code):
+    """The code comes from the fixed list of ``tools.md``."""
+    problem = error_output(error)["error"]
+    assert (problem["code"], problem["message"]) == (code, str(error))
+    assert problem["code"] in TOOL_ERROR_CODES
+
+
+def test_a_tool_error_names_the_input_field():
+    """``path`` says which input to fix."""
+    assert error_output(ToolError("no", path="reference"))["error"]["path"] == "reference"
+
+
+async def test_a_stub_is_a_result_that_says_it_does_not_exist_yet(session, context):
+    """The model learns the capability is missing, and the run is not reported as a bug."""
+    result = await dispatch(raises_not_built, call(), context)
+    assert result.is_error and not result.is_validation
+    assert result.output["error"]["code"] == "not_implemented"
+    assert session.errors == []
+
+
+@pytest.fixture(scope="module")
+def gemini_errors():
+    """Return gemini's errors; importing gemini takes more than the budget of one test call."""
+    import gemini as gm
+
+    return gm.errors
+
+
+def test_a_gemini_error_passes_through_its_own_problem(gemini_errors):
+    """The result is its own ``to_dict()``, unchanged, its ``NotImplementedYet`` included."""
+    error = gemini_errors.NotImplementedYet("later", path="plant")
+    assert is_reported_error(error)
+    assert error_output(error) == {"error": error.to_dict()}
+    assert error_output(error)["error"]["code"] == "not_implemented"
+
+
 async def test_bug_is_reported_and_hidden_from_the_model(session, context):
     """A bug goes to ``on_error``, and the model reads only that it happened."""
     result = await dispatch(raises_bug, call(), context)
     assert result.is_error and "internal error" in result.output["error"]["message"]
+    assert result.output["error"]["code"] == "internal"
     assert "secret detail" not in str(result.output)
     assert isinstance(session.errors[0][0], ZeroDivisionError)
 
@@ -121,6 +185,7 @@ async def test_timeout_is_an_error_result(session, context):
     """A tool over its time limit is stopped."""
     result = await dispatch(slow, call(), context)
     assert result.is_error and "timed out" in result.output["error"]["message"]
+    assert result.output["error"]["code"] == "timeout"
 
 
 async def test_large_result_is_an_artifact(session, context):

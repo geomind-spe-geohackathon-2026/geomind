@@ -14,7 +14,7 @@ from geomind.engine.replay import replay_run
 from geomind.engine.session import RunSession
 from geomind.engine.state import RunState, Stop
 from geomind.engine.step import record_result, run_step, settle_interrupted, text_result
-from geomind.errors import RequestError, RunError
+from geomind.errors import NotImplementedYet, RequestError, RunError
 from geomind.providers import with_retries
 from geomind.stores.run import MemoryRunStore
 from geomind.types import RunResult, status_of, validate_answer
@@ -93,14 +93,24 @@ class Engine:
         NOTE: any exception ends the run with ``error``, not only an ``gd.errors`` class, because a
         provider made by the backend raises its own errors and a client must see the run end. The
         log and ``on_error`` hold the class and message, and a dying process (a ``BaseException``)
-        is not caught, so it can be recovered.
+        is not caught, so it can be recovered. A part that is not built yet ends the run with
+        ``not_implemented`` instead.
         """
         try:
             stop = await self._steps(session)
         except Exception as error:
             await session.report_error(error, where="engine")
-            stop = Stop("error", str(error))
+            reason = "not_implemented" if isinstance(error, NotImplementedYet) else "error"
+            stop = Stop(reason, str(error))
         return await self.end(session, stop)
+
+    async def decline(self, loop, context, error):
+        """Log a run of a loop that is not built yet, so a client sees it start and end."""
+        log = RunLog(self, context.run_id)
+        session = RunSession(self, log, RunState(root=context.run_id), loop.agent, loop)
+        await session.start(context, max_steps=runtime.get("max_steps"))
+        await session.report_error(error, where=f"loop {loop.name}")
+        return await self.end(session, Stop("not_implemented", str(error)))
 
     async def _steps(self, session):
         """Run steps until one returns a stop or the step limit is reached."""

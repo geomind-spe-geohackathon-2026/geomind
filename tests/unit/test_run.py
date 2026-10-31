@@ -4,9 +4,10 @@ import pytest
 
 import geomind as gd
 from geomind import runtime
-from geomind.agents import Analyst, Assistant, CodeAssistant
+from geomind.agents import Analyst, Assistant, CodeAssistant, Route
 from geomind.errors import ProviderError, RequestError, RunError
 from geomind.providers import FakeLLM
+from geomind.run import LOOPS, loop_of
 from geomind.stores import MemoryRunStore
 from tests.fixtures.runs import call, of_type, says, uses
 
@@ -172,3 +173,29 @@ def test_an_agent_replaces_the_routing():
     run = run_of([says()], agent=Assistant(), store=store)
     result = run.start()
     assert type(gd.Run.load(result.run_id, llm=FakeLLM([]), store=store).loop.agent) is Assistant
+
+
+@pytest.mark.parametrize("name", ["design", "makerchecker", "compare"])
+def test_a_route_to_a_stub_loop_is_a_run_error(name):
+    """The run starts and ends in the log, with ``not_implemented``, and no LLM call."""
+    store = MemoryRunStore()
+    run = run_of([], store=store)
+    run.loop = loop_of(Route(kind="loop", loop=name))
+    result = run.start()
+    assert (result.status, result.stop_reason) == ("failed", "not_implemented")
+    events = store.load_events(result.run_id)
+    assert of_type(events, "run.started")[0].loop == name
+    finished = of_type(events, "run.finished")[0]
+    assert finished.stop_reason == "not_implemented" and "comes in" in finished.message
+    assert of_type(events, "error")[0].error_class == "NotImplementedYet"
+
+
+def test_a_route_to_the_tool_loop_runs_its_agent():
+    """The table names the agent."""
+    loop = loop_of(Route(kind="loop", agent="code_assistant"))
+    assert isinstance(loop.agent, CodeAssistant)
+
+
+def test_the_tables_hold_the_final_names():
+    """``LOOPS`` has one row per planned loop."""
+    assert set(LOOPS) == {"tool", "design", "makerchecker", "compare"}

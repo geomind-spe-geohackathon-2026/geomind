@@ -52,6 +52,7 @@ A run stops on exactly one reason, in `RunResult.stop_reason`:
 | `denied` | `failed` | a hook denied an LLM call, or the user denied one |
 | `step_limit` | `failed` | `max_steps` reached |
 | `cancelled` | `cancelled` | `Cancellation` or `run.cancel()` |
+| `not_implemented` | `failed` | a stub loop or hook; its message names the phase |
 | `error` | `failed` | a provider failed, a tool was called wrongly too often, the output never fit, or any other exception |
 
 Any `Exception` ends the run with `error`, with its class and message in an `error` event, because
@@ -94,6 +95,12 @@ place in another process.
 Loops are written as resumable steps, never with state held only in local variables.
 `ToolLoop(agent, max_steps=None)` is one engine run of one agent.
 
+`DesignLoop(designer, verifier, max_rounds=5)`, `MakerCheckerLoop(maker, checker, max_rounds=3)` and
+`CompareLoop(loop, alternatives, criteria)` have their final constructors, and their `run` raises
+`NotImplementedYet` until the phase in [plan.md](plan.md#7-remaining-work). `Run.astart` turns that
+into `Engine.decline(loop, context, error)`: a run that starts and ends in the log, with
+`stop_reason="not_implemented"`. `loop_of(route)` in `run.py` builds the loop a `Route` names.
+
 ## Recovery and resume
 
 `recover(events, run_id=None)` folds a log through `apply` into a `RunState` (`engine/state.py`).
@@ -133,6 +140,9 @@ first differing step.
 and `FileRunStore(root=".runs")` add `add_message(chat_id, message)`.
 `FileRunStore` writes `<root>/<run id>/events.jsonl` and `artifacts/`, and
 `<root>/chats/<chat id>/history.jsonl` and `state.json`. Unsafe ids raise `RunError`.
+
+An artifact key of `FileRunStore` is one safe name, or a [reference](tools.md#references) of the
+form `design/<name>` or `result/<id>`; any other `/` raises `RunError`.
 
 `Workspace` has `plant(project_id)` and `documents(project_id, query)`. `MemoryWorkspace(plants,
 documents)` holds values; `FileWorkspace(root)` reads `<root>/<project id>/plant.json`, loaded with

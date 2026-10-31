@@ -18,6 +18,7 @@ ORDER = [
     ("geomind.providers",),
     ("geomind.sandbox",),
     ("geomind.tools",),
+    ("geomind.verify",),
     ("geomind.agents",),
     ("geomind.engine",),
     ("geomind.loops",),

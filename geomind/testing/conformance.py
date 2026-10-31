@@ -65,6 +65,16 @@ def _check_artifacts(store):
     _expect(store.load_artifact(RUN, "bytes") == b"\x00\x01", "bytes must round-trip")
     _expect(store.load_artifact(RUN, "json") == {"values": [1, 2]}, "JSON must round-trip")
     _expect(store.load_artifact(OTHER_RUN, "json") is None, "artifacts must belong to one run")
+    store.save_artifact(RUN, "design/conformance", {"name": "doublet"})
+    store.save_artifact(RUN, "result/conformance", {"plant": {}})
+    _expect(
+        store.load_artifact(RUN, "design/conformance") == {"name": "doublet"},
+        "a design/<name> key must round-trip",
+    )
+    _expect(
+        store.load_artifact(RUN, "result/conformance") == {"plant": {}},
+        "a result/<id> key must round-trip",
+    )
 
 
 def check_run_store(factory, seed_history=None):

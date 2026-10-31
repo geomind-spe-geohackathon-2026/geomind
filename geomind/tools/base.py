@@ -28,7 +28,9 @@ class Tool:
     tool out of concurrent dispatch, for tools the engine itself handles. ``reruns_in_replay`` says
     a tool that is not pure runs again in a replay, because all it changes is the run's own log.
     ``input_model`` validates the input fully; without one, as for a toolset from another source,
-    only the required and known names of ``input_schema`` are checked.
+    only the required and known names of ``input_schema`` are checked. ``late_schemas`` gives the
+    schema of an input as a function, called when the tool is offered, for a schema that belongs to
+    a package too slow to import with geomind.
     NOTE: the class is shaped like a protocol, so tools from other sources fit without changes.
     """
 
@@ -46,6 +48,7 @@ class Tool:
         input_model=None,
         runs_alone=False,
         reruns_in_replay=False,
+        late_schemas=None,
     ):
         """Store the definition; an unknown effect raises."""
         if effect not in EFFECTS:
@@ -66,6 +69,7 @@ class Tool:
         self.input_model = input_model
         self.runs_alone = runs_alone
         self.reruns_in_replay = reruns_in_replay
+        self.late_schemas = late_schemas or {}
 
     @property
     def is_pure(self):
@@ -77,12 +81,22 @@ class Tool:
         """Tell whether a replay runs this tool again instead of reusing its recorded result."""
         return self.is_pure or self.reruns_in_replay
 
+    def _offered_schema(self):
+        """Return ``input_schema`` with the late schemas in place, their definitions at the top."""
+        schema = copy.deepcopy(self.input_schema)
+        for name, function in self.late_schemas.items():
+            late = dict(function())
+            definitions = late.pop("$defs", {})
+            schema["properties"][name] = late
+            schema.setdefault("$defs", {}).update(definitions)
+        return schema
+
     def schema(self):
         """Return what a provider needs to offer this tool."""
         return {
             "name": self.name,
             "description": self.description,
-            "input_schema": self.input_schema,
+            "input_schema": self._offered_schema(),
         }
 
     def renamed(self, name):
@@ -131,6 +145,7 @@ def tool(
     max_retries=2,
     runs_alone=False,
     reruns_in_replay=False,
+    late_schemas=None,
 ):
     """Return a decorator that builds a ``Tool`` from a typed function.
 
@@ -153,6 +168,7 @@ def tool(
             input_model=model,
             runs_alone=runs_alone,
             reruns_in_replay=reruns_in_replay,
+            late_schemas=late_schemas,
         )
 
     return build

@@ -1,6 +1,17 @@
 """geomind: agents, an engine over an event log, tools and the Run facade the backend uses."""
 
-from geomind import agents, errors, loops, providers, runtime, sandbox, stores, testing, tools
+from geomind import (
+    agents,
+    errors,
+    loops,
+    providers,
+    runtime,
+    sandbox,
+    stores,
+    testing,
+    tools,
+    verify,
+)
 from geomind.agents import Agent, Model, Output
 from geomind.engine import Context, Engine, Permissions, callbacks, hooks
 from geomind.prompts import Prompt
@@ -37,6 +48,7 @@ __all__ = [
     "stores",
     "testing",
     "tools",
+    "verify",
     "providers",
     "sandbox",
     "runtime",

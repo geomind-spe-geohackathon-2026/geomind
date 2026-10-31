@@ -3,6 +3,7 @@
 Imports ``sandbox`` and everything to its left; reaches the engine only through ``context.session``.
 """
 
+from geomind.tools import gemini
 from geomind.tools.base import EFFECTS, Tool, tool
 from geomind.tools.builtins import ask_user, finish
 from geomind.tools.code import read_file, run_python, write_file
@@ -19,6 +20,7 @@ __all__ = [
     "ask_user",
     "dispatch",
     "finish",
+    "gemini",
     "read_file",
     "read_result",
     "read_skill",

@@ -11,6 +11,7 @@ from geomind.types.events import event_from_dict
 from geomind.utils.json import append_line, read_json, read_lines, write_json
 
 _SAFE_NAME = re.compile(r"^[\w.-]+$")
+REFERENCE_KINDS = ("design", "result")
 
 
 class RunStore(Protocol):
@@ -88,12 +89,19 @@ def _safe(name):
     return str(name)
 
 
+def _safe_key(key):
+    """Return an artifact key that is safe as a path: one name, or a frozen reference."""
+    kind, slash, name = str(key).partition("/")
+    return f"{kind}/{_safe(name)}" if slash and kind in REFERENCE_KINDS else _safe(key)
+
+
 class FileRunStore:
     """Keep everything in files.
 
     A run has ``<root>/<run id>/events.jsonl`` and ``artifacts/``; a chat has
     ``<root>/chats/<chat id>/history.jsonl`` and ``state.json``. Ids become path parts, so unsafe
-    ones raise.
+    ones raise. An artifact key is one such part, or the frozen ``design/<name>`` or
+    ``result/<id>``.
     """
 
     def __init__(self, root=".runs"):
@@ -136,16 +144,16 @@ class FileRunStore:
 
     def save_artifact(self, run_id, key, data):
         """Save bytes as ``.bin`` or a JSON value as ``.json`` under a key."""
-        folder = self._run(run_id) / "artifacts"
+        stem = self._run(run_id) / "artifacts" / _safe_key(key)
         if isinstance(data, bytes):
-            folder.mkdir(parents=True, exist_ok=True)
-            (folder / f"{_safe(key)}.bin").write_bytes(data)
+            stem.parent.mkdir(parents=True, exist_ok=True)
+            stem.with_name(f"{stem.name}.bin").write_bytes(data)
             return
-        write_json(folder / f"{_safe(key)}.json", data)
+        write_json(stem.with_name(f"{stem.name}.json"), data)
 
     def load_artifact(self, run_id, key):
         """Return an artifact, or ``None``."""
-        stem = self._run(run_id) / "artifacts" / _safe(key)
+        stem = self._run(run_id) / "artifacts" / _safe_key(key)
         if stem.with_name(f"{stem.name}.bin").exists():
             return stem.with_name(f"{stem.name}.bin").read_bytes()
         path = stem.with_name(f"{stem.name}.json")

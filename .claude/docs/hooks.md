@@ -28,6 +28,8 @@ so they are passed again when a run resumes in another process.
 - `Cancellation(is_cancelled)` calls the function the caller gives before every LLM and tool call
   and before the answer, and ends the run with `cancelled`. The function may read anything, so this
   works across processes.
+- `Verified()` refuses to finish while the last verification failed. It is a stub until S3: a run
+  that uses it now ends with `stop_reason="not_implemented"`.
 
 ## Pausing
 

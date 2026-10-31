@@ -2,19 +2,24 @@
 
 import asyncio
 
-from geomind.agents import Analyst, CodeAssistant
+from geomind.agents import Analyst, CodeAssistant, Designer, Verifier
 from geomind.context import ProblemState, restore
 from geomind.engine import Context, Engine, Permissions
 from geomind.engine.context import new_run_id
 from geomind.engine.hooks import Cancellation
 from geomind.engine.recovery import agent_class, recover
-from geomind.errors import RunError
-from geomind.loops import ToolLoop
+from geomind.errors import NotImplementedYet, RunError
+from geomind.loops import CompareLoop, DesignLoop, MakerCheckerLoop, ToolLoop
 from geomind.providers import OpenRouter
 from geomind.stores.run import MemoryRunStore
 from geomind.types import Message
 
-LOOPS = {"tool": ToolLoop}
+LOOPS = {
+    "tool": ToolLoop,
+    "design": DesignLoop,
+    "makerchecker": MakerCheckerLoop,
+    "compare": CompareLoop,
+}
 AGENTS = {"analyst": Analyst, "code_assistant": CodeAssistant}
 
 
@@ -26,6 +31,16 @@ def _sync(coroutine):
         return asyncio.run(coroutine)
     coroutine.close()
     raise RunError("Run: called inside an event loop; expected astart() or aresume()")
+
+
+def loop_of(route):
+    """Return the loop a ``Route`` names, with its agents."""
+    if route.loop == "tool":
+        return LOOPS["tool"](AGENTS[route.agent]())
+    if route.loop == "makerchecker":
+        return LOOPS["makerchecker"](Designer(), Verifier())
+    design = LOOPS["design"](Designer(), Verifier())
+    return design if route.loop == "design" else LOOPS["compare"](design, (), ())
 
 
 class Run:
@@ -111,7 +126,10 @@ class Run:
         history = restore(self.history, problem.compaction)
         messages = [*history, Message(role="user", content=self.message)]
         context = Context(self.id, messages, chat=self.chat, project=self.project, problem=problem)
-        return await self.loop.run(self.engine, context)
+        try:
+            return await self.loop.run(self.engine, context)
+        except NotImplementedYet as error:
+            return await self.engine.decline(self.loop, context, error)
 
     def _load_problem(self):
         """Return the problem state of the chat; a run without one starts empty."""

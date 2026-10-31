@@ -36,8 +36,8 @@ that is no declaration raises `DeclarationError`, with a close match where there
 Listings: `tools(recurse=False)`, `children()`, `named_agents()`, `name`, `path`, `tool_schemas()`
 and `Agent.help()`.
 
-There is no `Team` and no agent container: the order of agents is a policy, and policies are
-[loops](engine.md#loops).
+Rules: declare after `super().__init__()`, and there is no `Team` and no agent container: the order
+of agents is a policy, and policies are [loops](engine.md#loops).
 
 A run gets its agent from the routing tables in `geomind/run.py`; see
 [Shipped agents](#shipped-agents).

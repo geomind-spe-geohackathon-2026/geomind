@@ -61,6 +61,22 @@ def test_file_store_refuses_unsafe_names(tmp_path, name):
         store.load_state(name)
 
 
+@pytest.mark.parametrize("data", [b"x", {"a": 1}])
+@pytest.mark.parametrize("key", ["design/doublet", "result/r1"])
+def test_file_store_keeps_the_frozen_references(tmp_path, key, data):
+    """The two reference formats of ``tools.md`` are keys."""
+    store = FileRunStore(tmp_path)
+    store.save_artifact("r", key, data)
+    assert store.load_artifact("r", key) == data
+
+
+@pytest.mark.parametrize("key", ["design/../up", "design/a/b", "result/", "design/.."])
+def test_file_store_refuses_an_unsafe_reference(tmp_path, key):
+    """A reference never leaves the run's folder."""
+    with pytest.raises(RunError, match="expected letters"):
+        FileRunStore(tmp_path).save_artifact("r", key, b"x")
+
+
 async def test_large_tool_result_is_an_artifact_in_the_store(tmp_path):
     """A run saves a large result and the model reads a reference."""
     from geomind import runtime

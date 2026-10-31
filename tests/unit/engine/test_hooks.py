@@ -8,6 +8,7 @@ from geomind.engine.hooks import (
     Hook,
     RequireApproval,
     TokenBudget,
+    Verified,
     ask_hooks,
 )
 from geomind.engine.recovery import recover
@@ -110,6 +111,13 @@ async def test_deny_of_the_finish_tool_is_its_result():
     )
     assert (result.stop_reason, result.answer) == ("finish", "b")
     assert of_type(events, "tool.result")[0].output == "verify first"
+
+
+async def test_the_verified_stub_ends_the_run_as_not_implemented():
+    """It comes in S3; a run that uses it now ends with the stop reason of a missing part."""
+    result, _, events = await run([says()], hooks=[Verified()])
+    assert (result.status, result.stop_reason) == ("failed", "not_implemented")
+    assert "Verified comes in S3" in of_type(events, "run.finished")[0].message
 
 
 @pytest.mark.parametrize("point", ["llm", "tool", "finish"])

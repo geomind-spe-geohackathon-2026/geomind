@@ -8,12 +8,16 @@ from geomind.types import Record
 
 
 class Route(Record):
-    """Where a message goes: a short direct answer, or a loop with an agent and a brief."""
+    """Where a message goes: a short direct answer, or a loop with an agent and a brief.
+
+    ``loop`` and ``agent`` name rows of ``LOOPS`` and ``AGENTS`` in ``run.py``, which sits to the
+    right of this package, so a test keeps the two lists equal.
+    """
 
     kind: Literal["answer", "loop"]
     answer: str | None = None
-    loop: str = "tool"
-    agent: str = "analyst"
+    loop: Literal["tool", "design", "makerchecker", "compare"] = "tool"
+    agent: Literal["analyst", "code_assistant"] = "analyst"
     brief: str | None = None
 
 

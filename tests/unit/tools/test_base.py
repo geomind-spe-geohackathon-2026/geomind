@@ -24,6 +24,20 @@ def test_decorator_builds_the_schema_from_the_signature():
     assert schema["input_schema"]["properties"]["left"]["type"] == "integer"
 
 
+def test_a_late_schema_is_read_when_the_tool_is_offered():
+    """The stored schema stays plain, and the definitions move to the top of the offered one."""
+    late = {"type": "object", "$defs": {"Port": {"type": "string"}}}
+
+    @tool(effect="write", late_schemas={"value": lambda: late})
+    def store(value: dict):
+        """Store."""
+
+    offered = store.schema()["input_schema"]
+    assert offered["properties"]["value"] == {"type": "object"}
+    assert offered["$defs"] == late["$defs"]
+    assert "$defs" not in store.input_schema
+
+
 def test_validate_fills_defaults_and_converts():
     """Valid input becomes keyword arguments."""
     assert add.validate({"left": 2}) == {"left": 2, "right": 1}

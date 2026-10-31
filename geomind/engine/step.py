@@ -279,7 +279,9 @@ async def settle_interrupted(session, agent):
         tool = tools.get(call.name)
         is_open = call.id in state.started and call.id not in state.results
         if is_open and (tool is None or not tool.idempotent):
-            error = ToolError(f"{call.name}: interrupted by a crash; it may have run in part")
+            error = ToolError(
+                f"{call.name}: interrupted by a crash; it may have run in part", code="internal"
+            )
             result = ToolResult(
                 call_id=call.id, tool=call.name, output=error_output(error), is_error=True
             )

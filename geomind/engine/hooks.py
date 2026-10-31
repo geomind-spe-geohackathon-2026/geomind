@@ -1,6 +1,7 @@
 """Decision points that can deny or pause, and the shipped hooks."""
 
 from geomind.engine.callbacks import call_maybe_async
+from geomind.errors import NotImplementedYet
 from geomind.types import Allow, Cancel, Deny, Request
 
 
@@ -78,6 +79,14 @@ class RequireApproval(Hook):
     def __init__(self, tools):
         """Keep the tool names or ``effect:<effect>`` rules."""
         self.ask_rules = tuple(tools)
+
+
+class Verified(Hook):
+    """Refuse to finish while the last verification failed, so no failed design reaches the user."""
+
+    def before_finish(self, context, agent, action):
+        """Deny the answer while the problem state records a failed verification."""
+        raise NotImplementedYet("Verified comes in S3")
 
 
 class Cancellation(Hook):

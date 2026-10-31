@@ -22,10 +22,12 @@ from geomind.types.messages import (
     ToolResult,
     Usage,
 )
+from geomind.types.problems import TOOL_ERROR_CODES, Problem, ToolErrorOutput
 from geomind.types.results import RunResult, status_of
 
 __all__ = [
     "RULE_MODEL",
+    "TOOL_ERROR_CODES",
     "Action",
     "Allow",
     "Cancel",
@@ -34,10 +36,12 @@ __all__ = [
     "Finish",
     "Message",
     "Option",
+    "Problem",
     "Record",
     "Request",
     "RunResult",
     "ToolCall",
+    "ToolErrorOutput",
     "ToolResult",
     "Usage",
     "status_of",
