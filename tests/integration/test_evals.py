@@ -4,12 +4,15 @@ NOTE: the sample task of the phase needs gemini's tools, so these tasks use the 
 has now, and they cover every kind of criterion, pass and fail.
 """
 
+import shutil
+
 import pytest
 import yaml
 
 from evals import run as evals
 from evals.tasks_format import load_task
 from geomind.utils.json import append_line
+from tests.fixtures import ROOT
 from tests.fixtures.runs import call, says, uses
 
 GOAL = {"op": "replace", "path": "/goal", "value": "Find the depth"}
@@ -167,3 +170,47 @@ def test_the_shipped_tasks_of_the_design_agents_pass_offline(gemini_loaded, agen
     outcomes = evals.run_agent(agent)
     assert outcomes
     assert [outcome.problems for outcome in outcomes] == [[]] * len(outcomes)
+
+
+@pytest.mark.slow
+def test_the_challenge2_briefs_pass_offline_through_the_design_loop(gemini_loaded):
+    """The hackathon brief and its three variants are verified against their own briefs.
+
+    NOTE: slow, because each task runs the design loop and simulates a year, twice.
+    """
+    outcomes = evals.run_agent("challenge2")
+    assert [outcome.name for outcome in outcomes] == [
+        "colder_reservoir",
+        "hackathon",
+        "more_cooling",
+        "user_profile",
+    ]
+    assert [outcome.problems for outcome in outcomes] == [[]] * 4
+    assert all(outcome.verdict["passed"] for outcome in outcomes)
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize(
+    ("task", "failed"),
+    [("colder_reservoir", "d0.gradient"), ("more_cooling", "cool_users.unmet_sensible")],
+)
+def test_a_design_that_ignores_the_brief_fails_its_variant(gemini_loaded, tmp_path, task, failed):
+    """The hackathon design under the variant's brief fails the variant's own checks.
+
+    NOTE: slow, because the design is simulated over the year.
+    """
+    folder = tmp_path / "tasks" / "challenge2"
+    folder.mkdir(parents=True)
+    shutil.copy(evals.ROOT / "tasks" / "challenge2" / f"{task}.yaml", folder)
+    recordings = tmp_path / "recordings" / "challenge2"
+    recordings.mkdir(parents=True)
+    shutil.copy(
+        ROOT / "tests" / "fixtures" / "recordings" / f"{task}_ignored.jsonl",
+        recordings / f"{task}.jsonl",
+    )
+    [outcome] = evals.run_agent("challenge2", root=tmp_path)
+    assert outcome.verdict["passed"] is False
+    assert any(problem.startswith("verified") for problem in outcome.problems)
+    assert "stop: repeated_failure" in outcome.answer and failed in outcome.answer
+    assert outcome.state["design"]["rejected"][0].endswith("-ignored")
+    assert "reference" not in outcome.state["design"]

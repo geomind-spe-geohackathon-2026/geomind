@@ -22,6 +22,11 @@ changes shape, and an existing caller sees the same behaviour.
   `profile/<name>` in W. `list_profiles` and `read_profile` include stored profiles, and
   `simulate` and the brief's demand take them. A store must accept the key `profile/<name>`;
   `check_run_store` tests it.
+- Verification checks each doublet against the reservoir values the brief gives, and
+  `verify_design` fails a result that ran on another demand or rules than the brief's
+  (`result_off_brief`); `simulate` keeps `<id>.run`.
+- The eval format adds the `verified` criterion and `equals` on the `state` criterion; the suite
+  `challenge2` runs through the design loop.
 - `RunResult.usage` includes the routing call's tokens, as the run's log always did.
 
 - `geomind run` takes `--loop`, `--project`, `--recording` and `--record`: `--loop` chooses the loop

@@ -1,7 +1,8 @@
 """Run the tasks of one agent and report: ``python -m evals.run --agent analyst [--live]``.
 
 Offline by default, from ``recordings/``. ``--live`` calls OpenRouter and writes the recording.
-Criteria are checked by code, never by an LLM.
+Criteria are checked by code, never by an LLM. A suite of ``SUITES`` (``challenge2``) runs its
+tasks through a loop instead of one agent.
 """
 
 import argparse
@@ -12,13 +13,19 @@ from pathlib import Path
 from time import perf_counter
 
 import geomind as gd
-from evals.tasks_format import load_task
+from evals.tasks_format import VerifiedCriterion, load_task
+from geomind.agents import Route
+from geomind.context import ProblemState
+from geomind.engine import Context
 from geomind.providers import FakeLLM, OpenRouter, Recorder
+from geomind.run import loop_of
 from geomind.stores import FileWorkspace, MemoryRunStore
 from geomind.types import Usage
 
 ROOT = Path(__file__).parent
 CHAT = "eval"
+SUITES = {"challenge2": "design"}
+"""Task folders run through a loop rather than one agent: the folder name and its loop."""
 
 
 @dataclass
@@ -34,6 +41,7 @@ class Outcome:
     usage: Usage = Usage()
     time: float = 0.0
     problems: list = field(default_factory=list)
+    verdict: dict = field(default_factory=dict)
 
     @property
     def passed(self):
@@ -58,9 +66,31 @@ def _drive(run, answers):
     return result
 
 
-def run_task(name, task, agent_name, llm):
-    """Run one task and return its outcome."""
-    store = MemoryRunStore()
+class StoredArtifacts:
+    """The artifacts of one stored run, read as a session reads them."""
+
+    def __init__(self, store, run_id):
+        """Keep the store and the run."""
+        self.store = store
+        self.run_id = run_id
+
+    def load_artifact(self, key):
+        """Return an artifact of the run, or ``None``."""
+        return self.store.load_artifact(self.run_id, key)
+
+
+def verdict(store, run_id, state):
+    """Return gemini's checks on the final state's design and result, as ``verify_design`` does."""
+    from geomind.verify.design import verify_design
+
+    context = Context(
+        problem=ProblemState.model_validate(state), session=StoredArtifacts(store, run_id)
+    )
+    return verify_design(context)
+
+
+def new_run(task, agent_name, llm, store):
+    """Return the run of a task: one agent, or the loop of a suite."""
     workspace, project = _workspace(task)
     run = gd.Run(
         task.message,
@@ -71,8 +101,17 @@ def run_task(name, task, agent_name, llm):
         store=store,
         workspace=workspace,
         permissions=gd.Permissions(mode="auto"),
-        agent=gd.agents.named(agent_name),
+        agent=None if agent_name in SUITES else gd.agents.named(agent_name),
     )
+    if agent_name in SUITES:
+        run.loop = loop_of(Route(kind="loop", loop=SUITES[agent_name]))
+    return run
+
+
+def run_task(name, task, agent_name, llm):
+    """Run one task and return its outcome."""
+    store = MemoryRunStore()
+    run = new_run(task, agent_name, llm, store)
     started = perf_counter()
     result = _drive(run, task.answers)
     events = store.load_events(result.run_id)
@@ -86,6 +125,8 @@ def run_task(name, task, agent_name, llm):
         usage=result.usage,
         time=perf_counter() - started,
     )
+    if any(isinstance(criterion, VerifiedCriterion) for criterion in task.criteria):
+        outcome.verdict = verdict(store, result.run_id, outcome.state)
     problems = [criterion.problem(outcome) for criterion in task.criteria]
     outcome.problems = [problem for problem in problems if problem is not None]
     if result.status == "failed":
@@ -155,7 +196,8 @@ def main(argv=None, root=ROOT):
         print("evals: --live needs OPENROUTER_API_KEY in the environment", file=sys.stderr)
         return 2
     try:
-        gd.agents.named(args.agent)
+        if args.agent not in SUITES:
+            gd.agents.named(args.agent)
         outcomes = run_agent(args.agent, root, args.live)
     except gd.errors.GeomindError as error:
         print(f"evals: {error}", file=sys.stderr)

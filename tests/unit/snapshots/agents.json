@@ -366,8 +366,12 @@
         },
         "StateCriterion": {
           "additionalProperties": false,
-          "description": "A field of the final problem state is set; ``path`` is a JSON Pointer, by id in lists.",
+          "description": "A field of the final problem state is set, to ``equals`` if given.\n\n``path`` is a JSON Pointer, by id in lists.",
           "properties": {
+            "equals": {
+              "default": null,
+              "title": "Equals"
+            },
             "kind": {
               "const": "state",
               "title": "Kind",
@@ -436,6 +440,30 @@
           ],
           "title": "ToolCriterion",
           "type": "object"
+        },
+        "VerifiedCriterion": {
+          "additionalProperties": false,
+          "description": "gemini's checks pass again on the final design and its result, with the state's brief.\n\n``checks`` names checks that must be among them and pass, such as the brief's limits.",
+          "properties": {
+            "checks": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Checks",
+              "type": "array"
+            },
+            "kind": {
+              "const": "verified",
+              "title": "Kind",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "title": "VerifiedCriterion",
+          "type": "object"
         }
       },
       "additionalProperties": false,
@@ -456,7 +484,8 @@
                 "number": "#/$defs/NumberCriterion",
                 "question": "#/$defs/QuestionCriterion",
                 "state": "#/$defs/StateCriterion",
-                "tool": "#/$defs/ToolCriterion"
+                "tool": "#/$defs/ToolCriterion",
+                "verified": "#/$defs/VerifiedCriterion"
               },
               "propertyName": "kind"
             },
@@ -472,6 +501,9 @@
               },
               {
                 "$ref": "#/$defs/StateCriterion"
+              },
+              {
+                "$ref": "#/$defs/VerifiedCriterion"
               }
             ]
           },

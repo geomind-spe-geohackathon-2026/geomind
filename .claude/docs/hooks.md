@@ -32,8 +32,10 @@ so they are passed again when a run resumes in another process.
   without passing every check. The problem state names the design (`design.reference`, a
   `design/<name>`) and its result (`verification.result`, a `result/<id>` of `simulate`). Before
   the answer the hook runs gemini's checks again on that stored run, with the state's requirements
-  (`gd.verify.verify`), and refuses with each failed check and its domain. A `passed` the model
-  wrote is never trusted; a result whose plant is not the design's is stale. A state with no
+  and brief (`gd.verify.verify`), and refuses with each failed check and its domain. A `passed` the
+  model wrote is never trusted; a result whose plant is not the design's is stale
+  (`stale_result`), and one that ran on another demand or other rules than the brief's is off the
+  brief (`result_off_brief`, read from the result's `<id>.run`). A state with no
   design and no verification has nothing to verify, so an answer to a question finishes. A nested
   run answers its parent, not the user, so it hands any design back to its loop.
 

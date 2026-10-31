@@ -235,7 +235,8 @@ def run_plant(context, design, changes, profile, start, end):
         "demand": names,
         "rules": rules,
     }
-    return identifier, stored_series(results), results.to_bytes(), spec, summary
+    run = {"demand": names, "rules": rules, "start": start, "end": end}
+    return identifier, stored_series(results), results.to_bytes(), spec, run, summary
 
 
 @tool(effect="compute")
@@ -258,13 +259,15 @@ async def simulate(
     runs. Without ``profile`` the run takes the brief's demand. A state without a brief runs on the
     ``hackathon_2027`` preset, as before briefs were data, and the summary says which brief, demand
     and rules ran. Beside ``result/<id>`` it keeps ``<id>.results`` (``Results.to_bytes()``) and
-    ``<id>.plant`` (the spec that ran); the id covers the rules too.
+    ``<id>.plant`` (the spec that ran) and ``<id>.run`` (the demand, rules and window it ran on);
+    the id covers the rules too.
     """
-    identifier, stored, data, spec, summary = await asyncio.to_thread(
+    identifier, stored, data, spec, run, summary = await asyncio.to_thread(
         run_plant, context, design, changes, profile, start, end
     )
     reference = f"result/{identifier}"
     await context.session.save_artifact(reference, stored)
     await context.session.save_artifact(f"{identifier}.results", data)
     await context.session.save_artifact(f"{identifier}.plant", spec)
+    await context.session.save_artifact(f"{identifier}.run", run)
     return {"reference": reference, "summary": summary}

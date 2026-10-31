@@ -9,6 +9,8 @@ separate scenario, never the base. A limit the brief does not give is listed und
 never checked or passed; what gemini cannot judge yet is listed under ``not_assessed``.
 """
 
+import math
+
 from geomind.context import preset
 from geomind.errors import ToolError
 from geomind.tools.gemini.brief import FALLBACK, TOLERANCE, schedule_rules, si, text
@@ -32,6 +34,13 @@ LIMITS = (
     "volume_balance",
 )
 """The limits a brief can give, by the name ``not_given`` lists them under."""
+RESERVOIR_PARAMS = {
+    "gradient": "K/m",
+    "surface_temperature": "K",
+    "permeability": "m2",
+    "thickness": "m",
+}
+"""The doublet parameters a brief's reservoir fixes, with their SI unit; the depth is a choice."""
 
 
 def module_types(plant):
@@ -142,6 +151,27 @@ def structure_checks(plant, types, results, brief):
         checks.append(grid_check("cooling_grid", types, COOLING_GRID))
     checks.append(check("failed_days", failed == 0, failed, 0))
     checks.append(check("co_produced_gas_burned", burned == 0, burned, 0))
+    return checks
+
+
+def reservoir_checks(plant, types, brief):
+    """Return one check per doublet and reservoir value the brief gives: the design must use it.
+
+    NOTE: the depth is left out, since a brief may let the design choose it; the brine's values
+    are the fluid's, which no doublet parameter holds.
+    """
+    if brief.reservoir is None:
+        return []
+    checks = []
+    for path in paths_of(types, DOUBLET):
+        params = plant.params_at(path)
+        for name, unit in RESERVOIR_PARAMS.items():
+            amount = getattr(brief.reservoir, name)
+            if amount is None:
+                continue
+            expected, value = si(amount, unit), params.get(name)
+            passed = isinstance(value, (int, float)) and math.isclose(value, expected, rel_tol=1e-6)
+            checks.append(check(f"{path}.{name}", passed, value, expected, unit))
     return checks
 
 
@@ -302,6 +332,7 @@ def assess(plant, results, limits=None, brief=None, source=None):
         *gm.checks.plant_balance(plant, results),
         *limit_checks(plant, results, merged),
         *structure_checks(plant, types, results, brief),
+        *reservoir_checks(plant, types, brief),
     ]
     failures = [
         {"name": item["name"], "domain": domain_of(item["name"], types)}

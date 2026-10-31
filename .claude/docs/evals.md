@@ -48,7 +48,8 @@ criteria:
 | `number` | `value`, `tolerance`, `unit` (optional) | the answer holds a number within `tolerance` of `value`, followed by `unit` if one is given |
 | `tool` | `tool`, `called` (default `true`) | the tool was called, or with `called: false` was not |
 | `question` | `contains` | a question to the user holds this text, in any case |
-| `state` | `path` | this JSON Pointer of the final problem state is set; items of a list are named by id |
+| `state` | `path`, `equals` (optional) | this JSON Pointer of the final problem state is set, to `equals` when given; items of a list are named by id |
+| `verified` | `checks` (optional) | gemini's checks pass again on the final state's design and result, with its brief (`verify_design`), and each named check is among them and passed |
 
 A file with an unknown `kind` or field fails when it loads. A run that ends with `failed` fails its
 task, whatever the criteria say.
@@ -57,6 +58,21 @@ task, whatever the criteria say.
 
 `evals/reports/summary.md` and the terminal show, per task and in total: passed, steps, tool calls,
 tokens, cost and time, then every failure with its reason.
+
+## Suites
+
+A folder of `SUITES` in `evals/run.py` runs its tasks through a loop instead of one agent:
+`python -m evals.run --agent challenge2` runs `evals/tasks/challenge2/` through the `DesignLoop`.
+Its four tasks are the hackathon brief and three variants, each with its own brief: `more_cooling`
+(gemini's cooling profile scaled to a 15 MW peak, stored with `save_profile`), `colder_reservoir`
+(25 K/km) and `user_profile` (30 daily heating values the user types, January only). Each names its
+criteria: the brief set as given (`state` with `equals`), the design `verified` with the checks of
+the demand met and of the brief's limits. A variant fails when the agents ignore its brief:
+`tests/integration/test_evals.py` runs the hackathon design under the colder-reservoir and
+more-cooling briefs (`tests/fixtures/recordings/*_ignored.jsonl`) and the loop rejects it on
+`d0.gradient` and on `cool_users.unmet_sensible`. The recordings are hand-written, as the comment at
+the top of each task says, with every reference and number from the real tools; the live run
+replaces them.
 
 ## Recordings
 

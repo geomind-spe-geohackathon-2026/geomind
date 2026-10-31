@@ -1,0 +1,19 @@
+# Hand-written recording, every number from the real tools; the live run replaces it.
+message: 'Design a deep-geothermal heating and cooling plant for the GEMINI hackathon brief: the official
+  2027 daily heating and cooling demand, the brief''s reservoir and brine, and its hard limits.'
+criteria:
+- kind: tool
+  tool: set_brief
+- kind: state
+  path: /brief/source
+  equals: hackathon_2027
+- kind: verified
+  checks:
+  - heat_users.unmet_demand
+  - cool_users.unmet_sensible
+  - doublets
+  - d0.flow
+  - d0.brine_cooling
+  - heat_users.supply_in.temperature
+  - cool_users.supply_in.temperature
+  - d0.gradient

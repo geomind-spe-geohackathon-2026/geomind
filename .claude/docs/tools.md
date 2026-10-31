@@ -73,7 +73,8 @@ accept the `/`; `check_run_store` tests it. An artifact belongs to its root run.
   size, and the summary gives `start`, `end` and `steps`. `<id>` is a hash of the plant that ran,
   the profiles, the window and the schedule rules, so a replay finds the same result and a run
   under another brief never overwrites it. Beside it, `simulate` keeps
-  `<id>.results` (`Results.to_bytes()`) and `<id>.plant` (the spec that ran).
+  `<id>.results` (`Results.to_bytes()`), `<id>.plant` (the spec that ran) and `<id>.run` (the
+  demand, rules and window it ran on), which `verify_design` compares with the brief.
 - **A profile** the user gave is stored under `profile/<name>` as JSON `{quantity, unit, start,
   step, values}`, in W; the artifact `profiles` lists the stored names for `list_profiles`. A
   profile from a project file is not read yet: `Workspace.documents` only searches, and reading a
@@ -116,8 +117,11 @@ It returns `{passed, checks, failures, not_assessed, not_given, brief}`:
   (the brief's range), `heating_grid` and `cooling_grid` (for the demand the brief names),
   `failed_days` (0) and `co_produced_gas_burned` (0): the base design meets the demand without the
   co-produced methane, so a degasser's `gas_out` may not feed a `GasMakeup`, `Boiler` or `CHP`;
-  burning it is a separate scenario. For the hackathon preset (1 to 3 doublets, 50 to 300 m3/h,
-  40 K, 100 and 20 degC) these are exactly the checks before briefs were data.
+  burning it is a separate scenario. When the brief gives reservoir values, each doublet's
+  `gradient`, `surface_temperature`, `permeability` and `thickness` must equal them
+  (`<doublet>.<parameter>`, subsurface); the depth is the design's choice. For the hackathon
+  preset these are the checks before briefs were data, plus those reservoir checks, which the base
+  design passes.
   Extra `limits` and requirements are checked beside the brief's, never instead.
 - `not_given` names each limit the brief does not give (`demand`, `doublets`, `doublet_flow`,
   `max_brine_cooling`, `heating.supply`, `cooling.supply`, `operating_days`, `pump_efficiency`,

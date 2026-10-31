@@ -1,0 +1,17 @@
+# Hand-written recording, every number from the real tools; the live run replaces it.
+message: 'Design a deep-geothermal heating and cooling plant for the GEMINI hackathon brief: the official
+  2027 daily heating and cooling demand, the brief''s reservoir and brine, and its hard limits. Change
+  one thing: the cooling demand is gemini''s 2027 cooling profile scaled to a 15 MW peak (1.5 times),
+  stored as profile cooling-15.'
+criteria:
+- kind: tool
+  tool: save_profile
+- kind: state
+  path: /brief/demand/cooling
+  equals: profile/cooling-15
+- kind: verified
+  checks:
+  - cool_users.unmet_sensible
+  - cool_users.unmet_latent
+  - cool_users.supply_in.temperature
+  - heat_users.unmet_demand

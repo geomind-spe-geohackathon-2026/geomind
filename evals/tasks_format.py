@@ -1,7 +1,7 @@
 """The task files: a message, what the run may use, and criteria checked by code."""
 
 import re
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 import yaml
 from pydantic import Field
@@ -57,10 +57,14 @@ class QuestionCriterion(Record):
 
 
 class StateCriterion(Record):
-    """A field of the final problem state is set; ``path`` is a JSON Pointer, by id in lists."""
+    """A field of the final problem state is set, to ``equals`` if given.
+
+    ``path`` is a JSON Pointer, by id in lists.
+    """
 
     kind: Literal["state"]
     path: str
+    equals: Any = None
 
     def problem(self, outcome):
         """Return what is wrong, or ``None``."""
@@ -70,11 +74,35 @@ class StateCriterion(Record):
                 node = next((item for item in node if item.get("id") == token), None)
             else:
                 node = node.get(token) if isinstance(node, dict) else None
-        return None if node not in (None, "", [], {}) else f"state: {self.path} is not set"
+        if node in (None, "", [], {}):
+            return f"state: {self.path} is not set"
+        if self.equals is not None and node != self.equals:
+            return f"state: {self.path} = {node!r}; expected {self.equals!r}"
+        return None
+
+
+class VerifiedCriterion(Record):
+    """gemini's checks pass again on the final design and its result, with the state's brief.
+
+    ``checks`` names checks that must be among them and pass, such as the brief's limits.
+    """
+
+    kind: Literal["verified"]
+    checks: tuple[str, ...] = ()
+
+    def problem(self, outcome):
+        """Return what is wrong, or ``None``."""
+        verdict = outcome.verdict or {"passed": False, "failures": [], "checks": []}
+        if not verdict["passed"]:
+            failed = [item["name"] for item in verdict["failures"]]
+            return f"verified: failed {failed} {verdict.get('reason', '')}".rstrip()
+        passed = {item["name"] for item in verdict["checks"] if item["passed"] is True}
+        missing = [name for name in self.checks if name not in passed]
+        return f"verified: checks {missing} not among the passed checks" if missing else None
 
 
 Criterion = Annotated[
-    NumberCriterion | ToolCriterion | QuestionCriterion | StateCriterion,
+    NumberCriterion | ToolCriterion | QuestionCriterion | StateCriterion | VerifiedCriterion,
     Field(discriminator="kind"),
 ]
 

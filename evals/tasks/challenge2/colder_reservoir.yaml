@@ -1,0 +1,14 @@
+# Hand-written recording, every number from the real tools; the live run replaces it.
+message: 'Design a deep-geothermal heating and cooling plant for the GEMINI hackathon brief: the official
+  2027 daily heating and cooling demand, the brief''s reservoir and brine, and its hard limits. Change
+  one thing: the geothermal gradient is 25 K/km, not 30 K/km.'
+criteria:
+- kind: state
+  path: /brief/reservoir/gradient
+  equals: 25 K/km
+- kind: verified
+  checks:
+  - d0.gradient
+  - d1.gradient
+  - heat_users.unmet_demand
+  - heat_users.supply_in.temperature

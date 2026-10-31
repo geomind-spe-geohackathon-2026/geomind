@@ -118,3 +118,15 @@ def test_a_limit_the_brief_does_not_give_is_not_checked(january):
         "volume_balance",
     ]
     assert found["not_assessed"] == []
+
+
+def test_a_design_must_use_the_reservoir_the_brief_gives(january):
+    """At 25 K/km the base design's 30 K/km doublets fail, on the subsurface side; depth is free."""
+    brief = with_changes(preset("hackathon_2027"), {"reservoir": {"gradient": "25 K/km"}})
+    found = gd.verify.verify(*january, brief=brief)
+    assert sorted(item["name"] for item in found["failures"]) == ["d0.gradient", "d1.gradient"]
+    assert {"name": "d0.gradient", "domain": "subsurface"} in found["failures"]
+    check = next(item for item in found["checks"] if item["name"] == "d0.gradient")
+    assert check["value"] == {"value": 0.03, "unit": "K/m"}
+    assert check["limit"]["value"] == pytest.approx(0.025)
+    assert not any(item["name"].endswith(".depth") for item in found["checks"])
