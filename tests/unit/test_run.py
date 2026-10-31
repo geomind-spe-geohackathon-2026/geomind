@@ -175,7 +175,7 @@ def test_an_agent_replaces_the_routing():
     assert type(gd.Run.load(result.run_id, llm=FakeLLM([]), store=store).loop.agent) is Assistant
 
 
-@pytest.mark.parametrize("name", ["design", "makerchecker", "compare"])
+@pytest.mark.parametrize("name", ["makerchecker", "compare"])
 def test_a_route_to_a_stub_loop_is_a_run_error(name):
     """The run starts and ends in the log, with ``not_implemented``, and no LLM call."""
     store = MemoryRunStore()

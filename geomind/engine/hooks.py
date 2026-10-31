@@ -3,10 +3,8 @@
 import asyncio
 
 from geomind.engine.callbacks import call_maybe_async
-from geomind.errors import ToolError
-from geomind.tools.gemini.assessment import stored_run
 from geomind.types import Allow, Cancel, Deny, Request
-from geomind.verify import verify
+from geomind.verify.design import verify_design
 
 
 class Hook:
@@ -92,39 +90,30 @@ class Verified(Hook):
     that verifies it (``verification.result``, a ``result/<id>`` of ``simulate``). Before the answer
     the hook runs gemini's checks again on that stored run, with the requirements of the state.
     NOTE: a ``passed`` the model wrote is never trusted, and a result whose plant is not the
-    design's is stale. A state with no design has nothing to verify.
+    design's is stale. A state with no design has nothing to verify, and a nested run answers its
+    parent, not the user, so it hands any design back.
     """
 
     async def before_finish(self, context, agent, action):
         """Deny the answer unless the design's stored run passes every check now."""
+        if context.session.state.parent is not None:
+            return None
         problem = context.problem
         design = (problem.design or {}).get("reference")
         result = (problem.verification or {}).get("result")
         if design is None and result is None:
             return None
-        return await asyncio.to_thread(verdict, context, design, result)
+        return await asyncio.to_thread(verdict, context)
 
 
-def verdict(context, design, result):
+def verdict(context):
     """Return ``None`` when the design's stored run passes every check, else the ``Deny``."""
-    if design is None or result is None:
-        return Deny(
-            reason="verification: the design and its result are not both in the problem state; "
-            "simulate the design, run check_results, and record design.reference and "
-            "verification.result"
-        )
-    try:
-        plant, results = stored_run(context, result, "Verified")
-    except ToolError as error:
-        return Deny(reason=f"verification: {error}")
-    if plant.to_dict() != context.session.load_artifact(design):
-        return Deny(
-            reason=f"verification: {result} is stale; it ran another plant than {design}. "
-            "Simulate the current design and check it again"
-        )
-    found = verify(plant, results, requirements=context.problem.requirements)
+    found = verify_design(context)
     if found["passed"]:
         return None
+    if "reason" in found:
+        return Deny(reason=f"verification: {found['reason']}")
+    design = context.problem.design.get("reference")
     failed = ", ".join(f"{item['name']} ({item['domain']})" for item in found["failures"])
     return Deny(reason=f"verification: {design} fails {failed}; change the design and verify again")
 

@@ -141,7 +141,8 @@ check it before writing a tool, because gemini's names change.
 | S3.1 | `gd.verify.verify`, `check_results`, `compute_kpis`: gemini's checks with the brief's hard limits, failure domains, `NOT_ASSESSED`/`BLOCKED` items | `7afb1d0` | done |
 | S3.2 | the `Verified` hook: gemini's checks run again on the design's stored run before any answer | `8ee1444` | done |
 | S3.3 | `estimate_costs`: gemini's economics with the assumptions used, and LCTS | `cf07cdc` | done |
-| S3.4 | `Designer`, `Verifier`, `Economist`, `Explainer`, `Coordinator` filled, with the `designing-a-plant` skill and one offline task each (hand-written recordings); `read_plant` reads examples and templates (`253bf05`); co-produced gas check (`e7719f4`) | this commit | done |
+| S3.4 | `Designer`, `Verifier`, `Economist`, `Explainer`, `Coordinator` filled, with the `designing-a-plant` skill and one offline task each (hand-written recordings); `read_plant` reads examples and templates (`253bf05`); co-produced gas check (`e7719f4`) | `ef7c64b` | done |
+| S3.5 | `DesignLoop`: a rule-based driver delegates design, verification, costs and explanation in one root run, routes failures by domain, and replays offline (nested state changes and artifacts reused) | this commit | done |
 | S2 gemini tools | the assessment tools of the catalogue | none | **stubs**: see section 7 |
 
 No live OpenRouter run has been made yet. It needs `OPENROUTER_API_KEY` in geomind's own
@@ -216,7 +217,7 @@ gemini.
    tasks. `Designer` proposes configurations and sizes, `Verifier` runs the checks and reviews,
    `Economist` gives the costs, `Explainer` writes the explanation, and `Coordinator` routes.
    - Done when: each agent's status in the table is complete, with its tasks passing offline.
-5. **`DesignLoop`.** Replaces the stub in `geomind/loops/design.py`: propose, simulate, verify, write
+5. **`DesignLoop`.** Done. Replaced the stub in `geomind/loops/design.py`: propose, simulate, verify, write
    the failures to the problem state, and repeat until everything passes, the budget runs out, the
    round limit is reached, the same check fails repeatedly, or a question goes to the user. Every
    stop reason is explicit and logged.

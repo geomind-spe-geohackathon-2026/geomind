@@ -34,7 +34,8 @@ so they are passed again when a run resumes in another process.
   the answer the hook runs gemini's checks again on that stored run, with the state's requirements
   (`gd.verify.verify`), and refuses with each failed check and its domain. A `passed` the model
   wrote is never trusted; a result whose plant is not the design's is stale. A state with no
-  design and no verification has nothing to verify, so an answer to a question finishes.
+  design and no verification has nothing to verify, so an answer to a question finishes. A nested
+  run answers its parent, not the user, so it hands any design back to its loop.
 
 ## Pausing
 

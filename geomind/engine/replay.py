@@ -1,6 +1,7 @@
 """Rerun a stored run offline and check that it behaves the same."""
 
 from geomind import runtime
+from geomind.agents import Agent
 from geomind.context import ProblemState
 from geomind.engine.context import Context
 from geomind.engine.hooks import Hook
@@ -33,7 +34,9 @@ class _Recording(Hook):
         }
 
     def before_llm_call(self, context, agent, messages):
-        """End the replay when no recorded completion is left."""
+        """End the replay when no recorded completion is left; a rule step calls no model."""
+        if type(agent).forward is not Agent.forward:
+            return None
         return None if len(self.llm.calls) < self.scripted else Cancel(reason=END_OF_RECORDING)
 
     def before_tool_call(self, context, agent, call):
@@ -49,9 +52,52 @@ class _Recording(Hook):
         return Deny(reason=reason) if reason is not None else None
 
 
+class _ReplayStore(MemoryRunStore):
+    """A memory store that reads an artifact it lacks from the recorded run.
+
+    NOTE: a reused nested run is not run again, so what its tools saved, such as a stored design,
+    is read from the original store; what the replay saves itself comes first.
+    """
+
+    def __init__(self, original, run_id):
+        """Keep the store and the root run id of the recording."""
+        super().__init__()
+        self.original = original
+        self.run_id = run_id
+
+    def load_artifact(self, run_id, key):
+        """Return the replay's own artifact, else the recorded run's."""
+        found = super().load_artifact(run_id, key)
+        return found if found is not None else self.original.load_artifact(self.run_id, key)
+
+
 def _results(events):
     """Return the tool results of a log, without feedback."""
     return [e for e in events if e.type == "tool.result" and e.call_id is not None]
+
+
+def _nested_changes(events, run_id):
+    """Return, by call id of the run, the problem-state changes its nested runs logged.
+
+    A nested run is not run again in a replay; its recorded answer is reused. What it wrote in the
+    shared problem state happened between the call's ``tool.started`` and ``tool.result``, so the
+    replay applies those changes again with the reused answer.
+    """
+    started = {
+        e.call_id: e.sequence for e in events if e.type == "tool.started" and e.run_id == run_id
+    }
+    changes = {}
+    for result in _results(e for e in events if e.run_id == run_id):
+        begin = started.get(result.call_id)
+        changes[result.call_id] = [
+            e.changes
+            for e in events
+            if e.type == "state.changed"
+            and e.run_id != run_id
+            and begin is not None
+            and begin < e.sequence < result.sequence
+        ]
+    return changes
 
 
 def _signature(event):
@@ -92,7 +138,8 @@ async def replay_run(engine_class, store, run_id):
     were denied or answered by the user. A difference raises ``ReplayError`` naming the first
     differing step.
     """
-    events = [event for event in store.load_events(run_id) if event.run_id == run_id]
+    tree = store.load_events(run_id)
+    events = [event for event in tree if event.run_id == run_id]
     started = next((event for event in events if event.type == "run.started"), None)
     if started is None:
         raise ReplayError(f"replay: run = {run_id!r}; no recorded run.started")
@@ -101,9 +148,10 @@ async def replay_run(engine_class, store, run_id):
         hooks=[_Recording(events, llm)],
         permissions=Permissions(mode="auto"),
         llm=llm,
-        store=MemoryRunStore(),
+        store=_ReplayStore(store, run_id),
     )
     engine.recorded = {event.call_id: event for event in _results(events)}
+    engine.recorded_changes = _nested_changes(tree, run_id)
     context = Context(
         messages=list(started.messages),
         chat=started.chat,

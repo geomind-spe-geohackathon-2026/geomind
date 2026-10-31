@@ -41,7 +41,7 @@ class Engine:
 
     ``callbacks``, ``hooks``, ``permissions`` and ``sandbox`` are as agreed. NOTE: ``llm``,
     ``store`` and ``workspace`` are added keywords, since a run needs them and they are not
-    arguments of ``run``. ``recorded`` is used by replay.
+    arguments of ``run``. ``recorded`` and ``recorded_changes`` are used by replay.
     """
 
     def __init__(
@@ -66,6 +66,7 @@ class Engine:
         self.store = store if store is not None else MemoryRunStore()
         self.workspace = workspace
         self.recorded = {}
+        self.recorded_changes = {}
 
     def register_hook(self, hook):
         """Add a hook; the returned handle has ``.remove()``."""

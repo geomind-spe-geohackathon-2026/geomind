@@ -104,7 +104,9 @@ def _over_retries(session, tool):
 
 
 async def _reuse(session, call, recorded):
-    """Record the stored result of a replay."""
+    """Record the stored result of a replay, after the state changes its nested runs made."""
+    for changes in session.engine.recorded_changes.get(call.id, ()):
+        await session.change_state(list(changes))
     result = ToolResult(
         call_id=call.id,
         tool=call.name,

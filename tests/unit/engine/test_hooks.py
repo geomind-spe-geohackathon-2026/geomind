@@ -302,3 +302,14 @@ def test_an_unknown_result_is_refused(stored):
     session, _ = stored
     decision = decide(session, {"reference": "design/hackathon"}, {"result": "result/missing"})
     assert isinstance(decision, Deny)
+
+
+def test_a_nested_run_hands_its_design_back_without_the_hook(stored):
+    """Only the root run answers the user; a designer may return a failing design to its loop."""
+    session, runs = stored
+    session.state.parent = "run-root"
+    try:
+        decision = decide(session, {"reference": "design/hackathon"}, {"result": runs["spring"]})
+    finally:
+        session.state.parent = None
+    assert decision is None

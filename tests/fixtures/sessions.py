@@ -13,6 +13,7 @@ class StubState:
         self.step_usage = Usage()
         self.usage = Usage()
         self.step = 1
+        self.parent = None
 
 
 class StubSession:

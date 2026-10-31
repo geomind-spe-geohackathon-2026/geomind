@@ -95,9 +95,19 @@ place in another process.
 Loops are written as resumable steps, never with state held only in local variables.
 `ToolLoop(agent, max_steps=None)` is one engine run of one agent.
 
-`DesignLoop(designer, verifier, max_rounds=5)`, `MakerCheckerLoop(maker, checker, max_rounds=3)` and
-`CompareLoop(loop, alternatives, criteria)` have their final constructors, and their `run` raises
-`NotImplementedYet` until the phase in [plan.md](plan.md#7-remaining-work). `Run.astart` turns that
+`DesignLoop(designer, verifier, max_rounds=5)` (`loops/design.py`) runs one root run whose agent is
+a rule-based `DesignDriver`: it delegates to the designer, then the verifier, checks the design
+again with gemini (`gd.verify` over the stored run, `verify/design.py`), then delegates to the
+`Economist` and the `Explainer` and finishes with the explanation. A design that fails goes back to
+the designer with a brief that routes each failure by its domain: subsurface, surface, resizing, or
+coupled (subsurface first). The loop stops on a pass, at `max_rounds`, when one round fails exactly
+as the one before, or when an agent asks the user; each stop is written as `stop: <reason>` in the
+driver's step text and the answer. A loop that ends without a pass moves the design to
+`design.rejected` before it answers, so it never presents it. It registers the `Verified` hook.
+
+`MakerCheckerLoop(maker, checker, max_rounds=3)` and `CompareLoop(loop, alternatives, criteria)` have
+their final constructors, and their `run` raises `NotImplementedYet` until the phase in
+[plan.md](plan.md#7-remaining-work). `Run.astart` turns that
 into `Engine.decline(loop, context, error)`: a run that starts and ends in the log, with
 `stop_reason="not_implemented"`. `loop_of(route)` in `run.py` builds the loop a `Route` names.
 
@@ -129,7 +139,9 @@ decision `wait` and pauses on the same request id, and an answer to the parent p
 
 `await Engine.replay(store, run_id)` (`replay.py`) reruns a stored run through
 `FakeLLM.from_events`, without network and with permissive permissions, since the log holds the
-outcome of the original decisions. `read` and `compute` tools run again; others reuse recorded
+outcome of the original decisions. A rule step calls no model, so the replay never stops it. A
+reused nested run is not run again: the problem-state changes it logged are applied again with its
+answer, and the artifacts it saved are read from the recorded run's store. `read` and `compute` tools run again; others reuse recorded
 results, as do calls that were denied or answered. A paused run stops where its log ends, so it
 never runs its pending tool. A different call, count or answer raises `ReplayError` naming the
 first differing step.

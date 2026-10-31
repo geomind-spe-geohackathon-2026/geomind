@@ -2,13 +2,15 @@
 
 import pytest
 
+from geomind.agents import Agent
 from geomind.engine import Engine, Permissions
 from geomind.engine.hooks import Hook, RequireApproval
 from geomind.errors import ReplayError
 from geomind.stores.run import MemoryRunStore
-from geomind.types import Deny
+from geomind.tools import Delegate, tool, update_state
+from geomind.types import Action, Deny, ToolCall
 from geomind.types.events import ToolRecorded
-from tests.fixtures.runs import EXECUTED, Worker, call, context, engine_for, run, says, uses
+from tests.fixtures.runs import EXECUTED, Worker, call, context, engine_for, lookup, run, says, uses
 
 
 class Rewriting(MemoryRunStore):
@@ -111,3 +113,112 @@ async def test_unknown_run_raises():
     """There is nothing to replay."""
     with pytest.raises(ReplayError, match="no recorded"):
         await Engine.replay(MemoryRunStore(), "nope")
+
+
+class Ruled(Agent):
+    """Looks a value up, then answers, by rule."""
+
+    def __init__(self):
+        """Declare the tool."""
+        super().__init__()
+
+        # Tools
+        self.lookup = lookup
+
+    async def forward(self, context):
+        """Call the tool once, then answer with its result."""
+        results = [item.content for item in context.messages if item.role == "tool"]
+        if results:
+            return Action(text=f"found {results[0]}")
+        return Action(tool_calls=(ToolCall(id="r1", name="lookup", input={"key": "k"}),))
+
+
+async def test_a_rule_based_run_replays_without_a_model():
+    """A rule step never calls the model, so the replay does not stop it."""
+    result, engine, _ = await run([], agent=Ruled())
+    replayed = await Engine.replay(engine.store, result.run_id)
+    assert result.answer == "found value of k"
+    assert (replayed.status, replayed.answer) == ("done", result.answer)
+
+
+class Noting(Agent):
+    """Records a goal in the problem state, then answers."""
+
+    def __init__(self):
+        """Declare the tool."""
+        super().__init__()
+
+        # Tools
+        self.update_state = update_state
+
+
+class Reading(Agent):
+    """Delegates to ``Noting``, then answers with the goal it recorded, by rule."""
+
+    def __init__(self):
+        """Declare the delegate."""
+        super().__init__()
+
+        # Tools
+        self.noting = Delegate(Noting())
+
+    async def forward(self, context):
+        """Delegate once, then answer from the shared problem state."""
+        if any(item.role == "tool" for item in context.messages):
+            return Action(text=f"goal: {context.problem.goal}")
+        return Action(tool_calls=(ToolCall(id="d1", name="noting", input={"task": "note"}),))
+
+
+async def test_a_replay_keeps_the_state_changes_of_a_reused_nested_run():
+    """A nested run is not run again, but what it wrote in the problem state is applied again."""
+    goal = {"op": "replace", "path": "/goal", "value": "heat"}
+    result, engine, _ = await run(
+        [uses(call("update_state", changes=[goal])), says("ok")], agent=Reading()
+    )
+    replayed = await Engine.replay(engine.store, result.run_id)
+    assert result.answer == "goal: heat"
+    assert replayed.answer == "goal: heat"
+
+
+@tool(effect="write")
+async def keep(context, text: str):
+    """Keep a text as an artifact."""
+    await context.session.save_artifact("kept", text)
+    return "kept"
+
+
+class Keeping(Agent):
+    """Keeps a text, then answers."""
+
+    def __init__(self):
+        """Declare the tool."""
+        super().__init__()
+
+        # Tools
+        self.keep = keep
+
+
+class Loading(Agent):
+    """Delegates to ``Keeping``, then answers with the artifact it kept, by rule."""
+
+    def __init__(self):
+        """Declare the delegate."""
+        super().__init__()
+
+        # Tools
+        self.keeping = Delegate(Keeping())
+
+    async def forward(self, context):
+        """Delegate once, then answer from the run's artifacts."""
+        if any(item.role == "tool" for item in context.messages):
+            return Action(text=f"kept: {context.session.load_artifact('kept')}")
+        return Action(tool_calls=(ToolCall(id="d1", name="keeping", input={"task": "keep"}),))
+
+
+async def test_a_replay_reads_the_artifacts_of_the_recorded_run():
+    """What a reused nested run saved is still there for the steps after it."""
+    result, engine, _ = await run(
+        [uses(call("keep", text="a design")), says("ok")], agent=Loading()
+    )
+    replayed = await Engine.replay(engine.store, result.run_id)
+    assert replayed.answer == result.answer == "kept: a design"
