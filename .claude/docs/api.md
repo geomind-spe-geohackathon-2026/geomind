@@ -34,16 +34,22 @@ run.cancel()
 
 Defaults: `chat=None`, `project=None`, `history=()`, `store=MemoryRunStore()`, `workspace=None`,
 `sandbox=None`, `permissions=Permissions(mode="ask")`, `llm=OpenRouter()`; the engine adds the
-retry layer to any provider. A run uses `ToolLoop` with `Analyst`, or `CodeAssistant` when a sandbox is
-configured, through the tables `LOOPS` and `AGENTS` of `geomind/run.py`; `agent` replaces that choice,
-for testing one agent by hand. `answer` is `{"approved": true}`, `{"approved": false, "reason": "..."}` or
+retry layer to any provider. `start` asks the `Coordinator` first: its `Route` picks the loop and the
+agent through the tables `LOOPS` and `AGENTS` of `geomind/run.py`, so the backend names neither. The
+routing call is a nested run of the run (`parent` and `root` are the run's id), logged before the run
+starts; its tokens are in the log, not in `RunResult.usage`. A routing run that fails keeps the
+default: `ToolLoop` with `Analyst`, or `CodeAssistant` when a sandbox is configured. `agent` replaces
+the routing, for testing one agent by hand, and so does a `run.loop` set before `start`. `answer` is `{"approved": true}`, `{"approved": false, "reason": "..."}` or
 `{"text": "..."}`. `run.start()` inside an event loop raises `RunError`: use `astart`.
 
 ## Command line
 
 - `geomind run "<message>" [--model ID] [--max-steps N] [--mode ask|auto|readonly|plan]
-  [--sandbox local|docker]` runs with `OpenRouter` and `FileRunStore(".runs")`, prints text as it
-  streams, asks in the terminal when a request pauses the run, then resumes.
+  [--sandbox local|docker] [--loop tool|design|makerchecker|compare] [--project PATH]
+  [--recording FILE] [--record FILE]` runs with `OpenRouter` and `FileRunStore(".runs")`, prints text
+  as it streams, asks in the terminal when a request pauses the run, then resumes. `--loop` chooses
+  the loop instead of the coordinator; `--recording` runs from recorded completions, offline;
+  `--record` writes the completions of this run for that.
 - `geomind chat [--agent NAME] [--project PATH] [--live] [--recording FILE] [--model ID]
   [--max-steps N]` is an interactive session with any agent of `gd.agents`, skeletons included,
   `analyst` by default. Each turn prints the streamed

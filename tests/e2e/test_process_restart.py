@@ -9,12 +9,12 @@ from tests.fixtures import ROOT
 START = """
 import sys
 import geomind as gd
-from tests.fixtures.runs import call, says, uses
+from tests.fixtures.runs import ROUTE, call, says, uses
 from geomind.providers import FakeLLM
 
 run = gd.Run(
     message="go",
-    llm=FakeLLM([uses(call("ask_user", question="which?"))]),
+    llm=FakeLLM([ROUTE, uses(call("ask_user", question="which?"))]),
     store=gd.stores.FileRunStore(sys.argv[1]),
 )
 result = run.start()

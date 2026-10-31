@@ -9,11 +9,12 @@ from pathlib import Path
 from uuid import uuid4
 
 from geomind import agents, runtime
+from geomind.agents import Route
 from geomind.context import ProblemState, render
 from geomind.engine import Engine, Permissions, callbacks
 from geomind.errors import GeomindError, RunError
-from geomind.providers import FakeLLM, OpenRouter
-from geomind.run import Run
+from geomind.providers import FakeLLM, OpenRouter, Recorder
+from geomind.run import LOOPS, Run, loop_of
 from geomind.sandbox import DockerSandbox, LocalSandbox
 from geomind.stores import FileWorkspace
 from geomind.stores.run import FileRunStore
@@ -66,17 +67,31 @@ def _changes(args):
     return changes
 
 
+def _run_provider(args):
+    """Return the provider of ``run``: OpenRouter, or a recording; ``--record`` keeps a copy."""
+    llm = FakeLLM.from_recording(args.recording) if args.recording else OpenRouter()
+    return Recorder(llm, Path(args.record)) if args.record else llm
+
+
 def _command_run(args):
-    """Run one message, asking in the terminal when the run pauses."""
+    """Run one message, asking in the terminal when the run pauses.
+
+    Without ``--loop`` the coordinator routes the message; ``--loop`` names the loop instead.
+    """
+    workspace, project = _project(args.project)
     with runtime.settings(**_changes(args)):
         run = Run(
             message=args.message,
-            llm=OpenRouter(),
+            project=project,
+            llm=_run_provider(args),
             store=FileRunStore(RUNS_FOLDER),
+            workspace=workspace,
             sandbox=_sandbox(args.sandbox),
             permissions=Permissions(mode=args.mode),
             callbacks=[_Printer()],
         )
+        if args.loop is not None:
+            run.loop = loop_of(Route(kind="loop", loop=args.loop))
         result = run.start()
         while result.status == "waiting":
             result = run.resume(result.request.id, _ask(result.request))
@@ -262,6 +277,10 @@ def _parser():
     run.add_argument("--max-steps", type=int)
     run.add_argument("--mode", choices=["ask", "auto", "readonly", "plan"], default="ask")
     run.add_argument("--sandbox", choices=["local", "docker"])
+    run.add_argument("--loop", choices=list(LOOPS))
+    run.add_argument("--project")
+    run.add_argument("--recording")
+    run.add_argument("--record")
     run.set_defaults(function=_command_run)
     chat = commands.add_parser("chat", help="talk to one agent in the terminal")
     chat.add_argument("--agent", default="analyst")

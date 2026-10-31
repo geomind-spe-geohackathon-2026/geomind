@@ -67,6 +67,7 @@ class Engine:
         self.workspace = workspace
         self.recorded = {}
         self.recorded_changes = {}
+        self._sequences = {}
 
     def register_hook(self, hook):
         """Add a hook; the returned handle has ``.remove()``."""
@@ -76,9 +77,23 @@ class Engine:
         """Return the registered hooks, in order."""
         return list(self._hooks.values())
 
+    async def run_first(self, agent, context, *, root):
+        """Run ``agent`` as a nested run of ``root`` before ``root`` starts, in its log.
+
+        NOTE: this is the routing call: the coordinator decides which loop the root run is, so it
+        runs first, with ``parent`` and ``root`` set to the root run, and the root run continues the
+        numbering of the same log.
+        """
+        log = RunLog(self, root)
+        session = RunSession(self, log, RunState(root=root), agent)
+        await session.start(context, max_steps=runtime.get("max_steps"), parent=root, root=root)
+        result = await self.drive(session)
+        self._sequences[root] = log.sequence
+        return result
+
     async def run(self, agent, context, *, max_steps=None, loop=None):
         """Run ``agent`` from ``context`` until it stops."""
-        log = RunLog(self, context.run_id)
+        log = RunLog(self, context.run_id, self._sequences.pop(context.run_id, 0))
         session = RunSession(self, log, RunState(root=context.run_id), agent, loop)
         await session.start(context, max_steps=max_steps or runtime.get("max_steps"))
         return await self.drive(session)

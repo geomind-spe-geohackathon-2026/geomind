@@ -142,7 +142,8 @@ check it before writing a tool, because gemini's names change.
 | S3.2 | the `Verified` hook: gemini's checks run again on the design's stored run before any answer | `8ee1444` | done |
 | S3.3 | `estimate_costs`: gemini's economics with the assumptions used, and LCTS | `cf07cdc` | done |
 | S3.4 | `Designer`, `Verifier`, `Economist`, `Explainer`, `Coordinator` filled, with the `designing-a-plant` skill and one offline task each (hand-written recordings); `read_plant` reads examples and templates (`253bf05`); co-produced gas check (`e7719f4`) | `ef7c64b` | done |
-| S3.5 | `DesignLoop`: a rule-based driver delegates design, verification, costs and explanation in one root run, routes failures by domain, and replays offline (nested state changes and artifacts reused) | this commit | done |
+| S3.5 | `DesignLoop`: a rule-based driver delegates design, verification, costs and explanation in one root run, routes failures by domain, and replays offline (nested state changes and artifacts reused) | `4fc16ed` | done |
+| S3.7 | Routing: `Run.start` asks the `Coordinator` (a nested run logged first) and follows its `Route`; `geomind run --loop/--project/--recording/--record` | this commit | done |
 | S2 gemini tools | the assessment tools of the catalogue | none | **stubs**: see section 7 |
 
 No live OpenRouter run has been made yet. It needs `OPENROUTER_API_KEY` in geomind's own
@@ -229,7 +230,7 @@ gemini.
    and the verifier checks.
    - Tests: `tests/unit/loops/test_makerchecker.py`.
    - Done when: a refused proposal goes back to the maker, up to `max_rounds`.
-7. **Routing.** `Run.astart` calls the `Coordinator` and follows its `Route` with `loop_of` in
+7. **Routing.** Done. `Run.astart` calls the `Coordinator` and follows its `Route` with `loop_of` in
    `geomind/run.py`. A stub loop already gives `stop_reason="not_implemented"`.
    - Tests: `tests/unit/test_run.py`.
    - Done when: the backend starts a design run without naming a loop or an agent.

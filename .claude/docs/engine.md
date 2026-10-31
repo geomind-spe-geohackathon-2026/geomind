@@ -26,6 +26,8 @@ run needs them. `llm` gets the retry layer, `store` defaults to `MemoryRunStore`
 to `Permissions(mode="ask")`.
 
 - `await run(agent, context, *, max_steps=None, loop=None) -> RunResult`
+- `await run_first(agent, context, *, root) -> RunResult`: the routing call, a nested run of `root`
+  in its log before `root` starts; `run` of `root` then continues the numbering
 - `await resume(run_id, request_id=None, answer=None, *, agent=None, loop=None) -> RunResult`
 - `await Engine.replay(store, run_id) -> RunResult`
 - `register_hook(hook)` returns a handle with `.remove()`; `hooks()` lists them.

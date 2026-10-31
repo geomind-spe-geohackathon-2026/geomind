@@ -4,7 +4,7 @@ from typing import Literal
 
 from geomind.agents.agent import Agent, Model, Output
 from geomind.prompts import Prompt
-from geomind.types import Record
+from geomind.types import Action, Record
 
 
 class Route(Record):
@@ -36,3 +36,19 @@ class Coordinator(Agent):
 
         # Model
         self.model = Model(setting="coordinator_model", temperature=0)
+
+
+class Answer(Agent):
+    """Give the short answer a route holds, by rule: the run of an ``answer`` route."""
+
+    def __init__(self, answer=""):
+        """Keep the answer."""
+        super().__init__()
+
+        # Model
+        self.model = Model(name="rule")
+        self._answer = answer
+
+    async def forward(self, context):
+        """Answer with the route's text."""
+        return Action(text=self._answer)

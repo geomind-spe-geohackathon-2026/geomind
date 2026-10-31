@@ -1,6 +1,7 @@
 """Scripted runs for engine tests: agents, tools and shorthand completions."""
 
 import asyncio
+import json
 
 from geomind.agents import Agent, Model
 from geomind.engine import Context, Engine, Permissions
@@ -131,3 +132,12 @@ def types(events):
 def of_type(events, kind):
     """Return the events of one type."""
     return [event for event in events if event.type == kind]
+
+
+def routed(loop="tool", agent="analyst", **route):
+    """Return the coordinator's completion that routes a run to a loop and an agent."""
+    return says(json.dumps({"kind": "loop", "loop": loop, "agent": agent, **route}))
+
+
+ROUTE = routed()
+"""The route of a plain question: the tool loop with the analyst."""

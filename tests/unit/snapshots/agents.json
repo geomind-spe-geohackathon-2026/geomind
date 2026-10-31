@@ -192,6 +192,15 @@
           }
         },
         "run": {
+          "--loop": {
+            "choices": [
+              "tool",
+              "design",
+              "makerchecker",
+              "compare"
+            ],
+            "default": null
+          },
           "--max-steps": {
             "choices": null,
             "default": null
@@ -206,6 +215,18 @@
             "default": "ask"
           },
           "--model": {
+            "choices": null,
+            "default": null
+          },
+          "--project": {
+            "choices": null,
+            "default": null
+          },
+          "--record": {
+            "choices": null,
+            "default": null
+          },
+          "--recording": {
             "choices": null,
             "default": null
           },

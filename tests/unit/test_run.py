@@ -1,15 +1,20 @@
 """The facade: exactly the contract's use."""
 
+import asyncio
+import json
+
 import pytest
 
 import geomind as gd
 from geomind import runtime
 from geomind.agents import Analyst, Assistant, CodeAssistant, Route
+from geomind.engine.recovery import recover
 from geomind.errors import ProviderError, RequestError, RunError
+from geomind.loops import DesignLoop
 from geomind.providers import FakeLLM
 from geomind.run import LOOPS, loop_of
 from geomind.stores import MemoryRunStore
-from tests.fixtures.runs import call, of_type, says, uses
+from tests.fixtures.runs import ROUTE, call, of_type, routed, says, uses
 
 
 @pytest.fixture(autouse=True)
@@ -20,8 +25,9 @@ def no_retry_delay():
 
 
 def run_of(script, **options):
-    """Return a run with a scripted provider."""
-    return gd.Run(message="hello", llm=FakeLLM(script), **options)
+    """Return a run with a scripted provider; without an agent the coordinator routes it first."""
+    routing = [] if "agent" in options else [ROUTE]
+    return gd.Run(message="hello", llm=FakeLLM([*routing, *script]), **options)
 
 
 def test_start_answers():
@@ -55,7 +61,7 @@ def test_run_started_reports_the_tool_loop():
     store = gd.stores.MemoryRunStore()
     run = run_of([says()], store=store, chat="c1", project="p1")
     run.start()
-    event = of_type(store.load_events(run.id), "run.started")[0]
+    event = of_type(store.load_events(run.id), "run.started")[-1]
     assert event.data() == {"run": run.id, "loop": "tool", "agent": "analyst", "parent": None}
     assert (event.chat, event.project) == ("c1", "p1")
 
@@ -199,3 +205,40 @@ def test_a_route_to_the_tool_loop_runs_its_agent():
 def test_the_tables_hold_the_final_names():
     """``LOOPS`` has one row per planned loop."""
     assert set(LOOPS) == {"tool", "design", "makerchecker", "compare"}
+
+
+def test_a_run_without_an_agent_is_routed_by_the_coordinator():
+    """The backend names no loop and no agent: the coordinator's route picks them, in the log."""
+    store = MemoryRunStore()
+    result = gd.Run(message="hello", llm=FakeLLM([ROUTE, says("the answer")]), store=store).start()
+    events = store.load_events(result.run_id)
+    started = of_type(events, "run.started")
+    assert (result.status, result.answer) == ("done", "the answer")
+    assert [(event.agent, event.parent) for event in started] == [
+        ("coordinator", result.run_id),
+        ("analyst", None),
+    ]
+    sequences = [event.sequence for event in events]
+    assert sequences == sorted(set(sequences))
+    assert recover(events).run_id == result.run_id
+
+
+def test_a_design_brief_starts_the_design_loop():
+    """A design request needs no loop name from the backend."""
+    run = gd.Run(message="design", llm=FakeLLM([routed("design", brief="design")]))
+    asyncio.run(run._route_message())
+    assert isinstance(run.loop, DesignLoop)
+
+
+def test_a_short_answer_route_ends_the_run_with_it():
+    """A greeting is answered by the route itself, by rule."""
+    answer = says(json.dumps({"kind": "answer", "answer": "Hello."}))
+    result = gd.Run(message="hi", llm=FakeLLM([answer])).start()
+    assert (result.status, result.answer) == ("done", "Hello.")
+
+
+def test_a_loop_set_by_hand_is_not_routed():
+    """``--loop`` and tests choose the loop; the coordinator is not asked."""
+    run = gd.Run(message="hello", llm=FakeLLM([says("hi")]))
+    run.loop = loop_of(Route(kind="loop", loop="tool", agent="analyst"))
+    assert run.start().answer == "hi"

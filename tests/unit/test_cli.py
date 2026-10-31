@@ -10,7 +10,7 @@ from geomind import cli, runtime
 from geomind.providers import FakeLLM, OpenRouter
 from geomind.stores.run import FileRunStore
 from geomind.utils.json import append_line
-from tests.fixtures.runs import call, says, uses
+from tests.fixtures.runs import ROUTE, call, says, uses
 
 
 def stream(*chunks):
@@ -30,6 +30,11 @@ def tool_call(name, arguments):
     function = {"name": name, "arguments": json.dumps(arguments)}
     piece = {"index": 0, "id": "c1", "function": function}
     return stream({"choices": [{"delta": {"tool_calls": [piece]}}]})
+
+
+def routed_answer():
+    """Return the coordinator's streamed route to the analyst."""
+    return answer(json.dumps({"kind": "loop", "loop": "tool", "agent": "analyst"}))
 
 
 @pytest.fixture
@@ -54,7 +59,7 @@ def run_folder():
 
 def test_run_prints_streamed_text_and_totals(service, capsys):
     """Text streams to the terminal, and totals follow."""
-    service.append(answer("Hello"))
+    service += [routed_answer(), answer("Hello")]
     assert cli.main(["run", "Say hello"]) == 0
     output = capsys.readouterr().out
     assert "Hello" in output and "done (answer)" in output and "tokens 7 in" in output
@@ -62,7 +67,7 @@ def test_run_prints_streamed_text_and_totals(service, capsys):
 
 def test_run_asks_in_the_terminal(service, monkeypatch, capsys):
     """A question pauses, the terminal answers and the run resumes."""
-    service += [tool_call("ask_user", {"question": "Which?"}), answer("Thanks")]
+    service += [routed_answer(), tool_call("ask_user", {"question": "Which?"}), answer("Thanks")]
     monkeypatch.setattr("builtins.input", lambda prompt: "this one")
     assert cli.main(["run", "Ask me"]) == 0
     assert "Thanks" in capsys.readouterr().out
@@ -74,12 +79,14 @@ def test_run_passes_the_model(service, monkeypatch):
 
     def reply(request):
         seen.append(json.loads(request.content)["model"])
-        return answer("ok")
+        return routed_answer() if len(seen) == 1 else answer("ok")
 
     transport = httpx.MockTransport(reply)
-    monkeypatch.setattr(cli, "OpenRouter", lambda: OpenRouter(api_key="k", transport=transport))
+    monkeypatch.setattr(
+        cli, "OpenRouter", lambda: OpenRouter(api_key="sk-model-test", transport=transport)
+    )
     cli.main(["run", "x", "--model", "a/b"])
-    assert seen == ["a/b"]
+    assert seen == [runtime.FIXED_CHEAP_MODEL, "a/b"]
 
 
 def test_run_with_a_failing_service_reports_it(service, capsys):
@@ -91,7 +98,7 @@ def test_run_with_a_failing_service_reports_it(service, capsys):
 
 def test_replay_reproduces_a_run_offline(service, capsys):
     """After a run, the service is not needed."""
-    service.append(answer("Hello"))
+    service += [routed_answer(), answer("Hello")]
     cli.main(["run", "x"])
     capsys.readouterr()
     assert cli.main(["replay", run_folder()]) == 0
@@ -106,7 +113,7 @@ def test_replay_of_a_missing_run_reports_it(service, capsys):
 
 def test_show_prints_prompts_answers_and_tokens(service, capsys):
     """The log holds what happened, step by step."""
-    service.append(answer("Hello"))
+    service += [routed_answer(), answer("Hello")]
     cli.main(["run", "Say hello"])
     capsys.readouterr()
     assert cli.main(["show", run_folder(), "--format", "md"]) == 0
@@ -118,13 +125,30 @@ def test_show_prints_prompts_answers_and_tokens(service, capsys):
 
 def test_show_prints_tools_and_plain_text(service, monkeypatch, capsys):
     """Without a format it is plain text, and tools appear."""
-    service += [tool_call("ask_user", {"question": "Which?"}), answer("Thanks")]
+    service += [routed_answer(), tool_call("ask_user", {"question": "Which?"}), answer("Thanks")]
     monkeypatch.setattr("builtins.input", lambda prompt: "x")
     cli.main(["run", "Ask me"])
     capsys.readouterr()
     cli.main(["show", run_folder()])
     output = capsys.readouterr().out
     assert "- Tool ask_user" in output and "output: x" in output
+
+
+def test_run_with_a_loop_skips_the_routing(service, capsys):
+    """``--loop`` chooses the loop; the coordinator is not asked."""
+    service.append(answer("Hello"))
+    assert cli.main(["run", "Say hello", "--loop", "tool"]) == 0
+    assert "Hello" in capsys.readouterr().out
+
+
+def test_run_records_and_runs_again_offline_from_the_recording(service, capsys):
+    """``--record`` writes the completions; ``--recording`` runs from them without the service."""
+    service += [routed_answer(), answer("Hello")]
+    assert cli.main(["run", "Say hello", "--record", "run.jsonl"]) == 0
+    capsys.readouterr()
+    assert cli.main(["run", "Say hello", "--recording", "run.jsonl"]) == 0
+    assert "Hello" in capsys.readouterr().out
+    assert service == []
 
 
 def test_sandbox_choice():
@@ -151,7 +175,7 @@ def test_show_marks_a_nested_step():
 def test_run_replay_and_show_with_a_fake_llm(monkeypatch, tmp_path, capsys):
     """The three commands work with the scripted provider."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(cli, "OpenRouter", lambda: FakeLLM([says("Hello")]))
+    monkeypatch.setattr(cli, "OpenRouter", lambda: FakeLLM([ROUTE, says("Hello")]))
     assert cli.main(["run", "Say hello"]) == 0
     assert cli.main(["replay", run_folder()]) == 0
     assert cli.main(["show", run_folder()]) == 0

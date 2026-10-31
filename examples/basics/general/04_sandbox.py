@@ -5,7 +5,9 @@ from examples.support import provider
 from geomind.types import Completion, ToolCall
 
 CODE = "print(sum(range(1, 101)))"
+ROUTE = '{"kind": "loop", "loop": "tool", "agent": "code_assistant"}'
 SCRIPT = [
+    Completion(text=ROUTE),
     Completion(tool_calls=(ToolCall(id="c1", name="run_python", input={"code": CODE}),)),
     Completion(text="The sum is 5050."),
 ]
@@ -22,7 +24,8 @@ def main():
         permissions=gd.Permissions(allow=("run_python",)),
     )
     result = run.start()
-    output = next(e.output for e in store.load_events(run.id) if e.type == "tool.result")
+    events = store.load_events(run.id)
+    output = next(e.output for e in events if e.type == "tool.result" and e.tool == "run_python")
     print(output["stdout"].strip())
     print(result.answer)
 

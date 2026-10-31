@@ -73,10 +73,10 @@ its JSON schema to the system prompt.
 
 | Agent | Folder | Status | In `AGENTS` of `run.py` |
 |---|---|---|---|
-| `Analyst` | `analysis/` | complete, the sample, with the gemini tools of S2b | yes, the default |
+| `Analyst` | `analysis/` | complete, the sample, with the gemini tools of S2b | yes, the default route |
 | `Assistant`, `CodeAssistant` | `general/` | complete; `Run` uses `CodeAssistant` with a sandbox | `code_assistant` |
 | `Summarizer` | `general/` | complete; only compaction calls it | no |
-| `Coordinator` | `coordination/` | complete; answers with a `Route` | no |
+| `Coordinator` | `coordination/` | complete; answers with a `Route`, called by `Run.start` | no |
 | `Designer` | `design/` | complete; families, then one design built, simulated and checked | no |
 | `Verifier` | `verification/` | complete; simulates afresh and records gemini's checks | no |
 | `Economist` | `economics/` | complete; gemini's economics and LCTS | no |
@@ -109,9 +109,10 @@ frozen; the tools themselves are in [tools.md](tools.md#catalogue). Every agent 
 
 `Route` is what `Coordinator` answers, in `geomind/agents/coordination/coordinator.py`: `kind` is
 `answer` or `loop`, `answer` the short direct answer of an `answer` route, `loop` a name of `LOOPS`,
-`agent` a name of `AGENTS`, and `brief` what the loop is told. `Run` does not call the coordinator
-yet. `loop_of(route)` in `run.py` builds the loop, and a stub loop ends the run with
-`stop_reason="not_implemented"`.
+`agent` a name of `AGENTS`, and `brief` what the loop is told. `Run.start` calls the coordinator
+first, as a nested run logged before the run. `loop_of(route)` in `run.py` builds the loop: an
+`answer` route runs the rule agent `Answer`, which gives the route's text, and a stub loop ends the
+run with `stop_reason="not_implemented"`.
 
 ## How to add or fill an agent
 

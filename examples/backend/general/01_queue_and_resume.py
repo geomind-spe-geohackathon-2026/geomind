@@ -12,7 +12,9 @@ import geomind as gd
 from examples.support import provider
 from geomind.types import Completion, ToolCall
 
+ROUTE = '{"kind": "loop", "loop": "tool", "agent": "code_assistant"}'
 SCRIPT = [
+    Completion(text=ROUTE),
     Completion(tool_calls=(ToolCall(id="c1", name="run_python", input={"code": "print(1)"}),)),
     Completion(text="Done."),
 ]
@@ -51,7 +53,7 @@ def answer_job(root, sandbox_root, run_id, request_id):
     """Answer the request in a fresh run."""
     run = gd.Run.load(
         run_id,
-        llm=provider(SCRIPT[1:]),
+        llm=provider(SCRIPT[2:]),
         store=gd.stores.FileRunStore(root),
         sandbox=gd.sandbox.LocalSandbox(sandbox_root),
         permissions=permissions(),

@@ -2,7 +2,8 @@
 
 import asyncio
 
-from geomind.agents import Analyst, CodeAssistant, Designer, Verifier
+from geomind.agents import Analyst, CodeAssistant, Coordinator, Designer, Route, Verifier
+from geomind.agents.coordination.coordinator import Answer
 from geomind.context import ProblemState, restore
 from geomind.engine import Context, Engine, Permissions
 from geomind.engine.context import new_run_id
@@ -10,6 +11,7 @@ from geomind.engine.hooks import Cancellation
 from geomind.engine.recovery import agent_class, recover
 from geomind.errors import NotImplementedYet, RunError
 from geomind.loops import CompareLoop, DesignLoop, MakerCheckerLoop, ToolLoop
+from geomind.loops.design import DesignDriver
 from geomind.providers import OpenRouter
 from geomind.stores.run import MemoryRunStore
 from geomind.types import Message
@@ -34,7 +36,9 @@ def _sync(coroutine):
 
 
 def loop_of(route):
-    """Return the loop a ``Route`` names, with its agents."""
+    """Return the loop a ``Route`` names, with its agents; an ``answer`` route answers by rule."""
+    if route.kind == "answer":
+        return LOOPS["tool"](Answer(route.answer or ""))
     if route.loop == "tool":
         return LOOPS["tool"](AGENTS[route.agent]())
     if route.loop == "makerchecker":
@@ -43,13 +47,21 @@ def loop_of(route):
     return design if route.loop == "design" else LOOPS["compare"](design, (), ())
 
 
+def loop_for(state):
+    """Return the loop a stored run was started with, around the agent it names."""
+    agent = agent_class(state)()
+    if state.loop == "design" and isinstance(agent, DesignDriver):
+        return LOOPS["design"](agent.tools()["designer"].agent, agent.tools()["verifier"].agent)
+    return LOOPS["tool"](agent)
+
+
 class Run:
     """One message answered by the harness, with ``start``, ``load``, ``resume`` and ``cancel``.
 
-    A run uses a loop of ``LOOPS`` with an agent of ``AGENTS``: for now ``ToolLoop`` with
-    ``Analyst``, or ``CodeAssistant`` when a sandbox is configured. ``agent`` replaces that choice,
-    for testing one agent by hand. The coordinator takes over the routing later, without changing
-    this signature, and a new agent is one row in ``AGENTS``.
+    A run uses a loop of ``LOOPS`` with an agent of ``AGENTS``. ``start`` asks the ``Coordinator``
+    first: its ``Route`` names the loop and the agent, so the backend never chooses them. The
+    routing call is a nested run of this run, logged before it starts. ``agent`` replaces the
+    routing, for testing one agent by hand, and so does a ``loop`` set before ``start``.
     """
 
     def __init__(
@@ -86,7 +98,47 @@ class Run:
             workspace=workspace,
         )
         routed = AGENTS["code_assistant" if sandbox is not None else "analyst"]
-        self.loop = LOOPS["tool"](agent if agent is not None else routed())
+        self._loop = LOOPS["tool"](agent if agent is not None else routed())
+        self._is_routed = agent is not None
+
+    @property
+    def loop(self):
+        """Return the loop of this run."""
+        return self._loop
+
+    @loop.setter
+    def loop(self, loop):
+        """Use ``loop`` and skip the routing."""
+        self._loop = loop
+        self._is_routed = True
+
+    def _context(self, problem):
+        """Return the context of this run's message, after the chat's history."""
+        history = restore(self.history, problem.compaction)
+        messages = [*history, Message(role="user", content=self.message)]
+        return Context(self.id, messages, chat=self.chat, project=self.project, problem=problem)
+
+    async def _route_message(self):
+        """Ask the ``Coordinator`` where the message goes and take that loop; return the route.
+
+        A routing run that fails keeps the default loop; its answer was validated as a ``Route``.
+        """
+        problem = await asyncio.to_thread(self._load_problem)
+        start = self._context(problem)
+        context = Context(
+            f"{self.id}-route",
+            start.messages,
+            chat=self.chat,
+            project=self.project,
+            problem=problem,
+        )
+        result = await self.engine.run_first(Coordinator(), context, root=self.id)
+        self._is_routed = True
+        if result.status != "done":
+            return None
+        route = Route.model_validate(result.answer)
+        self._loop = loop_of(route)
+        return route
 
     @classmethod
     def load(
@@ -115,17 +167,17 @@ class Run:
         state = recover(run.store.load_events(run_id), run_id)
         run.chat = state.chat
         run.project = state.project
-        run.loop = LOOPS["tool"](agent_class(state)())
+        run.loop = loop_for(state)
         return run
 
     async def astart(self):
         """Run until the answer or a pause."""
         if self.message is None:
             raise RunError("Run: message = None; expected a message to start with")
+        if not self._is_routed:
+            await self._route_message()
         problem = await asyncio.to_thread(self._load_problem)
-        history = restore(self.history, problem.compaction)
-        messages = [*history, Message(role="user", content=self.message)]
-        context = Context(self.id, messages, chat=self.chat, project=self.project, problem=problem)
+        context = self._context(problem)
         try:
             return await self.loop.run(self.engine, context)
         except NotImplementedYet as error:
