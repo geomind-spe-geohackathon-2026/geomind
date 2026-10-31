@@ -25,7 +25,7 @@ path; the package has one file per group. All are idempotent.
 | `search_documents` | `results.py` | `read` | `query` | `[{id, title, text, score}]` | built |
 | `check_results` | `assessment.py` | `compute` | `reference, limits=None` | `{passed, checks: [Check], failures: [{name, domain}], not_assessed}` | built |
 | `compute_kpis` | `assessment.py` | `compute` | `reference, names=None` | `{name: Value}`: `gm.kpi.compute` and `gm.kpi.totals` | built |
-| `estimate_costs` | `assessment.py` | `compute` | `reference, assumptions=None` | `{capex, opex, lcoh, lcoc, npv, co2}` as Values, plus the assumptions used | stub, S3 |
+| `estimate_costs` | `assessment.py` | `compute` | `reference, assumptions=None` | `{capex, opex, lcoh, lcoc, npv, co2, lcts}` as Values, plus the assumptions used | built |
 | `test_module` | `assessment.py` | `execute` | `path` | gemini's `check_module` report, run in the sandbox | stub, S3 |
 | `optimize` | `assessment.py` | `compute` | `design, variables, objective, constraints=None, budget=None` | `{design, objective, history}` | stub, S4 (bonus) |
 | `sample_uncertainty` | `assessment.py` | `compute` | `design, distributions, samples, metrics` | `{metric: {p10, p50, p90}}` as Values | stub, S4 (bonus) |
@@ -107,6 +107,18 @@ one call outside gemini's `api.md`; it stays until gemini reads these inputs its
   (`NOT_ASSESSED`, with the design's value), and any requirement that names no `<path>.<output>`.
 - A limit the run cannot judge (no column) is a check with `passed: null` and its reason, as gemini
   does; a run where every day failed is judged by `failed_days` only.
+
+## Costs
+
+`estimate_costs` calls `gm.economics` with `on_error="record"`, so an assumption nobody gave is a
+null value with gemini's reason, and returns every field of `gm.economics.Assumptions` it used.
+`heat_cost_share = "energy"` splits the cost by the heat and cold delivered (`gm.kpi.totals`).
+`lcts`, the levelised cost of thermal service, is annualised total system cost / (annual heat +
+annual cold). Its numbers are gemini's: with `heat_cost_share = 1`, `lcoh × energy` is the
+annualised total cost `capex / A + opex`, and `energy` of `lcoh` and `lcoc` the annual heat and
+cold; geomind only divides. Five cost factors have no sourced default in gemini (`pump_cost`,
+`chiller_cost`, `exchanger_cost`, `flare_cost`, `makeup_cost`): an agent records the value it uses
+as an unconfirmed assumption.
 
 ## Tool
 

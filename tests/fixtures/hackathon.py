@@ -37,3 +37,23 @@ def hackathon_run(gm, start="2027-01-01", end="2027-01-31"):
     demand = pd.concat([gm.profiles.get(name) for name in gm.profiles.names()], axis=1)
     plan = gm.schedule(plant, demand.loc[start:end], SCHEDULE_RULES)
     return plant, gm.simulate(plant, plan, on_error="record")
+
+
+MWH = 3.6e9
+PRICES = {
+    "discount_rate": 0.05,
+    "lifetime_years": 25,
+    "electricity_price": 100.0 / MWH,
+    "gas_price": 40.0,
+    "heat_price": 60.0 / MWH,
+    "cold_price": 60.0 / MWH,
+    "electricity_emission_factor": 0.3 / 3.6e6,
+    "pump_cost": 0.5,
+    "chiller_cost": 0.3,
+    "exchanger_cost": 0.5,
+    "flare_cost": 1e5,
+    "makeup_cost": 5e4,
+    "waste_disposal_price": 0.2,
+    "chemical_price": 3.0,
+}
+"""The placeholder prices of gemini's ``examples/cases/hackathon.py``: not data, for tests only."""

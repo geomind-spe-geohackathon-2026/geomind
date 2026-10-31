@@ -63,10 +63,97 @@ def compute_kpis(context, reference: str, names: list[str] | None = None):
     return {name: found[name] for name in names} if names else found
 
 
+def energy_share(plant, results):
+    """Return the heat's share of the energy delivered, from the totals of ``gm.kpi.totals``."""
+    import gemini as gm
+
+    totals = gm.kpi.totals(plant, results)
+    heat, cold = totals["heat_delivered"]["value"], totals["cold_delivered"]["value"]
+    if not heat or cold is None:
+        raise ToolError(
+            "estimate_costs: heat_cost_share = 'energy'; expected a run that delivers heat",
+            path="assumptions.heat_cost_share",
+        )
+    return heat / (heat + cold)
+
+
+def build_assumptions(values, plant, results):
+    """Return ``gm.economics.Assumptions`` of the given values, or a result the model can fix."""
+    import gemini as gm
+    import pydantic
+
+    known = gm.economics.Assumptions.model_fields
+    for name in values:
+        if name not in known:
+            raise ToolError(
+                f"estimate_costs: assumptions.{name}; expected one of {join_names(known)}"
+                f"{did_you_mean(name, known)}",
+                code="unknown_name",
+                path=f"assumptions.{name}",
+            )
+    if values.get("heat_cost_share") == "energy":
+        values = {**values, "heat_cost_share": energy_share(plant, results)}
+    try:
+        return gm.economics.Assumptions(**values)
+    except pydantic.ValidationError as error:
+        first = error.errors()[0]
+        field = ".".join(str(part) for part in first["loc"])
+        raise ToolError(
+            f"estimate_costs: assumptions.{field}: {first['msg']}", path=f"assumptions.{field}"
+        ) from None
+
+
+def lcts(plant, results, assumptions):
+    """Return the levelised cost of thermal service, a Value with its parts.
+
+    LCTS = annualised total system cost / (annual heat delivered + annual cold delivered). NOTE:
+    every number is gemini's: with ``heat_cost_share = 1`` the whole cost goes to the heat, so
+    ``lcoh × energy`` of ``gm.economics.lcoh`` is the annualised total cost ``capex / A + opex``,
+    and ``energy`` of ``lcoh`` and ``lcoc`` are the annual heat and cold. geomind only divides.
+    """
+    import gemini as gm
+
+    whole = assumptions.model_copy(update={"heat_cost_share": 1.0})
+    heat = gm.economics.lcoh(plant, results, assumptions=whole, on_error="record")
+    cold = gm.economics.lcoc(plant, results, assumptions=whole, on_error="record")
+    if heat["value"] is None:
+        return {"value": None, "unit": heat["unit"], "reason": heat["reason"]}
+    heat_energy = heat["energy"]["value"]
+    cold_energy = (cold.get("energy") or {}).get("value") or 0.0
+    annual = heat["value"] * heat_energy
+    return {
+        "value": annual / (heat_energy + cold_energy),
+        "unit": heat["unit"],
+        "annualised_cost": {"value": annual, "unit": f"{assumptions.currency}/year"},
+        "heat": heat["energy"],
+        "cold": cold.get("energy") or {"value": 0.0, "unit": heat["energy"]["unit"]},
+    }
+
+
 @tool(effect="compute")
 def estimate_costs(context, reference: str, assumptions: dict[str, Any] | None = None):
-    """Estimate capex, opex, LCOH, LCOC, NPV and CO2, and return the assumptions used."""
-    raise NotImplementedYet("estimate_costs comes in S3")
+    """Estimate capex, opex, LCOH, LCOC, NPV and CO2, and return the assumptions used.
+
+    Every value is gemini's (``gm.economics`` with ``on_error="record"``), so a missing assumption
+    is a null value with its reason. ``assumptions`` are fields of ``gm.economics.Assumptions``;
+    ``heat_cost_share = "energy"`` splits the cost by the heat and cold delivered. ``lcts`` is the
+    levelised cost of heating and cooling together.
+    """
+    import gemini as gm
+
+    plant, results = stored_run(context, reference, "estimate_costs")
+    used = build_assumptions(dict(assumptions or {}), plant, results)
+    economics = gm.economics
+    return {
+        "capex": economics.capex(plant, used, on_error="record"),
+        "opex": economics.opex(plant, results, used, on_error="record"),
+        "lcoh": economics.lcoh(plant, results, assumptions=used, on_error="record"),
+        "lcoc": economics.lcoc(plant, results, assumptions=used, on_error="record"),
+        "npv": economics.npv(plant, results, assumptions=used, on_error="record"),
+        "co2": economics.co2(plant, results, used, on_error="record"),
+        "lcts": lcts(plant, results, used),
+        "assumptions": used.model_dump(mode="json"),
+    }
 
 
 @tool(effect="compute")

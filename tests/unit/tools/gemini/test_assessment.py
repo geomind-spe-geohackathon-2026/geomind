@@ -6,7 +6,7 @@ import pytest
 
 import geomind as gd
 from tests.fixtures.calls import call
-from tests.fixtures.hackathon import hackathon_spec
+from tests.fixtures.hackathon import PRICES, hackathon_spec
 from tests.fixtures.sessions import StubSession
 from tests.fixtures.stubs import check_stub
 
@@ -16,7 +16,6 @@ TOOLS = gd.tools.gemini
 @pytest.mark.parametrize(
     ("tool", "tool_input", "effect", "phase"),
     [
-        (TOOLS.estimate_costs, {"reference": "result/a"}, "compute", "S3"),
         (TOOLS.test_module, {"path": "module.py"}, "execute", "S3"),
         (
             TOOLS.optimize,
@@ -105,9 +104,114 @@ async def test_an_unknown_kpi_is_unknown_name_with_a_suggestion(stored):
     assert "peak_heat" in result.output["error"]["message"]
 
 
-@pytest.mark.parametrize("tool", [TOOLS.check_results, TOOLS.compute_kpis])
+@pytest.mark.parametrize("tool", [TOOLS.check_results, TOOLS.compute_kpis, TOOLS.estimate_costs])
 async def test_an_unknown_result_is_unknown_name(gm, tool):
     """Only a reference that simulate returned reads back."""
     result = await call(tool, {"reference": "result/missing"})
     assert result.output["error"]["code"] == "unknown_name"
     assert result.output["error"]["path"] == "reference"
+
+
+def gemini_costs(gm, session, reference, values):
+    """Return gemini's own economics of a stored run, called directly."""
+    from geomind.engine import Context
+    from geomind.tools.gemini.assessment import stored_run
+
+    plant, results = stored_run(Context(session=session), reference, "test")
+    assumptions = gm.economics.Assumptions(**values)
+    economics = gm.economics
+    return {
+        "capex": economics.capex(plant, assumptions, on_error="record"),
+        "opex": economics.opex(plant, results, assumptions, on_error="record"),
+        "lcoh": economics.lcoh(plant, results, assumptions=assumptions, on_error="record"),
+        "lcoc": economics.lcoc(plant, results, assumptions=assumptions, on_error="record"),
+        "npv": economics.npv(plant, results, assumptions=assumptions, on_error="record"),
+        "co2": economics.co2(plant, results, assumptions, on_error="record"),
+    }
+
+
+@pytest.fixture(scope="module")
+def costed(gm, stored):
+    """Return ``estimate_costs`` of a May run (heat and cold) under three sets of assumptions.
+
+    Each comes with gemini's own economics of the same run, called directly; the tool calls are
+    made here because each takes most of one test call's budget.
+    """
+    session, _ = stored
+    may = asyncio.run(run_in(session, gm, "2027-05-01", "2027-05-10"))
+    sets = {
+        "share": {**PRICES, "heat_cost_share": 0.8},
+        "prices": PRICES,
+        "energy": {**PRICES, "heat_cost_share": "energy"},
+        "none": {},
+    }
+    outputs = {
+        name: asyncio.run(
+            call(TOOLS.estimate_costs, {"reference": may, "assumptions": values}, session)
+        ).output
+        for name, values in sets.items()
+    }
+    expected = {
+        "share": gemini_costs(gm, session, may, sets["share"]),
+        "whole": gemini_costs(gm, session, may, {**PRICES, "heat_cost_share": 1.0}),
+    }
+    return outputs, expected
+
+
+def test_estimate_costs_returns_gemini_s_values_and_the_assumptions(gm, costed):
+    """Capex, opex, LCOH, LCOC, NPV and CO2 are gemini's, with every assumption used."""
+    outputs, expected = costed
+    output = outputs["share"]
+    assert {name: output[name] for name in expected["share"]} == expected["share"]
+    values = {**PRICES, "heat_cost_share": 0.8}
+    assert output["assumptions"] == gm.economics.Assumptions(**values).model_dump(mode="json")
+    assert output["lcoh"]["value"] is not None and output["lcoc"]["value"] is not None
+
+
+def test_lcts_is_the_annualised_system_cost_over_heat_and_cold(costed):
+    """LCTS = annualised total cost / (annual heat + annual cold), all from gemini's parts."""
+    outputs, expected = costed
+    lcts = outputs["prices"]["lcts"]
+    whole = expected["whole"]
+    heat, cold = whole["lcoh"]["energy"]["value"], whole["lcoc"]["energy"]["value"]
+    annual = whole["lcoh"]["value"] * heat
+    assert cold > 0
+    assert lcts["value"] == pytest.approx(annual / (heat + cold), rel=1e-12)
+    assert lcts["unit"] == "EUR/J"
+    assert lcts["annualised_cost"] == {
+        "value": pytest.approx(annual, rel=1e-12),
+        "unit": "EUR/year",
+    }
+    assert 0 < lcts["value"] < whole["lcoh"]["value"]
+
+
+def test_a_missing_assumption_is_a_null_value_with_gemini_s_reason(costed):
+    """Without a discount rate the levelised costs have no value, and say why."""
+    outputs, _ = costed
+    assert outputs["none"]["lcoh"]["value"] is None
+    assert "discount_rate" in outputs["none"]["lcoh"]["reason"]
+    assert outputs["none"]["lcts"]["value"] is None
+
+
+def test_the_heat_cost_share_may_follow_the_delivered_energy(costed):
+    """``"energy"`` splits the cost by the heat and cold delivered, read from gm.kpi.totals."""
+    outputs, expected = costed
+    whole = expected["whole"]
+    heat, cold = whole["lcoh"]["energy"]["value"], whole["lcoc"]["energy"]["value"]
+    share = outputs["energy"]["assumptions"]["heat_cost_share"]
+    assert share == pytest.approx(heat / (heat + cold), rel=1e-9)
+
+
+@pytest.mark.parametrize(
+    ("assumptions", "code", "path"),
+    [
+        ({"discount_rates": 0.05}, "unknown_name", "assumptions.discount_rates"),
+        ({"discount_rate": "five"}, "invalid_input", "assumptions.discount_rate"),
+    ],
+)
+async def test_a_wrong_assumption_is_a_result_the_model_can_fix(stored, assumptions, code, path):
+    """An unknown name or a wrong value names the assumption."""
+    session, references = stored
+    request = {"reference": references["winter"], "assumptions": assumptions}
+    result = await call(TOOLS.estimate_costs, request, session)
+    assert (result.output["error"]["code"], result.output["error"]["path"]) == (code, path)
