@@ -14,6 +14,7 @@ STATE_KEYS = (
     "results",
     "verification",
     "questions",
+    "brief",
 )
 ITEM_LISTS = ("requirements", "assumptions", "results", "questions")
 _POINTER = re.compile(r"^(/([^~/]|~0|~1)*)+$")

@@ -4,17 +4,16 @@
 interface raises the minor version, and an addition or a fix raises the patch version. The rule and
 the list of frozen interfaces are in [.claude/docs/api.md](.claude/docs/api.md#frozen-interfaces).
 
-## Unreleased, additive at 0.1.0
+## 0.1.1 (unreleased)
 
-Additive changes only; nothing the backend uses changes shape, so the version stays.
+Additive changes only: a new key of the problem state. Nothing the backend uses
+changes shape, and an existing caller sees the same behaviour.
 
-- `geomind run` takes `--loop`, `--project`, `--recording` and `--record`: `--loop` chooses the loop
-  and skips the routing, `--recording` runs from recorded completions and `--record` writes them.
-- `gd.Run.start` asks the `Coordinator` first when no agent or loop is given; the routing call is a
-  nested run of the run, logged before it starts. The backend still names no loop and no agent.
-- `read_plant` reads `example/<Name>` and `template/<name>` and returns the plant's spec beside its
-  description; `check_results` returns `failures` and `not_assessed` beside `passed` and `checks`;
-  `estimate_costs` returns `lcts`.
+- `ProblemState.brief`: a `Brief` (or `null`), the brief as data, and `brief` among the keys a
+  patch may change. The backend stores it with the state; an older state without it loads as
+  `null`. `geomind.context` exports `Brief`, `PRESETS`, `preset` and `with_changes`; the one preset
+  is `hackathon_2027`.
+- `RunResult.usage` includes the routing call's tokens, as the run's log always did.
 
 ## 0.1.0 (2026-10-31)
 

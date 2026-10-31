@@ -6,8 +6,8 @@ LLM call or an event stays in the engine.
 ## Problem state
 
 `ProblemState` (`context/state.py`) holds the notes of one chat, outside the message window: `version`,
-`goal`, `requirements`, `assumptions`, `design`, `results`, `verification` and `questions`. It is
-frozen: a change is a new state.
+`goal`, `requirements`, `assumptions`, `design`, `results`, `verification`, `questions` and
+`brief`. It is frozen: a change is a new state.
 
 | Key | Shape |
 |---|---|
@@ -18,6 +18,7 @@ frozen: a change is a new state.
 | `results` | `[{id, summary, reference}]`; `reference` names the stored data |
 | `verification` | an object, free in shape; `result` names the `result/<id>` that verifies the design, which `Verified` checks again |
 | `questions` | `[{id, text}]` |
+| `brief` | a [`Brief`](#the-brief), or `null` when no brief is set |
 
 - **Writing.** The model writes through `update_state(changes)`. `apply_changes(state, changes)`
   takes the contract's JSON Patch operations, validates each one and returns a new state with
@@ -32,6 +33,36 @@ frozen: a change is a new state.
   reaches the runs above it, and `recover` applies `state.changed` from the whole tree.
 - **Shown to the model.** `render(state)` gives one line per item, the last part of every call, never
   in the message list. An untouched state (`version` 0) renders nothing.
+
+## The brief
+
+`Brief` (`context/brief.py`) is what a design must meet, as a brief states it. Every field is
+optional, and `None` means "not given": a limit the brief does not give is not checked, and
+verification lists it under `not_given`.
+
+| Field | Shape |
+|---|---|
+| `source` | a preset name, `user` (values the user gave) or `agent` |
+| `demand` | `{heating, cooling}`: a gemini profile name or a stored `profile/<name>` |
+| `doublets` | `{min, max}`, whole numbers |
+| `doublet_flow` | `{min, max}`, amounts |
+| `max_brine_cooling`, `pump_efficiency` | an amount |
+| `operating_days` | a whole number |
+| `volume_balance` | true when produced and injected liquid volumes must be equal |
+| `heating`, `cooling` | `{supply, return_temperature}`, amounts |
+| `reservoir` | `{depth, thickness, gradient, surface_temperature, pressure, permeability, density, viscosity, gas_liquid_ratio, gas_composition}`; the composition is mole fractions |
+
+An amount is what gemini takes: a text `"<number> <unit>"` or a Value `{value, unit}`. Nothing in
+`context/` converts it; the tools use `gm.units`.
+
+- **Presets.** `PRESETS` holds the named briefs, and is the only place their numbers live. The one
+  preset is `hackathon_2027`, the GEMINI hackathon challenge requirements of 28 October 2026: the
+  two gemini demand profiles, the reservoir and brine values, 1 to 3 doublets, 50 to 300 m3/h,
+  40 K, 70 % pump efficiency, equal volumes, 330 operating days, supply 100 and 20 degC. It gives
+  no return temperature: 60 and 25 degC are assumptions of a design. `preset(name)` returns one,
+  and `with_changes(brief, changes)` merges the JSON of a partial brief into one.
+- **Setting it.** `update_state` on `/brief` sets or changes it, and `render` shows it to every
+  agent. The tools still use the hackathon numbers of `tools/gemini/brief.py`.
 
 ## Long conversations
 

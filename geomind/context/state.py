@@ -5,6 +5,7 @@ from typing import Any, Literal
 
 from pydantic import ValidationError, model_validator
 
+from geomind.context.brief import Brief
 from geomind.errors import StateError
 from geomind.types import Record
 from geomind.types.patch import ITEM_LISTS, operation_problem
@@ -71,6 +72,7 @@ class ProblemState(Record):
     results: tuple[Result, ...] = ()
     verification: dict[str, Any] = {}
     questions: tuple[Question, ...] = ()
+    brief: Brief | None = None
     compaction: Compaction | None = None
 
     @model_validator(mode="after")
@@ -215,4 +217,7 @@ def render(state):
     if state.verification:
         lines.append(f"Verification: {json.dumps(state.verification)}")
     lines += [f"Question {item.id}: {item.text}" for item in state.questions]
+    if state.brief is not None:
+        brief = state.brief.model_dump(mode="json", exclude_none=True)
+        lines.append(f"Brief: {json.dumps(brief)}")
     return "\n".join(lines)
