@@ -145,7 +145,8 @@ check it before writing a tool, because gemini's names change.
 | S3.5 | `DesignLoop`: a rule-based driver delegates design, verification, costs and explanation in one root run, routes failures by domain, and replays offline (nested state changes and artifacts reused) | `4fc16ed` | done |
 | S3.7 | Routing: `Run.start` asks the `Coordinator` (a nested run logged first) and follows its `Route`; `geomind run --loop/--project/--recording/--record` | `27f3161` | done |
 | S3 e2e | the official brief through `geomind run --loop design`, offline from a scripted recording, replays | `b1c9cd3` | done; the live run waits for `OPENROUTER_API_KEY` |
-| S4.5 | `geomind show --format md`: tokens by agent, by step and in total, each prompt once, full answers | this commit | done |
+| S4.5 | `geomind show --format md`: tokens by agent, by step and in total, each prompt once, full answers | `1ac2af1` | done |
+| Manifest | `run_manifest.json` beside each `geomind run`: commits, versions, input hashes, models per agent, settings, seeds | this commit | done |
 | S2 gemini tools | the assessment tools of the catalogue | none | **stubs**: see section 7 |
 
 No live OpenRouter run has been made yet. It needs `OPENROUTER_API_KEY` in geomind's own

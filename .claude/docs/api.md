@@ -49,7 +49,12 @@ the routing, for testing one agent by hand, and so does a `run.loop` set before 
   [--recording FILE] [--record FILE]` runs with `OpenRouter` and `FileRunStore(".runs")`, prints text
   as it streams, asks in the terminal when a request pauses the run, then resumes. `--loop` chooses
   the loop instead of the coordinator; `--recording` runs from recorded completions, offline;
-  `--record` writes the completions of this run for that.
+  `--record` writes the completions of this run for that. Beside the log it writes
+  `.runs/<run id>/run_manifest.json`: the geomind and gemini commits (and whether either has
+  uncommitted changes), `gd.__version__` and `gm.__version__`, the SHA-256 of each demand profile, of
+  the recording and of the project's plant, the model ids each agent called, the run's settings, and
+  the seeds (none: gemini is deterministic, geomind draws no random numbers, agents run at
+  temperature 0).
 - `geomind chat [--agent NAME] [--project PATH] [--live] [--recording FILE] [--model ID]
   [--max-steps N]` is an interactive session with any agent of `gd.agents`, skeletons included,
   `analyst` by default. Each turn prints the streamed

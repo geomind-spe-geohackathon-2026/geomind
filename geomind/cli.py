@@ -2,7 +2,9 @@
 
 import argparse
 import asyncio
+import hashlib
 import json
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -20,6 +22,7 @@ from geomind.stores import FileWorkspace
 from geomind.stores.run import FileRunStore
 from geomind.types import RULE_MODEL, Message
 from geomind.types.runlog import runlog
+from geomind.utils.json import write_json
 
 RUNS_FOLDER = ".runs"
 MESSAGE_CHARACTERS = 2000
@@ -74,6 +77,85 @@ def _run_provider(args):
     return Recorder(llm, Path(args.record)) if args.record else llm
 
 
+def _repository(path):
+    """Return the commit of the git repository at ``path``, and whether it has changes."""
+
+    def git(*command):
+        found = subprocess.run(["git", "-C", str(path), *command], capture_output=True, text=True)
+        return found.stdout.strip() if found.returncode == 0 else None
+
+    status = git("status", "--porcelain")
+    return {
+        "commit": git("rev-parse", "HEAD"),
+        "dirty": bool(status) if status is not None else None,
+    }
+
+
+def _sha256(data):
+    """Return the hex SHA-256 of bytes."""
+    return hashlib.sha256(data).hexdigest()
+
+
+def _inputs(args):
+    """Return the hashes of what a run reads: the demand profiles, the recording, the project."""
+    import gemini as gm
+
+    found = {
+        name: {
+            "sha256": _sha256(gm.profiles.get(name).to_csv().encode()),
+            "source": gm.profiles.get(name).attrs.get("source"),
+        }
+        for name in gm.profiles.names()
+    }
+    for key, path in (("recording", args.recording), ("project", args.project)):
+        if path is not None:
+            file = Path(path) / "plant.json" if key == "project" else Path(path)
+            found[key] = {"path": str(file), "sha256": _sha256(file.read_bytes())}
+    return found
+
+
+def _models(events):
+    """Return the model ids each agent called, from the ``step.started`` events."""
+    models = {}
+    for event in events:
+        if event.type == "step.started" and event.model and event.model != RULE_MODEL:
+            models.setdefault(event.agent, [])
+            if event.model not in models[event.agent]:
+                models[event.agent].append(event.model)
+    return models
+
+
+def write_manifest(root, run_id, args):
+    """Write ``run_manifest.json`` beside a run's log: what reproduces it.
+
+    NOTE: gemini is deterministic and geomind draws no random numbers; every agent runs at
+    temperature 0, so the seeds are none and the models and inputs are what matter.
+    """
+    import gemini as gm
+
+    import geomind
+
+    store = FileRunStore(root)
+    events = store.load_events(run_id)
+    started = next(
+        event for event in events if event.type == "run.started" and event.parent is None
+    )
+    manifest = {
+        "run": {"id": run_id, "loop": started.loop, "arguments": sys.argv[1:]},
+        "geomind": {
+            "version": geomind.__version__,
+            **_repository(Path(geomind.__file__).parents[1]),
+        },
+        "gemini": {"version": gm.__version__, **_repository(Path(gm.__file__).parents[1])},
+        "inputs": _inputs(args),
+        "models": _models(events),
+        "settings": started.settings,
+        "seeds": {"geomind": None, "gemini": None, "temperature": 0},
+    }
+    write_json(Path(root) / run_id / "run_manifest.json", manifest)
+    return manifest
+
+
 def _command_run(args):
     """Run one message, asking in the terminal when the run pauses.
 
@@ -96,6 +178,7 @@ def _command_run(args):
         result = run.start()
         while result.status == "waiting":
             result = run.resume(result.request.id, _ask(result.request))
+        write_manifest(RUNS_FOLDER, result.run_id, args)
     print(f"\n\nrun {result.run_id}: {result.status} ({result.stop_reason})")
     usage = result.usage
     print(f"tokens {usage.input_tokens} in, {usage.output_tokens} out; cost {usage.cost}")

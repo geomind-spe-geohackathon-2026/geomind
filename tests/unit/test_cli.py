@@ -167,6 +167,42 @@ def test_run_records_and_runs_again_offline_from_the_recording(service, capsys):
     assert service == []
 
 
+@pytest.fixture(scope="module")
+def gm():
+    """Return gemini; importing it takes more than one test call's budget."""
+    import gemini
+
+    return gemini
+
+
+def test_run_writes_a_manifest_beside_its_log(service, gm, capsys):
+    """Commits, versions, input hashes, the model of each agent and the seeds, for the report."""
+    import hashlib
+    import subprocess
+
+    import geomind
+
+    service += [routed_answer(), answer("Hello")]
+    cli.main(["run", "Say hello"])
+    manifest = json.loads((Path(run_folder()) / "run_manifest.json").read_text())
+    repository = Path(geomind.__file__).parents[1]
+    head = subprocess.run(
+        ["git", "-C", str(repository), "rev-parse", "HEAD"], capture_output=True, text=True
+    ).stdout.strip()
+    heating = gm.profiles.get("heating_demand").to_csv().encode()
+    assert manifest["geomind"]["commit"] == head
+    assert manifest["geomind"]["version"] == geomind.__version__
+    assert manifest["gemini"]["version"] == gm.__version__
+    assert len(manifest["gemini"]["commit"]) == 40
+    assert manifest["inputs"]["heating_demand"]["sha256"] == hashlib.sha256(heating).hexdigest()
+    assert manifest["models"] == {
+        "coordinator": [runtime.FIXED_CHEAP_MODEL],
+        "analyst": [runtime.get("default_model")],
+    }
+    assert manifest["seeds"]["temperature"] == 0
+    assert manifest["run"]["id"] == Path(run_folder()).name
+
+
 def test_sandbox_choice():
     """The option picks a provider."""
     assert cli._sandbox(None) is None
