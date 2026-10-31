@@ -60,7 +60,8 @@ async def test_read_plant_describes_the_project_plant_with_its_values(gm, spec):
     workspace = MemoryWorkspace(plants={"p1": gm.plants.from_dict(spec)})
     result = await call(TOOLS.read_plant, {}, StubSession(workspace=workspace), project="p1")
     assert not result.is_error
-    assert result.output == apply_inputs(gm.plants.from_dict(spec), spec).describe()
+    plant = apply_inputs(gm.plants.from_dict(spec), spec)
+    assert result.output == {**plant.describe(), "spec": spec}
     assert result.output["values"]["parameters"]
 
 
@@ -84,7 +85,8 @@ async def test_a_valid_plant_is_stored_and_read_back_by_its_reference(gm, spec):
     assert built.output == {"design": "design/base-1", "problems": []}
     assert session.artifacts["design/base-1"] == spec
     read = await call(TOOLS.read_plant, {"design": "design/base-1"}, session)
-    assert read.output == apply_inputs(gm.plants.from_dict(spec), spec).describe()
+    plant = apply_inputs(gm.plants.from_dict(spec), spec)
+    assert read.output == {**plant.describe(), "spec": spec}
 
 
 async def test_the_inputs_a_spec_keeps_are_applied(gm, spec):
@@ -117,6 +119,27 @@ async def test_a_design_name_must_be_one_safe_name(spec, name):
     assert built.output["error"]["code"] == "invalid_input"
     assert built.output["error"]["path"] == "name"
     assert session.artifacts == {}
+
+
+async def test_read_plant_reads_a_registered_example_with_its_spec(gm):
+    """``example/<Name>`` is ``gm.plants.example``: a start for a design, read only."""
+    result = await call(TOOLS.read_plant, {"design": "example/HackathonPlant"})
+    example = gm.plants.example("HackathonPlant")
+    assert result.output == {**example.describe(), "spec": example.to_dict()}
+
+
+async def test_read_plant_reads_a_template_with_its_spec(gm):
+    """``template/<name>`` is ``gm.plants.from_template``, without values."""
+    result = await call(TOOLS.read_plant, {"design": "template/heating_only"})
+    assert result.output["spec"] == gm.plants.from_template("heating_only").to_dict()
+
+
+@pytest.mark.parametrize("design", ["example/Hackathon", "template/heating"])
+async def test_an_unknown_example_or_template_is_gemini_s_problem(gm, design):
+    """The problem of gemini says which names exist."""
+    result = await call(TOOLS.read_plant, {"design": design})
+    assert result.is_error
+    assert result.output["error"]["code"] != "internal"
 
 
 @pytest.mark.parametrize("design", ["design/missing", "result/r1", "base-1"])

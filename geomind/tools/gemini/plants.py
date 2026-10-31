@@ -8,6 +8,8 @@ from geomind.errors import ToolError
 from geomind.tools.base import tool
 
 DESIGN = "design/"
+EXAMPLE = "example/"
+TEMPLATE = "template/"
 DESIGN_NAME = re.compile(r"[A-Za-z0-9._-]+")
 
 
@@ -80,23 +82,47 @@ def apply_inputs(plant, spec):
     return plant
 
 
+def plant_spec(context, design, where):
+    """Return the spec of a plant: the project's, a stored design, an example or a template.
+
+    ``example/<Name>`` is ``gm.plants.example`` and ``template/<name>`` is
+    ``gm.plants.from_template``; both are read-only starts for a design.
+    """
+    import gemini as gm
+
+    if design is None:
+        return project_plant(context, where).to_dict()
+    if design.startswith(EXAMPLE):
+        return gm.plants.example(design.removeprefix(EXAMPLE)).to_dict()
+    if design.startswith(TEMPLATE):
+        return gm.plants.from_template(design.removeprefix(TEMPLATE)).to_dict()
+    return stored_design(context, design, where)
+
+
 def load_plant(context, design, where):
-    """Return a new gemini plant: the project's plant without a design, else the stored one.
+    """Return a new gemini plant from ``plant_spec``, its stored inputs applied.
 
     NOTE: the project's plant goes through its spec too, so a run never changes the workspace's
     plant object.
     """
     import gemini as gm
 
-    spec = project_plant(context, where).to_dict() if design is None else None
-    spec = spec or stored_design(context, design, where)
+    spec = plant_spec(context, design, where)
     return apply_inputs(gm.plants.from_dict(spec), spec)
 
 
 @tool(effect="read")
 def read_plant(context, design: str | None = None):
-    """Describe a plant with its current values: the project's plant, or a stored design."""
-    return load_plant(context, design, "read_plant").describe()
+    """Describe a plant with its current values: the project's plant, or a stored design.
+
+    ``design`` may also be ``example/<Name>`` or ``template/<name>``, read-only starts for a design.
+    The result is gemini's ``describe()`` with the plant's spec under ``spec``, the plant file
+    ``build_plant`` takes, so a design is built from an edited copy.
+    """
+    import gemini as gm
+
+    spec = plant_spec(context, design, "read_plant")
+    return {**apply_inputs(gm.plants.from_dict(spec), spec).describe(), "spec": spec}
 
 
 @tool(effect="write", late_schemas={"plant": plant_schema})

@@ -16,7 +16,7 @@ path; the package has one file per group. All are idempotent.
 | `describe_module` | `catalogue.py` | `read` | `name` | gemini's module description | built |
 | `evaluate_module` | `catalogue.py` | `compute` | `name, parameters, inlets=None, controls=None` | gemini's evaluate result, of Values | built |
 | `list_plants` | `plants.py` | `read` | none | `[{name, summary}]` of the registered plants | built |
-| `read_plant` | `plants.py` | `read` | `design=None`: `None` is the project's plant from `Workspace.plant`, otherwise a design reference | the description with current values | built |
+| `read_plant` | `plants.py` | `read` | `design=None`: `None` is the project's plant from `Workspace.plant`, otherwise a design reference, `example/<Name>` (`gm.plants.example`) or `template/<name>` (`gm.plants.from_template`) | gemini's description with current values, and the plant file under `spec` | built |
 | `build_plant` | `plants.py` | `write` | `plant` (input schema: gemini's plant schema), `name` | `{design, problems}`; a plant that fails validation returns the problems and stores nothing | built |
 | `list_profiles` | `runs.py` | `read` | none | `[{name, quantity, unit, start, end}]` | built |
 | `read_profile` | `runs.py` | `read` | `name, start=None, end=None` (ISO 8601) | a Value series | built |

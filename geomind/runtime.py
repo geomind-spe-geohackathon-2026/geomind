@@ -19,7 +19,7 @@ _FIXED = {
     "retry_count": 3,
     "retry_delay": 0.5,
     "request_timeout": 120.0,
-    "tool_result_limit": 20_000,
+    "tool_result_limit": 40_000,
     "delegate_summary_tokens": 500,
     "sandbox_timeout": "10min",
     "sandbox_memory": "1g",
