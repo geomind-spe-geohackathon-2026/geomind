@@ -3,6 +3,14 @@
 The primitive actions of an agent, in `geomind/tools/`. Tool names are stable identifiers: a change
 is a new version.
 
+## Catalogue
+
+The full table arrives with the freeze commits.
+
+## References
+
+The design and result formats arrive with the freeze commits.
+
 ## Tool
 
 `Tool(name, description, input_schema, function, *, effect, idempotent=True, timeout=None,

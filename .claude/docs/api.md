@@ -61,6 +61,10 @@ for testing one agent by hand. `answer` is `{"approved": true}`, `{"approved": f
 `examples/backend/general/01_queue_and_resume.py`. Run them from the repository root as
 `PYTHONPATH=. python examples/...`; each uses `FakeLLM` by default and OpenRouter with `--live`.
 
+## Frozen interfaces
+
+The list, the snapshots and the change rule arrive with the freeze commits.
+
 ## Errors
 
 Every exception class is available as `gd.errors.<Name>`; see [errors.md](errors.md).
