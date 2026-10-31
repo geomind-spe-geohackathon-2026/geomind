@@ -1,9 +1,14 @@
 """The tools that read and store plants."""
 
+import asyncio
+import re
 from typing import Any
 
-from geomind.errors import NotImplementedYet
+from geomind.errors import ToolError
 from geomind.tools.base import tool
+
+DESIGN = "design/"
+DESIGN_NAME = re.compile(r"[A-Za-z0-9._-]+")
 
 
 def plant_schema():
@@ -16,16 +21,67 @@ def plant_schema():
 @tool(effect="read")
 def list_plants():
     """List the registered plants, with their name and summary."""
-    raise NotImplementedYet("list_plants comes in S2b")
+    import gemini as gm
+
+    return [
+        {"name": name, "summary": gm.plants.get(name).describe()["summary"]}
+        for name in gm.plants.names()
+    ]
+
+
+def project_plant(context):
+    """Return the plant of the run's project, or raise a result the model can act on."""
+    workspace = context.session.workspace
+    if workspace is None or context.project is None:
+        raise ToolError(
+            "read_plant: this run has no project; expected a workspace and one, or a design",
+            code="not_allowed",
+        )
+    plant = workspace.plant(context.project)
+    if plant is None:
+        raise ToolError(
+            f"read_plant: project {context.project!r} has no plant; expected a design reference",
+            code="unknown_name",
+            path="design",
+        )
+    return plant
+
+
+def stored_design(context, design):
+    """Return the spec stored under a design reference, or raise ``unknown_name``."""
+    spec = context.session.load_artifact(design) if design.startswith(DESIGN) else None
+    if spec is None:
+        raise ToolError(
+            f"read_plant: design = {design!r}; expected a reference that build_plant returned,"
+            " such as 'design/<name>'",
+            code="unknown_name",
+            path="design",
+        )
+    return spec
 
 
 @tool(effect="read")
 def read_plant(context, design: str | None = None):
     """Describe a plant with its current values: the project's plant, or a stored design."""
-    raise NotImplementedYet("read_plant comes in S2b")
+    import gemini as gm
+
+    if design is None:
+        return project_plant(context).describe()
+    return gm.plants.from_dict(stored_design(context, design)).describe()
 
 
 @tool(effect="write", late_schemas={"plant": plant_schema})
-def build_plant(context, plant: dict[str, Any], name: str):
+async def build_plant(context, plant: dict[str, Any], name: str):
     """Validate a plant and store it as design/<name>; a plant with problems is not stored."""
-    raise NotImplementedYet("build_plant comes in S2b")
+    import gemini as gm
+
+    if not DESIGN_NAME.fullmatch(name) or set(name) == {"."}:
+        raise ToolError(
+            f"build_plant: name = {name!r}; expected letters, digits, '.', '_' or '-'",
+            path="name",
+        )
+    problems = await asyncio.to_thread(gm.plants.validate, plant, on_error="record")
+    if problems:
+        return {"design": None, "problems": problems}
+    await context.session.save_artifact(f"{DESIGN}{name}", plant)
+    return {"design": f"{DESIGN}{name}", "problems": []}

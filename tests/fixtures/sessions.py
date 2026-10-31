@@ -18,9 +18,10 @@ class StubState:
 class StubSession:
     """Records what tools and agents ask of the run."""
 
-    def __init__(self, sandbox_root=None):
+    def __init__(self, sandbox_root=None, workspace=None):
         """Use a local sandbox below ``sandbox_root``; ``None`` means no sandbox is configured."""
         self.state = StubState()
+        self.workspace = workspace
         self.artifacts = {}
         self.errors = []
         self.sandbox_root = sandbox_root
@@ -33,6 +34,10 @@ class StubSession:
     async def save_artifact(self, key, data):
         """Keep an artifact."""
         self.artifacts[key] = data
+
+    def load_artifact(self, key):
+        """Return a kept artifact, or ``None``."""
+        return self.artifacts.get(key)
 
     async def report_error(self, error, where):
         """Keep an internal error."""

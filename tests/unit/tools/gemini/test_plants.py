@@ -1,38 +1,116 @@
-"""The tools that read and store plants: final signatures."""
+"""The tools that read and store plants, against real gemini plants."""
+
+import copy
 
 import pytest
 
 import geomind as gd
-from tests.fixtures.stubs import check_stub
+from geomind.stores import MemoryWorkspace
+from tests.fixtures.calls import call
+from tests.fixtures.sessions import StubSession
 
 TOOLS = gd.tools.gemini
 
 
-@pytest.mark.parametrize(
-    ("tool", "tool_input", "effect"),
-    [
-        (TOOLS.list_plants, {}, "read"),
-        (TOOLS.read_plant, {}, "read"),
-        (TOOLS.read_plant, {"design": "design/a"}, "read"),
-        (TOOLS.build_plant, {"plant": {}, "name": "a"}, "write"),
-    ],
-)
-async def test_the_stubs_say_when_they_come(tool, tool_input, effect):
-    """Each has its final signature and a phase."""
-    await check_stub(tool, tool_input, effect, "S2b")
+@pytest.fixture(scope="module")
+def gm():
+    """Return gemini; importing it takes more than one test call's budget."""
+    import gemini
+
+    return gemini
 
 
 @pytest.fixture(scope="module")
-def spec():
-    """Return gemini's plant schema; importing gemini takes more than one test call's budget."""
-    import gemini as gm
-
-    return gm.plants.spec_schema()
+def spec(gm):
+    """Return the spec of gemini's example doublet heat plant, with its values."""
+    return gm.plants.example("DoubletHeatPlant").to_dict()
 
 
-def test_build_plant_offers_the_plant_schema_of_gemini(spec):
+@pytest.fixture
+def broken(spec):
+    """Return the example spec with its first connection removed, so two ports are open."""
+    plant = copy.deepcopy(spec)
+    plant["connections"] = plant["connections"][1:]
+    return plant
+
+
+def test_build_plant_offers_the_plant_schema_of_gemini(gm):
     """The model fills in gemini's own schema, its definitions at the top so references resolve."""
+    schema = gm.plants.spec_schema()
     offered = TOOLS.build_plant.schema()["input_schema"]
-    assert offered["properties"]["plant"]["properties"] == spec["properties"]
-    assert offered["$defs"].items() >= spec.get("$defs", {}).items()
+    assert offered["properties"]["plant"]["properties"] == schema["properties"]
+    assert offered["$defs"].items() >= schema.get("$defs", {}).items()
     assert "$defs" not in offered["properties"]["plant"]
+
+
+async def test_list_plants_names_every_registered_plant_with_its_summary(gm):
+    """The rows are gemini's names, in its order, with the summary it describes."""
+    result = await call(TOOLS.list_plants, {})
+    assert [row["name"] for row in result.output] == gm.plants.names()
+    first = result.output[0]
+    assert first == {
+        "name": first["name"],
+        "summary": gm.plants.get(first["name"]).describe()["summary"],
+    }
+
+
+async def test_read_plant_describes_the_project_plant_with_its_values(gm, spec):
+    """Without a design, it is ``describe()`` of ``Workspace.plant``."""
+    workspace = MemoryWorkspace(plants={"p1": gm.plants.from_dict(spec)})
+    result = await call(TOOLS.read_plant, {}, StubSession(workspace=workspace), project="p1")
+    assert not result.is_error
+    assert result.output == gm.plants.from_dict(spec).describe()
+    assert result.output["values"]["parameters"]
+
+
+async def test_read_plant_without_a_project_says_so(gm):
+    """A run with no project cannot read the project's plant."""
+    result = await call(TOOLS.read_plant, {})
+    assert result.output["error"]["code"] == "not_allowed"
+
+
+async def test_read_plant_of_a_project_without_a_plant_says_so(gm):
+    """A project with no plant is a result the model can act on."""
+    session = StubSession(workspace=MemoryWorkspace())
+    result = await call(TOOLS.read_plant, {}, session, project="p1")
+    assert result.output["error"]["code"] == "unknown_name"
+
+
+async def test_a_valid_plant_is_stored_and_read_back_by_its_reference(gm, spec):
+    """``build_plant`` stores the plant under design/<name>; ``read_plant`` describes it."""
+    session = StubSession()
+    built = await call(TOOLS.build_plant, {"plant": spec, "name": "base-1"}, session)
+    assert built.output == {"design": "design/base-1", "problems": []}
+    assert session.artifacts["design/base-1"] == spec
+    read = await call(TOOLS.read_plant, {"design": "design/base-1"}, session)
+    assert read.output == gm.plants.from_dict(spec).describe()
+
+
+async def test_a_plant_with_problems_returns_them_and_stores_nothing(gm, broken):
+    """The problems are gemini's own, from ``validate(on_error="record")``."""
+    session = StubSession()
+    built = await call(TOOLS.build_plant, {"plant": broken, "name": "b"}, session)
+    assert built.output == {
+        "design": None,
+        "problems": gm.plants.validate(broken, on_error="record"),
+    }
+    assert built.output["problems"][0]["code"] == "unconnected_port"
+    assert session.artifacts == {}
+
+
+@pytest.mark.parametrize("name", ["a/b", "", "../x", "a b"])
+async def test_a_design_name_must_be_one_safe_name(spec, name):
+    """The name becomes part of a store key, so it is checked before anything is stored."""
+    session = StubSession()
+    built = await call(TOOLS.build_plant, {"plant": spec, "name": name}, session)
+    assert built.output["error"]["code"] == "invalid_input"
+    assert built.output["error"]["path"] == "name"
+    assert session.artifacts == {}
+
+
+@pytest.mark.parametrize("design", ["design/missing", "result/r1", "base-1"])
+async def test_reading_an_unknown_design_is_unknown_name(gm, design):
+    """Only a stored design reference reads back."""
+    result = await call(TOOLS.read_plant, {"design": design})
+    assert result.output["error"]["code"] == "unknown_name"
+    assert result.output["error"]["path"] == "design"

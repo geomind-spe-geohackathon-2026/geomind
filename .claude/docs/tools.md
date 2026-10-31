@@ -15,9 +15,9 @@ path; the package has one file per group. All are idempotent.
 | `list_modules` | `catalogue.py` | `read` | `category=None` | `[{name, category, summary}]` | built |
 | `describe_module` | `catalogue.py` | `read` | `name` | gemini's module description | built |
 | `evaluate_module` | `catalogue.py` | `compute` | `name, parameters, inlets=None, controls=None` | gemini's evaluate result, of Values | built |
-| `list_plants` | `plants.py` | `read` | none | `[{name, summary}]` of the registered plants | stub, S2b |
-| `read_plant` | `plants.py` | `read` | `design=None`: `None` is the project's plant from `Workspace.plant`, otherwise a design reference | the description with current values | stub, S2b |
-| `build_plant` | `plants.py` | `write` | `plant` (input schema: gemini's plant schema), `name` | `{design, problems}`; a plant that fails validation returns the problems and stores nothing | stub, S2b |
+| `list_plants` | `plants.py` | `read` | none | `[{name, summary}]` of the registered plants | built |
+| `read_plant` | `plants.py` | `read` | `design=None`: `None` is the project's plant from `Workspace.plant`, otherwise a design reference | the description with current values | built |
+| `build_plant` | `plants.py` | `write` | `plant` (input schema: gemini's plant schema), `name` | `{design, problems}`; a plant that fails validation returns the problems and stores nothing | built |
 | `list_profiles` | `runs.py` | `read` | none | `[{name, quantity, unit, start, end}]` | stub, S2b |
 | `read_profile` | `runs.py` | `read` | `name, start=None, end=None` (ISO 8601) | a Value series | stub, S2b |
 | `simulate` | `runs.py` | `compute` | `design=None, changes=None, profile=None, start=None, end=None` | `{reference, summary}`; full results stored | stub, S2b |

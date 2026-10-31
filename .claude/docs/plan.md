@@ -132,8 +132,9 @@ check it before writing a tool, because gemini's names change.
 | S2 | `geomind chat` and the eval runner | `55296c1` | done |
 | S2b | `FileWorkspace.plant` through `gm.plants.from_dict` | `957c119` | done |
 | Freeze | Every interface below, pinned by snapshots; the tool catalogue and the loops as stubs; see [CHANGELOG.md](../../CHANGELOG.md) | `fab5524`, `09096d8` | done |
-| S2b.1 | `list_modules`, `describe_module`, `evaluate_module` over `gm.modules` and `gm.evaluate` | this commit | done |
-| S2 gemini tools | `read_plant`, `simulate` and the rest of the catalogue | none | **stubs**: see section 7 |
+| S2b.1 | `list_modules`, `describe_module`, `evaluate_module` over `gm.modules` and `gm.evaluate` | `599a660` | done |
+| S2b.2 | `list_plants`, `read_plant`, `build_plant` over `gm.plants`; a design is stored only when `gm.plants.validate` finds no problem | this commit | done |
+| S2 gemini tools | `simulate` and the rest of the catalogue | none | **stubs**: see section 7 |
 
 No live OpenRouter run has been made yet. It needs `OPENROUTER_API_KEY` in geomind's own
 environment, never the backend's key.
@@ -163,7 +164,7 @@ gemini.
    - Tests: `tests/unit/tools/gemini/test_catalogue.py`, against real gemini modules.
    - Done when: the three tools return gemini's shapes, and an unknown name is a result with
      `unknown_name` and suggestions.
-2. **Plant tools.** Replaces the stubs `list_plants`, `read_plant` and `build_plant` in
+2. **Plant tools.** Done. Replaced the stubs `list_plants`, `read_plant` and `build_plant` in
    `geomind/tools/gemini/plants.py`.
    - Tests: `tests/unit/tools/gemini/test_plants.py`.
    - Done when: `read_plant()` describes `Workspace.plant`, a plant that fails

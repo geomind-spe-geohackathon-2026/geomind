@@ -1,14 +1,9 @@
 """The tools over gemini's module catalogue, against real gemini modules."""
 
-import json
-
 import pytest
 
 import geomind as gd
-from geomind.engine import Context
-from geomind.tools import dispatch
-from geomind.types import ToolCall
-from tests.fixtures.sessions import StubSession
+from tests.fixtures.calls import call
 
 TOOLS = gd.tools.gemini
 PIPE = {
@@ -29,17 +24,6 @@ def gm():
     import gemini
 
     return gemini
-
-
-async def call(tool, tool_input):
-    """Dispatch one call as the engine does and return the result, checking it is no bug."""
-    session = StubSession()
-    result = await dispatch(
-        tool, ToolCall(id="c1", name=tool.name, input=tool_input), Context(session=session)
-    )
-    assert session.errors == []
-    json.dumps(result.output, allow_nan=False)
-    return result
 
 
 @pytest.fixture(scope="module")
