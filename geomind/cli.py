@@ -14,6 +14,7 @@ from geomind import agents, runtime
 from geomind.agents import Route
 from geomind.context import ProblemState, render
 from geomind.engine import Engine, Permissions, callbacks
+from geomind.engine.hooks import CostBudget, TokenBudget
 from geomind.errors import GeomindError, RunError
 from geomind.providers import FakeLLM, OpenRouter, Recorder
 from geomind.run import LOOPS, Run, loop_of
@@ -156,6 +157,16 @@ def write_manifest(root, run_id, args):
     return manifest
 
 
+def _budgets(args):
+    """Return the spending caps of ``--max-tokens`` and ``--max-cost``, over the whole run."""
+    caps = []
+    if args.max_tokens is not None:
+        caps.append(TokenBudget(args.max_tokens))
+    if args.max_cost is not None:
+        caps.append(CostBudget(args.max_cost))
+    return caps
+
+
 def _command_run(args):
     """Run one message, asking in the terminal when the run pauses.
 
@@ -172,6 +183,7 @@ def _command_run(args):
             sandbox=_sandbox(args.sandbox),
             permissions=Permissions(mode=args.mode),
             callbacks=[_Printer()],
+            hooks=_budgets(args),
         )
         if args.loop is not None:
             run.loop = loop_of(Route(kind="loop", loop=args.loop))
@@ -483,6 +495,8 @@ def _parser():
     run.add_argument("--project")
     run.add_argument("--recording")
     run.add_argument("--record")
+    run.add_argument("--max-tokens", type=int, help="deny model calls once the run used this many")
+    run.add_argument("--max-cost", type=float, help="deny model calls once the run cost this, USD")
     run.set_defaults(function=_command_run)
     chat = commands.add_parser("chat", help="talk to one agent in the terminal")
     chat.add_argument("--agent", default="analyst")

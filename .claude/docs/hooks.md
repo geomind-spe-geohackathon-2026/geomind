@@ -22,7 +22,10 @@ so they are passed again when a run resumes in another process.
 ## Shipped hooks
 
 - `TokenBudget(max_tokens)` and `CostBudget(max_cost)` deny the next LLM call over the budget. They
-  read `context.usage`, nested runs included once they end.
+  read `context.session.total_usage`: the usage of the run and of every run above it, so a
+  delegate's calls count against the whole run's budget. A nested run's usage joins its parent's
+  when it ends, and a sibling still running is not counted yet. `geomind run --max-tokens` and
+  `--max-cost` set them.
 - `RequireApproval(tools)` is a shortcut for ask rules, in their place in the
   [permission order](permissions.md).
 - `Cancellation(is_cancelled)` calls the function the caller gives before every LLM and tool call

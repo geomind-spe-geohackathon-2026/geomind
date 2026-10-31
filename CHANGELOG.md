@@ -31,6 +31,9 @@ changes shape, and an existing caller sees the same behaviour.
   model now gets on the agent's system prompt (setting `prompt_caching`, on by default). The
   public usage JSON of `step.finished` and the run log keeps its three fields; the schemas list
   the new one as optional.
+- `geomind run --max-tokens N --max-cost USD`: a spending cap over the whole run. `TokenBudget`
+  and `CostBudget` now count the runs above a nested run too (a fix: before, a delegate saw only
+  its own usage, so a long delegate could pass the cap).
 - `RunResult.usage` includes the routing call's tokens, as the run's log always did.
 
 - `geomind run` takes `--loop`, `--project`, `--recording` and `--record`: `--loop` chooses the loop

@@ -17,7 +17,7 @@ from geomind.engine.hooks import (
     ask_hooks,
 )
 from geomind.engine.recovery import recover
-from geomind.types import Action, Allow, Deny, Request
+from geomind.types import Action, Allow, Deny, Request, Usage
 from tests.fixtures.calls import call as call_tool
 from tests.fixtures.hackathon import base_spec, hackathon_spec
 from tests.fixtures.runs import (
@@ -313,3 +313,20 @@ def test_a_nested_run_hands_its_design_back_without_the_hook(stored):
     finally:
         session.state.parent = None
     assert decision is None
+
+
+async def test_a_budget_counts_the_runs_above_a_nested_run():
+    """A delegate's calls are denied once the whole run is over the budget, not its own usage."""
+    from tests.fixtures.runs import Lead
+
+    expensive = Usage(input_tokens=900, output_tokens=0, cost=0.9)
+    script = [
+        uses(call("helper", task="t"), usage=expensive),
+        uses(call("lookup", key="k")),
+        says("found"),
+        says("end"),
+    ]
+    result, _, events = await run(script, agent=Lead(), hooks=[TokenBudget(910)])
+    nested = [e for e in events if e.type == "run.finished" and e.parent is not None]
+    assert nested[0].stop_reason == "denied"
+    assert "token budget: used 915 of 910" in nested[0].message

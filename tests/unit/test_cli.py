@@ -330,3 +330,13 @@ def test_chat_refuses_an_unknown_agent(capsys):
     """A wrong name is a message, not a traceback."""
     assert cli.main(["chat", "--agent", "analist", "--live"]) == 1
     assert "did you mean 'analyst'" in capsys.readouterr().err
+
+
+def test_run_stops_at_the_spending_cap(service, capsys):
+    """``--max-tokens`` and ``--max-cost`` deny the next model call over the cap."""
+    service += [routed_answer(), answer("Hello")]
+    assert cli.main(["run", "Say hello", "--max-tokens", "5"]) == 1
+    output = capsys.readouterr().out
+    assert "(denied)" in output and "Hello" not in output
+    service += [routed_answer(), answer("Hello")]
+    assert cli.main(["run", "Say hello", "--max-cost", "0.001"]) == 1

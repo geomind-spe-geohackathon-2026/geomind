@@ -201,7 +201,15 @@
             ],
             "default": null
           },
+          "--max-cost": {
+            "choices": null,
+            "default": null
+          },
           "--max-steps": {
+            "choices": null,
+            "default": null
+          },
+          "--max-tokens": {
             "choices": null,
             "default": null
           },

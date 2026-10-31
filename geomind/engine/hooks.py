@@ -46,7 +46,7 @@ async def ask_hooks(hooks, point, context, agent, subject):
 
 
 class TokenBudget(Hook):
-    """Stop a run before an LLM call once it has used ``max_tokens``."""
+    """Stop a run before an LLM call once it has used ``max_tokens``, nested runs included."""
 
     def __init__(self, max_tokens):
         """Keep the limit."""
@@ -54,14 +54,15 @@ class TokenBudget(Hook):
 
     def before_llm_call(self, context, agent, messages):
         """Deny the call over the budget."""
-        used = context.usage.input_tokens + context.usage.output_tokens
+        usage = context.session.total_usage
+        used = usage.input_tokens + usage.output_tokens
         if used >= self.max_tokens:
             return Deny(reason=f"token budget: used {used} of {self.max_tokens}")
         return None
 
 
 class CostBudget(Hook):
-    """Stop a run before an LLM call once it has cost ``max_cost``."""
+    """Stop a run before an LLM call once it has cost ``max_cost``, nested runs included."""
 
     def __init__(self, max_cost):
         """Keep the limit."""
@@ -69,7 +70,7 @@ class CostBudget(Hook):
 
     def before_llm_call(self, context, agent, messages):
         """Deny the call over the budget."""
-        cost = context.usage.cost
+        cost = context.session.total_usage.cost
         if cost >= self.max_cost:
             return Deny(reason=f"cost budget: used {cost} of {self.max_cost}")
         return None

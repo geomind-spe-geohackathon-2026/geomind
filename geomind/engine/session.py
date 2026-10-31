@@ -12,7 +12,7 @@ from geomind.engine.recovery import apply
 from geomind.engine.state import Stop
 from geomind.errors import RunError, SandboxError
 from geomind.sandbox import Manifest
-from geomind.types import Allow, Deny, Request
+from geomind.types import Allow, Deny, Request, Usage
 from geomind.types.events import (
     Compacted,
     ErrorRaised,
@@ -317,6 +317,16 @@ class RunSession:
         sandbox, self._sandbox = self._sandbox, None
         await sandbox.close()
         await self.emit(SandboxClosed)
+
+    @property
+    def total_usage(self):
+        """Return the usage of the whole run so far: this run's and that of every run above it.
+
+        A nested run's usage joins its parent's when it ends, so nothing is counted twice; a
+        sibling still running is not counted yet.
+        """
+        above = self.parent.total_usage if self.parent is not None else Usage()
+        return above + self.state.usage
 
     def spawn(self, state, agent):
         """Return the session of a nested run on the same log."""

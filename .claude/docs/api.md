@@ -46,10 +46,12 @@ the routing, for testing one agent by hand, and so does a `run.loop` set before 
 
 - `geomind run "<message>" [--model ID] [--max-steps N] [--mode ask|auto|readonly|plan]
   [--sandbox local|docker] [--loop tool|design|makerchecker|compare] [--project PATH]
-  [--recording FILE] [--record FILE]` runs with `OpenRouter` and `FileRunStore(".runs")`, prints text
-  as it streams, asks in the terminal when a request pauses the run, then resumes. `--loop` chooses
-  the loop instead of the coordinator; `--recording` runs from recorded completions, offline;
-  `--record` writes the completions of this run for that. Beside the log it writes
+  [--recording FILE] [--record FILE] [--max-tokens N] [--max-cost USD]` runs with `OpenRouter` and
+  `FileRunStore(".runs")`, prints text as it streams, asks in the terminal when a request pauses the
+  run, then resumes. `--loop` chooses the loop instead of the coordinator; `--recording` runs from
+  recorded completions, offline; `--record` writes the completions of this run for that.
+  `--max-tokens` and `--max-cost` are the spending cap: `TokenBudget` and `CostBudget` deny the next
+  model call once the whole run, nested runs included, is over it, and the run ends `denied`. Beside the log it writes
   `.runs/<run id>/run_manifest.json`: the geomind and gemini commits (and whether either has
   uncommitted changes), `gd.__version__` and `gm.__version__`, the SHA-256 of each demand profile, of
   the recording and of the project's plant, the model ids each agent called, the run's settings, and
