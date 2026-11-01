@@ -5,8 +5,8 @@
   "message": "Which depth?",
   "options": [
     {
-      "label": "2500 m",
-      "value": "2500"
+      "label": "1800 m",
+      "value": "1800"
     }
   ]
 }

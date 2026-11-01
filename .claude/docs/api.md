@@ -11,6 +11,10 @@ workflow, documentation, and a public-API test.
 loops. `gd.stores` exposes `MemoryRunStore`, `FileRunStore`, `MemoryWorkspace`, `FileWorkspace` and
 the `RunStore` and `Workspace` protocols.
 
+`gd.verify.verify(plant, results, case)` returns `{passed, checks, failures, metrics}` for a
+`gm.Plant`, its `gm.Results` and the `gm.Case` they ran on: gemini's verdict, with each failure
+routed to a domain. `verify_design(context)` does the same on the problem state's design.
+
 ## Run
 
 ```python

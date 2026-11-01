@@ -167,7 +167,7 @@ and `FileRunStore(root=".runs")` add `add_message(chat_id, message)`.
 `<root>/chats/<chat id>/history.jsonl` and `state.json`. Unsafe ids raise `RunError`.
 
 An artifact key of `FileRunStore` is one safe name, or a [reference](tools.md#references) of the
-form `design/<name>`, `result/<id>` or `profile/<name>`; any other `/` raises `RunError`.
+form `design/<name>`, `result/<id>` or `case/<file name>`; any other `/` raises `RunError`.
 
 `Workspace` has `plant(project_id)` and `documents(project_id, query)`. `MemoryWorkspace(plants,
 documents)` holds values; `FileWorkspace(root)` reads `<root>/<project id>/plant.json`, loaded with

@@ -18,7 +18,7 @@ LLM call or an event stays in the engine.
 | `results` | `[{id, summary, reference}]`; `reference` names the stored data |
 | `verification` | an object, free in shape; `result` names the `result/<id>` that verifies the design, which `Verified` checks again |
 | `questions` | `[{id, text}]` |
-| `case` | a [gemini case](#the-case) as the dict of a `case.json`, or `null` when no case is set |
+| `case` | a [gemini case](#the-case) as the dict of a `case.json`, or `null` when no case is set; it replaced the former `brief` |
 
 - **Writing.** The model writes through `update_state(changes)`. `apply_changes(state, changes)`
   takes the contract's JSON Patch operations, validates each one and returns a new state with

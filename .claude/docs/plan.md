@@ -24,8 +24,8 @@ twin.
 
 The files are `GEMINI_Heating_Demand_Daily_2027.csv`, `GEMINI_Cooling_Demand_Daily_2027.csv` and
 `GEMINI_Hackathon_Challenge_Requirements.pdf`. gemini ships both CSV files as package data and
-serves them as `gm.profiles.get("heating_demand")` and `gm.profiles.get("cooling_demand")`, so an
-agent reads them through a tool and never through a path.
+ships them in its example cases (`hackathon_2026` and others), so an agent reads the demand through
+the tools of the state's case and never through a path.
 
 | Item | Value |
 |---|---|
@@ -103,18 +103,17 @@ check it before writing a tool, because gemini's names change.
   `NotImplementedYet`. The detail is in `code`.
 - **Running.** `gm.simulate`, `gm.replay` and `gm.live(plant, ...)` are thin functions over
   `gm.Engine`, which stays public. `gm.evaluate` runs one module.
-- **Plants.** `gm.plants.from_dict`, `plant.to_dict`, `gm.plants.validate` and
-  `gm.plants.spec_schema`. Well-known plants are registered `gm.Plant` subclasses (`Doublet` takes
-  design parameters such as depth and gradient). `gm.plants.templates()` and `from_template` remain
-  for the backend's template route.
+- **Plants.** `gm.Plant.from_dict`, `plant.to_dict`, `gm.plants.validate` and `gm.plants.schema`.
+  Well-known plants are registered `gm.Plant` subclasses (`Doublet` takes design parameters such as
+  depth and gradient); `plant.missing_parameters()` lists what a class still needs.
 - **Wiring.** Every port is named `<role>_in` or `<role>_out`, and no port may be left unconnected.
   Everything in the energy flow is a module. Grids (`ElectricityGrid`, `GasGrid`, `HeatingGrid`,
   `CoolingGrid`, `WasteGrid`, `ChemicalGrid`) and `Atmosphere` are the plant's boundaries, and plant
   totals come from the boundary ports.
-- **Other names.** `gm.profiles` holds the official demand profiles. `gm.schedule(plant, demand,
-  rules)` builds a run input. `gm.checks.Limits().add(path, min, max)` with `gm.checks.limits(...)`
-  checks limits. `gm.kpi.compute`, `gm.kpi.names` and `gm.kpi.totals` give the KPIs. Economics
-  functions take `(plant, results, ...)`, and `capex` takes no results. `gm.testing.check_module(cls)`
+- **The case.** `gm.Case` (`case.json` and a demand CSV) holds time, environment, demand, choices,
+  constraints, assumptions and uncertainty. `gm.schedule(plant, case)` builds a run input,
+  `gm.simulate(plant, case)` runs it, `gm.evaluate` judges it (`report`, `failures`, `totals`,
+  costs), `gm.study` sizes, optimises, samples and compares, and `gm.testing.check_module(cls)`
   returns a report.
 
 ## 5. What is built
@@ -134,25 +133,24 @@ check it before writing a tool, because gemini's names change.
 | Freeze | Every interface below, pinned by snapshots; the tool catalogue and the loops as stubs; see [CHANGELOG.md](../../CHANGELOG.md) | `fab5524`, `09096d8` | done |
 | S2b.1 | `list_modules`, `describe_module`, `evaluate_module` over `gm.modules` and `gm.evaluate` | `599a660` | done |
 | S2b.2 | `list_plants`, `read_plant`, `build_plant` over `gm.plants`; a design is stored only when `gm.plants.validate` finds no problem | `2d3efa1` | done |
-| S2b.3 | `list_profiles`, `read_profile`, `simulate` (schedule with the brief's rules, record failed days); the input bridge for setpoints | `f4732aa` | done |
+| S2b.3 | `list_profiles`, `read_profile`, `simulate` (`gm.schedule` and `gm.simulate`, failed days recorded) | `f4732aa` | done |
 | S2b.4 | the `Analyst` with the gemini tools, its prompt, and the `gemini-units` skill checked against `gm.units.names()` | `05dd940` | done |
 | S2b.5 | five analyst eval tasks on the example doublet, passing offline; recordings written by hand until S2b.6 | `40a8d72` | done |
 | S2b.6 | one live run, recorded, with its token cost | none | **blocked**: no `OPENROUTER_API_KEY` in geomind's environment |
-| S3.1 | `gd.verify.verify`, `check_results`, `compute_kpis`: gemini's checks with the brief's hard limits, failure domains, `NOT_ASSESSED`/`BLOCKED` items | `7afb1d0` | done |
+| S3.1 | `gd.verify.verify`, `check_results`, `compute_kpis`: gemini's report on the run's case, with failure domains | `7afb1d0` | done |
 | S3.2 | the `Verified` hook: gemini's checks run again on the design's stored run before any answer | `8ee1444` | done |
 | S3.3 | `estimate_costs`: gemini's economics with the assumptions used, and LCTS | `cf07cdc` | done |
 | S3.4 | `Designer`, `Verifier`, `Economist`, `Explainer`, `Coordinator` filled, with the `designing-a-plant` skill and one offline task each (hand-written recordings); `read_plant` reads examples and templates (`253bf05`); co-produced gas check (`e7719f4`) | `ef7c64b` | done |
 | S3.5 | `DesignLoop`: a rule-based driver delegates design, verification, costs and explanation in one root run, routes failures by domain, and replays offline (nested state changes and artifacts reused) | `4fc16ed` | done |
 | S3.7 | Routing: `Run.start` asks the `Coordinator` (a nested run logged first) and follows its `Route`; `geomind run --loop/--project/--recording/--record` | `27f3161` | done |
-| S3 e2e | the official brief through `geomind run --loop design`, offline from a scripted recording, replays | `b1c9cd3` | done; the live run waits for `OPENROUTER_API_KEY` |
+| S3 e2e | the official case through `geomind run --loop design`, offline from a scripted recording, replays | `b1c9cd3` | done; the live run waits for `OPENROUTER_API_KEY` |
 | S4.5 | `geomind show --format md`: tokens by agent, by step and in total, each prompt once, full answers | `1ac2af1` | done |
 | Manifest | `run_manifest.json` beside each `geomind run`: commits, versions, input hashes, models per agent, settings, seeds | `0af2695` | done |
 | Replay | parallel calls matched by their place in the step; nested state changes by the call that started them | `55632cc` | done |
 | Usage | `RunResult.usage` counts every nested run, the routing call included, after a resume too | `4971938` | done |
-| Brief | the brief as data: `Brief` in the problem state, the `hackathon_2027` preset (`8970af0`); `set_brief`, and `simulate` and verification on the state's brief; the design loop asks the user for a missing demand | `7e74274` | done |
-| Profiles | `save_profile`: demand profiles the user gives, stored as `profile/<name>`, listed, read and simulated beside gemini's | `164eb62` | done |
-| Skill | `designing-a-plant` general for any brief, the hackathon's numbers in the `hackathon-2027` note; Designer and Explainer prompts without the hand-found answer | `fb93b32` | done |
-| Evals | `challenge2`: the hackathon brief and three variants through the design loop, offline; the `verified` criterion; reservoir and off-brief checks | `6cf623c` | done |
+| Case | the problem as data: a `gm.Case` in the problem state (`set_case`, `read_case`), its files stored as `case/<file name>`; `save_profile` adds a user's demand to the case; the design loop asks the user when there is no case or no demand | `7e74274`, `164eb62`, adaptation | done |
+| Skill | `designing-a-plant` general for any case, with no challenge number in the package; Designer and Explainer prompts without the hand-found answer | `fb93b32` | done |
+| Evals | `challenge2`: the hackathon case and three variants through the design loop, offline; the `verified` criterion | `6cf623c` | done |
 | Caching | OpenRouter prompt caching on the system prompt of Anthropic models; `Usage.cached_tokens` | `7286e6d` | done |
 | Spending cap | `geomind run --max-tokens/--max-cost`; budgets count the whole run, nested runs included | `65c576a` | done |
 | Terminal | `geomind run` no longer prints the coordinator's route JSON; plan corrections from the audit | this commit | done |
@@ -175,7 +173,37 @@ body, and remove its `stub` status in the table of [tools.md](tools.md#catalogue
 a different signature follows the [change rule](api.md#frozen-interfaces). Task tests go in the
 mirrored `tests/unit/...` file that already exists for the stub.
 
-### S2b: gemini tools (the first job)
+### The adaptation to `gm.Case` (done) and what is open
+
+geomind moved from its own problem type to gemini's `gm.Case`. Done: the case in the problem state and
+the run store (`set_case`, `read_case`, `save_profile`; [context.md](context.md#the-case)); stored
+designs and runs ([tools.md](tools.md#references)); the run tools; verification, costs and KPIs from
+gemini's report on the run's case; the study tools (`size_plant`, `optimize`, `sample_uncertainty`,
+`sensitivity`, `compare`); the agents, prompts, skills and `DesignLoop` order (Designer sizes,
+simulates, self-checks and optimises; the Verifier checks once; then Economist and Explainer;
+no case or no demand asks the user first); the run-store profile key removed and
+`Workspace.case` added ([contracts.md](contracts.md#for-the-backend)); quality tests that keep
+private gemini names, removed names and hackathon figures out of the package.
+
+Open:
+
+- A live run needs `OPENROUTER_API_KEY` in geomind's environment and a spending cap
+  (`--max-tokens`, `--max-cost`).
+- `MakerCheckerLoop` and `CompareLoop` are stubs.
+- `test_module` is a stub and needs a Docker image with gemini's dependencies.
+- Requests to gemini (the full text is in the adaptation notes):
+  1. `Case.to_dict()` does not round-trip the demand (the CSV column keeps its unit, the unit is SI).
+  2. A `gm.case.missing(case, job)` that lists every missing value at once.
+  3. `Case.from_dict(data, files={name: bytes})`, so no folder is needed.
+  4. A public readable-unit map for `gm.call` (`units="display"`).
+  5. A constraint quantity for the co-produced gas burned (D1).
+  6. `Report.to_dict()` shows a temperature difference in `K`, not as a temperature (D2).
+  7. The parts of a value (capex modules, opex components) in display money units (D3).
+  8. `gm.simulate` records `no_convergence` rows instead of raising `PhysicsError` on a cold
+     reservoir (D4).
+  9. `Best.to_dict()` and `Sample.to_dict()` in display units, as `Report.to_dict()` (E).
+
+### S2b: gemini tools (the first job; the text below is the original plan)
 
 Return gemini's three shapes unchanged, and let gemini's errors through to dispatch, which turns them
 into results. Use only `import gemini as gm`, inside the function, so `import geomind` stays free of
@@ -218,16 +246,16 @@ gemini.
 1. **Verification.** Done; see [tools.md](tools.md#verification). Replaced the stub `gd.verify.verify` in `geomind/verify/verify.py` and the stubs
    `check_results`, `compute_kpis` in `geomind/tools/gemini/assessment.py`.
    - The checks are gemini's and never an LLM: energy and mass balances, demand coverage per day,
-     bounds and limits including the brief's limits. Units are checked by gemini when a value is
-     set or bound, not by a `Check`: `gm.checks.run_all` has no unit check.
+     bounds and the constraints of the case. Units are checked by gemini when a value is set or
+     bound.
    - Tests: `tests/unit/verify/test_verify.py`, `tests/unit/tools/gemini/test_assessment.py`.
-   - Done when: a design that breaks a hard limit fails with a `Check` that names it.
+   - Done when: a design that breaks a constraint of the case fails with a check that names it.
 2. **The `Verified` hook.** Done. Replaced the stub in `geomind/engine/hooks.py`.
    - Tests: `tests/unit/engine/test_hooks.py`.
    - Done when: `before_finish` refuses to finish while the last verification failed, so **no design
      reaches the user without passing every verifier**.
 3. **Costs.** Done; see [tools.md](tools.md#costs). Replaced the stub `estimate_costs` in `geomind/tools/gemini/assessment.py`.
-   - Done when: capex, opex, LCOH, LCOC, NPV and CO₂ come back as Values with the assumptions used.
+   - Done when: capex, opex, LCOH, LCOC, LCTS, NPV, payback and CO₂ come back as Values from the case's assumptions.
 4. **Fill the skeleton agents.** Done. of [agents.md](agents.md#shipped-agents): prompts, tools and eval
    tasks. `Designer` proposes configurations and sizes, `Verifier` runs the checks and reviews,
    `Economist` gives the costs, `Explainer` writes the explanation, and `Coordinator` routes.
@@ -237,8 +265,8 @@ gemini.
    round limit is reached, the same check fails repeatedly, or a question goes to the user. Every
    stop reason is explicit and logged.
    - Tests: `tests/unit/loops/test_design.py`.
-   - Done when: `geomind run --loop design <brief>` returns a verified design with capacities, a
-     description of the schematic, the numbers and an explanation, for the official brief
+   - Done when: `geomind run --loop design <request>` returns a verified design with capacities, a
+     description of the schematic, the numbers and an explanation, for the official case
      (`tests/e2e/test_official_brief.py`, offline; the live run waits for the key).
 6. **`MakerCheckerLoop`.** Replaces the stub in `geomind/loops/makerchecker.py`: the designer proposes
    and the verifier checks.
@@ -260,16 +288,12 @@ gemini.
    alternatives in parallel and ranks them on cost, CO₂ and coverage. Example alternatives: cooling by
    heat pump, absorption chiller or compression chiller; with or without storage; 2 or 3 doublets.
    - Tests: `tests/unit/loops/test_compare.py`.
-   - Done when: one brief gives a ranked table of verified designs.
-2. **Optimisation (bonus).** Replaces the stub `optimize` in
-   `geomind/tools/gemini/assessment.py`, once `gm.optim.minimize` is real; it is `later` in gemini.
-   - Done when: it returns the design, the objective and the history.
-3. **Uncertainty (bonus).** Replaces the stub `sample_uncertainty` in
-   `geomind/tools/gemini/assessment.py`, once `gm.optim.sample` is real; it is `later` in gemini. Run
-   the chosen design over P10, P50 and P90 reservoir and demand cases.
-   - Done when: it returns `{metric: {p10, p50, p90}}` as Values.
-4. **Evals.** Partly done: `evals/tasks/challenge2/` holds the official brief and three variants
-   (more cooling, a colder reservoir, a user's 30-day profile), passing offline through `DesignLoop`
+   - Done when: one case gives a ranked table of verified designs.
+2. **Optimisation (bonus).** Done: `optimize` over `gm.study.minimize` in `geomind/tools/gemini/study.py`.
+3. **Uncertainty (bonus).** Done: `sample_uncertainty`, `sensitivity` and `compare` in `study.py`,
+   with the distributions of the case's `uncertainty`.
+4. **Evals.** Partly done: `evals/tasks/challenge2/` holds the official case and three variants
+   (more cooling, a colder reservoir, a user's profile), passing offline through `DesignLoop`
    ([evals.md](evals.md#suites)). Still open: a tighter-budget variant, and
    `evals/reports/summary.md` comparing `ToolLoop`, `DesignLoop`, `MakerCheckerLoop` and
    `CompareLoop` on criteria met, steps, tokens, cost and time; two of those loops are stubs.

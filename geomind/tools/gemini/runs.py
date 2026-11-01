@@ -40,7 +40,7 @@ def parse_time(value, field, where):
         moment = datetime.fromisoformat(value)
     except ValueError:
         raise ToolError(
-            f"{where}: {field} = {value!r}; expected an ISO 8601 time such as '2027-01-28'",
+            f"{where}: {field} = {value!r}; expected an ISO 8601 time such as '2026-01-28'",
             path=field,
         ) from None
     if moment.tzinfo is None:

@@ -70,7 +70,7 @@ def test_file_store_keeps_the_frozen_references(tmp_path, key, data):
     assert store.load_artifact("r", key) == data
 
 
-@pytest.mark.parametrize("key", ["design/../up", "design/a/b", "result/", "design/.."])
+@pytest.mark.parametrize("key", ["design/../up", "design/a/b", "result/", "design/..", "profile/demand"])
 def test_file_store_refuses_an_unsafe_reference(tmp_path, key):
     """A reference never leaves the run's folder."""
     with pytest.raises(RunError, match="expected letters"):

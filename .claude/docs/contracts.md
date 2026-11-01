@@ -76,10 +76,19 @@ and to read one back `event_from_dict`.
 - Pass `sandbox` and `permissions` again to `Run.load`, like hooks and callbacks; a run does not
   store them.
 - `event.to_dict()` holds every field a store must keep, and `event_from_dict` restores it.
-- `save_artifact` keys may hold a `/`: `design/<name>`, `result/<id>`, `profile/<name>` and
-  `case/<file name>` (bytes: the CSV files of the run's case). `check_run_store` tests them.
+- `save_artifact` keys may hold a `/`: `design/<name>`, `result/<id>` and `case/<file name>`
+  (bytes: the CSV files of the run's case). The former profile key is gone: a user's demand profile is a
+  file of the case, `case/<file name>`. `check_run_store` tests them.
 - `Workspace.case(project_id)` returns the project's case as `(case dict, folder)` or `None`: the
   content of its `case.json` as written, and a folder (a path) holding the files it names.
   `check_workspace` needs a project whose case names a demand file. The file workspace reads
   `<root>/<project>/case.json`; the memory one takes `cases={project: (dict, folder)}`.
+- **What the backend stores for a project.** Its `case.json` (the case as written, read by
+  `Workspace.case`) and the demand CSV it names. The problem state holds the case under the key
+  `case` (it replaced `brief`), and a run copies the files into its own `case/<file name>`
+  artifacts. Nothing else of the case needs storing.
+- **Tool errors.** A gemini `ValidationError` passes through with its `path`, `code` and message
+  (`missing_value`, `invalid_design`, `unknown_name`...). A gap in gemini is a `ToolError` with
+  code `not_implemented`; a missing case is `invalid_input` telling the model to call `set_case` or
+  `ask_user`. See [tools.md](tools.md#error-results).
 - `RunResult.stop_reason` may be `not_implemented`, with `status="failed"`.

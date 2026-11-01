@@ -5,7 +5,7 @@ is a new version.
 
 ## Catalogue
 
-Every tool up to S4 exists now as a real `Tool`. Names, schemas and effects are
+Every tool exists now as a real `Tool`, except `test_module` (a stub, which needs Docker). Names, schemas and effects are
 [frozen](api.md#frozen-interfaces). A **stub** raises `NotImplementedYet("<tool> comes in <phase>")`,
 so a call is an error result with `code: "not_implemented"`. `gd.tools.gemini.<name>` is the public
 path; the package has one file per group. All are idempotent except `set_case` and `save_profile`, which write
@@ -84,6 +84,12 @@ accept the `/`; `check_run_store` tests it. An artifact belongs to its root run.
 - **A case file** is stored under `case/<file name>` as bytes (the CSV of the demand or of a
   profile), one name and no folder. `set_case(source="project")` and `save_profile` write them;
   `case_of` reads them; `list_profiles`, `read_profile` and `simulate` read the case.
+
+`geomind/tools/gemini/stored.py` is the one contract of both: `save_design(context, name, plant)
+-> "design/<name>"`, `load_design(context, design, where) -> gm.Plant`, `save_run(context, plant,
+results, summary, options) -> "result/<id>"` and `load_run(context, reference, where) -> (plant,
+case, results)`. `<id>` also covers the contents of the case's files, so a changed file is a new
+run. A reference no run made is `unknown_name` with `path` `reference`.
 
 ### How `simulate` runs
 

@@ -69,7 +69,6 @@ def _check_artifacts(store):
     _expect(store.load_artifact(OTHER_RUN, "json") is None, "artifacts must belong to one run")
     store.save_artifact(RUN, "design/conformance", {"name": "doublet"})
     store.save_artifact(RUN, "result/conformance", {"plant": {}})
-    store.save_artifact(RUN, "profile/conformance", {"values": [1.0]})
     store.save_artifact(RUN, "case/conformance.csv", b"time,x\n1,2\n")
     _expect(
         store.load_artifact(RUN, "design/conformance") == {"name": "doublet"},
@@ -78,10 +77,6 @@ def _check_artifacts(store):
     _expect(
         store.load_artifact(RUN, "result/conformance") == {"plant": {}},
         "a result/<id> key must round-trip",
-    )
-    _expect(
-        store.load_artifact(RUN, "profile/conformance") == {"values": [1.0]},
-        "a profile/<name> key must round-trip",
     )
     _expect(
         store.load_artifact(RUN, "case/conformance.csv") == b"time,x\n1,2\n",
