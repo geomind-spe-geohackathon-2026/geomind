@@ -78,7 +78,9 @@ skill note is gone. The DesignLoop runs Designer (size, simulate,
 self-check, optimise) → Verifier (once, on the final design) → Economist → Explainer, and asks the
 user for a case before designing when the state has none or it has no demand.
 
-Tools: a file the project's case names but does not have is an `unknown_name` error that names
+Tools: `optimize` refuses a `case` variable (the case is the user's); the study tools time out
+after 900 s with a `timeout` result; `compare` keeps gemini's own value when a column label is not
+`name [unit]`, instead of failing. A file the project's case names but does not have is an `unknown_name` error that names
 it, and an empty case file is a file, not a missing one.
 
 Tests: no fast test of a gemini tool runs a year in its body; module fixtures run each year,

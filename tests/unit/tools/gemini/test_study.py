@@ -259,3 +259,29 @@ async def test_hackathon_size_then_optimize():
         },
     )
     assert searched.output["design"] == "design/b"
+
+
+@pytest.mark.parametrize("path", ["case", "case.assumptions.finance"])
+async def test_optimize_refuses_a_value_of_the_case(path):
+    """The case is the user's: a search over it is refused before gemini runs."""
+    context, reference = await started("shallow_district")
+    arguments = {"design": reference, "objective": "lcts", "evaluations": 5, "name": "b"}
+    arguments["variables"] = [bounds(path, "discount_rate", 0.03, 0.08, "-")]
+    result = await run(study.optimize, context, arguments)
+    assert result.is_error and "the user's" in result.output["error"]["message"]
+
+
+def test_a_comparison_column_in_another_form_keeps_gemini_s_value():
+    """A label without ``name [unit]`` falls back to gemini's own value, never a crash."""
+    import gemini as gm
+    import pandas as pd
+
+    frame = pd.DataFrame({"other": [1.0]})
+    value = gm.units.Quantity(2.0, "EUR/J")
+    assert study.shown_value(frame, 0, "lcts", value) == value.to_dict()
+
+
+def test_the_study_tools_have_a_time_limit():
+    """A long search gives a timeout result instead of holding the run."""
+    for name in ("size_plant", "optimize", "sample_uncertainty", "sensitivity"):
+        assert getattr(study, name).timeout == study.STUDY_TIMEOUT_S
