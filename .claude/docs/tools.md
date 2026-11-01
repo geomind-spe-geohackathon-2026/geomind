@@ -31,8 +31,11 @@ the problem state as `update_state` does.
 | `compute_kpis` | `assessment.py` | `compute` | `reference, names=None` | `{name: Value}`: `gm.kpi.compute` and `gm.kpi.totals` | built |
 | `estimate_costs` | `assessment.py` | `compute` | `reference, assumptions=None` | `{capex, opex, lcoh, lcoc, npv, co2, lcts}` as Values, plus the assumptions used | built |
 | `test_module` | `assessment.py` | `execute` | `path` | gemini's `check_module` report, run in the sandbox | stub, S3 |
-| `optimize` | `assessment.py` | `compute` | `design, variables, objective, constraints=None, budget=None` | `{design, objective, history}` | stub, S4 (bonus) |
-| `sample_uncertainty` | `assessment.py` | `compute` | `design, distributions, samples, metrics` | `{metric: {p10, p50, p90}}` as Values | stub, S4 (bonus) |
+| `size_plant` | `study.py` | `compute` | `design, backup, name`, all required: `backup` is `peak` or `none` | `{design, sizing}`; `gm.study.size` on the state's case, the sized plant stored as `design/<name>`, `sizing` gemini's notes (`sized`, `unchanged`, `broken`, `simulation`) with quantities as `{value, unit}` | built |
+| `optimize` | `study.py` | `compute` | `design, objective, variables, evaluations, name, constraints=None`: `variables` a list of `{path, parameter, lower, upper}` with `{value, unit}` bounds (counts for `size.doublets`); an empty list means the case's choices, there is no other default | `{best, feasible, fixed, trials, design}`; `best` is `Best.to_dict()` (SI values, the plant inside), the best plant stored as `design/<name>`; with no trial that ran there is no `design`; gemini's errors (`unknown_name`, `invalid_design`, `missing_value`) pass through | built |
+| `sample_uncertainty` | `study.py` | `compute` | `design, metrics, count, seed`, all required | `Sample.to_dict()`: `samples` and `summary` per metric (`mean`, `p5`, `p50`, `p95`, `failed`); distributions only from the case's `uncertainty` (none is `missing_value`) | built |
+| `sensitivity` | `study.py` | `compute` | `design, metrics` | `Tornado.to_dict()`: `rows` sorted by effect, bounds from the case's `uncertainty` | built |
+| `compare` | `study.py` | `compute` | `references, by`: references of runs `simulate` returned | one entry per reference: `reference`, `values` as `{value, unit}` in display units, `ranks`, `pareto`, `feasible`, `reasons` | built |
 
 ### gemini mapping
 
@@ -59,8 +62,11 @@ filling a stub, because gemini's names change.
 | `compute_kpis` | `gm.kpi.compute`, `gm.kpi.totals`, `gm.Results.from_bytes` | real |
 | `estimate_costs` | `gm.economics.capex`, `opex`, `lcoh`, `lcoc`, `npv`, `co2`, `gm.economics.Assumptions` | real |
 | `test_module` | `gm.modules.load_file`, `gm.modules.get`, `gm.testing.check_module` | real |
-| `optimize` | `gm.optim.minimize` | **gap**: `later` in gemini, and it needs a `profile` this tool does not take |
-| `sample_uncertainty` | `gm.optim.sample` | **gap**: `later` in gemini, and it needs a `profile` this tool does not take |
+| `size_plant` | `gm.study.size`, `Plant.sizing`, `Plant.to_dict` | real |
+| `optimize` | `gm.study.minimize`, `Best.to_dict`, `gm.units.Quantity` | real |
+| `sample_uncertainty` | `gm.study.sample`, `Sample.to_dict` | real |
+| `sensitivity` | `gm.study.sensitivity`, `Tornado.to_dict` | real |
+| `compare` | `gm.evaluate.report`, `gm.evaluate.compare`, `Comparison.to_frame` (for the display units) | real |
 
 ## References
 
