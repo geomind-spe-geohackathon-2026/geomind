@@ -78,7 +78,9 @@ and to read one back `event_from_dict`.
 - `event.to_dict()` holds every field a store must keep, and `event_from_dict` restores it.
 - `save_artifact` keys may hold a `/`: `design/<name>`, `result/<id>` and `case/<file name>`
   (bytes: the CSV files of the run's case). The former profile key is gone: a user's demand profile is a
-  file of the case, `case/<file name>`. `check_run_store` tests them.
+  file of the case, `case/<file name>`. `check_run_store` tests them. A run also keeps keys
+  without a `/`: `<id>.results`, `<id>.plant`, `<id>.case`, `<id>.files` and `<sha256>.file`
+  (bytes: a case file by its content, which an older run reads).
 - `Workspace.case(project_id)` returns the project's case as `(case dict, folder)` or `None`: the
   content of its `case.json` as written, and a folder (a path) holding the files it names.
   `check_workspace` needs a project whose case names a demand file. The file workspace reads

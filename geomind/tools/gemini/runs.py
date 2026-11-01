@@ -6,9 +6,9 @@ from typing import Any
 
 from geomind.errors import ToolError
 from geomind.tools.base import tool
-from geomind.tools.gemini.case import case_of
+from geomind.tools.gemini.case import build_case, case_of
 from geomind.tools.gemini.plants import load_plant
-from geomind.tools.gemini.stored import save_run
+from geomind.tools.gemini.stored import ran_case, save_run
 
 SHOWN_GROUPS = 5
 SERVICES = ("heating", "cooling")
@@ -209,16 +209,20 @@ def run_summary(plant, case, results, label):
 
 
 def run_plant(context, design, changes, start, end):
-    """Simulate a plant on the case; return ``(plant, results, summary, options)``."""
+    """Simulate a plant on the case; return ``(plant, results, summary, options, ran)``.
+
+    ``ran`` is the case dict and files the run read, which ``save_run`` stores.
+    """
     import gemini as gm
 
     plant = load_plant(context, design, "simulate")
     apply_changes(plant, changes)
-    case = case_of(context)
+    ran = ran_case(context)
+    case = build_case(*ran)
     plan = planned(plant, case, start, end)
     results = gm.simulate(plant, case, plan=plan, on_error="record")
     summary = run_summary(plant, case, results, design or "project")
-    return plant, results, summary, {"start": start, "end": end}
+    return plant, results, summary, {"start": start, "end": end}, ran
 
 
 @tool(effect="compute")
@@ -241,8 +245,8 @@ async def simulate(
     with their first groups, the report's totals in display units (MWh, MEUR, EUR/MWh, kt), the
     violated constraints, the coverage of the demand, the plant and the case's time span.
     """
-    plant, results, summary, options = await asyncio.to_thread(
+    plant, results, summary, options, ran = await asyncio.to_thread(
         run_plant, context, design, changes, start, end
     )
-    reference = await save_run(context, plant, results, summary, options)
+    reference = await save_run(context, plant, results, summary, options, ran)
     return {"reference": reference, "summary": summary}

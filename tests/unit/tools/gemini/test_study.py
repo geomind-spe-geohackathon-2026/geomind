@@ -5,7 +5,7 @@ import json
 import pytest
 
 from geomind.tools.gemini import study
-from geomind.tools.gemini.stored import save_design, save_run
+from geomind.tools.gemini.stored import ran_case, save_design, save_run
 from tests.fixtures.cases import case_context, example_names, example_plant
 
 UNCERTAIN = {
@@ -203,7 +203,8 @@ async def test_compare_ranks_two_runs():
     references = []
     for design in (plant, cheaper):
         results = gm.simulate(design, case)
-        references.append(await save_run(context, design, results, {"steps": 1}, {}))
+        stored = await save_run(context, design, results, {"steps": 1}, {}, ran_case(context))
+        references.append(stored)
     result = await run(study.compare, context, {"references": references, "by": ["lcts"]})
     assert [entry["reference"] for entry in result.output] == references
     assert result.output[0]["values"]["lcts"]["unit"] == "EUR/MWh"

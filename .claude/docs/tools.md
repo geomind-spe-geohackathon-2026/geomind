@@ -78,16 +78,21 @@ accept the `/`; `check_run_store` tests it. An artifact belongs to its root run.
   `plants.py` is the one function that returns a `gm.Plant` (`None` is the project's plant). `build_plant` saves it under `design/<name>` and
   returns that text. `<name>` is letters, digits, `.`, `_` or `-`.
 - **A result** is a run `result/<id>`: the summary `simulate` returned, with `<id>.results`
-  (`Results.to_bytes()`), `<id>.plant` and `<id>.case` beside it, written by `save_run` in
-  `stored.py`. `<id>` is a hash of the plant, the case and the window, so the same run has the
-  same reference. `read_result` loads it with `load_run` and reads `Results.get` and `summary`.
+  (`Results.to_bytes()`), `<id>.plant`, `<id>.case` and `<id>.files` (`{file name: sha256}`)
+  beside it, written by `save_run` in `stored.py`. Each case file is also kept once by its content
+  as `<sha256>.file`, so a later `save_profile` that overwrites `case/<file name>` never changes
+  what an older run reads. `ran_case(context)` reads the state's case and its files once; the run
+  is built from that copy and `save_run` stores the same copy, so a `set_case` in a parallel call
+  cannot change what a run stores. `<id>` is a hash of the plant, the case, the files' contents
+  and the window, so the same run has the same reference. `read_result` loads it with `load_run`
+  and reads `Results.get` and `summary`.
 - **A case file** is stored under `case/<file name>` as bytes (the CSV of the demand or of a
   profile), one name and no folder. `set_case(source="project")` and `save_profile` write them;
   `case_of` reads them; `list_profiles`, `read_profile` and `simulate` read the case.
 
 `geomind/tools/gemini/stored.py` is the one contract of both: `save_design(context, name, plant)
 -> "design/<name>"`, `load_design(context, design, where) -> gm.Plant`, `save_run(context, plant,
-results, summary, options) -> "result/<id>"` and `load_run(context, reference, where) -> (plant,
+results, summary, options, ran) -> "result/<id>"` and `load_run(context, reference, where) -> (plant,
 case, results)`. `<id>` also covers the contents of the case's files, so a changed file is a new
 run. A reference no run made is `unknown_name` with `path` `reference`.
 

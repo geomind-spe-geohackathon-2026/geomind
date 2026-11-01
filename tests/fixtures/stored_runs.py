@@ -7,8 +7,8 @@ import io
 import pandas as pd
 
 from geomind.context import ProblemState
-from geomind.tools.gemini.case import case_of, merge_patch
-from geomind.tools.gemini.stored import save_design, save_run
+from geomind.tools.gemini.case import build_case, merge_patch
+from geomind.tools.gemini.stored import ran_case, save_design, save_run
 from tests.fixtures.cases import case_context, example_plant
 
 PEAK_COOLING_SCALE = 1.5
@@ -39,9 +39,11 @@ async def stored_run(name, changes=None, scale=None, plant=None):
         await context.session.save_artifact(f"case/{file}", scaled_column(content, *scale))
     context.problem = ProblemState(case=data)
     design = plant or example_plant(name)
-    results = gm.simulate(design, case_of(context))
+    ran = ran_case(context)
+    results = gm.simulate(design, build_case(*ran))
     reference = await save_design(context, "candidate", design)
-    result = await save_run(context, design, results, {"steps": len(results.names())}, {})
+    summary = {"steps": len(results.names())}
+    result = await save_run(context, design, results, summary, {}, ran)
     return context, reference, result
 
 

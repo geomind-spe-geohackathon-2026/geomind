@@ -38,7 +38,8 @@ so they are passed again when a run resumes in another process.
   and the state's case (`gd.verify.verify(plant, results, case)`), and refuses with each failed
   check and its domain. A `passed` the model wrote is never trusted; a result whose plant is not the
   design's is stale (`stale_result`), and one that ran on another case than the state's is off the
-  case (`result_off_case`, read from the result's `<id>.case`). A state with no
+  case (`result_off_case`, read from the result's `<id>.case` and the digests of its files,
+  `<id>.files`). A state with no
   design and no verification has nothing to verify, so an answer to a question finishes. A nested
   run answers its parent, not the user, so it hands any design back to its loop.
 

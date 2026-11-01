@@ -1,7 +1,8 @@
 """Verify the design the problem state names, on the stored run that verifies it."""
 
 from geomind.errors import ToolError
-from geomind.tools.gemini.stored import RESULT, load_run
+from geomind.tools.gemini.case import file_contents
+from geomind.tools.gemini.stored import RESULT, digests, load_run
 from geomind.verify.verify import verify
 
 
@@ -19,10 +20,15 @@ def result_off_case(context, result):
     """Return why ``result`` did not run on the state's case, or ``None``.
 
     NOTE: a geomind process rule, not physics: a run is verified only against the case it ran on,
-    so a case changed since (a limit, the demand, the schedule) makes the run stale.
+    so a case changed since (a limit, the demand, the schedule, the content of a file it names)
+    makes the run stale.
     """
-    ran_on = context.session.load_artifact(f"{result.removeprefix(RESULT)}.case")
-    if ran_on == context.problem.case:
+    identifier = result.removeprefix(RESULT)
+    data = context.problem.case
+    ran_on = context.session.load_artifact(f"{identifier}.case")
+    kept = context.session.load_artifact(f"{identifier}.files")
+    current = digests(file_contents(context, data, {})) if data is not None else None
+    if ran_on == data and kept == current:
         return None
     return (
         f"{result} ran on another case than the problem state's; simulate the design on the "

@@ -22,7 +22,11 @@ Problem state and backend contract:
   `check_workspace`.
 - Run-store artifact keys: `case/<file name>` (bytes, the files a case names) is added and
   `profile/<name>` is removed. A run keeps `<id>.results`, `<id>.plant` (the plant dict) and
-  `<id>.case` (the case dict it ran on) beside `result/<id>`; `<id>.run` is gone.
+  `<id>.case` (the case dict it ran on) and `<id>.files` (`{file name: sha256}`) beside
+  `result/<id>`, and each case file once by its content as `<sha256>.file`; `<id>.run` is gone. An
+  older run reads the files it ran on, not a file overwritten later under the same name, and the
+  case and files it stores are the ones it read (`ran_case`), not the state's after a parallel
+  `set_case`.
 - Removed from `geomind.context`: `Brief`, `PRESETS`, `preset`, `with_changes`. No preset of any
   case is left in the package.
 
