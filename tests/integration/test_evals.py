@@ -161,23 +161,19 @@ def test_the_shipped_analyst_tasks_pass_offline(gemini_loaded):
     assert [outcome.problems for outcome in outcomes] == [[]] * 5
 
 
-@pytest.mark.slow
-@pytest.mark.parametrize("agent", ["designer", "verifier", "economist", "explainer", "coordinator"])
-def test_the_shipped_tasks_of_the_design_agents_pass_offline(gemini_loaded, agent):
-    """Each agent's tasks pass from their recordings, with the real tools.
-
-    NOTE: slow, because the verifier and economist tasks simulate the whole demand year.
-    """
+@pytest.mark.parametrize("agent", ["designer", "explainer", "coordinator"])
+def test_the_shipped_tasks_of_the_single_agents_pass_offline(gemini_loaded, agent):
+    """Each agent's tasks pass from their recordings, with the real tools."""
     outcomes = evals.run_agent(agent)
     assert outcomes
     assert [outcome.problems for outcome in outcomes] == [[]] * len(outcomes)
 
 
 @pytest.mark.slow
-def test_the_challenge2_briefs_pass_offline_through_the_design_loop(gemini_loaded):
-    """The hackathon brief and its three variants are verified against their own briefs.
+def test_the_challenge2_cases_pass_offline_through_the_design_loop(gemini_loaded):
+    """The hackathon case and its three variants are verified against their own cases.
 
-    NOTE: slow, because each task runs the design loop and simulates a year, twice.
+    NOTE: slow, because each task runs the design loop, optimises and simulates a year, twice.
     """
     outcomes = evals.run_agent("challenge2")
     assert [outcome.name for outcome in outcomes] == [
@@ -190,16 +186,8 @@ def test_the_challenge2_briefs_pass_offline_through_the_design_loop(gemini_loade
     assert all(outcome.verdict["passed"] for outcome in outcomes)
 
 
-@pytest.mark.slow
-@pytest.mark.parametrize(
-    ("task", "failed"),
-    [("colder_reservoir", "d0.gradient"), ("more_cooling", "cool_users.unmet_sensible")],
-)
-def test_a_design_that_ignores_the_brief_fails_its_variant(gemini_loaded, tmp_path, task, failed):
-    """The hackathon design under the variant's brief fails the variant's own checks.
-
-    NOTE: slow, because the design is simulated over the year.
-    """
+def run_ignored(tmp_path, task):
+    """Run a challenge2 task on the recording of a design that ignored the variant."""
     folder = tmp_path / "tasks" / "challenge2"
     folder.mkdir(parents=True)
     shutil.copy(evals.ROOT / "tasks" / "challenge2" / f"{task}.yaml", folder)
@@ -210,11 +198,35 @@ def test_a_design_that_ignores_the_brief_fails_its_variant(gemini_loaded, tmp_pa
         recordings / f"{task}.jsonl",
     )
     [outcome] = evals.run_agent("challenge2", root=tmp_path)
+    return outcome
+
+
+@pytest.mark.slow
+def test_a_design_that_ignores_the_cooling_peak_fails_its_checks(gemini_loaded, tmp_path):
+    """The hackathon design on the 15 MW case, unsized, fails gemini's checks and is rejected.
+
+    NOTE: slow, because the design is simulated over the year.
+    """
+    outcome = run_ignored(tmp_path, "more_cooling")
     assert outcome.verdict["passed"] is False
     assert any(problem.startswith("verified") for problem in outcome.problems)
-    assert "stop: repeated_failure" in outcome.answer and failed in outcome.answer
-    assert outcome.state["design"]["rejected"][0].endswith("-ignored")
+    assert "stop: repeated_failure" in outcome.answer
+    assert "cool_users.unmet_sensible" in outcome.answer
+    assert outcome.state["design"]["rejected"] == ["design/start"]
     assert "reference" not in outcome.state["design"]
+
+
+@pytest.mark.slow
+def test_a_design_that_ignores_the_colder_gradient_fails_by_its_numbers(gemini_loaded, tmp_path):
+    """At 25 K/km the design still passes gemini's checks, so the case and the LCTS catch it.
+
+    NOTE: slow, because the design is optimised and simulated over the year.
+    """
+    outcome = run_ignored(tmp_path, "colder_reservoir")
+    assert outcome.verdict["passed"] is True
+    kinds = sorted(problem.split(":")[0] for problem in outcome.problems)
+    assert kinds == ["number", "state"]
+    assert "gradient/value = 30" in "".join(outcome.problems)
 
 
 PROJECTS = ROOT / "evals" / "projects"

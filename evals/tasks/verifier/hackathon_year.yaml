@@ -1,9 +1,0 @@
-message: Verify the project's plant over the demand year.
-plant: evals/projects/hackathon_plant
-criteria:
-- kind: tool
-  tool: simulate
-- kind: tool
-  tool: check_results
-- kind: state
-  path: /verification/result

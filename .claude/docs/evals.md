@@ -71,7 +71,7 @@ repository needs no sibling checkout. When gemini's examples change, copy them a
 | Project | Holds | Used by |
 |---|---|---|
 | `hackathon` | the hackathon case, no plant | designer, coordinator and the `challenge2` tasks |
-| `hackathon_plant` | the same case and `plants/HackathonPlant.json` | verifier, economist, explainer |
+| `hackathon_plant` | the same case and `plants/HackathonPlant.json` | explainer; the plant dict the recordings build |
 | `more_cooling` | the case with the demand CSV's cooling column x 1.5 (15 MW peak), no plant | `challenge2/more_cooling` |
 | `doublet` | gemini's `doublet_heat/plant.json`, no case | analyst tasks |
 
@@ -92,13 +92,23 @@ Its four tasks are the hackathon case and three variants, each a case change:
 |---|---|---|
 | `hackathon` | the case as it is | an unmet demand or a violated limit (`verified`) |
 | `more_cooling` | the `more_cooling` project, a 15 MW cooling peak | the hand-found design fails `cool_users.supply_in.temperature` (21.67 degC against 20 degC) and `cool_users.unmet_sensible` (`verified`) |
-| `colder_reservoir` | `set_case` changes `environment.ground.gradient` to 25 K/km | nothing physical: the design still passes, and no case constraint limits the boiler (its heat goes from 254 to 29 705 MWh, the LCTS from 48.5 to 53.6 EUR/MWh), and we do not invent one. The task checks `/case/environment/ground/gradient/value` is 25 and that the answer's LCTS is 53.6 EUR/MWh (`number`), not 48.5 |
-| `user_profile` | 30 daily heating values the user types, January only, through `save_profile` | `/case/demand/file` is not `january.csv`, or the heating demand is unmet |
+| `colder_reservoir` | `set_case` changes `environment.ground.gradient` to 25 K/km | nothing physical: the design still passes, and no case constraint limits the boiler (for gemini's hand-found HackathonPlant its heat goes from 254 to 29 705 MWh and the LCTS from 48.5 to 53.6 EUR/MWh), and we do not invent one. The task checks `/case/environment/ground/gradient/value` is 25 and that the answer's LCTS is the 25 K/km value of the recorded design, 46.82 EUR/MWh (`number`), not the 35.93 of the same design at 30 K/km |
+| `user_profile` | the user's heating demand (the case's profile x 0.8) stored with `read_profile` and `save_profile` | `/case/demand/file` is not `heating_80.csv`, or the heating demand is unmet |
 
-A variant fails when the agents ignore its change: `tests/integration/test_evals.py` runs the
-hackathon design under the variants with `tests/fixtures/recordings/*_ignored.jsonl`. Tasks state
-their criteria on `/case` paths. The recordings are hand-written, as the comment at the top of each
-task says, with every reference and number from the real tools; the live run replaces them.
+A variant fails when the agents ignore its change: `tests/integration/test_evals.py` runs
+`tests/fixtures/recordings/*_ignored.jsonl` on the variant's task. The unsized hackathon design on
+the 15 MW case fails gemini's checks, repeats its failure and is rejected (`stop: repeated_failure`);
+the design that ignores 25 K/km passes the checks but fails the `/case` state and the LCTS number.
+
+The user's message of every `challenge2` task states what the Designer needs for `size_plant` and
+`optimize`: the backup policy (`peak`), the objective (`lcts`), the variables (none: the case's
+choices) and the evaluations (12). `answers` replies to the loop's first question (the run holds no
+case yet; the reply tells the Designer to use the project's case). Tasks state their criteria on
+`/case` paths. The recordings are hand-written decisions (`model: hand-written`): the Designer
+builds gemini's `HackathonPlant` dict, sizes it, simulates, checks, optimises and simulates the best
+design; every reference and number in the tool results is from a real gemini run, because they were
+written by answering each model call from the results the run already held (the script is in the
+adaptation notes). The live run replaces them.
 
 ## Recordings
 
@@ -113,21 +123,26 @@ the ESP operating point, the heat the exchanger delivers at 150 m3/h, a missing 
 needs `ask_user`, a module lookup, and the ESP at 45 Hz. Each number in a criterion is gemini's,
 from the same inputs as the recorded tool call. `tests/integration/test_evals.py` runs them offline.
 
-`tasks/designer/`, `verifier/`, `economist/`, `explainer/` and `coordinator/` hold one task each; the
-verifier and economist run the hackathon plant over the demand year (`evals/projects/hackathon_plant`;
-its LCTS is 48.48 EUR/MWh). Their recordings are hand-written (`model: hand-written`, no usage)
-until the first live run writes them anew. The tasks give mass flows in kg/s beside m3/h, because a
+`tasks/designer/`, `explainer/` and `coordinator/` hold one task each. The Verifier and the
+Economist no longer have a task of their own: they cannot simulate or set a case, so they are
+evaluated inside `challenge2` (the criteria `check_results`, `estimate_costs` and the LCTS number of
+`hackathon`). Their recordings are hand-written (`model: hand-written`, no usage) until the first
+live run writes them anew. The tasks give mass flows in kg/s beside m3/h, because a
 module inlet takes a mass flow and the agent converts nothing itself.
 
-## The scripted hackathon run
+## The scripted runs
 
-`evals/runs/official_brief_scripted.jsonl` is a scripted recording of the design loop on the
-hackathon case: hand-written completions in the order the loop asks its agents, with every
-reference and number from the real tools. `tests/e2e/test_official_brief.py` runs
-`geomind run --loop design --project evals/projects/hackathon --recording ...` on it and replays the
-run. It checks the path to a verified design, not a model; the live run replaces it. A design run
-needs a project with a `case.json`: the command stops without one.
+`evals/runs/hackathon_scripted.jsonl` and `tests/fixtures/recordings/shallow_district_scripted.jsonl`
+are scripted recordings of the design loop on the hackathon case and on gemini's shallow-district
+example: hand-written decisions in the order the loop asks its agents (Designer: set the case, read
+it, build, size, simulate, check, optimise, simulate the best, record; Verifier: check once;
+Economist; Explainer), with every reference and number from the real tools.
+`tests/e2e/test_scripted_design.py` runs `geomind run --loop design --project <case folder>
+--recording ...` on each, answers the loop's question, and replays the run. It checks the path to a
+verified design, not a model; the live run replaces it. A design run needs a project with a
+`case.json`: the command stops without one.
 
-**The design of this recording was found by hand**, in this repository's development, not by an
-agent (gemini's `HackathonPlant`). A live run shows what the agents find on their own; the scripted
-run shows only that the harness carries a verified design from the command line to the report.
+**The plant of these recordings was found by hand** (gemini's `HackathonPlant`, and the shallow
+example's `plant.json`), not by an agent. A live run shows what the agents find on their own; the
+scripted runs show only that the harness carries a verified design from the command line to the
+report.
