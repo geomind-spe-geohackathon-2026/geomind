@@ -3,8 +3,8 @@
 A design is a plant dict ``design/<name>``, ``gm.Plant.to_dict(structure=True)``, which keeps the
 plant's inputs. A run ``result/<id>`` keeps its summary there and, beside it, ``<id>.results``
 (``Results.to_bytes()``), ``<id>.plant`` (the plant dict that ran) and ``<id>.case`` (the case dict
-it ran on, as the state held it). The id is a hash of the plant, the case and the run's options, so
-the same run has the same reference.
+it ran on, as the state held it). The id is a hash of the plant, the case, the contents of the
+case's files and the run's options, so the same run has the same reference.
 """
 
 import hashlib
@@ -51,9 +51,10 @@ def load_design(context, design, where):
     return gm.Plant.from_dict(data)
 
 
-def run_id(plant_data, case_data, options):
-    """Return the id of a run: a hash of its plant dict, case dict and options."""
-    text = json.dumps([plant_data, case_data, options], sort_keys=True, default=str)
+def run_id(plant_data, case_data, files, options):
+    """Return the id of a run: a hash of its plant dict, case dict, case files and options."""
+    digests = {name: hashlib.sha256(content).hexdigest() for name, content in files.items()}
+    text = json.dumps([plant_data, case_data, digests, options], sort_keys=True, default=str)
     return hashlib.sha256(text.encode()).hexdigest()[:16]
 
 
@@ -61,7 +62,8 @@ async def save_run(context, plant, results, summary, options):
     """Store a run of ``plant`` on the state's case; return its reference ``result/<id>``."""
     plant_data = plant.to_dict(structure=True)
     case_data = context.problem.case
-    identifier = run_id(plant_data, case_data, options)
+    files = file_contents(context, case_data, {})
+    identifier = run_id(plant_data, case_data, files, options)
     reference = f"{RESULT}{identifier}"
     await context.session.save_artifact(reference, summary)
     await context.session.save_artifact(f"{identifier}.results", results.to_bytes())
