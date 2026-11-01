@@ -80,7 +80,7 @@ class StoredArtifacts:
 
 
 def verdict(store, run_id, state):
-    """Return gemini's checks on the final state's design and result, as ``verify_design`` does."""
+    """Return gemini's checks on the final state's design and result, as ``verify_design``."""
     from geomind.verify.design import verify_design
 
     context = Context(

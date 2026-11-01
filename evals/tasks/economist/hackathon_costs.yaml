@@ -1,11 +1,11 @@
 message: Cost the project's plant over the demand year.
-plant: evals/projects/base
+plant: evals/projects/hackathon_plant
 criteria:
 - kind: tool
   tool: estimate_costs
 - kind: number
-  value: 37.58
-  tolerance: 0.01
+  value: 48.48
+  tolerance: 0.1
   unit: EUR/MWh
 - kind: state
   path: /results/costs

@@ -82,9 +82,9 @@ class StateCriterion(Record):
 
 
 class VerifiedCriterion(Record):
-    """gemini's checks pass again on the final design and its result, with the state's brief.
+    """gemini's checks pass again on the final design and its result, on the case it ran on.
 
-    ``checks`` names checks that must be among them and pass, such as the brief's limits.
+    ``checks`` names checks that must be among them and pass, such as a limit of the case.
     """
 
     kind: Literal["verified"]
@@ -108,7 +108,11 @@ Criterion = Annotated[
 
 
 class Task(Record):
-    """One task file; ``plant`` is a project folder and ``answers`` reply to questions in order."""
+    """One task file; ``plant`` is a project folder and ``answers`` reply to questions in order.
+
+    The folder holds ``case.json`` with its demand file, and ``plant.json`` when the task starts
+    from a plant.
+    """
 
     message: str
     plant: str | None = None

@@ -1,0 +1,427 @@
+{
+  "format": 2,
+  "name": "HackathonPlant",
+  "modules": {
+    "d0": {
+      "type": "Doublet",
+      "params": {
+        "depth": {
+          "value": 2500.0,
+          "unit": "m"
+        },
+        "well_diameter": {
+          "value": 0.244,
+          "unit": "m"
+        },
+        "nominal_flow": {
+          "value": 0.08333333333333333,
+          "unit": "m3/s"
+        },
+        "pump_efficiency": 0.7,
+        "nominal_wellhead_pressure": {
+          "value": 1000000.0,
+          "unit": "Pa"
+        }
+      }
+    },
+    "d1": {
+      "type": "Doublet",
+      "params": {
+        "depth": {
+          "value": 2500.0,
+          "unit": "m"
+        },
+        "well_diameter": {
+          "value": 0.244,
+          "unit": "m"
+        },
+        "nominal_flow": {
+          "value": 0.08333333333333333,
+          "unit": "m3/s"
+        },
+        "pump_efficiency": 0.7,
+        "nominal_wellhead_pressure": {
+          "value": 1000000.0,
+          "unit": "Pa"
+        }
+      }
+    },
+    "production": {
+      "type": "Mixer",
+      "params": {}
+    },
+    "degasser": {
+      "type": "Degasser",
+      "params": {
+        "separation_efficiency": 1.0
+      }
+    },
+    "desander": {
+      "type": "Desander",
+      "params": {
+        "separation_efficiency": 0.9,
+        "nominal_pressure_drop": {
+          "value": 20000.0,
+          "unit": "Pa"
+        },
+        "nominal_mass_flow": {
+          "value": 170.0,
+          "unit": "kg/s"
+        }
+      }
+    },
+    "dosing": {
+      "type": "InhibitorDosing",
+      "params": {
+        "product_concentration": 0.3
+      }
+    },
+    "waste": {
+      "type": "WasteGrid",
+      "params": {}
+    },
+    "chemicals": {
+      "type": "ChemicalGrid",
+      "params": {}
+    },
+    "hx": {
+      "type": "HeatExchanger",
+      "params": {
+        "thermal_conductance": {
+          "value": 1500000.0,
+          "unit": "W/K"
+        },
+        "hot_nominal_pressure_drop": {
+          "value": 0.0,
+          "unit": "Pa"
+        },
+        "cold_nominal_pressure_drop": {
+          "value": 0.0,
+          "unit": "Pa"
+        },
+        "hot_nominal_mass_flow": {
+          "value": 171.7,
+          "unit": "kg/s"
+        },
+        "cold_nominal_mass_flow": {
+          "value": 178.0,
+          "unit": "kg/s"
+        }
+      }
+    },
+    "injection": {
+      "type": "Splitter",
+      "params": {}
+    },
+    "gas_grid": {
+      "type": "GasGrid",
+      "params": {}
+    },
+    "makeup": {
+      "type": "GasMakeup",
+      "params": {}
+    },
+    "boiler": {
+      "type": "Boiler",
+      "params": {
+        "capacity": {
+          "value": 30000000.0,
+          "unit": "W"
+        },
+        "efficiency": 0.9
+      }
+    },
+    "flare": {
+      "type": "Flare",
+      "params": {}
+    },
+    "grid": {
+      "type": "ElectricityGrid",
+      "params": {}
+    },
+    "air": {
+      "type": "Atmosphere",
+      "params": {}
+    },
+    "chiller_cooler": {
+      "type": "Cooler",
+      "params": {
+        "cooler_type": "dry",
+        "capacity": {
+          "value": 40000000.0,
+          "unit": "W"
+        },
+        "approach": {
+          "value": 5.0,
+          "unit": "K"
+        },
+        "specific_fan_power": 0.02,
+        "loop_pressure": {
+          "value": 300000.0,
+          "unit": "Pa"
+        }
+      }
+    },
+    "heat_pump": {
+      "type": "HeatPump",
+      "params": {
+        "mode": "heating",
+        "capacity": {
+          "value": 15000000.0,
+          "unit": "W"
+        },
+        "minimum_source_outlet_temperature": {
+          "value": 320.15,
+          "unit": "K"
+        },
+        "carnot_fraction": 0.5
+      }
+    },
+    "loads": {
+      "type": "Splitter",
+      "params": {}
+    },
+    "heat_return": {
+      "type": "Mixer",
+      "params": {}
+    },
+    "heat_users": {
+      "type": "HeatingGrid",
+      "params": {
+        "return_pressure": {
+          "value": 600000.0,
+          "unit": "Pa"
+        }
+      }
+    },
+    "chiller": {
+      "type": "AbsorptionUnit",
+      "params": {
+        "mode": "chiller",
+        "capacity": {
+          "value": 10000000.0,
+          "unit": "W"
+        },
+        "characteristic_slope": {
+          "value": 700000.0,
+          "unit": "W/K"
+        },
+        "minimum_driving_difference": {
+          "value": 10.0,
+          "unit": "K"
+        },
+        "rejection_coefficient": 2.2,
+        "evaporator_coefficient": 1.2,
+        "auxiliary_power_ratio": 0.01
+      }
+    },
+    "cool_users": {
+      "type": "CoolingGrid",
+      "params": {
+        "dew_point_margin": {
+          "value": 1.0,
+          "unit": "K"
+        },
+        "return_pressure": {
+          "value": 400000.0,
+          "unit": "Pa"
+        }
+      }
+    }
+  },
+  "connections": [
+    {
+      "source": "d0.supply_out",
+      "target": "production.branch1_in"
+    },
+    {
+      "source": "d1.supply_out",
+      "target": "production.branch2_in"
+    },
+    {
+      "source": "production.fluid_out",
+      "target": "degasser.fluid_in"
+    },
+    {
+      "source": "degasser.liquid_out",
+      "target": "desander.fluid_in"
+    },
+    {
+      "source": "desander.fluid_out",
+      "target": "dosing.fluid_in"
+    },
+    {
+      "source": "desander.waste_out",
+      "target": "waste.waste_in"
+    },
+    {
+      "source": "chemicals.chemical_out",
+      "target": "dosing.chemical_in"
+    },
+    {
+      "source": "dosing.fluid_out",
+      "target": "hx.hot_in"
+    },
+    {
+      "source": "hx.hot_out",
+      "target": "heat_pump.source_in"
+    },
+    {
+      "source": "heat_pump.source_out",
+      "target": "injection.fluid_in"
+    },
+    {
+      "source": "injection.branch1_out",
+      "target": "d0.return_in"
+    },
+    {
+      "source": "injection.branch2_out",
+      "target": "d1.return_in"
+    },
+    {
+      "source": "grid.power_out",
+      "target": "d0.power_in"
+    },
+    {
+      "source": "grid.power_out",
+      "target": "d1.power_in"
+    },
+    {
+      "source": "grid.power_out",
+      "target": "heat_pump.power_in"
+    },
+    {
+      "source": "grid.power_out",
+      "target": "chiller.power_in"
+    },
+    {
+      "source": "grid.power_out",
+      "target": "chiller_cooler.power_in"
+    },
+    {
+      "source": "degasser.gas_out",
+      "target": "makeup.gas_in"
+    },
+    {
+      "source": "gas_grid.gas_out",
+      "target": "makeup.grid_in"
+    },
+    {
+      "source": "makeup.fuel_out",
+      "target": "boiler.fuel_in"
+    },
+    {
+      "source": "makeup.excess_out",
+      "target": "flare.gas_in"
+    },
+    {
+      "source": "heat_users.return_out",
+      "target": "heat_return.branch1_in"
+    },
+    {
+      "source": "heat_return.fluid_out",
+      "target": "hx.cold_in"
+    },
+    {
+      "source": "hx.cold_out",
+      "target": "heat_pump.sink_in"
+    },
+    {
+      "source": "heat_pump.sink_out",
+      "target": "boiler.fluid_in"
+    },
+    {
+      "source": "boiler.fluid_out",
+      "target": "loads.fluid_in"
+    },
+    {
+      "source": "loads.branch1_out",
+      "target": "heat_users.supply_in"
+    },
+    {
+      "source": "loads.branch2_out",
+      "target": "chiller.generator_in"
+    },
+    {
+      "source": "chiller.generator_out",
+      "target": "heat_return.branch2_in"
+    },
+    {
+      "source": "cool_users.return_out",
+      "target": "chiller.chilled_in"
+    },
+    {
+      "source": "chiller.chilled_out",
+      "target": "cool_users.supply_in"
+    },
+    {
+      "source": "chiller.cooling_out",
+      "target": "chiller_cooler.fluid_in"
+    },
+    {
+      "source": "chiller_cooler.fluid_out",
+      "target": "chiller.cooling_in"
+    },
+    {
+      "source": "boiler.flue_out",
+      "target": "air.gas_in"
+    },
+    {
+      "source": "flare.flue_out",
+      "target": "air.gas_in"
+    },
+    {
+      "source": "flare.loss_out",
+      "target": "air.heat_in"
+    },
+    {
+      "source": "boiler.loss_out",
+      "target": "air.heat_in"
+    },
+    {
+      "source": "air.air_out",
+      "target": "chiller_cooler.air_in"
+    },
+    {
+      "source": "chiller_cooler.air_out",
+      "target": "air.air_in"
+    }
+  ],
+  "bindings": {},
+  "param_history": {},
+  "inputs": {
+    "heat_pump.temperature_setpoint": {
+      "value": 100,
+      "unit": "degC"
+    },
+    "boiler.temperature_setpoint": {
+      "value": 100,
+      "unit": "degC"
+    },
+    "chiller.temperature_setpoint": {
+      "value": 20,
+      "unit": "degC"
+    },
+    "cool_users.indoor_temperature": {
+      "value": 26,
+      "unit": "degC"
+    },
+    "cool_users.indoor_relative_humidity": 0.5,
+    "chiller_cooler.temperature_setpoint": {
+      "value": 15,
+      "unit": "degC"
+    },
+    "chiller_cooler.flow": {
+      "value": 800,
+      "unit": "kg/s"
+    },
+    "desander.sand_concentration": {
+      "value": 20,
+      "unit": "mg/l"
+    },
+    "dosing.dose": {
+      "value": 10,
+      "unit": "ppm"
+    }
+  }
+}

@@ -1,5 +1,5 @@
 message: Verify the project's plant over the demand year.
-plant: evals/projects/base
+plant: evals/projects/hackathon_plant
 criteria:
 - kind: tool
   tool: simulate

@@ -13,6 +13,7 @@ from evals import run as evals
 from evals.tasks_format import load_task
 from geomind.utils.json import append_line
 from tests.fixtures import ROOT
+from tests.fixtures.cases import example_folder
 from tests.fixtures.runs import call, says, uses
 
 GOAL = {"op": "replace", "path": "/goal", "value": "Find the depth"}
@@ -214,3 +215,47 @@ def test_a_design_that_ignores_the_brief_fails_its_variant(gemini_loaded, tmp_pa
     assert "stop: repeated_failure" in outcome.answer and failed in outcome.answer
     assert outcome.state["design"]["rejected"][0].endswith("-ignored")
     assert "reference" not in outcome.state["design"]
+
+
+PROJECTS = ROOT / "evals" / "projects"
+UNMET = ("heating_supply", "cooling_supply")
+
+
+@pytest.mark.parametrize("project", ["hackathon", "hackathon_plant", "more_cooling"])
+def test_the_eval_cases_load_and_hold_the_demand_met_constraints(gemini_loaded, project):
+    """Each case is gemini's hackathon case plus a limit of 1 W unmet on each grid."""
+    case = gemini_loaded.Case.from_json(PROJECTS / project / "case.json")
+    unmet = [item for item in case.to_dict()["constraints"] if item["quantity"] == "unmet"]
+    assert [item["on"] for item in unmet] == list(UNMET)
+    assert all(item["max"] == {"value": 1, "unit": "W"} for item in unmet)
+
+
+def test_the_cases_differ_from_gemini_s_example_only_by_their_variant(gemini_loaded):
+    """The copy keeps gemini's demand, and the cooling variant is its cooling column x 1.5."""
+    import pandas as pd
+
+    source = example_folder("hackathon_2026") / "demand.csv"
+    assert (PROJECTS / "hackathon" / "demand.csv").read_bytes() == source.read_bytes()
+    base = pd.read_csv(source)
+    peak = pd.read_csv(PROJECTS / "more_cooling" / "demand.csv")
+    assert peak["heating_demand_MWth"].equals(base["heating_demand_MWth"])
+    assert (peak["cooling_demand_MWcool"] - 1.5 * base["cooling_demand_MWcool"]).abs().max() < 1e-3
+    assert round(peak["cooling_demand_MWcool"].max(), 6) == 15.0
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize(
+    ("project", "passes"), [("hackathon_plant", True), ("more_cooling", False)]
+)
+def test_the_hackathon_plant_passes_its_case_and_fails_the_cooling_peak(
+    gemini_loaded, project, passes
+):
+    """The hand-found design is verified on the base case and fails the 15 MW cooling peak."""
+    import geomind as gd
+
+    plant = gemini_loaded.Plant.from_json(PROJECTS / "hackathon_plant" / "plant.json")
+    case = gemini_loaded.Case.from_json(PROJECTS / project / "case.json")
+    verdict = gd.verify.verify(plant, gemini_loaded.simulate(plant, case), case)
+    assert verdict["passed"] is passes
+    failed = {item["name"] for item in verdict["failures"]}
+    assert (failed >= {"cool_users.supply_in.temperature"}) is (not passes)
