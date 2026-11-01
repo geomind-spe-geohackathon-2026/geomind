@@ -1,57 +1,57 @@
-"""The tools that judge a design: checks, KPIs, costs, optimisation and agent-written modules."""
-
-from typing import Any
+"""The tools that judge a stored run with gemini: checks, KPIs and costs on its own case."""
 
 from geomind.errors import NotImplementedYet, ToolError
 from geomind.tools.base import tool
-from geomind.tools.gemini.plants import apply_inputs
+from geomind.tools.gemini.stored import load_run
+from geomind.tools.gemini.verification import METRIC_EXCLUDED, assess, displayed
 from geomind.utils.strings import did_you_mean, join_names
 
-RESULT = "result/"
-
-
-def stored_run(context, reference, where):
-    """Return the plant and the ``Results`` that ``simulate`` kept beside a result reference."""
-    import gemini as gm
-
-    identifier = reference.removeprefix(RESULT) if reference.startswith(RESULT) else None
-    spec = context.session.load_artifact(f"{identifier}.plant") if identifier else None
-    data = context.session.load_artifact(f"{identifier}.results") if identifier else None
-    if spec is None or data is None:
-        raise ToolError(
-            f"{where}: reference = {reference!r}; expected a reference that simulate returned",
-            code="unknown_name",
-            path="reference",
-        )
-    return apply_inputs(gm.plants.from_dict(spec), spec), gm.Results.from_bytes(data)
+COSTS = (
+    "capex",
+    "opex",
+    "annualised_cost",
+    "lcoh",
+    "lcoc",
+    "lcts",
+    "npv",
+    "payback",
+    "co2",
+)
+"""The costs of ``estimate_costs``, all functions of ``gm.evaluate``."""
 
 
 @tool(effect="compute")
-def check_results(context, reference: str, limits: dict[str, Any] | None = None):
-    """Check stored results: energy and mass balances, limits and the hard limits.
+def check_results(context, reference: str):
+    """Check stored results against the case they ran on: gemini's report, balances and failures.
 
-    Returns ``{passed, checks, failures, not_assessed, not_given, brief}``: gemini's checks with
-    the limits of the state's brief always among them, the domain of each failed check, what gemini
-    cannot judge yet, and the limits the brief does not give. ``limits`` (what
-    ``gm.checks.Limits.to_dict`` returns) are checked beside the brief's.
+    Returns ``{passed, constraints, failures, balances, metrics}``, gemini's, in display units:
+    ``constraints`` one check per unit of each constraint of the case and per service supply
+    temperature, ``failures`` the failed and skipped steps by module and code, ``balances`` the
+    ledgers and the failed module balances, and ``metrics`` the energies, capacities, costs and
+    CO2. ``passed`` is true when no constraint, balance or step failed. A limit is a constraint
+    of the case: set it with ``set_case``.
     """
-    raise ToolError("check_results: not_implemented until the case replaces the brief")
+    return assess(*load_run(context, reference, "check_results"))
 
 
-def kpis(plant, results):
-    """Return gemini's KPIs and plant totals of a run, ``{name: Value}``."""
+def kpi_values(plant, case, results):
+    """Return gemini's totals and the metrics of its report, ``{name: value in display units}``."""
     import gemini as gm
 
-    return {**gm.kpi.compute(plant, results), **gm.kpi.totals(plant, results)}
+    report = gm.evaluate.report(plant, case, results)
+    totals = displayed(report, gm.evaluate.totals(plant, case, results))
+    metrics = {name: item for name, item in report.to_dict().items() if name not in METRIC_EXCLUDED}
+    return {**totals, **metrics}
 
 
 @tool(effect="compute")
 def compute_kpis(context, reference: str, names: list[str] | None = None):
-    """Compute KPIs of stored results, all of them without ``names``.
+    """Compute KPIs of stored results in display units, all of them without ``names``.
 
-    The KPIs are ``gm.kpi.compute`` and the plant totals of ``gm.kpi.totals``, each a Value.
+    The KPIs are the totals of ``gm.evaluate.totals`` (what crossed the plant's edge, coverage,
+    COP, peaks) and the metrics of ``gm.evaluate.report``.
     """
-    found = kpis(*stored_run(context, reference, "compute_kpis"))
+    found = kpi_values(*load_run(context, reference, "compute_kpis"))
     for name in names or ():
         if name not in found:
             raise ToolError(
@@ -63,118 +63,41 @@ def compute_kpis(context, reference: str, names: list[str] | None = None):
     return {name: found[name] for name in names} if names else found
 
 
-def energy_share(plant, results):
-    """Return the heat's share of the energy delivered, from the totals of ``gm.kpi.totals``."""
+def cost_values(plant, case, results):
+    """Return ``(values, errors)`` of gemini's costs: ``{name: Value}`` and ``{name: error}``."""
     import gemini as gm
 
-    totals = gm.kpi.totals(plant, results)
-    heat, cold = totals["heat_delivered"]["value"], totals["cold_delivered"]["value"]
-    if not heat or cold is None:
-        raise ToolError(
-            "estimate_costs: heat_cost_share = 'energy'; expected a run that delivers heat",
-            path="assumptions.heat_cost_share",
-        )
-    return heat / (heat + cold)
+    values, errors = {}, {}
+    for name in COSTS:
+        arguments = (plant, case) if name == "capex" else (plant, case, results)
+        try:
+            values[name] = getattr(gm.evaluate, name)(*arguments)
+        except gm.errors.ValidationError as error:
+            errors[name] = error
+    return values, errors
 
 
-def build_assumptions(values, plant, results):
-    """Return ``gm.economics.Assumptions`` of the given values, or a result the model can fix."""
-    import gemini as gm
-    import pydantic
+@tool(effect="compute")
+def estimate_costs(context, reference: str):
+    """Estimate capex, opex, LCOH, LCOC, LCTS, NPV, payback, CO2 and the annualised cost.
 
-    known = gm.economics.Assumptions.model_fields
-    for name in values:
-        if name not in known:
-            raise ToolError(
-                f"estimate_costs: assumptions.{name}; expected one of {join_names(known)}"
-                f"{did_you_mean(name, known)}",
-                code="unknown_name",
-                path=f"assumptions.{name}",
-            )
-    if values.get("heat_cost_share") == "energy":
-        values = {**values, "heat_cost_share": energy_share(plant, results)}
-    try:
-        return gm.economics.Assumptions(**values)
-    except pydantic.ValidationError as error:
-        first = error.errors()[0]
-        field = ".".join(str(part) for part in first["loc"])
-        raise ToolError(
-            f"estimate_costs: assumptions.{field}: {first['msg']}", path=f"assumptions.{field}"
-        ) from None
-
-
-def lcts(plant, results, assumptions):
-    """Return the levelised cost of thermal service, a Value with its parts.
-
-    LCTS = annualised total system cost / (annual heat delivered + annual cold delivered). NOTE:
-    every number is gemini's: with ``heat_cost_share = 1`` the whole cost goes to the heat, so
-    ``lcoh × energy`` of ``gm.economics.lcoh`` is the annualised total cost ``capex / A + opex``,
-    and ``energy`` of ``lcoh`` and ``lcoc`` are the annual heat and cold. geomind only divides.
+    Every value is gemini's (``gm.evaluate``) on the run's case, in display units with its parts;
+    prices, rates, lifetime and cost factors are the case's ``assumptions``. An assumption the
+    case lacks is never filled: a cost that needs it is ``{"error": {path, code, message}}`` with
+    gemini's error (code ``missing_assumption``, the path in the case), and when no cost can be
+    computed the call fails with the first of them. Set the assumption with ``set_case`` or ask the
+    user.
     """
     import gemini as gm
 
-    whole = assumptions.model_copy(update={"heat_cost_share": 1.0})
-    heat = gm.economics.lcoh(plant, results, assumptions=whole, on_error="record")
-    cold = gm.economics.lcoc(plant, results, assumptions=whole, on_error="record")
-    if heat["value"] is None:
-        return {"value": None, "unit": heat["unit"], "reason": heat["reason"]}
-    heat_energy = heat["energy"]["value"]
-    cold_energy = (cold.get("energy") or {}).get("value") or 0.0
-    annual = heat["value"] * heat_energy
+    plant, case, results = load_run(context, reference, "estimate_costs")
+    values, errors = cost_values(plant, case, results)
+    if not values:
+        raise next(iter(errors.values()))
+    shown = displayed(gm.evaluate.report(plant, case, results), values)
     return {
-        "value": annual / (heat_energy + cold_energy),
-        "unit": heat["unit"],
-        "annualised_cost": {"value": annual, "unit": f"{assumptions.currency}/year"},
-        "heat": heat["energy"],
-        "cold": cold.get("energy") or {"value": 0.0, "unit": heat["energy"]["unit"]},
+        name: shown[name] if name in shown else {"error": errors[name].to_dict()} for name in COSTS
     }
-
-
-@tool(effect="compute")
-def estimate_costs(context, reference: str, assumptions: dict[str, Any] | None = None):
-    """Estimate capex, opex, LCOH, LCOC, NPV and CO2, and return the assumptions used.
-
-    Every value is gemini's (``gm.economics`` with ``on_error="record"``), so a missing assumption
-    is a null value with its reason. ``assumptions`` are fields of ``gm.economics.Assumptions``;
-    ``heat_cost_share = "energy"`` splits the cost by the heat and cold delivered. ``lcts`` is the
-    levelised cost of heating and cooling together.
-    """
-    import gemini as gm
-
-    plant, results = stored_run(context, reference, "estimate_costs")
-    used = build_assumptions(dict(assumptions or {}), plant, results)
-    economics = gm.economics
-    return {
-        "capex": economics.capex(plant, used, on_error="record"),
-        "opex": economics.opex(plant, results, used, on_error="record"),
-        "lcoh": economics.lcoh(plant, results, assumptions=used, on_error="record"),
-        "lcoc": economics.lcoc(plant, results, assumptions=used, on_error="record"),
-        "npv": economics.npv(plant, results, assumptions=used, on_error="record"),
-        "co2": economics.co2(plant, results, used, on_error="record"),
-        "lcts": lcts(plant, results, used),
-        "assumptions": used.model_dump(mode="json"),
-    }
-
-
-@tool(effect="compute")
-def optimize(
-    context,
-    design: str,
-    variables: dict[str, Any],
-    objective: str,
-    constraints: dict[str, Any] | None = None,
-    budget: int | None = None,
-):
-    """Optimise a stored design and return the best design, its objective and the history."""
-    raise NotImplementedYet("optimize comes in S4")
-
-
-@tool(effect="compute")
-def sample_uncertainty(
-    context, design: str, distributions: dict[str, Any], samples: int, metrics: list[str]
-):
-    """Sample a stored design over its uncertain inputs; return P10, P50 and P90 per metric."""
-    raise NotImplementedYet("sample_uncertainty comes in S4")
 
 
 @tool(effect="execute")

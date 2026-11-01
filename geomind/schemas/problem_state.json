@@ -81,56 +81,32 @@
     },
     "Requirement": {
       "additionalProperties": false,
-      "description": "A testable criterion of the task.",
+      "description": "A criterion of the task, in the user's words.\n\nA numeric one is a constraint of the case (``set_case``), and ``constraint`` is the index of\nthat constraint in ``case.constraints``; gemini judges it, the text is never parsed.",
       "properties": {
-        "id": {
-          "title": "Id",
-          "type": "string"
-        },
-        "metric": {
+        "constraint": {
           "anyOf": [
             {
-              "type": "string"
+              "type": "integer"
             },
             {
               "type": "null"
             }
           ],
           "default": null,
-          "title": "Metric"
+          "title": "Constraint"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
         },
         "status": {
           "default": "open",
           "title": "Status",
           "type": "string"
         },
-        "target": {
-          "anyOf": [
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Target"
-        },
         "text": {
           "title": "Text",
           "type": "string"
-        },
-        "tolerance": {
-          "anyOf": [
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Tolerance"
         }
       },
       "required": [

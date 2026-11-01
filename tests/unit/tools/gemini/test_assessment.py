@@ -1,220 +1,154 @@
-"""The tools that judge a design, over stored runs of gemini's hackathon example."""
-
-import asyncio
+"""The tools that judge a stored run, over gemini's example cases."""
 
 import pytest
 
 import geomind as gd
 from tests.fixtures.calls import call
-from tests.fixtures.hackathon import PRICES, base_spec, hackathon_spec
-from tests.fixtures.sessions import StubSession
+from tests.fixtures.cases import example_names
+from tests.fixtures.stored_runs import stored_run, variant_run, warm_runs
 from tests.fixtures.stubs import check_stub
 
 TOOLS = gd.tools.gemini
 
 
-@pytest.mark.parametrize(
-    ("tool", "tool_input", "effect", "phase"),
-    [
-        (TOOLS.test_module, {"path": "module.py"}, "execute", "S3"),
-        (
-            TOOLS.optimize,
-            {"design": "design/a", "variables": {}, "objective": "lcoh"},
-            "compute",
-            "S4",
-        ),
-        (
-            TOOLS.sample_uncertainty,
-            {"design": "design/a", "distributions": {}, "samples": 10, "metrics": ["lcoh"]},
-            "compute",
-            "S4",
-        ),
-    ],
-)
-async def test_the_stubs_say_when_they_come(tool, tool_input, effect, phase):
-    """Each has its final signature and a phase."""
-    await check_stub(tool, tool_input, effect, phase)
+@pytest.fixture(scope="module", autouse=True)
+def warmed():
+    """Run the stored runs once, outside the event loop of a test."""
+    warm_runs()
 
 
-@pytest.fixture(scope="module")
-def gm():
-    """Return gemini; importing it takes more than one test call's budget."""
-    import gemini
-
-    return gemini
+async def test_the_module_test_says_when_it_comes():
+    """It has its final signature and a phase."""
+    await check_stub(TOOLS.test_module, {"path": "module.py"}, "execute", "S3")
 
 
-async def run_in(session, spec, start, end):
-    """Store a design, simulate it in a window and return the result reference."""
-    await call(TOOLS.build_plant, {"plant": spec, "name": spec["name"]}, session)
-    window = {"design": f"design/{spec['name']}", "start": start, "end": end}
-    return (await call(TOOLS.simulate, window, session)).output["reference"]
+async def assess_in(context, tool, result, **tool_input):
+    """Call a tool on a stored run of a context; return its result."""
+    request = {"reference": result, **tool_input}
+    return await call(tool, request, context.session, problem=context.problem)
 
 
-@pytest.fixture(scope="module")
-def stored(gm):
-    """Return a session holding two runs of the hackathon design, and their references.
-
-    ``spring`` is gemini's example in late March, which supplies heat below 100 degC; ``winter`` is
-    the base design in January, which meets the brief.
-    """
-    session = StubSession()
-    spring = asyncio.run(run_in(session, hackathon_spec(gm), "2027-03-20", "2027-03-31"))
-    winter = asyncio.run(run_in(session, base_spec(gm), "2027-01-01", "2027-01-10"))
-    return session, {"spring": spring, "winter": winter}
+async def assess(tool, name, variant="base", **tool_input):
+    """Call a tool on the stored run of a variant of an example; return its result."""
+    context, _, result = variant_run(name, variant)
+    return await assess_in(context, tool, result, **tool_input)
 
 
-async def test_check_results_names_a_broken_hard_limit_and_its_domain(stored):
-    """In late March the example supplies heat below 100 degC: a surface failure."""
-    session, references = stored
-    result = await call(TOOLS.check_results, {"reference": references["spring"]}, session)
-    output = result.output
+@example_names
+async def test_a_design_that_meets_its_case_passes_gemini_s_checks(name):
+    """Constraints, balances and steps are all gemini's, and none fails."""
+    output = (await assess(TOOLS.check_results, name)).output
+    assert output["passed"] is True
+    assert output["failures"] == {"total": 0, "groups": []}
+    assert output["constraints"]
+    assert all(check["passed"] is not False for check in output["constraints"])
+    assert {"energy_balance", "mass_balance", "bounds"} <= {c["name"] for c in output["balances"]}
+    assert output["metrics"]["failed_steps"] == 0
+
+
+async def test_check_results_shows_values_in_display_units():
+    """Energy in MWh, money in MEUR, temperatures in degC; never bare SI."""
+    output = (await assess(TOOLS.check_results, "hackathon_2026")).output
+    metrics = output["metrics"]
+    assert (metrics["heat_delivered"]["unit"], metrics["capex"]["unit"]) == ("MWh", "MEUR")
+    units = {check["limit"]["unit"] for check in output["constraints"]}
+    assert units >= {"m3/h", "degC"}
+
+
+async def test_a_cooling_peak_beyond_the_plant_fails_the_cooling_supply():
+    """At 15 MW the cooling grid gets water warmer than the case asks, and gemini says so."""
+    output = (await assess(TOOLS.check_results, "hackathon_2026", "cooling_peak")).output
+    failed = [check for check in output["constraints"] if check["passed"] is False]
     assert output["passed"] is False
-    assert {"name": "heat_users.supply_in.temperature", "domain": "surface"} in output["failures"]
-    assert set(output) == {"passed", "checks", "failures", "not_assessed", "not_given", "brief"}
-    assert output["brief"] == "no brief in the state: the hackathon_2027 preset"
-    assert output["not_given"] == []
+    assert [check["name"] for check in failed] == ["cool_users.supply_in.temperature"]
+    assert (failed[0]["role"], failed[0]["quantity"]) == ("cooling_supply", "temperature")
+    assert failed[0]["value"]["value"] > failed[0]["limit"]["value"]
+    assert failed[0]["limit"] == {"value": 20.0, "unit": "degC"}
 
 
-async def test_check_results_passes_a_run_that_meets_the_brief(stored):
-    """In January the base design meets every check."""
-    session, references = stored
-    result = await call(TOOLS.check_results, {"reference": references["winter"]}, session)
-    assert result.output["passed"] is True
+async def test_a_colder_reservoir_is_met_by_the_boiler_and_still_passes():
+    """No constraint of the case limits the boiler, so gemini passes the 25 K/km variant.
+
+    The cost shows the difference: the boiler gives over a hundred times the heat.
+    """
+    base = (await assess(TOOLS.check_results, "hackathon_2026")).output
+    colder = (await assess(TOOLS.check_results, "hackathon_2026", "colder")).output
+    assert colder["passed"] is True
+    assert colder["metrics"]["boiler_heat"]["value"] > 100 * base["metrics"]["boiler_heat"]["value"]
 
 
-async def test_compute_kpis_returns_gemini_s_kpis_and_totals(gm, stored):
-    """``gm.kpi.compute`` and ``gm.kpi.totals``, each a Value; ``names`` picks some."""
-    session, references = stored
-    reference = references["winter"]
-    every = (await call(TOOLS.compute_kpis, {"reference": reference}, session)).output
-    picked = {"reference": reference, "names": ["peak_heat", "heat_delivered"]}
-    some = await call(TOOLS.compute_kpis, picked, session)
-    assert set(gm.kpi.names()) <= set(every) and "heat_delivered" in every
-    assert some.output == {
-        "peak_heat": every["peak_heat"],
-        "heat_delivered": every["heat_delivered"],
-    }
-    assert every["peak_heat"]["unit"] == "W"
+@example_names
+async def test_kpis_are_totals_and_report_metrics_in_display_units(name):
+    """All of them without names, the ones asked for with them."""
+    everything = (await assess(TOOLS.compute_kpis, name)).output
+    assert {"heat_delivered", "heating_coverage", "cop", "peak_heat", "lcts"} <= set(everything)
+    assert everything["heat_delivered"]["unit"] == "MWh"
+    assert everything["peak_heat"]["unit"] == "MW"
+    asked = (await assess(TOOLS.compute_kpis, name, names=["cop", "lcts"])).output
+    assert asked == {"cop": everything["cop"], "lcts": everything["lcts"]}
 
 
-async def test_an_unknown_kpi_is_unknown_name_with_a_suggestion(stored):
+async def test_an_unknown_kpi_is_unknown_name_with_a_suggestion():
     """The model reads the names that exist."""
-    session, references = stored
-    wrong = {"reference": references["winter"], "names": ["peak_heats"]}
-    result = await call(TOOLS.compute_kpis, wrong, session)
+    result = await assess(TOOLS.compute_kpis, "shallow_district", names=["peak_heats"])
     assert result.output["error"]["code"] == "unknown_name"
     assert "peak_heat" in result.output["error"]["message"]
 
 
 @pytest.mark.parametrize("tool", [TOOLS.check_results, TOOLS.compute_kpis, TOOLS.estimate_costs])
-async def test_an_unknown_result_is_unknown_name(gm, tool):
+async def test_an_unknown_result_is_unknown_name(tool):
     """Only a reference that simulate returned reads back."""
     result = await call(tool, {"reference": "result/missing"})
     assert result.output["error"]["code"] == "unknown_name"
     assert result.output["error"]["path"] == "reference"
 
 
-def gemini_costs(gm, session, reference, values):
-    """Return gemini's own economics of a stored run, called directly."""
-    from geomind.engine import Context
-    from geomind.tools.gemini.assessment import stored_run
+async def test_costs_are_gemini_s_values_of_the_case_in_display_units():
+    """Capex, opex, the levelised costs, NPV, payback, CO2 and the annualised cost."""
+    import gemini as gm
 
-    plant, results = stored_run(Context(session=session), reference, "test")
-    assumptions = gm.economics.Assumptions(**values)
-    economics = gm.economics
-    return {
-        "capex": economics.capex(plant, assumptions, on_error="record"),
-        "opex": economics.opex(plant, results, assumptions, on_error="record"),
-        "lcoh": economics.lcoh(plant, results, assumptions=assumptions, on_error="record"),
-        "lcoc": economics.lcoc(plant, results, assumptions=assumptions, on_error="record"),
-        "npv": economics.npv(plant, results, assumptions=assumptions, on_error="record"),
-        "co2": economics.co2(plant, results, assumptions, on_error="record"),
+    context, _, result = variant_run("hackathon_2026", "base")
+    output = (await assess(TOOLS.estimate_costs, "hackathon_2026")).output
+    plant, case, _ = gd.tools.gemini.stored.load_run(context, result, "test")
+    assert output["capex"]["value"] == pytest.approx(
+        gm.evaluate.capex(plant, case).to("MEUR").value
+    )
+    assert {key: item["unit"] for key, item in output.items()} == {
+        "capex": "MEUR",
+        "opex": "MEUR/yr",
+        "annualised_cost": "MEUR/yr",
+        "lcoh": "EUR/MWh",
+        "lcoc": "EUR/MWh",
+        "lcts": "EUR/MWh",
+        "npv": "MEUR",
+        "payback": "yr",
+        "co2": "kt",
     }
 
 
-@pytest.fixture(scope="module")
-def costed(gm, stored):
-    """Return ``estimate_costs`` of a May run (heat and cold) under three sets of assumptions.
-
-    Each comes with gemini's own economics of the same run, called directly; the tool calls are
-    made here because each takes most of one test call's budget.
-    """
-    session, _ = stored
-    may = asyncio.run(run_in(session, base_spec(gm), "2027-05-01", "2027-05-10"))
-    sets = {
-        "share": {**PRICES, "heat_cost_share": 0.8},
-        "prices": PRICES,
-        "energy": {**PRICES, "heat_cost_share": "energy"},
-        "none": {},
-    }
-    outputs = {
-        name: asyncio.run(
-            call(TOOLS.estimate_costs, {"reference": may, "assumptions": values}, session)
-        ).output
-        for name, values in sets.items()
-    }
-    expected = {
-        "share": gemini_costs(gm, session, may, sets["share"]),
-        "whole": gemini_costs(gm, session, may, {**PRICES, "heat_cost_share": 1.0}),
-    }
-    return outputs, expected
+async def test_a_cost_whose_assumption_is_missing_is_gemini_s_error_beside_the_others():
+    """The shallow case gives no heat revenue: NPV and payback say so, capex is still there."""
+    output = (await assess(TOOLS.estimate_costs, "shallow_district")).output
+    assert output["capex"]["unit"] == "MEUR" and output["lcts"]["unit"] == "EUR/MWh"
+    for name in ("npv", "payback"):
+        assert output[name]["error"]["code"] == "missing_assumption"
+        assert output[name]["error"]["path"] == "assumptions.finance.revenue.heat"
 
 
-def test_estimate_costs_returns_gemini_s_values_and_the_assumptions(gm, costed):
-    """Capex, opex, LCOH, LCOC, NPV and CO2 are gemini's, with every assumption used."""
-    outputs, expected = costed
-    output = outputs["share"]
-    assert {name: output[name] for name in expected["share"]} == expected["share"]
-    values = {**PRICES, "heat_cost_share": 0.8}
-    assert output["assumptions"] == gm.economics.Assumptions(**values).model_dump(mode="json")
-    assert output["lcoh"]["value"] is not None and output["lcoc"]["value"] is not None
+async def test_costs_follow_the_cooling_demand():
+    """The same design costs more to run when it must cool more."""
+    base = (await assess(TOOLS.estimate_costs, "hackathon_2026")).output
+    peak = (await assess(TOOLS.estimate_costs, "hackathon_2026", "cooling_peak")).output
+    assert peak["opex"]["value"] > base["opex"]["value"]
 
 
-def test_lcts_is_the_annualised_system_cost_over_heat_and_cold(costed):
-    """LCTS = annualised total cost / (annual heat + annual cold), all from gemini's parts."""
-    outputs, expected = costed
-    lcts = outputs["prices"]["lcts"]
-    whole = expected["whole"]
-    heat, cold = whole["lcoh"]["energy"]["value"], whole["lcoc"]["energy"]["value"]
-    annual = whole["lcoh"]["value"] * heat
-    assert cold > 0
-    assert lcts["value"] == pytest.approx(annual / (heat + cold), rel=1e-12)
-    assert lcts["unit"] == "EUR/J"
-    assert lcts["annualised_cost"] == {
-        "value": pytest.approx(annual, rel=1e-12),
-        "unit": "EUR/year",
-    }
-    assert 0 < lcts["value"] < whole["lcoh"]["value"]
-
-
-def test_a_missing_assumption_is_a_null_value_with_gemini_s_reason(costed):
-    """Without a discount rate the levelised costs have no value, and say why."""
-    outputs, _ = costed
-    assert outputs["none"]["lcoh"]["value"] is None
-    assert "discount_rate" in outputs["none"]["lcoh"]["reason"]
-    assert outputs["none"]["lcts"]["value"] is None
-
-
-def test_the_heat_cost_share_may_follow_the_delivered_energy(costed):
-    """``"energy"`` splits the cost by the heat and cold delivered, read from gm.kpi.totals."""
-    outputs, expected = costed
-    whole = expected["whole"]
-    heat, cold = whole["lcoh"]["energy"]["value"], whole["lcoc"]["energy"]["value"]
-    share = outputs["energy"]["assumptions"]["heat_cost_share"]
-    assert share == pytest.approx(heat / (heat + cold), rel=1e-9)
-
-
-@pytest.mark.parametrize(
-    ("assumptions", "code", "path"),
-    [
-        ({"discount_rates": 0.05}, "unknown_name", "assumptions.discount_rates"),
-        ({"discount_rate": "five"}, "invalid_input", "assumptions.discount_rate"),
-    ],
-)
-async def test_a_wrong_assumption_is_a_result_the_model_can_fix(stored, assumptions, code, path):
-    """An unknown name or a wrong value names the assumption."""
-    session, references = stored
-    request = {"reference": references["winter"], "assumptions": assumptions}
-    result = await call(TOOLS.estimate_costs, request, session)
-    assert (result.output["error"]["code"], result.output["error"]["path"]) == (code, path)
+async def test_a_case_without_assumptions_gives_gemini_s_missing_assumption():
+    """The model reads the path to ask the user for; nothing is filled in."""
+    context, _, result = await stored_run("shallow_district")
+    identifier = result.removeprefix("result/")
+    ran_on = dict(context.session.load_artifact(f"{identifier}.case"))
+    del ran_on["assumptions"]
+    await context.session.save_artifact(f"{identifier}.case", ran_on)
+    output = (await assess_in(context, TOOLS.estimate_costs, result)).output
+    assert output["error"]["code"] == "missing_assumption"
+    assert output["error"]["path"].startswith("assumptions")

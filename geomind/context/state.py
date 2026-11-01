@@ -12,13 +12,15 @@ from geomind.utils.strings import did_you_mean, join_names
 
 
 class Requirement(Record):
-    """A testable criterion of the task."""
+    """A criterion of the task, in the user's words.
+
+    A numeric one is a constraint of the case (``set_case``), and ``constraint`` is the index of
+    that constraint in ``case.constraints``; gemini judges it, the text is never parsed.
+    """
 
     id: str
     text: str
-    metric: str | None = None
-    target: float | None = None
-    tolerance: float | None = None
+    constraint: int | None = None
     status: str = "open"
 
 
@@ -184,8 +186,8 @@ def apply_changes(state, changes):
 
 def _requirement_line(item):
     """Return one requirement as a line."""
-    target = f" ({item.metric} {item.target} ± {item.tolerance})" if item.metric else ""
-    return f"Requirement {item.id} [{item.status}]: {item.text}{target}"
+    linked = f" (case constraint {item.constraint})" if item.constraint is not None else ""
+    return f"Requirement {item.id} [{item.status}]: {item.text}{linked}"
 
 
 def _assumption_line(item):

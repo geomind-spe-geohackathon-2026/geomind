@@ -1,8 +1,7 @@
 """Verify the design the problem state names, on the stored run that verifies it."""
 
 from geomind.errors import ToolError
-from geomind.tools.gemini.assessment import stored_run
-from geomind.tools.gemini.runs import demand_names
+from geomind.tools.gemini.stored import RESULT, load_run
 from geomind.verify.verify import verify
 
 
@@ -11,41 +10,32 @@ def unverified(name, reason):
     return {
         "passed": False,
         "checks": [],
-        "failures": [{"name": name, "domain": "coupled"}],
-        "not_assessed": [],
+        "failures": [{"name": name, "domain": "coupled", "detail": reason}],
         "reason": reason,
     }
 
 
-def off_brief(context, result, brief):
-    """Return why ``result`` did not run on the brief's demand and rules, or ``None``.
+def result_off_case(context, result):
+    """Return why ``result`` did not run on the state's case, or ``None``.
 
-    A result from before ``<id>.run`` was kept, or a state without a brief, is not compared.
+    NOTE: a geomind process rule, not physics: a run is verified only against the case it ran on,
+    so a case changed since (a limit, the demand, the schedule) makes the run stale.
     """
-    run = context.session.load_artifact(f"{result.removeprefix('result/')}.run")
-    if brief is None or run is None:
+    ran_on = context.session.load_artifact(f"{result.removeprefix(RESULT)}.case")
+    if ran_on == context.problem.case:
         return None
-    try:
-        expected = {"demand": demand_names(brief, None), "rules": {}}
-    except ToolError as error:
-        return f"the brief cannot be simulated: {error}"
-    for name, value in expected.items():
-        if run[name] != value:
-            return (
-                f"{result} ran with {name} {run[name]}, the brief's is {value}; simulate the "
-                "design on the brief and check it again"
-            )
-    return None
+    return (
+        f"{result} ran on another case than the problem state's; simulate the design on the "
+        "state's case and check it again"
+    )
 
 
 def verify_design(context):
     """Return the verdict of ``design.reference`` on ``verification.result`` of the problem state.
 
-    The run is loaded from the store and checked again with gemini, with the state's requirements
-    and the limits of its brief.
-    NOTE: a ``passed`` written in the state is never read, a result whose plant is not the
-    design's is stale, and one that ran on another demand or rules than the brief's is off the
-    brief.
+    The run is loaded from the store and judged by gemini on the case it ran on. NOTE: a
+    ``passed`` written in the state is never read, a result whose plant is not the design's is
+    stale, and one that ran on another case than the state's is off the case.
     """
     problem = context.problem
     design = (problem.design or {}).get("reference")
@@ -57,16 +47,16 @@ def verify_design(context):
             "run check_results, and record design.reference and verification.result",
         )
     try:
-        plant, results = stored_run(context, result, "verification")
+        plant, case, results = load_run(context, result, "verification")
     except ToolError as error:
         return unverified("result_unknown", str(error))
-    if plant.to_dict() != context.session.load_artifact(design):
+    if plant.to_dict(structure=True) != context.session.load_artifact(design):
         return unverified(
             "stale_result",
             f"{result} is stale: it ran another plant than {design}; simulate the current design "
             "and check it",
         )
-    mismatch = off_brief(context, result, problem.case)
+    mismatch = result_off_case(context, result)
     if mismatch is not None:
-        return unverified("result_off_brief", mismatch)
-    return verify(plant, results, requirements=problem.requirements, brief=problem.case)
+        return unverified("result_off_case", mismatch)
+    return verify(plant, results, case)
