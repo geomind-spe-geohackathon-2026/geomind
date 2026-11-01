@@ -8,8 +8,6 @@ from geomind.tools.gemini.assessment import (
     check_results,
     compute_kpis,
     estimate_costs,
-    optimize,
-    sample_uncertainty,
     test_module,
 )
 from geomind.tools.gemini.case import read_case, save_profile, set_case
@@ -17,10 +15,18 @@ from geomind.tools.gemini.catalogue import describe_module, evaluate_module, lis
 from geomind.tools.gemini.plants import build_plant, list_plants, read_plant
 from geomind.tools.gemini.results import read_result, search_documents
 from geomind.tools.gemini.runs import list_profiles, read_profile, simulate
+from geomind.tools.gemini.study import (
+    compare,
+    optimize,
+    sample_uncertainty,
+    sensitivity,
+    size_plant,
+)
 
 __all__ = [
     "build_plant",
     "check_results",
+    "compare",
     "compute_kpis",
     "describe_module",
     "estimate_costs",
@@ -36,7 +42,9 @@ __all__ = [
     "sample_uncertainty",
     "save_profile",
     "search_documents",
+    "sensitivity",
     "set_case",
     "simulate",
+    "size_plant",
     "test_module",
 ]
