@@ -1,19 +1,31 @@
-# Hand-written recording, every number from the real tools; the live run replaces it.
-message: 'Design a deep-geothermal heating and cooling plant for the GEMINI hackathon brief: the official
-  2027 daily heating and cooling demand, the brief''s reservoir and brine, and its hard limits.'
+# Hand-written recording (decisions by hand, every reference and number from the real tools); the live run replaces it.
+message: 'Design a deep-geothermal heating and cooling plant for the project''s case: its 2027 daily heating
+  and cooling demand, its reservoir and brine, and its constraints. Size the plant with the peak backup
+  policy (a boiler that covers the whole heating peak), then optimise the levelised cost of thermal service
+  (objective lcts) over the case''s choices (no other variables) with 12 evaluations.'
+answers:
+- Use the project's case.
+plant: evals/projects/hackathon
 criteria:
 - kind: tool
-  tool: set_brief
+  tool: set_case
+- kind: tool
+  tool: check_results
+- kind: tool
+  tool: estimate_costs
 - kind: state
-  path: /brief/source
-  equals: hackathon_2027
+  path: /case/demand/heating/supply_temperature/value
+  equals: 100
+- kind: number
+  value: 35.93
+  tolerance: 0.1
+  unit: EUR/MWh
 - kind: verified
   checks:
   - heat_users.unmet_demand
   - cool_users.unmet_sensible
-  - doublets
-  - d0.flow
   - d0.brine_cooling
+  - d0.pump_efficiency
+  - d0.volume_imbalance
   - heat_users.supply_in.temperature
   - cool_users.supply_in.temperature
-  - d0.gradient

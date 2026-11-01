@@ -1,18 +1,24 @@
-# Hand-written recording, every number from the real tools; the live run replaces it.
-message: 'Design a deep-geothermal heating and cooling plant for the GEMINI hackathon brief: the official
-  2027 daily heating and cooling demand, the brief''s reservoir and brine, and its hard limits. Change
-  one thing: design for January only, on my own daily heating demand in MW from 1 January 2027: 18.0,
-  19.33, 20.67, 22.0, 23.33, 24.67, 26.0, 18.0, 19.33, 20.67, 22.0, 23.33, 24.67, 26.0, 18.0, 19.33, 20.67,
-  22.0, 23.33, 24.67, 26.0, 18.0, 19.33, 20.67, 22.0, 23.33, 24.67, 26.0, 18.0, 19.33; cooling stays gemini''s
-  profile.'
+# Hand-written recording (decisions by hand, every reference and number from the real tools); the live run replaces it.
+message: 'Design a deep-geothermal heating and cooling plant for the project''s case: its 2027 daily heating
+  and cooling demand, its reservoir and brine, and its constraints. Change one thing: my heating demand
+  is the case''s own daily heating profile reduced by 20 % on every day; store it as the profile heating_80
+  (the cooling demand stays the case''s). Size the plant with the peak backup policy (a boiler that covers
+  the whole heating peak), then optimise the levelised cost of thermal service (objective lcts) over the
+  case''s choices (no other variables) with 12 evaluations.'
+answers:
+- Use the project's case.
+plant: evals/projects/hackathon
 criteria:
 - kind: tool
   tool: save_profile
 - kind: state
-  path: /brief/demand/heating
-  equals: profile/jan
+  path: /case/demand/file
+  equals: heating_80.csv
+- kind: state
+  path: /case/demand/heating/column
+  equals: heating_80
 - kind: verified
   checks:
   - heat_users.unmet_demand
-  - doublets
-  - d0.flow
+  - cool_users.unmet_sensible
+  - d0.brine_cooling

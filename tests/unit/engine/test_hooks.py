@@ -4,8 +4,6 @@ import asyncio
 
 import pytest
 
-import geomind as gd
-from geomind.context.state import ProblemState
 from geomind.engine import Context
 from geomind.engine.hooks import (
     Cancellation,
@@ -17,9 +15,9 @@ from geomind.engine.hooks import (
     ask_hooks,
 )
 from geomind.engine.recovery import recover
+from geomind.tools.gemini.stored import save_design
 from geomind.types import Action, Allow, Deny, Request, Usage
-from tests.fixtures.calls import call as call_tool
-from tests.fixtures.hackathon import base_spec, hackathon_spec
+from tests.fixtures.cases import example_plant
 from tests.fixtures.runs import (
     EXECUTED,
     Worker,
@@ -32,7 +30,7 @@ from tests.fixtures.runs import (
     types,
     uses,
 )
-from tests.fixtures.sessions import StubSession
+from tests.fixtures.stored_runs import variant_run, warm_runs
 
 
 class Fixed(Hook):
@@ -223,95 +221,82 @@ async def test_cancellation_stops_before_the_answer():
     assert result.stop_reason == "cancelled"
 
 
-TOOLS = gd.tools.gemini
 ANSWER = Action(text="Here is the design.")
 
 
 @pytest.fixture(scope="module")
 def stored():
-    """Return a session with the example run in spring (fails) and the base design in winter."""
-    import gemini as gm
-
-    session = StubSession()
-
-    async def store():
-        spec = hackathon_spec(gm)
-        await call_tool(TOOLS.build_plant, {"plant": spec, "name": "hackathon"}, session)
-        await call_tool(TOOLS.build_plant, {"plant": base_spec(gm), "name": "base"}, session)
-        runs = {}
-        for name, design, start, end in (
-            ("spring", "design/hackathon", "2027-03-20", "2027-03-31"),
-            ("winter", "design/base", "2027-01-01", "2027-01-10"),
-        ):
-            window = {"design": design, "start": start, "end": end}
-            runs[name] = (await call_tool(TOOLS.simulate, window, session)).output["reference"]
-        return runs
-
-    return session, asyncio.run(store())
+    """Return the hackathon design run on its case and under a 15 MW cooling peak."""
+    warm_runs()
+    base, design, passing = variant_run("hackathon_2026", "base")
+    peak, _, failing = variant_run("hackathon_2026", "cooling_peak")
+    asyncio.run(
+        save_design(base, "other", example_plant("hackathon_2026", "plants/HeatingPlant.json"))
+    )
+    return {"base": base, "peak": peak, "design": design, "passing": passing, "failing": failing}
 
 
-def decide(session, design=None, verification=None):
-    """Return the hook's decision on a final answer, for a problem state."""
-    problem = ProblemState(design=design or {}, verification=verification or {})
+def decide(context, design=None, verification=None):
+    """Return the hook's decision on a final answer, for a problem state of a context."""
+    problem = context.problem.model_copy(
+        update={"design": design or {}, "verification": verification or {}}
+    )
     return asyncio.run(
-        Verified().before_finish(Context(problem=problem, session=session), None, ANSWER)
+        Verified().before_finish(Context(problem=problem, session=context.session), None, ANSWER)
     )
 
 
 def test_a_design_that_passed_gemini_s_checks_reaches_the_user(stored):
     """The hook verifies the named result again, and it passes."""
-    session, runs = stored
-    decision = decide(session, {"reference": "design/base"}, {"result": runs["winter"]})
+    decision = decide(
+        stored["base"], {"reference": stored["design"]}, {"result": stored["passing"]}
+    )
     assert decision is None
 
 
 def test_a_design_that_fails_a_check_is_refused_with_the_failures(stored):
     """The reason names the failed check and its domain, so the model knows what to fix."""
-    session, runs = stored
-    decision = decide(session, {"reference": "design/hackathon"}, {"result": runs["spring"]})
+    verification = {"result": stored["failing"]}
+    decision = decide(stored["peak"], {"reference": stored["design"]}, verification)
     assert isinstance(decision, Deny)
-    assert "heat_users.supply_in.temperature (surface)" in decision.reason
+    assert "cool_users.supply_in.temperature (sizing)" in decision.reason
 
 
 def test_a_passed_flag_written_by_the_model_is_not_trusted(stored):
     """Only gemini's checks on the stored run count."""
-    session, runs = stored
-    verification = {"result": runs["spring"], "passed": True}
-    decision = decide(session, {"reference": "design/hackathon"}, verification)
+    verification = {"result": stored["failing"], "passed": True}
+    decision = decide(stored["peak"], {"reference": stored["design"]}, verification)
     assert isinstance(decision, Deny)
 
 
 def test_a_design_without_a_verified_result_is_refused(stored):
     """A design with no result to check never reaches the user."""
-    session, _ = stored
-    decision = decide(session, {"reference": "design/hackathon"})
+    decision = decide(stored["base"], {"reference": stored["design"]})
     assert isinstance(decision, Deny)
     assert "check_results" in decision.reason
 
 
 def test_a_result_of_another_design_is_stale(stored):
     """After a change, earlier results of a design are stale and never reused."""
-    session, runs = stored
-    decision = decide(session, {"reference": "design/hackathon"}, {"result": runs["winter"]})
+    decision = decide(stored["base"], {"reference": "design/other"}, {"result": stored["passing"]})
     assert isinstance(decision, Deny)
     assert "stale" in decision.reason
 
 
 def test_an_unknown_result_is_refused(stored):
     """A reference simulate never returned cannot verify anything."""
-    session, _ = stored
-    decision = decide(session, {"reference": "design/hackathon"}, {"result": "result/missing"})
+    decision = decide(stored["base"], {"reference": stored["design"]}, {"result": "result/missing"})
     assert isinstance(decision, Deny)
 
 
 def test_a_nested_run_hands_its_design_back_without_the_hook(stored):
     """Only the root run answers the user; a designer may return a failing design to its loop."""
-    session, runs = stored
-    session.state.parent = "run-root"
+    context = stored["peak"]
+    context.session.state.parent = "run-root"
     try:
-        decision = decide(session, {"reference": "design/hackathon"}, {"result": runs["spring"]})
+        decision = decide(context, {"reference": stored["design"]}, {"result": stored["failing"]})
     finally:
-        session.state.parent = None
+        context.session.state.parent = None
     assert decision is None
 
 

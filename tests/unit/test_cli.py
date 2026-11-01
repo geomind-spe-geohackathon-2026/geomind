@@ -10,6 +10,7 @@ from geomind import cli, runtime
 from geomind.providers import FakeLLM, OpenRouter
 from geomind.stores.run import FileRunStore
 from geomind.utils.json import append_line
+from tests.fixtures.cases import example_folder, example_names
 from tests.fixtures.runs import ROUTE, call, says, uses
 
 
@@ -178,7 +179,6 @@ def gm():
 
 def test_run_writes_a_manifest_beside_its_log(service, gm, capsys):
     """Commits, versions, input hashes, the model of each agent and the seeds, for the report."""
-    import hashlib
     import subprocess
 
     import geomind
@@ -190,18 +190,46 @@ def test_run_writes_a_manifest_beside_its_log(service, gm, capsys):
     head = subprocess.run(
         ["git", "-C", str(repository), "rev-parse", "HEAD"], capture_output=True, text=True
     ).stdout.strip()
-    heating = gm.profiles.get("heating_demand").to_csv().encode()
     assert manifest["geomind"]["commit"] == head
     assert manifest["geomind"]["version"] == geomind.__version__
     assert manifest["gemini"]["version"] == gm.__version__
     assert len(manifest["gemini"]["commit"]) == 40
-    assert manifest["inputs"]["heating_demand"]["sha256"] == hashlib.sha256(heating).hexdigest()
+    assert manifest["inputs"] == {}
     assert manifest["models"] == {
         "coordinator": [runtime.FIXED_CHEAP_MODEL],
         "analyst": [runtime.get("default_model")],
     }
     assert manifest["seeds"]["temperature"] == 0
     assert manifest["run"]["id"] == Path(run_folder()).name
+
+
+@example_names
+def test_the_manifest_hashes_the_project_s_case_files(service, name, capsys):
+    """The case, its demand file and the plant are hashed, so a run names the data it read."""
+    import hashlib
+    import shutil
+
+    folder = example_folder(name)
+    project = Path("site") / name
+    project.mkdir(parents=True)
+    for file in ("case.json", "demand.csv"):
+        shutil.copy(folder / file, project / file)
+    service += [routed_answer(), answer("Hello")]
+    cli.main(["run", "Say hello", "--project", str(project)])
+    manifest = json.loads((Path(run_folder()) / "run_manifest.json").read_text())
+    for file in ("case.json", "demand.csv"):
+        expected = hashlib.sha256((project / file).read_bytes()).hexdigest()
+        assert manifest["inputs"][f"project/{file}"]["sha256"] == expected
+    assert set(manifest["inputs"]) == {"project/case.json", "project/demand.csv"}
+
+
+def test_a_design_run_needs_a_project_with_a_case(service, capsys):
+    """The design loop has no fallback case: without one the command stops before any call."""
+    assert cli.main(["run", "Design a plant", "--loop", "design"]) == 1
+    assert "case.json" in capsys.readouterr().err
+    Path("site/p1").mkdir(parents=True)
+    assert cli.main(["run", "Design a plant", "--loop", "design", "--project", "site/p1"]) == 1
+    assert "case.json" in capsys.readouterr().err
 
 
 def test_sandbox_choice():

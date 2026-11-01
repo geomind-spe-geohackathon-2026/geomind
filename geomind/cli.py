@@ -23,7 +23,7 @@ from geomind.stores import FileWorkspace
 from geomind.stores.run import FileRunStore
 from geomind.types import RULE_MODEL, Message
 from geomind.types.runlog import runlog
-from geomind.utils.json import write_json
+from geomind.utils.json import read_json, write_json
 
 RUNS_FOLDER = ".runs"
 MESSAGE_CHARACTERS = 2000
@@ -100,22 +100,29 @@ def _sha256(data):
     return hashlib.sha256(data).hexdigest()
 
 
-def _inputs(args):
-    """Return the hashes of what a run reads: the demand profiles, the recording, the project."""
-    import gemini as gm
+def _project_files(folder):
+    """Return the files of a project a run reads: its case, the demand files and its plant."""
+    names = []
+    if (folder / "case.json").exists():
+        demand = read_json(folder / "case.json").get("demand") or {}
+        names = ["case.json", *(demand.get("file") or "").split()]
+    if (folder / "plant.json").exists():
+        names.append("plant.json")
+    return names
 
-    found = {
-        name: {
-            "sha256": _sha256(gm.profiles.get(name).to_csv().encode()),
-            "source": gm.profiles.get(name).attrs.get("source"),
-        }
-        for name in gm.profiles.names()
+
+def _inputs(args):
+    """Return the hashes of what a run reads: the recording and the project's files."""
+    paths = {}
+    if args.recording is not None:
+        paths["recording"] = Path(args.recording)
+    if args.project is not None:
+        folder = Path(args.project)
+        paths.update({f"project/{name}": folder / name for name in _project_files(folder)})
+    return {
+        key: {"path": str(path), "sha256": _sha256(path.read_bytes())}
+        for key, path in paths.items()
     }
-    for key, path in (("recording", args.recording), ("project", args.project)):
-        if path is not None:
-            file = Path(path) / "plant.json" if key == "project" else Path(path)
-            found[key] = {"path": str(file), "sha256": _sha256(file.read_bytes())}
-    return found
 
 
 def _models(events):
@@ -176,6 +183,7 @@ def _command_run(args):
     Without ``--loop`` the coordinator routes the message; ``--loop`` names the loop instead.
     """
     workspace, project = _project(args.project)
+    _require_case(args, workspace, project)
     with runtime.settings(**_changes(args)):
         run = Run(
             message=args.message,
@@ -221,6 +229,16 @@ def _chat_provider(args):
     if args.recording is None:
         raise RunError("chat: expected --live or --recording FILE")
     return FakeLLM.from_recording(args.recording)
+
+
+def _require_case(args, workspace, project):
+    """Raise unless a design run has a project with a ``case.json``: there is no fallback case."""
+    if args.loop != "design":
+        return
+    if workspace is None or workspace.case(project) is None:
+        raise GeomindError(
+            f"run: project = {args.project!r}; expected a folder with a case.json for --loop design"
+        )
 
 
 def _project(path):

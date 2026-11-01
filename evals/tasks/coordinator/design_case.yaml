@@ -1,0 +1,6 @@
+message: Design a deep-geothermal plant for the project's case, within its constraints.
+plant: evals/projects/hackathon
+criteria:
+- kind: tool
+  tool: finish
+  called: false

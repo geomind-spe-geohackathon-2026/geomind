@@ -1,0 +1,398 @@
+{
+  "time": {
+    "start": "2027-01-01",
+    "end": "2028-01-01",
+    "step": {
+      "value": 1,
+      "unit": "d"
+    }
+  },
+  "environment": {
+    "ground": {
+      "surface_temperature": {
+        "value": 12,
+        "unit": "degC"
+      },
+      "gradient": {
+        "value": 30,
+        "unit": "K/km",
+        "uncertainty": {
+          "kind": "normal",
+          "std": 2,
+          "min": 25,
+          "max": 35
+        }
+      }
+    },
+    "reservoir": {
+      "reference_depth": {
+        "value": 2500,
+        "unit": "m"
+      },
+      "thickness": {
+        "value": 100,
+        "unit": "m"
+      },
+      "permeability": {
+        "value": 200,
+        "unit": "mD",
+        "uncertainty": {
+          "kind": "triangular",
+          "min": 100,
+          "max": 400
+        }
+      },
+      "pressure": {
+        "value": 250,
+        "unit": "barg"
+      }
+    },
+    "fluid": {
+      "density": {
+        "value": 1030,
+        "unit": "kg/m3"
+      },
+      "viscosity": {
+        "value": 0.4,
+        "unit": "mPa.s"
+      },
+      "gas_liquid_ratio": {
+        "value": 0.8,
+        "unit": "Nm3/m3"
+      },
+      "gas": {
+        "CH4": 0.8,
+        "CO2": 0.2
+      }
+    },
+    "air": {
+      "temperature": {
+        "value": 10,
+        "unit": "degC"
+      }
+    }
+  },
+  "demand": {
+    "file": "demand.csv",
+    "time_column": "date",
+    "heating": {
+      "column": "heating_demand_MWth",
+      "unit": "MW",
+      "supply_temperature": {
+        "value": 100,
+        "unit": "degC"
+      },
+      "return_temperature": {
+        "value": 60,
+        "unit": "degC"
+      }
+    },
+    "cooling": {
+      "column": "cooling_demand_MWcool",
+      "unit": "MW",
+      "supply_temperature": {
+        "value": 20,
+        "unit": "degC"
+      },
+      "return_temperature": {
+        "value": 25,
+        "unit": "degC"
+      }
+    }
+  },
+  "choices": {
+    "doublets": {
+      "min": 1,
+      "max": 3
+    },
+    "depth": {
+      "min": {
+        "value": 2000,
+        "unit": "m"
+      },
+      "max": {
+        "value": 3500,
+        "unit": "m"
+      }
+    }
+  },
+  "constraints": [
+    {
+      "on": "doublet",
+      "quantity": "production_flow",
+      "over": "each",
+      "when": "running",
+      "min": {
+        "value": 50,
+        "unit": "m3/h"
+      },
+      "max": {
+        "value": 300,
+        "unit": "m3/h"
+      }
+    },
+    {
+      "on": "doublet",
+      "quantity": "brine_cooling",
+      "over": "each",
+      "when": "running",
+      "max": {
+        "value": 40,
+        "unit": "K"
+      }
+    },
+    {
+      "on": "doublet",
+      "quantity": "production_flow",
+      "over": "duration",
+      "when": "running",
+      "max": {
+        "value": 330,
+        "unit": "d"
+      }
+    },
+    {
+      "on": "doublet",
+      "quantity": "pump_efficiency",
+      "equals": 0.7
+    },
+    {
+      "on": "doublet",
+      "quantity": "volume_imbalance",
+      "over": "each",
+      "when": "running",
+      "min": {
+        "value": -1e-06,
+        "unit": "m3/s"
+      },
+      "max": {
+        "value": 1e-06,
+        "unit": "m3/s"
+      }
+    },
+    {
+      "on": "heating_supply",
+      "quantity": "unmet",
+      "max": {
+        "value": 1,
+        "unit": "W"
+      },
+      "over": "each",
+      "when": "always"
+    },
+    {
+      "on": "cooling_supply",
+      "quantity": "unmet",
+      "max": {
+        "value": 1,
+        "unit": "W"
+      },
+      "over": "each",
+      "when": "always"
+    }
+  ],
+  "assumptions": {
+    "finance": {
+      "currency": "EUR",
+      "discount_rate": {
+        "value": 0.05,
+        "uncertainty": {
+          "kind": "normal",
+          "std": 0.01,
+          "min": 0.02,
+          "max": 0.08
+        }
+      },
+      "lifetime": {
+        "value": 25,
+        "unit": "yr"
+      },
+      "price_year": 2015,
+      "capex": {
+        "drilling": {
+          "value": 1239.1304347826087,
+          "unit": "EUR/m"
+        },
+        "heat_pump": {
+          "value": 0.73786,
+          "unit": "EUR/W"
+        },
+        "boiler": {
+          "value": 0.06073,
+          "unit": "EUR/W"
+        },
+        "chp": {
+          "value": 0.96155,
+          "unit": "EUR/W"
+        },
+        "degasser": {
+          "value": 1000000.0,
+          "unit": "EUR"
+        },
+        "compression_chiller": {
+          "value": 0.3,
+          "unit": "EUR/W"
+        },
+        "production_pump": {
+          "value": 0.5,
+          "unit": "EUR/W"
+        },
+        "injection_pump": {
+          "value": 0.5,
+          "unit": "EUR/W"
+        },
+        "absorption_chiller": {
+          "value": 0.3,
+          "unit": "EUR/W"
+        },
+        "adsorption_chiller": {
+          "value": 0.3,
+          "unit": "EUR/W"
+        },
+        "heat_exchanger": {
+          "value": 0.5,
+          "unit": "EUR/(W/K)"
+        },
+        "flare": {
+          "value": 100000,
+          "unit": "EUR"
+        },
+        "gas_makeup": {
+          "value": 50000,
+          "unit": "EUR"
+        },
+        "cooler": {
+          "value": 0.1,
+          "unit": "EUR/W"
+        },
+        "pipe": {
+          "value": 500,
+          "unit": "EUR/m"
+        }
+      },
+      "opex": {
+        "fixed": {
+          "drilling": {
+            "value": 1,
+            "unit": "%/yr"
+          },
+          "heat_pump": {
+            "value": 0.2239,
+            "unit": "%/yr"
+          },
+          "boiler": {
+            "value": 3.25,
+            "unit": "%/yr"
+          },
+          "chp": {
+            "value": 1.0263,
+            "unit": "%/yr"
+          },
+          "degasser": {
+            "value": 2,
+            "unit": "%/yr"
+          },
+          "compression_chiller": {
+            "value": 2,
+            "unit": "%/yr"
+          },
+          "production_pump": {
+            "value": 2,
+            "unit": "%/yr"
+          },
+          "injection_pump": {
+            "value": 2,
+            "unit": "%/yr"
+          },
+          "absorption_chiller": {
+            "value": 2,
+            "unit": "%/yr"
+          },
+          "adsorption_chiller": {
+            "value": 2,
+            "unit": "%/yr"
+          },
+          "heat_exchanger": {
+            "value": 1,
+            "unit": "%/yr"
+          },
+          "flare": {
+            "value": 2,
+            "unit": "%/yr"
+          },
+          "gas_makeup": {
+            "value": 2,
+            "unit": "%/yr"
+          },
+          "cooler": {
+            "value": 2,
+            "unit": "%/yr"
+          },
+          "pipe": {
+            "value": 0.5,
+            "unit": "%/yr"
+          }
+        },
+        "electricity": {
+          "value": 105.75,
+          "unit": "EUR/MWh",
+          "uncertainty": {
+            "kind": "uniform",
+            "min": 80,
+            "max": 140
+          }
+        },
+        "gas": {
+          "value": 39.92,
+          "unit": "EUR/MWh",
+          "uncertainty": {
+            "kind": "triangular",
+            "min": 25,
+            "max": 70
+          }
+        },
+        "chemical": {
+          "value": 3,
+          "unit": "EUR/kg"
+        },
+        "waste_disposal": {
+          "value": 0.2,
+          "unit": "EUR/kg"
+        },
+        "co2": {
+          "value": 57.03,
+          "unit": "EUR/t",
+          "uncertainty": {
+            "kind": "triangular",
+            "min": 30,
+            "max": 110
+          }
+        }
+      },
+      "revenue": {
+        "heat": {
+          "value": 60,
+          "unit": "EUR/MWh"
+        },
+        "cold": {
+          "value": 60,
+          "unit": "EUR/MWh"
+        }
+      },
+      "allocation": {
+        "heat_cost_share": 0.8
+      }
+    },
+    "emissions": {
+      "CO2": {
+        "electricity": {
+          "value": 300,
+          "unit": "g/kWh"
+        }
+      },
+      "CH4": {
+        "gwp": 29.8
+      }
+    }
+  }
+}
