@@ -52,7 +52,13 @@ pass or fail is gemini's report, and each failure carries the domain that should
 `not_given`, `not_assessed`, the reservoir check and the operating-days reason are gone.
 `verify_design` fails a result whose case differs from the state's (`result_off_case`).
 
-Agents and loops: the hackathon skill note is gone. The DesignLoop runs Designer (size, simulate,
+Routing: `Route` loses `brief` (nothing read it; the loop reads the user's message), and
+`Route.loop` and `LOOPS` hold only the built loops, `tool` and `design`, so a live request is never
+routed to a stub; `geomind run --loop` takes the same two.
+
+Agents and loops: the design loop's request is the run's own message (the last user message), not
+the first message of the chat, and `Run.load` keeps a design loop's `max_rounds`. The hackathon
+skill note is gone. The DesignLoop runs Designer (size, simulate,
 self-check, optimise) → Verifier (once, on the final design) → Economist → Explainer, and asks the
 user for a case before designing when the state has none or it has no demand.
 

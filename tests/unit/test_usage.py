@@ -75,10 +75,14 @@ async def test_a_routing_run_and_a_delegate_both_count():
     assert result.usage.input_tokens == ROUTING.input_tokens + 30
 
 
-def test_a_routed_loop_that_is_not_built_counts_its_route():
+def test_a_routed_loop_that_is_not_built_counts_its_route(monkeypatch):
     """A declined run still spent the coordinator's tokens, and continues its log's numbering."""
+    from geomind.agents import Designer, Verifier
+    from geomind.loops import MakerCheckerLoop
+
+    monkeypatch.setattr("geomind.run.loop_of", lambda _: MakerCheckerLoop(Designer(), Verifier()))
     store = MemoryRunStore()
-    result = gd.Run(message="hello", llm=FakeLLM([route("makerchecker")]), store=store).start()
+    result = gd.Run(message="hello", llm=FakeLLM([route("design")]), store=store).start()
     events = store.load_events(result.run_id)
     assert result.stop_reason == "not_implemented"
     assert same_usage(result.usage, logged(events)) and same_usage(result.usage, ROUTING)

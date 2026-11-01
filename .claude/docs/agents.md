@@ -115,9 +115,11 @@ The Verifier calls `check_results` once, on the final design.
 
 `Route` is what `Coordinator` answers, in `geomind/agents/coordination/coordinator.py`: `kind` is
 `answer` or `loop`, `answer` the short direct answer of an `answer` route, `loop` a name of `LOOPS`,
-`agent` a name of `AGENTS`, and `brief` the task text the delegate receives. `Run.start` calls the coordinator
-first, as a nested run logged before the run. `loop_of(route)` in `run.py` builds the loop: an
-`answer` route runs the rule agent `Answer`, which gives the route's text, and a stub loop ends the
+and `agent` a name of `AGENTS`. There is no task text: the loop reads the user's message itself,
+so nothing the user said is lost in a retelling. `Run.start` calls the coordinator first, as a
+nested run logged before the run. `loop_of(route)` in `run.py` builds the loop: an `answer` route
+runs the rule agent `Answer`, which gives the route's text. `LOOPS` holds only the loops that are
+built (`tool`, `design`), so a route never reaches a stub; a stub loop set by hand still ends the
 run with `stop_reason="not_implemented"`.
 
 ## How to add or fill an agent

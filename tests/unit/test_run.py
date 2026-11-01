@@ -195,11 +195,17 @@ def test_a_loaded_design_run_keeps_its_round_limit():
 
 
 @pytest.mark.parametrize("name", ["makerchecker", "compare"])
-def test_a_route_to_a_stub_loop_is_a_run_error(name):
+def test_a_stub_loop_is_a_run_error(name):
     """The run starts and ends in the log, with ``not_implemented``, and no LLM call."""
+    from geomind.agents import Designer, Verifier
+    from geomind.loops import CompareLoop, MakerCheckerLoop
+
     store = MemoryRunStore()
     run = run_of([], store=store)
-    run.loop = loop_of(Route(kind="loop", loop=name))
+    design = DesignLoop(Designer(), Verifier())
+    stubs = {"makerchecker": MakerCheckerLoop(Designer(), Verifier()), "compare": None}
+    stubs["compare"] = CompareLoop(design, (), ())
+    run.loop = stubs[name]
     result = run.start()
     assert (result.status, result.stop_reason) == ("failed", "not_implemented")
     events = store.load_events(result.run_id)
@@ -215,9 +221,11 @@ def test_a_route_to_the_tool_loop_runs_its_agent():
     assert isinstance(loop.agent, CodeAssistant)
 
 
-def test_the_tables_hold_the_final_names():
-    """``LOOPS`` has one row per planned loop."""
-    assert set(LOOPS) == {"tool", "design", "makerchecker", "compare"}
+def test_the_tables_hold_only_loops_that_are_built():
+    """A route can name no stub loop, so a live request never ends in ``not_implemented``."""
+    assert set(LOOPS) == {"tool", "design"}
+    assert set(Route.model_fields["loop"].annotation.__args__) == set(LOOPS)
+    assert "brief" not in Route.model_fields
 
 
 def test_a_run_without_an_agent_is_routed_by_the_coordinator():
@@ -236,9 +244,9 @@ def test_a_run_without_an_agent_is_routed_by_the_coordinator():
     assert recover(events).run_id == result.run_id
 
 
-def test_a_design_brief_starts_the_design_loop():
+def test_a_design_request_starts_the_design_loop():
     """A design request needs no loop name from the backend."""
-    run = gd.Run(message="design", llm=FakeLLM([routed("design", brief="design")]))
+    run = gd.Run(message="design", llm=FakeLLM([routed("design")]))
     asyncio.run(run._route_message())
     assert isinstance(run.loop, DesignLoop)
 

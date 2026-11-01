@@ -10,18 +10,13 @@ from geomind.engine.context import new_run_id
 from geomind.engine.hooks import Cancellation
 from geomind.engine.recovery import agent_class, recover
 from geomind.errors import NotImplementedYet, RunError
-from geomind.loops import CompareLoop, DesignLoop, MakerCheckerLoop, ToolLoop
+from geomind.loops import DesignLoop, ToolLoop
 from geomind.loops.design import DesignDriver
 from geomind.providers import OpenRouter
 from geomind.stores.run import MemoryRunStore
 from geomind.types import Message
 
-LOOPS = {
-    "tool": ToolLoop,
-    "design": DesignLoop,
-    "makerchecker": MakerCheckerLoop,
-    "compare": CompareLoop,
-}
+LOOPS = {"tool": ToolLoop, "design": DesignLoop}
 AGENTS = {"analyst": Analyst, "code_assistant": CodeAssistant}
 
 
@@ -41,10 +36,7 @@ def loop_of(route):
         return LOOPS["tool"](Answer(route.answer or ""))
     if route.loop == "tool":
         return LOOPS["tool"](AGENTS[route.agent]())
-    if route.loop == "makerchecker":
-        return LOOPS["makerchecker"](Designer(), Verifier())
-    design = LOOPS["design"](Designer(), Verifier())
-    return design if route.loop == "design" else LOOPS["compare"](design, (), ())
+    return LOOPS["design"](Designer(), Verifier())
 
 
 def loop_for(state):

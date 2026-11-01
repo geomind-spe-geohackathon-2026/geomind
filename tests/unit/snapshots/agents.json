@@ -16,9 +16,7 @@
       "tools": "(self, recurse=False)"
     },
     "LOOPS": {
-      "compare": "(self, loop, alternatives, criteria)",
       "design": "(self, designer, verifier, max_rounds=5)",
-      "makerchecker": "(self, maker, checker, max_rounds=3)",
       "tool": "(self, agent, max_steps=None)"
     },
     "Model": {
@@ -90,7 +88,7 @@
     },
     "Route": {
       "additionalProperties": false,
-      "description": "Where a message goes: a short direct answer, or a loop with an agent and a task text.\n\n``loop`` and ``agent`` name rows of ``LOOPS`` and ``AGENTS`` in ``run.py``, which sits to the\nright of this package, so a test keeps the two lists equal.\n``brief`` is the task text the delegate receives.",
+      "description": "Where a message goes: a short direct answer, or a loop with an agent.\n\n``loop`` and ``agent`` name rows of ``LOOPS`` and ``AGENTS`` in ``run.py``, which sits to the\nright of this package, so a test keeps the two lists equal. The delegate reads the user's\nmessage itself, never a retelling of it.",
       "properties": {
         "agent": {
           "default": "analyst",
@@ -113,18 +111,6 @@
           "default": null,
           "title": "Answer"
         },
-        "brief": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Brief"
-        },
         "kind": {
           "enum": [
             "answer",
@@ -137,9 +123,7 @@
           "default": "tool",
           "enum": [
             "tool",
-            "design",
-            "makerchecker",
-            "compare"
+            "design"
           ],
           "title": "Loop",
           "type": "string"
@@ -195,9 +179,7 @@
           "--loop": {
             "choices": [
               "tool",
-              "design",
-              "makerchecker",
-              "compare"
+              "design"
             ],
             "default": null
           },
