@@ -711,6 +711,7 @@
         "provision": "(self, manifest)"
       },
       "Workspace": {
+        "case": "(self, project_id)",
         "documents": "(self, project_id, query)",
         "plant": "(self, project_id)"
       }
@@ -1059,5 +1060,5 @@
       "step_limit": "failed"
     }
   },
-  "version": "0.1.1"
+  "version": "0.2.0"
 }

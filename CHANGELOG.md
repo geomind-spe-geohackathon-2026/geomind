@@ -4,7 +4,62 @@
 interface raises the minor version, and an addition or a fix raises the patch version. The rule and
 the list of frozen interfaces are in [.claude/docs/api.md](.claude/docs/api.md#frozen-interfaces).
 
-## 0.1.1 (unreleased)
+## 0.2.0 (unreleased)
+
+Breaking: geomind runs on gemini `dev` (cca153b8), whose problem is a `gm.Case` (`case.json` and a
+demand CSV). gemini does every engineering job (checks, costs, sizing, search, uncertainty);
+geomind keeps no copy of that logic and no default for an engineering assumption.
+
+Problem state and backend contract:
+
+- `ProblemState.case` (a case dict as `case.json` holds it, or `null`) replaces `ProblemState.brief`;
+  `case` replaces `brief` among the keys a patch may change. gemini's `Case.from_dict` validates it.
+- `Requirement` is `{id, text, constraint, status}`: a numeric requirement is a constraint of the
+  case, and `constraint` is its index in `case.constraints`. `metric`, `target` and `tolerance` are
+  gone.
+- New protocol method `Workspace.case(project_id) -> (case dict, folder) | None`, implemented by
+  `MemoryWorkspace` (`cases=`) and `FileWorkspace` (`<root>/<project>/case.json`), checked by
+  `check_workspace`.
+- Run-store artifact keys: `case/<file name>` (bytes, the files a case names) is added and
+  `profile/<name>` is removed. A run keeps `<id>.results`, `<id>.plant` (the plant dict) and
+  `<id>.case` (the case dict it ran on) beside `result/<id>`; `<id>.run` is gone.
+- Removed from `geomind.context`: `Brief`, `PRESETS`, `preset`, `with_changes`. No preset of any
+  case is left in the package.
+
+Tools:
+
+- Removed: `set_brief`.
+- Added: `set_case(source=None, changes=None)` (a JSON merge patch on the case, `source="project"`
+  for the project's case), `read_case(section=None)`, `size_plant(design, backup, name)`,
+  `sensitivity(design, metrics)`, `compare(references, by)`.
+- `save_profile(name, values, unit, start, step, service)` writes the profile into the case's demand
+  file (`quantity` became `service`).
+- `optimize(design, objective, variables, evaluations, name, constraints=None)` and
+  `sample_uncertainty(design, metrics, count, seed)` are real (`gm.study.minimize`, `sample`), no
+  longer stubs; `budget`, `samples` and `distributions` are gone (distributions are the case's).
+- `simulate` loses `profile`: the demand is the case's. `read_profile(service, start, end)` reads
+  the case's demand (`name` became `service`); `list_profiles` lists the case's services.
+- `check_results` loses `limits` (a limit is a case constraint) and returns gemini's report;
+  `estimate_costs` loses `assumptions` (they are the case's).
+- `read_plant` returns `{plant, missing_parameters}` and reads a stored design, the project's plant
+  or a gemini plant class; the `example/` and `template/` sources are gone. `build_plant` validates
+  with `gm.plants.validate`. The input bridge `apply_inputs` is gone: `Plant.from_dict` restores
+  inputs.
+- `read_result` takes ISO times for `start` and `end`.
+
+Verification: `gd.verify.verify(plant, results, case)` (was `requirements`, `limits`, `brief`);
+pass or fail is gemini's report, and each failure carries the domain that should fix it.
+`not_given`, `not_assessed`, the reservoir check and the operating-days reason are gone.
+`verify_design` fails a result whose case differs from the state's (`result_off_case`).
+
+Agents and loops: the hackathon skill note is gone. The DesignLoop runs Designer (size, simulate,
+self-check, optimise) → Verifier (once, on the final design) → Economist → Explainer, and asks the
+user for a case before designing when the state has none or it has no demand.
+
+Evals: eval projects are copies of gemini's example cases (`evals/projects/`); `challenge2` tasks
+are case variants. The eval schema and recordings follow the new tools.
+
+## 0.1.1 (unreleased, superseded by 0.2.0)
 
 Additive changes only: a new key of the problem state, a new tool and new output fields. Nothing the backend uses
 changes shape, and an existing caller sees the same behaviour.

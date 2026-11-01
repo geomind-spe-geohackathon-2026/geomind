@@ -90,7 +90,7 @@
     },
     "Route": {
       "additionalProperties": false,
-      "description": "Where a message goes: a short direct answer, or a loop with an agent and a brief.\n\n``loop`` and ``agent`` name rows of ``LOOPS`` and ``AGENTS`` in ``run.py``, which sits to the\nright of this package, so a test keeps the two lists equal.",
+      "description": "Where a message goes: a short direct answer, or a loop with an agent and a task text.\n\n``loop`` and ``agent`` name rows of ``LOOPS`` and ``AGENTS`` in ``run.py``, which sits to the\nright of this package, so a test keeps the two lists equal.\n``brief`` is the task text the delegate receives.",
       "properties": {
         "agent": {
           "default": "analyst",
@@ -451,7 +451,7 @@
         },
         "VerifiedCriterion": {
           "additionalProperties": false,
-          "description": "gemini's checks pass again on the final design and its result, with the state's brief.\n\n``checks`` names checks that must be among them and pass, such as the brief's limits.",
+          "description": "gemini's checks pass again on the final design and its result, on the case it ran on.\n\n``checks`` names checks that must be among them and pass, such as a limit of the case.",
           "properties": {
             "checks": {
               "default": [],
@@ -475,7 +475,7 @@
         }
       },
       "additionalProperties": false,
-      "description": "One task file; ``plant`` is a project folder and ``answers`` reply to questions in order.",
+      "description": "One task file; ``plant`` is a project folder and ``answers`` reply to questions in order.\n\nThe folder holds ``case.json`` with its demand file, and ``plant.json`` when the task starts\nfrom a plant.",
       "properties": {
         "answers": {
           "default": [],
@@ -558,5 +558,5 @@
       "Model"
     ]
   },
-  "version": "0.1.1"
+  "version": "0.2.0"
 }

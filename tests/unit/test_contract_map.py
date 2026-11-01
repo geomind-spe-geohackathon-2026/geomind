@@ -79,10 +79,10 @@ def test_section_two_events_are_frozen(frozen):
 
 
 def test_section_three_protocols_are_frozen(frozen):
-    """``RunStore``, ``Workspace``, ``LLM`` and ``SandboxProvider`` with the contract's methods."""
+    """``RunStore``, ``Workspace`` (with ``case`` since 0.2.0), ``LLM`` and ``SandboxProvider``."""
     protocols = frozen["protocols"]
     assert set(protocols["RunStore"]) == set(RUN_STORE_METHODS)
-    assert set(protocols["Workspace"]) == {"plant", "documents"}
+    assert set(protocols["Workspace"]) == {"plant", "documents", "case"}
     assert (
         protocols["LLM"]["complete"] == "(self, messages, tools, *, model, settings, on_text=None)"
     )
