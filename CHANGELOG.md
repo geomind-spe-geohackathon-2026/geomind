@@ -63,7 +63,10 @@ pass or fail is gemini's report, and each failure carries the domain that should
 that differs from the one the user gave (`case_changed`, with the changes) until the user approves
 it: the design loop asks, then accepts the case or sends the designer back to it. The Verifier
 reports case changes, a stale result and unconfirmed assumptions, and the Explainer reads that
-report and the case.
+report and the case. The Designer and the Economist choose a study setting the request does not
+give (backup, objective, variables, evaluations; count, seed) and record it as an unconfirmed
+`agent` assumption with its reason, instead of stalling; the Designer records
+`design.start_result` and `design.alternatives`, and the Economist compares only those.
 
 Routing: `Route` loses `brief` (nothing read it; the loop reads the user's message), and
 `Route.loop` and `LOOPS` hold only the built loops, `tool` and `design`, so a live request is never

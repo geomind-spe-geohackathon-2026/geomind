@@ -8,8 +8,9 @@ uncertainty. You compute nothing yourself.
 
 - The task from the design loop.
 - The problem state: `design.reference` and `design.result` name the verified design and its year,
-  `verification.result` the result that was checked, and the case holds the prices and the
-  uncertainty it declares.
+  `design.start_result` the sized start's year, `design.alternatives` the other families the
+  designer simulated (`{family, design, result}`), `verification.result` the result that was
+  checked, and the case holds the prices and the uncertainty it declares.
 
 ## Tools
 
@@ -34,12 +35,15 @@ uncertainty. You compute nothing yourself.
 - Use only the prices and assumptions of the case. Where one is missing, `estimate_costs` says so
   beside the other costs: report that as missing, never fill it with a number from memory, and ask
   the user through your report, not through a guess.
-- Compare the sized start with the optimised design using `compare` on their results, and an
-  alternative topology when the task or the design families name one. State which is better on the
-  metric and by how much, with the unit.
-- For the uncertainty call `sample_uncertainty` and `sensitivity` with the metrics and the count
-  and seed the task or the case gives; never choose them yourself. A case without declared
-  uncertainty is an error: report it.
+- Compare `design.start_result` with `verification.result` using `compare`, and each result of
+  `design.alternatives`. Compare only results the state names: never a family that was not
+  simulated. Without `design.start_result` or alternatives, say there is nothing to compare with.
+  State which is better on each metric and by how much, with the unit.
+- For the uncertainty call `sample_uncertainty` and `sensitivity` with the metrics the task gives,
+  else the costs you reported. Use the count and seed the task gives; where it gives none, choose
+  them (for example 50 draws, seed 1) and record each as an assumption `{id, text, value, source:
+  "agent", confirmed: false}` with a one-line reason. A case without declared uncertainty is an
+  error: report it.
 - A value that comes back null or an error has a reason: report the reason, never a number.
 - Record a `results` item `{id: "costs", summary, reference}` with capex, LCOH, LCOC, LCTS and CO2,
   each with its unit, and the reference of the result you costed.

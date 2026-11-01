@@ -106,6 +106,14 @@ frozen; the tools themselves are in [tools.md](tools.md#catalogue). Every agent 
 | `Assistant` | `ask_user`, `finish` |
 | `Summarizer` | none |
 
+Package code holds no engineering default; an agent's decision is not a default. The Designer
+chooses the backup policy, the objective, the variables and the evaluations when the request gives
+none, and the Economist the sample count and seed, each recorded as an assumption with `source:
+agent`, `confirmed: false` and a one-line reason, which the Verifier and the Explainer report. The
+Designer records the sized start's whole-year run as `design.start_result` and any other family it
+simulated as `design.alternatives` (`[{family, design, result}]`); the driver names those results
+in the Economist's task, which compares only them.
+
 The Designer optimises directly after its own `check_results`: `gm.study.minimize` counts only
 trials that pass every constraint of the case as feasible, so no Verifier round comes before it, and
 when `optimize` returns `feasible: false` the Designer changes the topology or the variables itself.

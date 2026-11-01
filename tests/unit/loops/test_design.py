@@ -8,7 +8,13 @@ from geomind.engine import Context, Engine
 from geomind.engine.hooks import Verified
 from geomind.engine.recovery import recover
 from geomind.loops import DesignLoop
-from geomind.loops.design import DesignDriver, repeated, request_of, routed_task
+from geomind.loops.design import (
+    DesignDriver,
+    economist_task,
+    repeated,
+    request_of,
+    routed_task,
+)
 from geomind.types import Message
 from tests.fixtures.cases import example_case
 from tests.fixtures.runs import call, context, engine_for, logged, of_type, same_usage, says, uses
@@ -322,3 +328,16 @@ async def test_the_explainer_reads_the_verifier_s_report(verdicts):
     script = [*designer_round(1), *verifier_round(1), says("costs"), says("explained")]
     _, _, events = await run_loop(script)
     assert "The verifier's report:\n\nchecked" in tasks_of(events, "explainer")[0]
+
+
+def test_the_economist_compares_only_what_the_designer_ran():
+    """The sized start and the simulated alternatives are named; none means nothing to compare."""
+    design = {
+        "reference": "design/best",
+        "start_result": "result/start",
+        "alternatives": [{"family": "F2", "design": "design/f2", "result": "result/f2"}],
+    }
+    task = economist_task("design/best", "result/best", ProblemState(design=design))
+    assert "compare it with result/start, result/f2" in task
+    empty = economist_task("design/best", "result/best", ProblemState())
+    assert "no sized start or alternative" in empty

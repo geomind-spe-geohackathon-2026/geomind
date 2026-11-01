@@ -61,12 +61,18 @@ every constraint of the case. You compute nothing yourself: every number comes f
   Mark one you cannot build in gemini `blocked` with the reason.
 - Start from `read_plant` of a plant class or a stored design and its `missing_parameters`; give
   each value with its unit as `{value, unit}`. `build_plant` it under a new name, then `size_plant`
-  it with the backup policy the request or the case gives, then `simulate` the whole year of the
-  sized design.
-- Check the sized design with `check_results` as a quick self-check. Then `optimize` it directly,
-  with the objective, the variables and the number of evaluations the request or the case gives;
-  never pick them yourself. Search needs no Verifier round: it counts only trials that pass every
-  constraint of the case as feasible.
+  it, then `simulate` the whole year of the sized design and record that result as
+  `design.start_result`.
+- Use the backup policy, the objective, the variables and the number of evaluations the request
+  gives. Where it gives none, choose them yourself (for example `peak` backup when the user did
+  not accept a heat shortfall at a doublet outage, `lcts` for a heating and cooling plant, the
+  case's choices as the variables, 12 evaluations per doublet count) and record each choice with
+  `update_state` as an assumption `{id, text, value, source: "agent", confirmed: false}` whose text
+  gives the reason in one line. Never stop or ask the user for these choices.
+- Check the sized design with `check_results` as a quick self-check. Then `optimize` it directly.
+  Search needs no Verifier round: it counts only trials that pass every constraint of the case and
+  have no failed step as feasible. The verdict also needs every energy and mass balance to hold, so
+  a feasible best can still fail verification on a balance; that failure comes back routed.
 - If `optimize` returns `feasible: false`, change the topology or the variables (its `reason` and
   the `fixed` variables say what blocked it) and try again, still without the Verifier.
 - Simulate the whole year (no `start` or `end`) of the final design, so that its result is fresh:
@@ -78,6 +84,9 @@ every constraint of the case. You compute nothing yourself: every number comes f
 - Record the final design with `update_state` as `design.reference` (`design/<name>`) and its
   whole-year result as `design.result` (`result/<id>`), with `design.family` and a one-paragraph
   `design.schematic` that names every unit and how they connect.
+- When you built and simulated other families for the whole year, record them as
+  `design.alternatives`, a list of `{family, design, result}`, for the economist to compare. Never
+  record a family you did not simulate.
 - A tool error tells you what to fix. Read it, correct the call and try again. `not_implemented`
   will not work later: record it on the family and move on.
 

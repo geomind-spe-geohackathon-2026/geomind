@@ -186,7 +186,7 @@ class DesignDriver(Agent):
             question = changed_question(changed)
             return act(note, index, "ask_user", question=question, options=list(CASE_OPTIONS))
         if found["passed"]:
-            task = economist_task(design, result)
+            task = economist_task(design, result, context.problem)
             return act({"round": round_number, "passed": True}, index, "economist", task=task)
         failed = sorted(item["name"] for item in found["failures"])
         history = [note["failures"] for note in notes(context.messages) if "failures" in note]
@@ -284,12 +284,18 @@ def verifier_task(context):
     )
 
 
-def economist_task(design, result):
-    """Return the economist's task: cost the verified run, and compare it with the sized start."""
-    return (
-        f"Cost the verified design {design} on its result {result}; compare it with the sized "
-        "start and with alternative topologies."
+def economist_task(design, result, problem):
+    """Return the economist's task: cost the verified run, and compare it with what was run."""
+    start = problem.design.get("start_result")
+    others = [item.get("result") for item in problem.design.get("alternatives") or ()]
+    compared = [reference for reference in (start, *others) if reference]
+    against = (
+        f"compare it with {', '.join(compared)} (the sized start and the alternatives the "
+        "designer simulated)"
+        if compared
+        else "there is no sized start or alternative in the state to compare it with; say so"
     )
+    return f"Cost the verified design {design} on its result {result}; {against}."
 
 
 def explainer_task(context, calls):

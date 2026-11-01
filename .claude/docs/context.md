@@ -14,7 +14,7 @@ and `case_origin`. It is frozen: a change is a new state.
 | `goal` | text |
 | `requirements` | `[{id, text, constraint, status}]`: the user's words; `constraint` names the case constraint that gemini judges by its `{on, quantity, over, when}` (`ConstraintKey`; gemini's constraints have no id and a merge patch replaces the whole list, so never by index), or null; `status` starts `open` |
 | `assumptions` | `[{id, text, value, source, confirmed}]`; `source` is `user`, `agent` or `default` |
-| `design` | an object, free in shape; `reference` names the current `design/<name>` |
+| `design` | an object, free in shape; `reference` names the current `design/<name>`, `result` its whole-year run, `start_result` the sized start's run and `alternatives` the other families simulated, `[{family, design, result}]` |
 | `results` | `[{id, summary, reference}]`; `reference` names the stored data |
 | `verification` | an object, free in shape; `result` names the `result/<id>` that verifies the design, which `Verified` checks again |
 | `questions` | `[{id, text}]` |
