@@ -1,93 +1,103 @@
-"""The tools over a project's results and documents."""
+"""The tools over a stored run's results and the project's documents."""
 
 import pytest
 
+import geomind as gd
 from geomind.engine import Context
 from geomind.errors import ToolError
 from geomind.stores import MemoryWorkspace
-from geomind.tools import read_result, search_documents
+from geomind.tools import search_documents
+from geomind.tools.gemini.stored import save_design
+from tests.fixtures.calls import call
+from tests.fixtures.cases import case_context, example_names, example_plant
+from tests.fixtures.sessions import StubSession
+
+TOOLS = gd.tools.gemini
+MODULES = {"hackathon_2026": "boiler", "shallow_district": "heat_pump"}
 
 
-class Session:
-    """The part of a run these tools reach."""
+@pytest.fixture(scope="module", autouse=True)
+def gm():
+    """Return gemini; importing it takes more than one test call's budget."""
+    import gemini
 
-    def __init__(self, workspace=None):
-        """Hold one stored result."""
-        self.workspace = workspace
-        power = {"unit": "W", "values": [1.0, 2.0, 3.0]}
-        flow = {"unit": "m3/h", "values": [None, None], "time": ["t0", "t1"]}
-        self.stored = {"r1": {"plant.esp": {"power": power}, "plant.well": {"flow": flow}}}
+    return gemini
 
-    def load_artifact(self, key):
-        """Return a stored result, or ``None``."""
-        return self.stored.get(key)
+
+async def ran(name):
+    """Return ``(session, problem, reference)`` of one run of an example's plant."""
+    context = await case_context(name)
+    await save_design(context, "p", example_plant(name))
+    args = {"design": "design/p"}
+    result = await call(TOOLS.simulate, args, context.session, problem=context.problem)
+    return context.session, context.problem, result.output["reference"]
+
+
+@example_names
+async def test_a_run_summary_reads_in_readable_units(name):
+    """Without a path every module is summarised, power in MW and temperatures in degC."""
+    session, problem, reference = await ran(name)
+    output = TOOLS.read_result.function(Context(session=session, problem=problem), reference)
+    units = {field["max"]["unit"] for fields in output.values() for field in fields.values()}
+    assert not units & {"W", "K", "Pa", "m3/s"}
+    assert {"MW", "degC"} <= units
+
+
+@example_names
+async def test_a_path_summarises_that_module_only(name):
+    """The module asked for, each field min, max and mean."""
+    session, problem, reference = await ran(name)
+    path = MODULES[name]
+    arguments = {"reference": reference, "path": path}
+    result = await call(TOOLS.read_result, arguments, session, problem=problem)
+    assert set(result.output) == {path}
+
+
+@example_names
+async def test_a_series_has_times_values_and_a_readable_unit(name):
+    """Path and field give gemini's series Value, window included, in MW for a power."""
+    session, problem, reference = await ran(name)
+    summary = TOOLS.read_result.function(Context(session=session, problem=problem), reference)
+    path, field = next(
+        (path, field)
+        for path, fields in summary.items()
+        for field, value in fields.items()
+        if value["max"]["unit"] == "MW"
+    )
+    arguments = {"reference": reference, "path": path, "field": field}
+    whole = (await call(TOOLS.read_result, arguments, session, problem=problem)).output
+    first = whole["time"][0]
+    windowed = await call(
+        TOOLS.read_result, {**arguments, "start": first, "end": first}, session, problem=problem
+    )
+    assert whole["unit"] == "MW" and len(whole["time"]) == len(whole["value"])
+    assert len(windowed.output["value"]) == 1
+
+
+async def test_a_field_needs_a_path():
+    """The model is told which input is missing."""
+    result = await call(TOOLS.read_result, {"reference": "result/x", "field": "power"})
+    assert result.is_error and result.output["error"]["path"] == "path"
+
+
+async def test_an_unknown_reference_says_what_to_pass():
+    """Only a reference that simulate returned reads."""
+    result = await call(TOOLS.read_result, {"reference": "result/none"})
+    assert result.output["error"]["code"] == "unknown_name"
+    assert "simulate" in result.output["error"]["message"]
+
+
+async def test_an_unknown_path_is_gemini_s_problem():
+    """An unknown path comes back with the paths that exist."""
+    session, problem, reference = await ran("shallow_district")
+    arguments = {"reference": reference, "path": "heat_pum", "field": "x"}
+    result = await call(TOOLS.read_result, arguments, session, problem=problem)
+    assert result.is_error and "heat_pump" in result.output["error"]["message"]
 
 
 def context(workspace=None, project="p1"):
     """Return a context inside a stand-in run."""
-    return Context(project=project, session=Session(workspace))
-
-
-def test_read_result_returns_the_whole_series_with_its_unit():
-    """Without a range, every sample."""
-    output = read_result.function(context(), "r1", "plant.esp", "power")
-    assert output == {"value": [1.0, 2.0, 3.0], "unit": "W"}
-
-
-def test_read_result_returns_a_slice():
-    """``start`` and ``end`` are sample positions."""
-    output = read_result.function(context(), "r1", "plant.esp", "power", start=1, end=2)
-    assert output == {"value": [2.0], "unit": "W"}
-
-
-def test_read_result_keeps_the_stored_times():
-    """A stored series with times is gemini's series Value."""
-    output = read_result.function(context(), "r1", "plant.well", "flow", start=1)
-    assert output == {"time": ["t1"], "value": [None], "unit": "m3/h"}
-
-
-def test_read_result_without_a_path_summarises_the_result():
-    """Min, max and mean of every series, each a Value."""
-    output = read_result.function(context(), "r1")
-    assert output["plant.esp"]["power"] == {
-        "min": {"value": 1.0, "unit": "W"},
-        "max": {"value": 3.0, "unit": "W"},
-        "mean": {"value": 2.0, "unit": "W"},
-    }
-
-
-def test_read_result_with_a_path_summarises_that_path():
-    """Only the module asked for."""
-    assert set(read_result.function(context(), "r1", "plant.esp")) == {"plant.esp"}
-
-
-def test_a_series_without_numbers_has_null_values_with_a_reason():
-    """A null Value says why."""
-    output = read_result.function(context(), "r1", "plant.well")
-    assert output["plant.well"]["flow"]["mean"]["value"] is None
-    assert output["plant.well"]["flow"]["mean"]["reason"]
-
-
-def test_a_field_needs_a_path():
-    """The model is told which input is missing."""
-    with pytest.raises(ToolError, match="expected a path") as caught:
-        read_result.function(context(), "r1", field="power")
-    assert caught.value.path == "path"
-
-
-@pytest.mark.parametrize(
-    ("arguments", "message"),
-    [
-        (("r9", "plant.esp", "power"), "expected a stored result"),
-        (("r1", "plant.es", "power"), "did you mean 'plant.esp'"),
-        (("r1", "plant.esp", "powers"), "did you mean 'power'"),
-    ],
-)
-def test_a_wrong_name_tells_the_model_what_exists(arguments, message):
-    """Each mistake is an error the model can fix."""
-    with pytest.raises(ToolError, match=message) as caught:
-        read_result.function(context(), *arguments)
-    assert caught.value.code == "unknown_name"
+    return Context(project=project, session=StubSession(workspace=workspace))
 
 
 def test_search_documents_searches_the_project():
@@ -107,4 +117,4 @@ def test_search_documents_needs_a_project(options):
 
 def test_both_only_read():
     """Reading needs no approval, and a replay reads again."""
-    assert (read_result.effect, search_documents.effect) == ("read", "read")
+    assert (TOOLS.read_result.effect, search_documents.effect) == ("read", "read")

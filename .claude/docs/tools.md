@@ -21,11 +21,11 @@ the problem state as `update_state` does.
 | `build_plant` | `plants.py` | `write` | `plant` (input schema: `gm.plants.schema()`), `name` | `{design, problems}`; `gm.plants.validate(plant, on_error="record")` problems keep gemini's path, code and did-you-mean, and a plant with problems stores nothing; otherwise `gm.Plant.from_dict` is stored by `stored.save_design` | built |
 | `set_case` | `case.py` | `write` | `source=None, changes=None`: `source` is `project` or none (the state's case); `changes` an RFC 7386 merge patch on the case | `{case, version}`; the state's `case` replaced and its files kept as `case/<file name>`; a case `gm.Case.from_dict` rejects is an error with gemini's `path`, `code` and message | built |
 | `read_case` | `case.py` | `read` | `section=None`: a section of the case, or `schema` | the case, the section or `gm.Case.schema()`; no case is `invalid_input` | built |
-| `list_profiles` | `runs.py` | `read` | none | `[{name, quantity, unit, start, end}]`: gemini's profiles, then those stored in the run as `profile/<name>` | built |
-| `read_profile` | `runs.py` | `read` | `name, start=None, end=None` (ISO 8601); `name` is gemini's or a stored `profile/<name>` | a Value series | built |
+| `list_profiles` | `runs.py` | `read` | none | `[{service, column, file_unit, supply_temperature, return_temperature, start, end, steps, peak}]`: the heating and cooling demand of the state's case, temperatures in degC and the peak in MW | built |
+| `read_profile` | `runs.py` | `read` | `service` (`heating` or `cooling`), `start=None`, `end=None` (ISO 8601, inclusive) | `{service, time, value, unit}` of the case's demand in MW | built |
 | `save_profile` | `case.py` | `write` | `name, values, unit, start, step, service`, all required: `unit` a unit of power, `step` `{value, unit}`, `service` `heating` or `cooling` | `{demand, steps, version}`; gemini checks the values (`gm.data.from_values`), they are written in `unit` as the column `name` of `<name>.csv` in the run's case files, the other service keeps its column, and the case's `demand` points at it; steps other than the case's `time` are gemini's error | built |
-| `simulate` | `runs.py` | `compute` | `design=None, changes=None, profile=None, start=None, end=None` | `{reference, summary}`; full results stored; the summary names the `brief`, `demand` and `rules` that ran | built |
-| `read_result` | `results.py` | `read` | `reference, path=None, field=None, start=None, end=None` (sample positions) | a Value series with `path` and `field`, otherwise `{path: {field: {min, max, mean}}}` | built |
+| `simulate` | `runs.py` | `compute` | `design=None, changes=None, start=None, end=None` | `{reference, summary}`; the run is stored; the summary gives the plant, the case's time span, the window, `steps`, `failed_steps` and the first `failures`, the `report` totals in display units, the `violated` constraints and the demand `coverage` | built |
+| `read_result` | `results.py` | `read` | `reference, path=None, field=None, start=None, end=None` (ISO 8601, inclusive) | `{time, value, unit}` with `path` and `field`, otherwise `{path: {field: {min, max, mean}}}`, in MW, degC, bar, m3/h and kg/s | built |
 | `search_documents` | `results.py` | `read` | `query` | `[{id, title, text, score}]` | built |
 | `check_results` | `assessment.py` | `compute` | `reference, limits=None` | `{passed, checks: [Check], failures: [{name, domain}], not_assessed, not_given, brief}` | built |
 | `compute_kpis` | `assessment.py` | `compute` | `reference, names=None` | `{name: Value}`: `gm.kpi.compute` and `gm.kpi.totals` | built |
@@ -52,11 +52,11 @@ filling a stub, because gemini's names change.
 | `build_plant` | `gm.plants.validate(plant, on_error="record")`, `gm.plants.schema`, `gm.Plant.from_dict` | real |
 | `set_case` | `gm.Case.from_dict` | real |
 | `read_case` | `gm.Case.schema` | real |
-| `list_profiles` | `gm.profiles.names`, `gm.profiles.get` | real; `quantity` needs `attrs["quantities"]`, which `api.md` does not list |
-| `read_profile` | `gm.profiles.get` | real |
+| `list_profiles` | `gm.Case` (`case.demand`), `gm.units.Quantity` | real |
+| `read_profile` | `gm.Case` (`case.demand.frame`), `gm.units.convert` | real |
 | `save_profile` | `gm.data.from_values`, `gm.units.Quantity`, `gm.Case.from_dict` | real |
-| `simulate` | `gm.schedule`, `gm.simulate`, `gm.plants.from_dict`, `plant.set_params`, `Results.summary`, `Results.get`, `Results.names`, `Results.to_bytes` | real |
-| `read_result` | none: it reads the stored JSON | built |
+| `simulate` | `gm.schedule`, `gm.simulate`, `gm.evaluate.report`, `totals`, `failures`, `plant.set_params`, `Results.to_bytes` | real |
+| `read_result` | `Results.get`, `Results.summary` through `load_run` | real |
 | `search_documents` | none: it reads `Workspace.documents` | built |
 | `check_results` | `gm.checks.run_all`, `gm.checks.limits`, `gm.checks.Limits.from_dict`, `gm.Results.from_bytes` | real |
 | `compute_kpis` | `gm.kpi.compute`, `gm.kpi.totals`, `gm.Results.from_bytes` | real |
@@ -77,32 +77,25 @@ accept the `/`; `check_run_store` tests it. An artifact belongs to its root run.
   the plant's inputs and which `gm.Plant.from_dict` restores. `load_plant(context, design, where)` in
   `plants.py` is the one function that returns a `gm.Plant` (`None` is the project's plant). `build_plant` saves it under `design/<name>` and
   returns that text. `<name>` is letters, digits, `.`, `_` or `-`.
-- **A result** is stored under `result/<id>` as JSON: `{path: {field: {unit, values, time?}}}`.
-  `values` is the list of samples, `unit` their unit, and `time`, when there is one, the list of ISO
-  8601 times. `simulate` leaves `time` out: every series has the same times, which would triple the
-  size, and the summary gives `start`, `end` and `steps`. `<id>` is a hash of the plant that ran,
-  the profiles, the window and the schedule rules, so a replay finds the same result and a run
-  under another brief never overwrites it. Beside it, `simulate` keeps
-  `<id>.results` (`Results.to_bytes()`), `<id>.plant` (the spec that ran) and `<id>.run` (the
-  demand, rules and window it ran on), which `verify_design` compares with the brief.
+- **A result** is a run `result/<id>`: the summary `simulate` returned, with `<id>.results`
+  (`Results.to_bytes()`), `<id>.plant` and `<id>.case` beside it, written by `save_run` in
+  `stored.py`. `<id>` is a hash of the plant, the case and the window, so the same run has the
+  same reference. `read_result` loads it with `load_run` and reads `Results.get` and `summary`.
 - **A case file** is stored under `case/<file name>` as bytes (the CSV of the demand or of a
   profile), one name and no folder. `set_case(source="project")` and `save_profile` write them;
-  `case_of` reads them. The older `profile/<name>` artifact remains for `list_profiles` and
-  `simulate` until they read the case.
+  `case_of` reads them; `list_profiles`, `read_profile` and `simulate` read the case.
 
 ### How `simulate` runs
 
-`gm.schedule(plant, demand, rules)`, then `gm.simulate(plant, plan, on_error="record")`: a day
-that fails is one of gemini's problems in the summary (`failed_steps`, the first five `errors`)
-and the year still runs. The rules come from the problem state's [brief](context.md#the-case)
-through `schedule_rules` in `tools/gemini/brief.py`: its `doublet_flow` and `max_brine_cooling`,
-the source order `geothermal, heat_pump, boiler`, and `operating_days` `None` (gemini raises
-`NotImplementedYet` for any other value). A brief without the flow range or the brine cooling is
-an `invalid_input` error on `brief`, since `gm.schedule` needs both. `profile` and the brief's demand name
-gemini's profiles or stored `profile/<name>` ones, which `gm.schedule` takes as any UTC frame in W.
-Without `profile` the run takes the brief's demand, and a brief without one is an error that says to ask the user. A state with no
-brief runs on the `hackathon_2027` preset, as before briefs were data; the summary always names
-the `brief`, the `demand` and the `rules` that ran, and adds `gm.kpi.totals`.
+The plant is `load_plant` (the project's, or a stored `design/<name>`), `changes` set on it with
+`plant.set_params` as `{"value", "unit"}` (a bare number is refused for a parameter with a unit),
+the case is `case_of(context)`, then `gm.simulate(plant, case, on_error="record")`: the plan is
+`gm.schedule(plant, case)`, which belongs to gemini and the case. A window `start`, `end` cuts that
+plan (`gm.simulate(..., plan=...)`); the case's own time changes with `set_case`. A day that fails
+is one of gemini's problems in the summary (`failed_steps`, the first `failures`) and the run goes
+on. A state without a case gives the `set_case` or `ask_user` error of `case_of`. The demand is the
+case's: `list_profiles` and `read_profile` read `case.demand`, and a user's profile enters the
+case with `save_profile`.
 
 ## Verification
 
