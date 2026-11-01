@@ -187,9 +187,21 @@ private gemini names, removed names and hackathon figures out of the package.
 
 Open:
 
+- **The second message of a chat loses the case's files.** The problem state is kept per chat,
+  but artifacts (`case/<file>`, `<sha256>.file`, `design/<name>`, `result/<id>`) are kept per root
+  run. A new run of the same chat holds the case in its state but cannot read its demand file
+  (`read_profile` fails with `demand.csv not found`), nor a design or result the state names.
+  Fixing it changes the backend contract: a chat-scoped artifact space, or the state naming the
+  run that holds each artifact. Decide with Sahand before the backend stores chats.
 - A live run needs `OPENROUTER_API_KEY` in geomind's environment and a spending cap
   (`--max-tokens`, `--max-cost`).
-- `MakerCheckerLoop` and `CompareLoop` are stubs.
+- `MakerCheckerLoop` and `CompareLoop` are stubs; `LOOPS` and `Route` leave them out until they
+  are built. Comparing topologies runs inside the design loop (the Economist compares the sized
+  start and the alternatives the Designer simulated).
+- `set_case` takes a merge patch, so adding one constraint resends the whole list.
+- One verdict: geomind passes a design on gemini's report plus no failed step and every balance,
+  while `gm.study.minimize` counts a trial feasible without the balances, so a feasible best can
+  fail verification on a balance. gemini request 10 below.
 - `test_module` is a stub and needs a Docker image with gemini's dependencies.
 - Requests to gemini (the full text is in the adaptation notes):
   1. `Case.to_dict()` does not round-trip the demand (the CSV column keeps its unit, the unit is SI).
@@ -202,6 +214,11 @@ Open:
   8. `gm.simulate` records `no_convergence` rows instead of raising `PhysicsError` on a cold
      reservoir (D4).
   9. `Best.to_dict()` and `Sample.to_dict()` in display units, as `Report.to_dict()` (E).
+  10. One public verdict (`report.feasible` or `gm.evaluate.verdict`) that `minimize` and geomind
+      both use, balances included.
+  11. `gm.evaluate` copies the plant and applies the case for each metric (about ten times per
+      report), most of a tool call's time.
+  12. `Comparison.to_dict()` in display units, so `compare` reads no column labels.
 
 ### S2b: gemini tools (the first job; the text below is the original plan)
 
