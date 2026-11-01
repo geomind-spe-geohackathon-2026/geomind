@@ -82,15 +82,24 @@ async def test_the_summary_is_in_readable_units(name):
 
 @example_names
 async def test_a_run_is_reproducible(name):
-    """The same plant, case and options give the same reference; another option another one."""
+    """The same plant, case and options give the same reference."""
     session, problem = await designed(name)
-    arguments = {"design": "design/p"}
+    start, end, _ = WINDOWS[name]
+    arguments = {"design": "design/p", "start": start, "end": end}
     first = await call(TOOLS.simulate, arguments, session, problem=problem)
     again = await call(TOOLS.simulate, arguments, session, problem=problem)
-    start, end, _ = WINDOWS[name]
-    windowed = await call(TOOLS.simulate, {**arguments, "start": start}, session, problem=problem)
     assert first.output["reference"] == again.output["reference"]
-    assert windowed.output["reference"] != first.output["reference"]
+
+
+@example_names
+async def test_another_option_is_another_run(name):
+    """Another window of the same plant and case gives another reference."""
+    session, problem = await designed(name)
+    start, end, _ = WINDOWS[name]
+    arguments = {"design": "design/p", "start": start}
+    first = await call(TOOLS.simulate, {**arguments, "end": end}, session, problem=problem)
+    other = await call(TOOLS.simulate, {**arguments, "end": start}, session, problem=problem)
+    assert other.output["reference"] != first.output["reference"]
 
 
 @example_names
