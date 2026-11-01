@@ -1,19 +1,34 @@
-"""The tools that read profiles and run a plant, against real gemini profiles and plants."""
-
-import asyncio
+"""The tools that read the case's demand and run a plant on the case, on both example cases."""
 
 import pytest
 
 import geomind as gd
-from geomind.stores import MemoryWorkspace
+from geomind.context import ProblemState
+from geomind.tools.gemini.case import save_profile, set_case
+from geomind.tools.gemini.stored import save_design
 from tests.fixtures.calls import call
-from tests.fixtures.hackathon import SCHEDULE_RULES
-from tests.fixtures.sessions import StubSession
+from tests.fixtures.cases import (
+    SHALLOW_PEAK_HEATING,
+    case_context,
+    example_case,
+    example_names,
+    example_plant,
+)
 
 TOOLS = gd.tools.gemini
+HEATING_PEAK_MW = {"hackathon_2026": 30.0, "shallow_district": SHALLOW_PEAK_HEATING / 1e6}
+WINDOWS = {
+    "hackathon_2026": ("2027-01-01", "2027-01-10", 10),
+    "shallow_district": ("2026-01-12", "2026-01-13T23:00:00", 48),
+}
+CHANGES = {
+    "hackathon_2026": {"boiler": {"capacity": {"value": 20, "unit": "MW"}}},
+    "shallow_district": {"heat_pump": {"capacity": {"value": 1.0, "unit": "MW"}}},
+}
+ALLOWED_UNITS = {"MWh", "MEUR", "MEUR/yr", "EUR/MWh", "kt", "-", None}
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="module", autouse=True)
 def gm():
     """Return gemini; importing it takes more than one test call's budget."""
     import gemini
@@ -21,291 +36,211 @@ def gm():
     return gemini
 
 
-@pytest.fixture(scope="module")
-def spec(gm):
-    """Return the spec of gemini's example doublet heat plant."""
-    return gm.plants.example("DoubletHeatPlant").to_dict()
+async def designed(name):
+    """Return ``(context, session, problem)`` of an example with its plant stored as design/p."""
+    context = await case_context(name)
+    await save_design(context, "p", example_plant(name))
+    return context.session, context.problem
 
 
-HACKATHON_INPUTS = {
-    "heat_pump": {"temperature_setpoint": "100 degC"},
-    "boiler": {"temperature_setpoint": "100 degC"},
-    "chiller": {"temperature_setpoint": "20 degC"},
-    "cool_users": {"indoor_temperature": "26 degC", "indoor_relative_humidity": 0.5},
-    "chiller_cooler": {"temperature_setpoint": "15 degC", "flow": "800 kg/s"},
-    "air": {"temperature": "10 degC"},
-    "desander": {"sand_concentration": "20 mg/l"},
-    "dosing": {"dose": "10 ppm"},
-}
-"""The inputs of gemini's ``examples/cases/hackathon.py``, as a design stores them."""
+async def simulated(name, **arguments):
+    """Return the result of ``simulate`` on an example's stored design."""
+    session, problem = await designed(name)
+    return await call(TOOLS.simulate, {"design": "design/p", **arguments}, session, problem=problem)
 
 
-@pytest.fixture(scope="module")
-def hackathon(gm):
-    """Return the spec of gemini's hackathon plant with its inputs kept in ``boundary``."""
-    return {
-        **gm.plants.example("HackathonPlant").to_dict(),
-        "boundary": {"": {"inputs": HACKATHON_INPUTS}},
-    }
+def case_steps(name):
+    """Return the number of steps of an example case's time."""
+    import gemini as gm
+
+    return len(gm.Case.from_dict(*example_case(name)).time.index)
 
 
-@pytest.fixture(scope="module")
-def hackathon_run(gm):
-    """Return gemini's own run of the hackathon example on both demand profiles, in January."""
-    import pandas as pd
+@example_names
+async def test_simulate_runs_the_stored_design_on_the_case(name):
+    """The run covers the case's time, no step fails and the reference reads back."""
+    session, problem = await designed(name)
+    result = await call(TOOLS.simulate, {"design": "design/p"}, session, problem=problem)
+    summary = result.output["summary"]
+    assert result.output["reference"].startswith("result/")
+    assert summary["steps"] == case_steps(name) and summary["failed_steps"] == 0
+    assert summary["plant"] == "design/p"
+    assert summary["case_time"]["start"] and summary["case_time"]["step"]["unit"] in ("d", "h")
+    assert summary["failures"] == []
 
-    plant = gm.plants.example("HackathonPlant")
-    plant.set_inputs(
-        {
-            f"{path}.{name}": value
-            for path, values in HACKATHON_INPUTS.items()
-            for name, value in values.items()
-        }
+
+@example_names
+async def test_the_summary_is_in_readable_units(name):
+    """Energy in MWh, money in MEUR or EUR/MWh, mass in kt: never joules or bare SI."""
+    summary = (await simulated(name)).output["summary"]
+    units = {item["unit"] for item in summary["report"].values() if isinstance(item, dict)}
+    assert units <= ALLOWED_UNITS
+    assert summary["report"]["heat_delivered"]["unit"] == "MWh"
+    assert summary["report"]["heat_delivered"]["value"] > 0
+    assert summary["coverage"]["heating_coverage"]["value"] == pytest.approx(1.0)
+
+
+@example_names
+async def test_a_run_is_reproducible(name):
+    """The same plant, case and options give the same reference; another option another one."""
+    session, problem = await designed(name)
+    arguments = {"design": "design/p"}
+    first = await call(TOOLS.simulate, arguments, session, problem=problem)
+    again = await call(TOOLS.simulate, arguments, session, problem=problem)
+    start, end, _ = WINDOWS[name]
+    windowed = await call(TOOLS.simulate, {**arguments, "start": start}, session, problem=problem)
+    assert first.output["reference"] == again.output["reference"]
+    assert windowed.output["reference"] != first.output["reference"]
+
+
+@example_names
+async def test_a_window_cuts_the_run(name):
+    """``start`` and ``end`` are inclusive and the summary names the window that ran."""
+    start, end, steps = WINDOWS[name]
+    summary = (await simulated(name, start=start, end=end)).output["summary"]
+    assert summary["steps"] == steps
+    assert summary["window"]["start"].startswith(start[:10])
+
+
+@example_names
+async def test_a_window_outside_the_case_is_an_input_error(name):
+    """Nothing to run is told, with the case's time."""
+    result = await simulated(name, start="1999-01-01", end="1999-01-02")
+    assert result.is_error and "case's time" in result.output["error"]["message"]
+
+
+@example_names
+async def test_changes_apply_for_this_run_only(name):
+    """A change gives another run and leaves the stored design as it was."""
+    session, problem = await designed(name)
+    before = session.load_artifact("design/p")
+    plain = await call(TOOLS.simulate, {"design": "design/p"}, session, problem=problem)
+    changed = await call(
+        TOOLS.simulate, {"design": "design/p", "changes": CHANGES[name]}, session, problem=problem
     )
-    demand = pd.concat([gm.profiles.get(name) for name in gm.profiles.names()], axis=1)
-    demand = demand.loc["2027-01-01":"2027-01-31"]
-    return gm.simulate(plant, gm.schedule(plant, demand, SCHEDULE_RULES), on_error="record")
+    assert changed.is_error is False
+    assert changed.output["reference"] != plain.output["reference"]
+    assert session.load_artifact("design/p") == before
 
 
-async def stored_hackathon(session, hackathon):
-    """Store the hackathon design in a session and return its reference."""
-    built = await call(TOOLS.build_plant, {"plant": hackathon, "name": "hackathon"}, session)
-    return built.output["design"]
+@example_names
+async def test_a_bare_number_for_a_dimensional_parameter_is_refused(name):
+    """Units are explicit: a number for a power says to give ``{value, unit}``."""
+    bare = {next(iter(CHANGES[name])): {"capacity": 20.0}}
+    result = await simulated(name, changes=bare)
+    assert result.is_error and "unit" in result.output["error"]["message"]
 
 
-def project_session(gm, spec):
-    """Return a session whose project ``p1`` holds the example doublet."""
-    return StubSession(workspace=MemoryWorkspace(plants={"p1": gm.plants.from_dict(spec)}))
+async def test_a_state_without_a_case_says_what_to_call():
+    """No case: the model is told to call set_case or ask_user."""
+    from geomind.engine import Context
+    from tests.fixtures.sessions import StubSession
+
+    context = Context(session=StubSession())
+    await save_design(context, "p", example_plant("shallow_district"))
+    result = await call(TOOLS.simulate, {"design": "design/p"}, context.session)
+    assert result.is_error
+    assert "set_case" in result.output["error"]["message"]
+    assert "ask_user" in result.output["error"]["message"]
 
 
-def own_run(gm, spec, changes=None):
-    """Return gemini's own run of the example doublet on the heating demand."""
-    plant = gm.plants.from_dict(spec)
-    for path, params in (changes or {}).items():
-        plant.set_params(path, params)
-    plan = gm.schedule(plant, gm.profiles.get("heating_demand"), SCHEDULE_RULES)
-    return gm.simulate(plant, plan, on_error="record")
+@example_names
+async def test_read_profile_gives_the_peak_in_megawatts(name):
+    """The case's heating demand reads in MW with its times."""
+    session, problem = await designed(name)
+    result = await call(TOOLS.read_profile, {"service": "heating"}, session, problem=problem)
+    output = result.output
+    assert output["unit"] == "MW"
+    assert len(output["time"]) == len(output["value"]) == case_steps(name)
+    assert max(output["value"]) == pytest.approx(HEATING_PEAK_MW[name])
 
 
-async def test_list_profiles_names_each_profile_with_its_unit_and_window(gm):
-    """One row per gemini profile, from the profile itself."""
-    result = await call(TOOLS.list_profiles, {})
-    frame = gm.profiles.get("heating_demand")
-    assert [row["name"] for row in result.output] == gm.profiles.names()
-    assert result.output[0] == {
-        "name": "heating_demand",
-        "quantity": "power",
-        "unit": "W",
-        "start": frame.index[0].isoformat(),
-        "end": frame.index[-1].isoformat(),
-    }
+@example_names
+async def test_read_profile_takes_a_window(name):
+    """Both ends are inclusive."""
+    session, problem = await designed(name)
+    start, end, steps = WINDOWS[name]
+    arguments = {"service": "heating", "start": start, "end": end}
+    result = await call(TOOLS.read_profile, arguments, session, problem=problem)
+    assert len(result.output["value"]) == steps
 
 
-async def test_read_profile_is_a_series_value_of_the_whole_year(gm):
-    """Every day, in gemini's unit, with its time."""
-    result = await call(TOOLS.read_profile, {"name": "cooling_demand"})
-    frame = gm.profiles.get("cooling_demand")
-    assert result.output["unit"] == "W"
-    assert result.output["value"] == frame["cooling_demand"].tolist()
-    assert result.output["time"][0] == "2027-01-01T00:00:00+00:00"
-    assert len(result.output["time"]) == 365
-
-
-async def test_read_profile_takes_a_window_with_both_ends(gm):
-    """``start`` and ``end`` are ISO 8601 times, both included."""
-    window = {"name": "heating_demand", "start": "2027-01-27", "end": "2027-01-29"}
-    result = await call(TOOLS.read_profile, window)
-    assert len(result.output["value"]) == 3
-    assert max(result.output["value"]) == pytest.approx(30e6)
-
-
-async def test_an_unknown_profile_is_gemini_s_problem(gm):
-    """The model reads gemini's ``unknown_name``."""
-    result = await call(TOOLS.read_profile, {"name": "heat"})
+async def test_a_service_the_case_lacks_lists_what_exists():
+    """An unknown service is an unknown_name with the services of the demand."""
+    session, problem = await designed("shallow_district")
+    result = await call(TOOLS.read_profile, {"service": "steam"}, session, problem=problem)
     assert result.output["error"]["code"] == "unknown_name"
+    assert "heating" in result.output["error"]["message"]
 
 
-@pytest.mark.parametrize("field", ["start", "end"])
-async def test_a_time_that_is_not_iso_8601_is_invalid_input(gm, field):
-    """A wrong time names its field."""
-    result = await call(TOOLS.read_profile, {"name": "heating_demand", field: "28 Jan"})
-    assert result.output["error"] == {
-        "path": field,
-        "code": "invalid_input",
-        "message": result.output["error"]["message"],
-        "suggestions": [],
+@example_names
+async def test_list_profiles_names_the_services_of_the_demand(name):
+    """Each service with its temperatures in degC, window and peak in MW."""
+    session, problem = await designed(name)
+    result = await call(TOOLS.list_profiles, {}, session, problem=problem)
+    rows = {row["service"]: row for row in result.output}
+    assert set(rows) == {"heating", "cooling"}
+    assert rows["heating"]["supply_temperature"]["unit"] == "degC"
+    assert rows["heating"]["peak"]["unit"] == "MW"
+    assert rows["heating"]["peak"]["value"] == pytest.approx(HEATING_PEAK_MW[name])
+
+
+async def test_without_a_case_the_profiles_say_what_to_call():
+    """No case, no demand: the same tool error as a run."""
+    from geomind.engine import Context
+    from tests.fixtures.sessions import StubSession
+
+    result = await call(TOOLS.list_profiles, {}, StubSession())
+    assert result.is_error and "set_case" in result.output["error"]["message"]
+    assert Context  # imported for the type of the session only
+
+
+def evolved(session):
+    """Return the problem state after the last recorded change of a session."""
+    return ProblemState(version=1, case=session.changes[-1][0]["value"])
+
+
+def profile_call(service, values):
+    """Return the input of save_profile for 30 daily values in MW from 2027-01-01."""
+    return {
+        "name": service,
+        "values": values,
+        "unit": "MW",
+        "start": "2027-01-01",
+        "step": {"value": 1, "unit": "d"},
+        "service": service,
     }
 
 
-async def test_simulate_stores_what_read_result_reads_with_gemini_s_numbers(
-    hackathon, hackathon_run
-):
-    """The stored series are gemini's own run, value for value, inputs of the design applied."""
-    session = StubSession()
-    design = await stored_hackathon(session, hackathon)
-    january = {"design": design, "start": "2027-01-01", "end": "2027-01-31"}
-    ran = await call(TOOLS.simulate, january, session)
-    expected = hackathon_run.to_dict()["series"]
-    read = await call(
-        TOOLS.read_result,
-        {"reference": ran.output["reference"], "path": "d0.reservoir", "field": "liquid_flow"},
-        session,
-    )
-    assert ran.output["summary"]["failed_steps"] == 0
-    assert session.artifacts[ran.output["reference"]] == {
-        path: {
-            field: {"unit": item["unit"], "values": item["value"]} for field, item in fields.items()
+async def test_a_30_day_user_profile_simulates():
+    """set_case cuts the case to 30 days, save_profile adds the user's demand, simulate runs."""
+    context = await case_context("hackathon_2026")
+    session = context.session
+    await save_design(context, "p", example_plant("hackathon_2026"))
+    original = example_case("hackathon_2026")[0]
+    limits = [c for c in original["constraints"] if c.get("over") != "duration"]
+    time = {"start": "2027-01-01", "end": "2027-01-31", "step": {"value": 1, "unit": "d"}}
+    cut = {"changes": {"time": time, "demand": None, "constraints": limits}}
+    await call(set_case, cut, session, problem=context.problem)
+    heating = [18 + 8 * (day % 7) / 6 for day in range(30)]
+    for service, values in (("heating", heating), ("cooling", [5.0] * 30)):
+        saved = await call(
+            save_profile, profile_call(service, values), session, problem=evolved(session)
+        )
+        assert saved.is_error is False, saved.output
+    temperatures = {
+        service: {
+            key: original["demand"][service][key]
+            for key in ("supply_temperature", "return_temperature")
         }
-        for path, fields in expected.items()
+        for service in ("heating", "cooling")
     }
-    assert read.output == {
-        "value": expected["d0.reservoir"]["liquid_flow"]["value"],
-        "unit": "m3/s",
-    }
-
-
-async def test_failed_days_are_gemini_s_problems_in_the_summary(gm, spec):
-    """The example doublet cannot run the demand year; each day is one of gemini's problems."""
-    session = project_session(gm, spec)
-    ran = await call(TOOLS.simulate, {"profile": "heating_demand"}, session, project="p1")
-    assert ran.output["summary"]["failed_steps"] == 365
-    assert ran.output["summary"]["errors"][0]["code"] == "out_of_range"
-    assert session.artifacts[ran.output["reference"]] == {}
-
-
-async def test_simulate_keeps_the_results_and_the_plant_beside_the_result(gm, spec):
-    """``Results.to_bytes()`` and the plant are stored, for the checks and costs of S3."""
-    session = project_session(gm, spec)
-    ran = await call(TOOLS.simulate, {"profile": "heating_demand"}, session, project="p1")
-    identifier = ran.output["reference"].removeprefix("result/")
-    results = gm.Results.from_bytes(session.artifacts[f"{identifier}.results"])
-    assert results.to_dict()["series"] == own_run(gm, spec).to_dict()["series"]
-    assert session.artifacts[f"{identifier}.plant"] == spec
-
-
-async def test_simulate_summarises_the_window_failures_and_totals(gm, spec):
-    """The summary says how many days ran and failed, with gemini's problems and totals."""
-    session = project_session(gm, spec)
-    ran = await call(TOOLS.simulate, {"profile": "heating_demand"}, session, project="p1")
+    await call(set_case, {"changes": {"demand": temperatures}}, session, problem=evolved(session))
+    problem = evolved(session)
+    ran = await call(TOOLS.simulate, {"design": "design/p"}, session, problem=problem)
+    assert ran.is_error is False, ran.output
     summary = ran.output["summary"]
-    own = own_run(gm, spec)
-    assert summary["steps"] == 365
-    assert summary["start"] == "2027-01-01T00:00:00+00:00"
-    assert summary["failed_steps"] == len(own.errors())
-    assert summary["errors"] == own.errors()[:5]
-    assert summary["totals"] == gm.kpi.totals(gm.plants.from_dict(spec), own)
-
-
-async def test_the_same_run_gets_the_same_reference(gm, spec):
-    """The reference follows the inputs, so a replay finds the same result."""
-    session = project_session(gm, spec)
-    first = await call(TOOLS.simulate, {"profile": "heating_demand"}, session, project="p1")
-    second = await call(TOOLS.simulate, {"profile": "heating_demand"}, session, project="p1")
-    assert first.output["reference"] == second.output["reference"]
-
-
-@pytest.fixture(scope="module")
-def changed_runs(gm, hackathon):
-    """Return a session with the hackathon design run for a week, as it is and with a change."""
-    session = StubSession()
-    changes = {"hx": {"thermal_conductance": "500000 W/K"}}
-
-    async def both():
-        design = await stored_hackathon(session, hackathon)
-        week = {"design": design, "start": "2027-01-01", "end": "2027-01-07"}
-        base = await call(TOOLS.simulate, week, session)
-        changed = await call(TOOLS.simulate, {**week, "changes": changes}, session)
-        return design, base.output["reference"], changed.output["reference"]
-
-    return session, *asyncio.run(both())
-
-
-def test_changes_apply_for_this_run_only(gm, hackathon, changed_runs):
-    """``changes`` are ``set_params`` by module path; the stored design is not changed."""
-    session, design, base, changed = changed_runs
-    identifier = changed.removeprefix("result/")
-    plant = gm.plants.from_dict(session.artifacts[f"{identifier}.plant"])
-    assert plant.params_at("hx")["thermal_conductance"] == 500000
-    assert changed != base
-    assert session.artifacts[design] == hackathon
-
-
-async def test_simulate_without_a_project_or_design_says_so(gm):
-    """There is no plant to run."""
-    ran = await call(TOOLS.simulate, {"profile": "heating_demand"})
-    assert ran.output["error"]["code"] == "not_allowed"
-
-
-async def test_a_design_gemini_cannot_schedule_is_gemini_s_problem(gm):
-    """A plant without the setpoints a schedule needs is a result, never an internal error."""
-    session = StubSession()
-    plant = gm.plants.example("HackathonPlant").to_dict()
-    await call(TOOLS.build_plant, {"plant": plant, "name": "hackathon"}, session)
-    ran = await call(TOOLS.simulate, {"design": "design/hackathon"}, session)
-    assert ran.output["error"]["code"] == "invalid_design"
-
-
-def daily_megawatts(days):
-    """Return a user's daily heating demand in MW: a winter month between 18 and 26 MW."""
-    return [18 + 8 * (day % 7) / 6 for day in range(days)]
-
-
-async def test_save_profile_stores_a_user_profile_in_watts(gm):
-    """Values in MW are converted by ``gm.units`` and listed and read beside gemini's profiles."""
-    session = StubSession()
-    saved = await call(
-        TOOLS.save_profile,
-        {"name": "user-heat", "values": [1.0, 2.5], "unit": "MW", "start": "2027-01-01"},
-        session,
-    )
-    assert saved.output["profile"] == "profile/user-heat"
-    listed = await call(TOOLS.list_profiles, {}, session)
-    row = next(item for item in listed.output if item["name"] == "profile/user-heat")
-    assert (row["quantity"], row["unit"], row["end"][:10]) == ("heating_demand", "W", "2027-01-02")
-    read = await call(TOOLS.read_profile, {"name": "profile/user-heat"}, session)
-    assert read.output["value"] == [1.0e6, 2.5e6] and read.output["unit"] == "W"
-
-
-@pytest.mark.parametrize(
-    ("change", "message"),
-    [
-        ({"values": [1.0, -2.0]}, "non-negative"),
-        ({"values": []}, "at least one value"),
-        ({"unit": "m3/h"}, "a unit of power"),
-        ({"quantity": "steam_demand"}, "heating_demand"),
-        ({"step": "fortnight"}, "step"),
-        ({"name": "a/b"}, "name"),
-    ],
-)
-async def test_save_profile_refuses_a_profile_it_cannot_run(gm, change, message):
-    """Negative values, no values, a wrong unit, quantity, step or name are input errors."""
-    profile = {"name": "p", "values": [1.0], "unit": "MW", "start": "2027-01-01", **change}
-    result = await call(TOOLS.save_profile, profile)
-    assert result.is_error and message in result.output["error"]["message"]
-
-
-async def test_a_30_day_user_profile_simulates_and_its_result_reads_back(gm):
-    """The brief's demand mixes a user's heating profile with gemini's cooling profile."""
-    from geomind.context import ProblemState, preset, with_changes
-    from tests.fixtures.hackathon import base_spec
-
-    session = StubSession()
-    values = daily_megawatts(30)
-    profile = {"name": "jan", "values": values, "unit": "MW", "start": "2027-01-01"}
-    await call(TOOLS.save_profile, profile, session)
-    demand = {"demand": {"heating": "profile/jan", "cooling": "cooling_demand"}}
-    problem = ProblemState(brief=with_changes(preset("hackathon_2027"), demand))
-    await call(TOOLS.build_plant, {"plant": base_spec(gm), "name": "base"}, session)
-    window = {"design": "design/base", "start": "2027-01-01", "end": "2027-01-30"}
-    ran = await call(TOOLS.simulate, window, session, problem=problem)
-    summary = ran.output["summary"]
-    assert (summary["steps"], summary["failed_steps"]) == (30, 0)
-    assert summary["demand"] == ["profile/jan", "cooling_demand"]
-    read = await call(
-        TOOLS.read_result,
-        {"reference": ran.output["reference"], "path": "heat_users", "field": "unmet_demand"},
-        session,
-    )
-    assert len(read.output["value"]) == 30 and max(read.output["value"]) < 1e-3
-    demanded = sum(values) * 1e6 * 86400
-    assert summary["totals"]["heat_delivered"]["value"] >= demanded * (1 - 1e-9)
+    assert (summary["steps"], summary["failures"]) == (30, [])
+    assert summary["report"]["heat_delivered"]["value"] >= sum(heating) * 24 * (1 - 1e-6)
+    read = await call(TOOLS.read_profile, {"service": "heating"}, session, problem=problem)
+    assert max(read.output["value"]) == pytest.approx(max(heating))

@@ -2,49 +2,17 @@
 
 from geomind.errors import ToolError
 from geomind.tools.base import tool
-from geomind.utils.strings import did_you_mean, join_names
+from geomind.tools.gemini.runs import parse_time
+from geomind.tools.gemini.stored import load_run
 
-
-def _part(mapping, name, what, reference):
-    """Return one part of a stored result; a wrong name lists what exists."""
-    if not isinstance(mapping, dict) or name not in mapping:
-        names = mapping if isinstance(mapping, dict) else ()
-        raise ToolError(
-            f"read_result: {what} = {name!r}; expected one of {join_names(names)} in {reference}"
-            f"{did_you_mean(name, names)}",
-            code="unknown_name",
-            path=what,
-        )
-    return mapping[name]
-
-
-def _statistics(series):
-    """Return ``{min, max, mean}`` of one series, each a Value."""
-    unit = series.get("unit")
-    numbers = [item for item in series["values"] if isinstance(item, (int, float))]
-    if not numbers:
-        empty = {"value": None, "unit": unit, "reason": "the series holds no numbers"}
-        return {"min": empty, "max": empty, "mean": empty}
-    mean = sum(numbers) / len(numbers)
-    return {
-        "min": {"value": min(numbers), "unit": unit},
-        "max": {"value": max(numbers), "unit": unit},
-        "mean": {"value": mean, "unit": unit},
-    }
-
-
-def _summary(stored):
-    """Return ``{path: {field: {min, max, mean}}}`` of stored results."""
-    return {
-        path: {field: _statistics(series) for field, series in fields.items()}
-        for path, fields in stored.items()
-    }
-
-
-def _series(series, start, end):
-    """Return a slice of one series as a Value, with its times when they are stored."""
-    value = {"value": series["values"][start:end], "unit": series.get("unit")}
-    return {"time": series["time"][start:end], **value} if "time" in series else value
+READ_UNITS = {
+    "power": "MW",
+    "temperature": "degC",
+    "pressure": "bar",
+    "volume_flow": "m3/h",
+    "mass_flow": "kg/s",
+}
+"""The units in which the model reads a stored result: gemini's family keys for ``units=``."""
 
 
 @tool(effect="read")
@@ -53,29 +21,23 @@ def read_result(
     reference: str,
     path: str | None = None,
     field: str | None = None,
-    start: int | None = None,
-    end: int | None = None,
+    start: str | None = None,
+    end: str | None = None,
 ):
-    """Return one stored series as a value, or a summary of a result or of one module path.
+    """Return one series of a stored run, or a summary of the run or of one module path.
 
-    With ``path`` and ``field`` it returns the series, and ``start`` and ``end`` are sample
-    positions, the first sample being 0. Without ``field`` it returns min, max and mean.
+    ``reference`` is what simulate returned. With ``path`` and ``field`` it returns the series
+    ``{time, value, unit}``; ``start`` and ``end`` are ISO 8601 times, both inclusive. With only
+    ``path`` it returns min, max and mean of each field of that module, and with neither of the
+    whole run. Power is in MW, temperature in degC, pressure in bar, flows in m3/h or kg/s.
     """
-    stored = context.session.load_artifact(reference)
-    if stored is None:
-        raise ToolError(
-            f"read_result: reference = {reference!r}; expected a stored result",
-            code="unknown_name",
-            path="reference",
-        )
     if path is None and field is not None:
         raise ToolError(f"read_result: field = {field!r}; expected a path too", path="path")
-    if path is None:
-        return _summary(stored)
-    fields = _part(stored, path, "path", reference)
+    _, _, results = load_run(context, reference, "read_result")
     if field is None:
-        return _summary({path: fields})
-    return _series(_part(fields, field, "field", reference), start, end)
+        return results.summary(path=path, units=READ_UNITS)
+    first, last = parse_time(start, "start", "read_result"), parse_time(end, "end", "read_result")
+    return results.get(path, field, start=first, end=last, units=READ_UNITS)
 
 
 @tool(effect="read")
