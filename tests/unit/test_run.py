@@ -181,6 +181,19 @@ def test_an_agent_replaces_the_routing():
     assert type(gd.Run.load(result.run_id, llm=FakeLLM([]), store=store).loop.agent) is Assistant
 
 
+def test_a_loaded_design_run_keeps_its_round_limit():
+    """``Run.load`` rebuilds the design loop with the ``max_rounds`` it started with."""
+    from geomind.agents import Designer, Verifier
+    from geomind.run import loop_for
+
+    store = MemoryRunStore()
+    run = run_of([], store=store)
+    run.loop = DesignLoop(Designer(), Verifier(), max_rounds=2)
+    run.start()
+    state = recover(store.load_events(run.id), run.id)
+    assert loop_for(state).max_rounds == 2
+
+
 @pytest.mark.parametrize("name", ["makerchecker", "compare"])
 def test_a_route_to_a_stub_loop_is_a_run_error(name):
     """The run starts and ends in the log, with ``not_implemented``, and no LLM call."""

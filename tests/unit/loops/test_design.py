@@ -4,11 +4,12 @@ import pytest
 
 from geomind.agents import Designer, Verifier
 from geomind.context import ProblemState
-from geomind.engine import Engine
+from geomind.engine import Context, Engine
 from geomind.engine.hooks import Verified
 from geomind.engine.recovery import recover
 from geomind.loops import DesignLoop
-from geomind.loops.design import DesignDriver, repeated, routed_task
+from geomind.loops.design import DesignDriver, repeated, request_of, routed_task
+from geomind.types import Message
 from tests.fixtures.runs import call, context, engine_for, logged, of_type, same_usage, says, uses
 
 FAILED = {
@@ -232,3 +233,30 @@ async def test_a_designer_that_leaves_no_case_stops_with_no_case_at_the_limit():
     )
     assert resumed.status == "done"
     assert "stop: no_case" in resumed.answer and "no case" in resumed.answer
+
+
+def test_the_request_is_the_run_s_own_message_after_the_chat_s_history():
+    """An earlier turn of the chat is history: the designer and the explainer get the new one."""
+    messages = [
+        Message(role="user", content="OLD: what is LCOH?"),
+        Message(role="assistant", content="The levelised cost of heat."),
+        Message(role="user", content="NEW: design a plant"),
+    ]
+    assert request_of(Context(messages=messages)) == "NEW: design a plant"
+
+
+async def test_the_designer_s_first_task_is_the_newest_message(verdicts):
+    """With an earlier turn in the context, round 1 starts from the run's own message."""
+    verdicts.append(PASSED)
+    script = [*designer_round(1), *verifier_round(1), says("costs"), says("explained")]
+    engine = engine_for(script)
+    start = context("NEW: design a plant", problem=ProblemState(case=CASE))
+    start.messages[:0] = [
+        Message(role="user", content="OLD: what is LCOH?"),
+        Message(role="assistant", content="The levelised cost of heat."),
+    ]
+    result = await DesignLoop(Designer(), Verifier()).run(engine, start)
+    events = engine.store.load_events(start.run_id)
+    assert result.status == "done"
+    assert tasks_of(events, "designer")[0].startswith("NEW: design a plant")
+    assert "OLD" not in tasks_of(events, "explainer")[0]

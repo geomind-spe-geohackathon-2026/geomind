@@ -137,7 +137,7 @@ class DesignDriver(Agent):
 
     def first_task(self, context):
         """Return the designer's first task: the user's request and the rules of the rounds."""
-        request = next(item.content for item in context.messages if item.role == "user")
+        request = request_of(context)
         return (
             f"{request}\n\nRound 1 of at most {self._max_rounds}. Read the case, then size a "
             "plant, simulate the whole year, check it, optimize it, simulate the optimised design "
@@ -178,6 +178,11 @@ class DesignDriver(Agent):
         return act(note, index, "designer", task=task)
 
 
+def request_of(context):
+    """Return the run's own request: the last user message, after the chat's earlier turns."""
+    return next(item.content for item in reversed(context.messages) if item.role == "user")
+
+
 def missing_case(problem):
     """Return what a design run lacks in the state's case: the case, or its demand; else None."""
     case = problem.case
@@ -200,7 +205,7 @@ def question_of(missing):
 
 def answered_task(context, answer):
     """Return the designer's task after the user answered the driver's question on the case."""
-    request = next(item.content for item in context.messages if item.role == "user")
+    request = request_of(context)
     return (
         f"{request}\n\nThe user answered the question on the case: {answer}\n\nPut it into the "
         "case with set_case, then design."
@@ -236,7 +241,7 @@ def economist_task(design, result):
 
 def explainer_task(context):
     """Return the explainer's task: the request and the verified design."""
-    request = next(item.content for item in context.messages if item.role == "user")
+    request = request_of(context)
     design = context.problem.design.get("reference")
     return f"Explain the verified design {design} for this request:\n\n{request}"
 
