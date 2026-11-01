@@ -13,6 +13,7 @@ def test_it_is_complete():
             "read_plant",
             "read_result",
             "compute_kpis",
+            "estimate_costs",
             "search_documents",
             "finish",
         ],

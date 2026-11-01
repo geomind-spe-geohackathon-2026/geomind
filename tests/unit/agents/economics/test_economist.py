@@ -10,10 +10,11 @@ def test_it_is_complete():
         Economist,
         "economist",
         [
-            "read_plant",
-            "simulate",
             "compute_kpis",
             "estimate_costs",
+            "compare",
+            "sample_uncertainty",
+            "sensitivity",
             "read_result",
             "update_state",
             "read_skill",

@@ -1,4 +1,4 @@
-"""Propose, simulate, verify and repeat until a design passes."""
+"""Size, optimise, verify and repeat until a design passes."""
 
 import asyncio
 import json
@@ -13,11 +13,6 @@ from geomind.types import Action, ToolCall
 from geomind.verify.design import verify_design
 
 MARK = "design loop: "
-SET_BRIEF = (
-    "First set the brief of the problem state with set_brief: the preset hackathon_2027 when the "
-    "request is the GEMINI hackathon challenge, otherwise the values the request gives. Never "
-    "take the hackathon's numbers for another brief; ask the user for a demand it does not give."
-)
 DESIGN_TOKENS = 1000
 EXPLANATION_TOKENS = 6000
 SIDES = (
@@ -34,26 +29,16 @@ def repeated(rounds):
 
 
 def failure_lines(found, domain):
-    """Return one line per failed check of a domain: its name, value and limit."""
-    checks = {check["name"]: check for check in found.get("checks", [])}
-    lines = []
-    for item in found["failures"]:
-        if item["domain"] != domain:
-            continue
-        check = checks.get(item["name"])
-        if check is None:
-            lines.append(f"- {item['name']}: {found.get('reason', 'no check')}")
-            continue
-        value, limit = check["value"], check["limit"]
-        lines.append(
-            f"- {item['name']}: {value.get('value')} {value.get('unit', '')} against "
-            f"{limit.get('value')} {limit.get('unit', '')}"
-        )
-    return lines
+    """Return one line per failure of a domain: gemini's name for it and what it measured."""
+    return [
+        f"- {item['name']}: {item['detail']}"
+        for item in found["failures"]
+        if item["domain"] == domain
+    ]
 
 
-def routed_brief(round_number, max_rounds, design, result, found):
-    """Return the designer's brief for the next round: the failures, routed by their domain."""
+def routed_task(round_number, max_rounds, design, result, found):
+    """Return the designer's task for the next round: the failures, routed by their domain."""
     parts = [
         f"Round {round_number} of at most {max_rounds}. The last design {design} ({result}) failed "
         "gemini's checks."
@@ -63,8 +48,9 @@ def routed_brief(round_number, max_rounds, design, result, found):
         if lines:
             parts.append("\n".join([instruction, *lines]))
     parts.append(
-        "Every earlier result of a design you change is stale: build it under a new name, simulate "
-        "the whole year again and check it. Record the new design.reference."
+        "Every earlier result of a design you change is stale: size it again under a new name, "
+        "simulate the whole year, check it, optimize it, and record the new design.reference and "
+        "design.result."
     )
     return "\n\n".join(parts)
 
@@ -96,7 +82,7 @@ def act(note, index, name, **tool_input):
 
 
 class DesignDriver(Agent):
-    """Drive one design by rule: the designer proposes, the verifier checks, gemini's checks decide.
+    """Drive one design by rule: the designer optimises, the verifier checks, gemini decides.
 
     NOTE: every decision is code over the run's own history and store, so a resumed or replayed
     run makes the same moves; the agents it delegates to are the only model calls.
@@ -123,10 +109,10 @@ class DesignDriver(Agent):
         """Decide the next move from the calls made so far."""
         calls = driver_calls(context.messages)
         index = len(calls)
+        note = {"round": max(rounds(calls), 1)}
         if not calls:
-            return act({"round": 1}, index, "designer", task=self.first_brief(context))
+            return self.begin(context, note, index)
         name, output = calls[-1]
-        note = {"round": rounds(calls)}
         if name == "designer":
             return self.after_design(context, note, index)
         if name == "ask_user":
@@ -140,32 +126,36 @@ class DesignDriver(Agent):
             return act({**note, "stop": "verified"}, index, "finish", answer=answer)
         return act(note, index, "finish", answer=stop_answer(notes(context.messages)[-1]))
 
-    def first_brief(self, context):
-        """Return the designer's first brief: the user's request and the rules of the rounds."""
+    def begin(self, context, note, index):
+        """Start with the designer, or ask the user for the case the design run still lacks."""
+        missing = missing_case(context.problem)
+        if missing is not None:
+            return act(
+                {**note, "missing": missing}, index, "ask_user", question=question_of(missing)
+            )
+        return act(note, index, "designer", task=self.first_task(context))
+
+    def first_task(self, context):
+        """Return the designer's first task: the user's request and the rules of the rounds."""
         request = next(item.content for item in context.messages if item.role == "user")
         return (
-            f"{request}\n\nRound 1 of at most {self._max_rounds}. {SET_BRIEF} Then propose the "
-            "design families, build one design, simulate the whole year, check it and record "
-            "design.reference."
+            f"{request}\n\nRound 1 of at most {self._max_rounds}. Read the case, then size a "
+            "plant, simulate the whole year, check it, optimize it, simulate the optimised design "
+            "and record design.reference and design.result."
         )
 
     def after_design(self, context, note, index):
-        """Verify the design, or ask the user for the brief the design run still lacks."""
-        missing = missing_brief(context.problem)
+        """Verify the design, or ask the user for the case the design run still lacks."""
+        missing = missing_case(context.problem)
         if missing is None:
             return act(note, index, "verifier", task=verifier_task(context))
         if note["round"] >= self._max_rounds:
             answer = (
-                f"No design was verified: the brief has {missing}. {MARK}stop: no_brief after "
-                f"round {note['round']}."
+                f"No design was verified: the problem state has {missing}. {MARK}stop: no_case "
+                f"after round {note['round']}."
             )
-            return act({**note, "stop": "no_brief"}, index, "finish", answer=answer)
-        question = (
-            f"The design needs a brief, and the problem state has {missing}. Which heating and "
-            "cooling demand should the design meet (profile names or daily values), and which "
-            "limits (doublets, flow per doublet, brine cooling, supply temperatures)?"
-        )
-        return act({**note, "missing": missing}, index, "ask_user", question=question)
+            return act({**note, "stop": "no_case"}, index, "finish", answer=answer)
+        return act({**note, "missing": missing}, index, "ask_user", question=question_of(missing))
 
     async def after_verification(self, context, calls):
         """Check the design again with gemini, then cost it, route its failures, or stop."""
@@ -184,24 +174,37 @@ class DesignDriver(Agent):
             return stop(context, {**note, "stop": "max_rounds"}, index)
         if repeated([*history, failed]):
             return stop(context, {**note, "stop": "repeated_failure"}, index)
-        brief = routed_brief(round_number + 1, self._max_rounds, design, result, found)
-        return act(note, index, "designer", task=brief)
+        task = routed_task(round_number + 1, self._max_rounds, design, result, found)
+        return act(note, index, "designer", task=task)
 
 
-def missing_brief(problem):
-    """Return what a design run lacks in the state's brief: the brief, or its demand; else None."""
-    brief = problem.brief
-    if brief is None:
-        return "no brief"
-    if brief.demand is None or not (brief.demand.heating or brief.demand.cooling):
+def missing_case(problem):
+    """Return what a design run lacks in the state's case: the case, or its demand; else None."""
+    case = problem.case
+    if case is None:
+        return "no case"
+    demand = case.get("demand") or {}
+    if not (demand.get("heating") or demand.get("cooling")):
         return "no demand"
     return None
 
 
+def question_of(missing):
+    """Return the question to the user for a case that lacks ``missing``."""
+    return (
+        f"The design needs a case, and the problem state has {missing}. Which heating and cooling "
+        "demand should the design meet (a file of the project, or daily values with a unit), and "
+        "which constraints (supply and return temperatures, flows, limits)?"
+    )
+
+
 def answered_task(context, answer):
-    """Return the designer's task after the user answered the driver's question on the brief."""
+    """Return the designer's task after the user answered the driver's question on the case."""
     request = next(item.content for item in context.messages if item.role == "user")
-    return f"{request}\n\nThe user answered the question on the brief: {answer}\n\n{SET_BRIEF}"
+    return (
+        f"{request}\n\nThe user answered the question on the case: {answer}\n\nPut it into the "
+        "case with set_case, then design."
+    )
 
 
 def rounds(calls):
@@ -210,19 +213,25 @@ def rounds(calls):
 
 
 def verifier_task(context):
-    """Return the verifier's task: the design the designer recorded."""
-    design = context.problem.design.get("reference") if context.problem.design else None
-    if design is None:
-        return "The designer recorded no design.reference. Report that no design can be verified."
+    """Return the verifier's task: check the result the designer recorded for its design."""
+    design = context.problem.design or {}
+    if "reference" not in design or "result" not in design:
+        return (
+            "The designer recorded no design.reference and design.result. Report that no design "
+            "can be verified."
+        )
     return (
-        f"Verify {design}: simulate it over the whole demand year, run check_results on that "
-        "result and record the verification."
+        f"Verify {design['reference']}: run check_results once on its result {design['result']} "
+        "and record the verification."
     )
 
 
 def economist_task(design, result):
-    """Return the economist's task: cost the verified run."""
-    return f"Cost the verified design {design} on its result {result}."
+    """Return the economist's task: cost the verified run, and compare it with the sized start."""
+    return (
+        f"Cost the verified design {design} on its result {result}; compare it with the sized "
+        "start and with alternative topologies."
+    )
 
 
 def explainer_task(context):
@@ -258,13 +267,15 @@ class DesignLoop(Loop):
     """Let ``designer`` propose and ``verifier`` check, for at most ``max_rounds`` rounds.
 
     A rule-based ``DesignDriver`` runs the rounds in one root run: each delegated agent is a nested
-    run in the same log. A design that passes is costed by the ``Economist`` and explained by the
-    ``Explainer``. The loop stops when gemini's checks pass, at ``max_rounds``, when one round fails
-    exactly as the one before, or when an agent asks the user; a token or cost budget is a hook of
-    the run. Each stop is written in the driver's step text and in the answer as ``stop: <reason>``.
-    A design run needs a brief with a demand in the problem state: when the designer leaves none,
-    the driver asks the user and hands the answer back to the designer, and stops with
-    ``no_brief`` at ``max_rounds``.
+    run in the same log. The ``Designer`` sizes, simulates, checks and optimises; the ``Verifier``
+    checks its final design once; only a failure sends it back. A design that passes is costed by
+    the ``Economist`` and explained by the ``Explainer``. The loop stops when gemini's checks pass,
+    at ``max_rounds``, when one round fails exactly as the one before, or when an agent asks the
+    user; a token or cost budget is a hook of the run. Each stop is written in the driver's step
+    text and in the answer as ``stop: <reason>``.
+    A design run needs a case with a demand in the problem state: when it has none the driver asks
+    the user before designing and hands the answer to the designer, and stops with ``no_case`` at
+    ``max_rounds`` when the designer still leaves none.
     """
 
     name = "design"

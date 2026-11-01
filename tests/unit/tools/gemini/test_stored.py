@@ -62,3 +62,15 @@ async def test_a_design_name_with_a_folder_is_refused():
     context, plant, _ = await shallow_context()
     with pytest.raises(ToolError, match="name = 'a/b'"):
         await save_design(context, "a/b", plant)
+
+
+async def test_a_run_on_other_case_files_has_another_reference():
+    """The same plant and case dict on another demand file is another run."""
+    import gemini as gm
+
+    context, plant, case = await shallow_context()
+    results = gm.simulate(plant, case)
+    first = await save_run(context, plant, results, {}, {})
+    demand = example_folder("shallow_district") / "demand.csv"
+    await context.session.save_artifact("case/demand.csv", demand.read_bytes() + b"\n")
+    assert await save_run(context, plant, results, {}, {}) != first

@@ -1,4 +1,4 @@
-"""The designer: proposes design families, builds one design and runs it."""
+"""The designer: sizes, simulates, checks and optimises a design."""
 
 from geomind.agents import Designer
 from tests.unit.agents.structure import check_complete
@@ -10,20 +10,23 @@ def test_it_is_complete():
         Designer,
         "designer",
         [
+            "read_case",
+            "set_case",
+            "save_profile",
             "list_plants",
             "read_plant",
             "list_modules",
             "describe_module",
             "evaluate_module",
             "build_plant",
+            "size_plant",
             "list_profiles",
             "read_profile",
-            "save_profile",
             "simulate",
             "read_result",
             "check_results",
+            "optimize",
             "search_documents",
-            "set_brief",
             "update_state",
             "read_skill",
             "ask_user",

@@ -16,6 +16,7 @@ class Analyst(Agent):
         self.prompt = Prompt("analyst")
 
         # Tools
+        self.read_case = tools.gemini.read_case
         self.list_modules = tools.gemini.list_modules
         self.describe_module = tools.gemini.describe_module
         self.evaluate_module = tools.gemini.evaluate_module
@@ -26,6 +27,7 @@ class Analyst(Agent):
         self.save_profile = tools.gemini.save_profile
         self.simulate = tools.gemini.simulate
         self.read_result = tools.read_result
+        self.compute_kpis = tools.gemini.compute_kpis
         self.search_documents = tools.search_documents
         self.update_state = tools.update_state
         self.read_skill = tools.read_skill

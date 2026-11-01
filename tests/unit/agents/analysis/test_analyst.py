@@ -12,8 +12,9 @@ from tests.unit.agents.structure import HEADINGS, headings
 
 
 def test_it_declares_the_tools_it_needs():
-    """The gemini catalogue, plants, profiles and runs, then results, documents, state, answer."""
+    """The case, the gemini catalogue, plants, profiles, runs, results, documents, state, answer."""
     assert list(Analyst().tools()) == [
+        "read_case",
         "list_modules",
         "describe_module",
         "evaluate_module",
@@ -24,6 +25,7 @@ def test_it_declares_the_tools_it_needs():
         "save_profile",
         "simulate",
         "read_result",
+        "compute_kpis",
         "search_documents",
         "update_state",
         "read_skill",
