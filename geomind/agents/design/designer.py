@@ -6,10 +6,11 @@ from geomind.prompts import Prompt
 
 
 class Designer(Agent):
-    """Propose design families, then build, simulate and check one design that meets the brief.
+    """Size a plant for the case, simulate and check it, then optimise it and hand it over.
 
-    NOTE: it may check its own design with ``check_results`` before it hands over, which saves a
-    round; the loop still verifies every design again, and the ``Verified`` hook once more.
+    NOTE: it checks its own designs with ``check_results`` and optimises directly: the search
+    counts a trial as feasible only when it passes every constraint of the case, so no ``Verifier``
+    round comes before it. The ``Verifier`` checks the final design once.
     """
 
     def __init__(self):
@@ -20,20 +21,23 @@ class Designer(Agent):
         self.prompt = Prompt("designer")
 
         # Tools
+        self.read_case = tools.gemini.read_case
+        self.set_case = tools.gemini.set_case
+        self.save_profile = tools.gemini.save_profile
         self.list_plants = tools.gemini.list_plants
         self.read_plant = tools.gemini.read_plant
         self.list_modules = tools.gemini.list_modules
         self.describe_module = tools.gemini.describe_module
         self.evaluate_module = tools.gemini.evaluate_module
         self.build_plant = tools.gemini.build_plant
+        self.size_plant = tools.gemini.size_plant
         self.list_profiles = tools.gemini.list_profiles
         self.read_profile = tools.gemini.read_profile
-        self.save_profile = tools.gemini.save_profile
         self.simulate = tools.gemini.simulate
         self.read_result = tools.read_result
         self.check_results = tools.gemini.check_results
+        self.optimize = tools.gemini.optimize
         self.search_documents = tools.search_documents
-        self.set_case = tools.gemini.set_case
         self.update_state = tools.update_state
         self.read_skill = tools.read_skill
         self.ask_user = tools.ask_user

@@ -101,14 +101,18 @@ Loops are written as resumable steps, never with state held only in local variab
 `ToolLoop(agent, max_steps=None)` is one engine run of one agent.
 
 `DesignLoop(designer, verifier, max_rounds=5)` (`loops/design.py`) runs one root run whose agent is
-a rule-based `DesignDriver`: it delegates to the designer, then the verifier, checks the design
-again with gemini (`gd.verify` over the stored run, `verify/design.py`), then delegates to the
-`Economist` and the `Explainer` and finishes with the explanation. A design that fails goes back to
-the designer with a brief that routes each failure by its domain: subsurface, surface, resizing, or
-coupled (subsurface first). The loop stops on a pass, at `max_rounds`, when one round fails exactly
-as the one before, or when an agent asks the user; each stop is written as `stop: <reason>` in the
-driver's step text and the answer. A loop that ends without a pass moves the design to
-`design.rejected` before it answers, so it never presents it. It registers the `Verified` hook.
+a rule-based `DesignDriver`. The order is: the designer (size, simulate, self-check, optimise, and
+record `design.reference` and `design.result`), the verifier on that final design once, the
+`Economist`, the `Explainer`, which finishes the run. Before designing, a state with no case or a
+case without demand makes the driver ask the user (`ask_user`); it stops with `no_case` at
+`max_rounds` when the designer still leaves none. After the verifier the driver checks the design
+again with gemini (`gd.verify` over the stored run, `verify/design.py`). Only a failure sends the
+design back to the designer, with a task that routes gemini's failures (name, detail) by their
+domain: subsurface, surface, sizing, or coupled (subsurface first). The loop stops on a pass, at
+`max_rounds`, when one round fails exactly as the one before, or when an agent asks the user; each
+stop is written as `stop: <reason>` in the driver's step text and the answer. A loop that ends
+without a pass moves the design to `design.rejected` before it answers, so it never presents it. It
+registers the `Verified` hook.
 
 `MakerCheckerLoop(maker, checker, max_rounds=3)` and `CompareLoop(loop, alternatives, criteria)` have
 their final constructors, and their `run` raises `NotImplementedYet` until the phase in

@@ -8,10 +8,11 @@ from geomind.types import Action, Record
 
 
 class Route(Record):
-    """Where a message goes: a short direct answer, or a loop with an agent and a brief.
+    """Where a message goes: a short direct answer, or a loop with an agent and a task text.
 
     ``loop`` and ``agent`` name rows of ``LOOPS`` and ``AGENTS`` in ``run.py``, which sits to the
     right of this package, so a test keeps the two lists equal.
+    ``brief`` is the task text the delegate receives.
     """
 
     kind: Literal["answer", "loop"]

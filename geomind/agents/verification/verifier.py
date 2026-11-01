@@ -6,22 +6,20 @@ from geomind.prompts import Prompt
 
 
 class Verifier(Agent):
-    """Simulate the current design afresh, run gemini's checks and record them in the state.
+    """Run gemini's checks once on the designer's final design and record them in the state.
 
     NOTE: the checks are gemini's, never the model's judgement; the loop and the ``Verified`` hook
     run them again on the result this agent records.
     """
 
     def __init__(self):
-        """Declare the prompt, the tools that run and read the checks, and the role's model."""
+        """Declare the prompt, the tools that run and read the check, and the role's model."""
         super().__init__()
 
         # Prompt
         self.prompt = Prompt("verifier")
 
         # Tools
-        self.read_plant = tools.gemini.read_plant
-        self.simulate = tools.gemini.simulate
         self.check_results = tools.gemini.check_results
         self.compute_kpis = tools.gemini.compute_kpis
         self.read_result = tools.read_result

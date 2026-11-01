@@ -19,6 +19,7 @@ class Explainer(Agent):
         self.read_plant = tools.gemini.read_plant
         self.read_result = tools.read_result
         self.compute_kpis = tools.gemini.compute_kpis
+        self.estimate_costs = tools.gemini.estimate_costs
         self.search_documents = tools.search_documents
         self.finish = tools.finish
 

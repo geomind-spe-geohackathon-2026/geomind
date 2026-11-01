@@ -77,17 +77,16 @@ its JSON schema to the system prompt.
 | `Assistant`, `CodeAssistant` | `general/` | complete; `Run` uses `CodeAssistant` with a sandbox | `code_assistant` |
 | `Summarizer` | `general/` | complete; only compaction calls it | no |
 | `Coordinator` | `coordination/` | complete; answers with a `Route`, called by `Run.start` | no |
-| `Designer` | `design/` | complete; families, then one design built, simulated and checked | no |
-| `Verifier` | `verification/` | complete; simulates afresh and records gemini's checks | no |
-| `Economist` | `economics/` | complete; gemini's economics and LCTS | no |
+| `Designer` | `design/` | complete; sizes, simulates, checks and optimises a design for the case | no |
+| `Verifier` | `verification/` | complete; checks the final design once with gemini | no |
+| `Economist` | `economics/` | complete; costs, compares, samples uncertainty | no |
 | `Explainer` | `reporting/` | complete; the explanation, from the state and the tools | no |
 
-All are exported from `gd.agents`. The skill `designing-a-plant` is general: how to read any brief,
-choose families and size doublets, the plant file, and what gemini can and cannot run today, as facts
-about gemini. It names no topology for any brief. The skill `hackathon-2027` holds the hackathon's
-numbers only, the same as the `hackathon_2027` preset, and the Designer reads it for that brief. A skeleton is a real `Agent` with a docstring stating its job, its
-prompt file and its model setting, the tools that already exist, and no `forward`. It constructs and
-runs, but it knows nothing until someone fills its prompt.
+All are exported from `gd.agents`. The skill `designing-a-plant` is general: how to read any case,
+choose families, size and optimise, the plant record, and what gemini can and cannot run today, as
+facts about gemini. It names no topology and no answer. A skeleton is a real `Agent` with a docstring
+stating its job, its prompt file and its model setting, the tools that already exist, and no
+`forward`. It constructs and runs, but it knows nothing until someone fills its prompt.
 
 ### Tools of each agent
 
@@ -95,23 +94,28 @@ What each agent declares now, and what it gets when it is filled. The second col
 frozen; the tools themselves are in [tools.md](tools.md#catalogue). Every agent keeps `ask_user`,
 `update_state`, `read_skill` and `finish` when it needs them.
 
-| Agent | Tools now | Tools when filled | Phase |
-|---|---|---|---|
-| `Analyst` | `list_modules`, `describe_module`, `evaluate_module`, `list_plants`, `read_plant`, `list_profiles`, `read_profile`, `simulate`, `read_result`, `search_documents`, `update_state`, `read_skill`, `ask_user`, `finish` | no change | S2b, done |
-| `Coordinator` | none | none: it answers with a `Route` | S3 |
-| `Designer` | `list_plants`, `read_plant`, `list_modules`, `describe_module`, `evaluate_module`, `build_plant`, `list_profiles`, `read_profile`, `simulate`, `read_result`, `check_results`, `search_documents`, `update_state`, `read_skill`, `ask_user`, `finish` | `optimize` in S4 | S3, done |
-| `Verifier` | `read_plant`, `simulate`, `check_results`, `compute_kpis`, `read_result`, `update_state`, `read_skill`, `finish` | no change | S3, done |
-| `Economist` | `read_plant`, `simulate`, `compute_kpis`, `estimate_costs`, `read_result`, `update_state`, `read_skill`, `finish` | `sample_uncertainty` in S4 | S3, done |
-| `Explainer` | `read_plant`, `read_result`, `compute_kpis`, `search_documents`, `finish` | no change | S3, done |
-| `CodeAssistant` | `ask_user`, `finish`, `run_python`, `read_file`, `write_file` | adds `test_module` | S3 |
-| `Assistant` | `ask_user`, `finish` | no change | none |
-| `Summarizer` | none | no change | none |
+| Agent | Tools |
+|---|---|
+| `Analyst` | `read_case`, `list_modules`, `describe_module`, `evaluate_module`, `list_plants`, `read_plant`, `list_profiles`, `read_profile`, `save_profile`, `simulate`, `read_result`, `compute_kpis`, `search_documents`, `update_state`, `read_skill`, `ask_user`, `finish` |
+| `Coordinator` | none: it answers with a `Route` |
+| `Designer` | `read_case`, `set_case`, `save_profile`, `list_plants`, `read_plant`, `list_modules`, `describe_module`, `evaluate_module`, `build_plant`, `size_plant`, `list_profiles`, `read_profile`, `simulate`, `read_result`, `check_results`, `optimize`, `search_documents`, `update_state`, `read_skill`, `ask_user`, `finish` |
+| `Verifier` | `check_results`, `compute_kpis`, `read_result`, `update_state`, `read_skill`, `finish` |
+| `Economist` | `compute_kpis`, `estimate_costs`, `compare`, `sample_uncertainty`, `sensitivity`, `read_result`, `update_state`, `read_skill`, `finish` |
+| `Explainer` | `read_plant`, `read_result`, `compute_kpis`, `estimate_costs`, `search_documents`, `finish` |
+| `CodeAssistant` | `ask_user`, `finish`, `run_python`, `read_file`, `write_file`; `test_module` is a later addition |
+| `Assistant` | `ask_user`, `finish` |
+| `Summarizer` | none |
+
+The Designer optimises directly after its own `check_results`: `gm.study.minimize` counts only
+trials that pass every constraint of the case as feasible, so no Verifier round comes before it, and
+when `optimize` returns `feasible: false` the Designer changes the topology or the variables itself.
+The Verifier calls `check_results` once, on the final design.
 
 ### Route
 
 `Route` is what `Coordinator` answers, in `geomind/agents/coordination/coordinator.py`: `kind` is
 `answer` or `loop`, `answer` the short direct answer of an `answer` route, `loop` a name of `LOOPS`,
-`agent` a name of `AGENTS`, and `brief` what the loop is told. `Run.start` calls the coordinator
+`agent` a name of `AGENTS`, and `brief` the task text the delegate receives. `Run.start` calls the coordinator
 first, as a nested run logged before the run. `loop_of(route)` in `run.py` builds the loop: an
 `answer` route runs the rule agent `Answer`, which gives the route's text, and a stub loop ends the
 run with `stop_reason="not_implemented"`.
