@@ -187,12 +187,10 @@ async def test_list_profiles_names_the_services_of_the_demand(name):
 
 async def test_without_a_case_the_profiles_say_what_to_call():
     """No case, no demand: the same tool error as a run."""
-    from geomind.engine import Context
     from tests.fixtures.sessions import StubSession
 
     result = await call(TOOLS.list_profiles, {}, StubSession())
     assert result.is_error and "set_case" in result.output["error"]["message"]
-    assert Context  # imported for the type of the session only
 
 
 def evolved(session):
