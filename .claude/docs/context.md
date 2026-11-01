@@ -12,7 +12,7 @@ LLM call or an event stays in the engine.
 | Key | Shape |
 |---|---|
 | `goal` | text |
-| `requirements` | `[{id, text, metric, target, tolerance, status}]`, testable; `status` starts `open` |
+| `requirements` | `[{id, text, constraint, status}]`: the user's words; `constraint` is the index of the case constraint that gemini judges, or null; `status` starts `open` |
 | `assumptions` | `[{id, text, value, source, confirmed}]`; `source` is `user`, `agent` or `default` |
 | `design` | an object, free in shape; `reference` names the current `design/<name>` |
 | `results` | `[{id, summary, reference}]`; `reference` names the stored data |

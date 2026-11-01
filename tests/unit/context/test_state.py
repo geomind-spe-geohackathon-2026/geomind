@@ -8,7 +8,7 @@ from geomind.context import ProblemState, apply_changes, render
 from geomind.errors import StateError
 from tests.fixtures.cases import example_case, example_names
 
-R1 = {"id": "R1", "text": "Cover the load", "metric": "coverage", "target": 1.0, "tolerance": 0.0}
+R1 = {"id": "R1", "text": "Cover the load", "constraint": 0}
 A1 = {"id": "A1", "text": "Inlet temperature", "value": 80, "source": "user"}
 
 
@@ -136,7 +136,7 @@ def test_render_gives_one_line_per_item():
     assert render(state).splitlines() == [
         "Problem state, version 2",
         "Goal: Size it",
-        "Requirement R1 [open]: Cover the load (coverage 1.0 ± 0.0)",
+        "Requirement R1 [open]: Cover the load (case constraint 0)",
         "Assumption A1 [unconfirmed, user]: Inlet temperature = 80",
         'Design: {"plant": "doublet"}',
         "Result X1: ok",
@@ -146,7 +146,7 @@ def test_render_gives_one_line_per_item():
     ]
 
 
-def test_render_keeps_a_requirement_without_a_metric_short():
+def test_render_keeps_a_requirement_without_a_constraint_short():
     """Optional fields leave no trace."""
     state = apply_changes(
         ProblemState(),
@@ -190,3 +190,14 @@ def test_render_shows_the_case_briefly(name):
     assert line.startswith(f"Case: time {case['time']['start']} to {case['time']['end']}")
     assert "demand heating, cooling in demand.csv" in line
     assert len(line) < 300
+
+
+def test_a_requirement_is_text_with_a_link_to_a_case_constraint_never_a_target():
+    """A number is a constraint of the case; the requirement keeps the words and the index."""
+    state = with_items()
+    assert state.requirements[0].constraint == 0
+    with pytest.raises(StateError, match="metric"):
+        apply_changes(
+            ProblemState(),
+            [{"op": "add", "path": "/requirements/-", "value": {**R1, "metric": "coverage"}}],
+        )

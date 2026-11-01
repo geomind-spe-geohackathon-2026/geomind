@@ -1,53 +1,53 @@
-"""Verify a design against its requirements and limits."""
+"""Verify a run of a design on its case: gemini's report decides, the failures get a domain."""
 
-from geomind.context.state import Requirement
-from geomind.tools.gemini.verification import assess
+from geomind.tools.gemini.verification import assess, domain_of, failed_checks, unit_roles
 
 
-def requirement_limits(requirements):
-    """Return the limits of the requirements gemini can check, and the others as not assessed.
+def amount(item):
+    """Return a gemini ``{value, unit}`` as text."""
+    return f"{item.get('value')} {item.get('unit', '')}".strip()
 
-    A requirement whose ``metric`` names ``<path>.<output>`` and that has a ``target`` becomes a
-    limit of ``target`` ± ``tolerance`` on every day of the run.
+
+def check_detail(check):
+    """Return what a failed check measured against its limit, as text."""
+    return f"{amount(check['value'])} against {amount(check['limit'])}"
+
+
+def group_detail(group):
+    """Return a failure group of gemini's rows as text."""
+    return f"{group['count']} {group['kind']} steps, {group['code']}: {group['message']}"
+
+
+def failure_items(found):
+    """Return ``[{name, domain, detail}]`` of everything that failed in an ``assess`` result."""
+    roles = unit_roles(found["constraints"])
+    constraints, balances, groups = failed_checks(found)
+    items = [
+        {"name": item["name"], "domain": domain_of(item, roles), "detail": check_detail(item)}
+        for item in [*constraints, *balances]
+    ]
+    items += [
+        {
+            "name": f"{group['path']} {group['code']}",
+            "domain": domain_of(group, roles),
+            "detail": group_detail(group),
+        }
+        for group in groups
+    ]
+    return items
+
+
+def verify(plant, results, case):
+    """Return ``{passed, checks, failures, metrics}`` of a plant's run on its case.
+
+    ``passed`` and ``checks`` are gemini's (``gm.evaluate``): the case's constraints, the ledgers
+    and the plant balance. ``failures`` lists each failed check or group of failed steps with the
+    ``domain`` that should fix it (``subsurface``, ``sizing``, ``surface`` or ``coupled``).
     """
-    import gemini as gm
-
-    limits, skipped = gm.checks.Limits(), []
-    for item in requirements:
-        requirement = item if isinstance(item, Requirement) else Requirement.model_validate(item)
-        if (
-            requirement.metric is None
-            or "." not in requirement.metric
-            or requirement.target is None
-        ):
-            skipped.append(
-                {
-                    "id": requirement.id,
-                    "status": "NOT_ASSESSED",
-                    "reason": "its metric is not '<path>.<output>' with a target, so no gemini "
-                    "check judges it",
-                    "limit": requirement.target,
-                }
-            )
-            continue
-        spread = requirement.tolerance or 0.0
-        target = requirement.target
-        limits.add(requirement.metric, min=target - spread, max=target + spread)
-    return limits.to_dict()["limits"], skipped
-
-
-def verify(plant, results, *, requirements=(), limits=None, brief=None):
-    """Return ``{passed, checks, failures, not_assessed, not_given, brief}`` for a plant and run.
-
-    ``checks`` holds one gemini Check per balance, limit and requirement, the limits of ``brief``
-    (a ``Brief``, or its JSON) always among them; without one, those of the ``hackathon_2027``
-    preset, and ``brief`` of the result says so. ``requirements`` are items of the problem state,
-    and ``limits`` is what ``gm.checks.Limits.to_dict`` returns. ``failures`` names the domain of
-    each failed check, ``not_assessed`` what gemini cannot judge yet, with the reason, and
-    ``not_given`` the limits the brief does not give, which are not checked.
-    """
-    from_requirements, skipped = requirement_limits(requirements)
-    extra = {"limits": [*(limits or {}).get("limits", []), *from_requirements]}
-    found = assess(plant, results, extra, brief)
-    found["not_assessed"] = [*found["not_assessed"], *skipped]
-    return found
+    found = assess(plant, case, results)
+    return {
+        "passed": found["passed"],
+        "checks": [*found["constraints"], *found["balances"]],
+        "failures": failure_items(found),
+        "metrics": found["metrics"],
+    }

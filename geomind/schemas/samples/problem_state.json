@@ -18,12 +18,10 @@
   ],
   "requirements": [
     {
+      "constraint": 0,
       "id": "R1",
-      "metric": "heating_coverage",
       "status": "open",
-      "target": 1.0,
-      "text": "Cover peak heat",
-      "tolerance": 0.0
+      "text": "Cover peak heat"
     }
   ],
   "results": [

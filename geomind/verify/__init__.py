@@ -1,4 +1,4 @@
-"""Automatic verification of a design, built on gemini's checks; never an LLM."""
+"""Automatic verification of a design, on gemini's report; never an LLM."""
 
 from geomind.verify.verify import verify
 
