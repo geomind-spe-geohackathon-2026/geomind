@@ -78,6 +78,12 @@ skill note is gone. The DesignLoop runs Designer (size, simulate,
 self-check, optimise) → Verifier (once, on the final design) → Economist → Explainer, and asks the
 user for a case before designing when the state has none or it has no demand.
 
+Tools: a file the project's case names but does not have is an `unknown_name` error that names
+it, and an empty case file is a file, not a missing one.
+
+Tests: no fast test of a gemini tool runs a year in its body; module fixtures run each year,
+window and tool call once and cache it, so the 1 s budget holds under parallel load.
+
 Evals: eval projects are copies of gemini's example cases (`evals/projects/`); `challenge2` tasks
 are case variants. The eval schema and recordings follow the new tools.
 

@@ -1,20 +1,42 @@
 """The tools that judge a stored run, over gemini's example cases."""
 
+import asyncio
+import functools
+
 import pytest
 
 import geomind as gd
 from tests.fixtures.calls import call
-from tests.fixtures.cases import example_names
+from tests.fixtures.cases import EXAMPLES, example_names
 from tests.fixtures.stored_runs import stored_run, variant_run, warm_runs
 from tests.fixtures.stubs import check_stub
 
 TOOLS = gd.tools.gemini
 
 
+ASSESSED = [
+    *(("check_results", name, "base") for name in EXAMPLES),
+    *(("compute_kpis", name, "base") for name in EXAMPLES),
+    *(("estimate_costs", name, "base") for name in EXAMPLES),
+    ("check_results", "hackathon_2026", "cooling_peak"),
+    ("check_results", "hackathon_2026", "colder"),
+    ("estimate_costs", "hackathon_2026", "cooling_peak"),
+]
+"""The tool calls on stored runs that the tests read; gemini's evaluation of a year is slow."""
+
+
 @pytest.fixture(scope="module", autouse=True)
 def warmed():
-    """Run the stored runs once, outside the event loop of a test."""
+    """Run the stored runs and the tool calls once, outside the timed test calls."""
     warm_runs()
+    for tool, name, variant in ASSESSED:
+        assessed(tool, name, variant)
+
+
+@functools.cache
+def assessed(tool, name, variant):
+    """Return the output of a tool on the stored run of a variant, once per process."""
+    return asyncio.run(assess(getattr(TOOLS, tool), name, variant)).output
 
 
 async def test_the_module_test_says_when_it_comes():
@@ -35,9 +57,9 @@ async def assess(tool, name, variant="base", **tool_input):
 
 
 @example_names
-async def test_a_design_that_meets_its_case_passes_gemini_s_checks(name):
+def test_a_design_that_meets_its_case_passes_gemini_s_checks(name):
     """Constraints, balances and steps are all gemini's, and none fails."""
-    output = (await assess(TOOLS.check_results, name)).output
+    output = assessed("check_results", name, "base")
     assert output["passed"] is True
     assert output["failures"] == {"total": 0, "groups": []}
     assert output["constraints"]
@@ -46,18 +68,18 @@ async def test_a_design_that_meets_its_case_passes_gemini_s_checks(name):
     assert output["metrics"]["failed_steps"] == 0
 
 
-async def test_check_results_shows_values_in_display_units():
+def test_check_results_shows_values_in_display_units():
     """Energy in MWh, money in MEUR, temperatures in degC; never bare SI."""
-    output = (await assess(TOOLS.check_results, "hackathon_2026")).output
+    output = assessed("check_results", "hackathon_2026", "base")
     metrics = output["metrics"]
     assert (metrics["heat_delivered"]["unit"], metrics["capex"]["unit"]) == ("MWh", "MEUR")
     units = {check["limit"]["unit"] for check in output["constraints"]}
     assert units >= {"m3/h", "degC"}
 
 
-async def test_a_cooling_peak_beyond_the_plant_fails_the_cooling_supply():
+def test_a_cooling_peak_beyond_the_plant_fails_the_cooling_supply():
     """At 15 MW the cooling grid gets water warmer than the case asks, and gemini says so."""
-    output = (await assess(TOOLS.check_results, "hackathon_2026", "cooling_peak")).output
+    output = assessed("check_results", "hackathon_2026", "cooling_peak")
     failed = [check for check in output["constraints"] if check["passed"] is False]
     assert output["passed"] is False
     assert [check["name"] for check in failed] == ["cool_users.supply_in.temperature"]
@@ -66,13 +88,13 @@ async def test_a_cooling_peak_beyond_the_plant_fails_the_cooling_supply():
     assert failed[0]["limit"] == {"value": 20.0, "unit": "degC"}
 
 
-async def test_a_colder_reservoir_is_met_by_the_boiler_and_still_passes():
+def test_a_colder_reservoir_is_met_by_the_boiler_and_still_passes():
     """No constraint of the case limits the boiler, so gemini passes the 25 K/km variant.
 
     The cost shows the difference: the boiler gives over a hundred times the heat.
     """
-    base = (await assess(TOOLS.check_results, "hackathon_2026")).output
-    colder = (await assess(TOOLS.check_results, "hackathon_2026", "colder")).output
+    base = assessed("check_results", "hackathon_2026", "base")
+    colder = assessed("check_results", "hackathon_2026", "colder")
     assert colder["passed"] is True
     assert colder["metrics"]["boiler_heat"]["value"] > 100 * base["metrics"]["boiler_heat"]["value"]
 
@@ -80,7 +102,7 @@ async def test_a_colder_reservoir_is_met_by_the_boiler_and_still_passes():
 @example_names
 async def test_kpis_are_totals_and_report_metrics_in_display_units(name):
     """All of them without names, the ones asked for with them."""
-    everything = (await assess(TOOLS.compute_kpis, name)).output
+    everything = assessed("compute_kpis", name, "base")
     assert {"heat_delivered", "heating_coverage", "cop", "peak_heat", "lcts"} <= set(everything)
     assert everything["heat_delivered"]["unit"] == "MWh"
     assert everything["peak_heat"]["unit"] == "MW"
@@ -108,7 +130,7 @@ async def test_costs_are_gemini_s_values_of_the_case_in_display_units():
     import gemini as gm
 
     context, _, result = variant_run("hackathon_2026", "base")
-    output = (await assess(TOOLS.estimate_costs, "hackathon_2026")).output
+    output = assessed("estimate_costs", "hackathon_2026", "base")
     plant, case, _ = gd.tools.gemini.stored.load_run(context, result, "test")
     assert output["capex"]["value"] == pytest.approx(
         gm.evaluate.capex(plant, case).to("MEUR").value
@@ -128,17 +150,17 @@ async def test_costs_are_gemini_s_values_of_the_case_in_display_units():
 
 async def test_a_cost_whose_assumption_is_missing_is_gemini_s_error_beside_the_others():
     """The shallow case gives no heat revenue: NPV and payback say so, capex is still there."""
-    output = (await assess(TOOLS.estimate_costs, "shallow_district")).output
+    output = assessed("estimate_costs", "shallow_district", "base")
     assert output["capex"]["unit"] == "MEUR" and output["lcts"]["unit"] == "EUR/MWh"
     for name in ("npv", "payback"):
         assert output[name]["error"]["code"] == "missing_assumption"
         assert output[name]["error"]["path"] == "assumptions.finance.revenue.heat"
 
 
-async def test_costs_follow_the_cooling_demand():
+def test_costs_follow_the_cooling_demand():
     """The same design costs more to run when it must cool more."""
-    base = (await assess(TOOLS.estimate_costs, "hackathon_2026")).output
-    peak = (await assess(TOOLS.estimate_costs, "hackathon_2026", "cooling_peak")).output
+    base = assessed("estimate_costs", "hackathon_2026", "base")
+    peak = assessed("estimate_costs", "hackathon_2026", "cooling_peak")
     assert peak["opex"]["value"] > base["opex"]["value"]
 
 

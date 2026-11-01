@@ -1,5 +1,7 @@
 """Verification over gemini's report: the balances, and the domain each failure goes to."""
 
+import functools
+
 import pytest
 
 from geomind.tools.gemini.verification import assess, balances, domain_of, role_domain, unit_roles
@@ -8,8 +10,16 @@ from tests.fixtures.stored_runs import variant_run, warm_runs
 
 @pytest.fixture(scope="module", autouse=True)
 def warmed():
-    """Run the stored runs once, outside the event loop of a test."""
+    """Run the stored runs and two verdicts once, outside the timed test calls."""
     warm_runs()
+    for variant in ("base", "cooling_peak"):
+        assessed("hackathon_2026", variant)
+
+
+@functools.cache
+def assessed(name, variant):
+    """Return ``assess`` of a variant's stored run, once per process; read it only."""
+    return assess(*loaded(name, variant))
 
 
 @pytest.fixture(scope="module")
@@ -69,5 +79,5 @@ def test_the_balances_hold_on_a_design_that_runs(name):
 
 def test_a_design_that_runs_on_its_case_passes_and_a_hot_cooling_peak_does_not():
     """The verdict is gemini's report: passed with no failed constraint, balance or step."""
-    assert assess(*loaded("hackathon_2026"))["passed"] is True
-    assert assess(*loaded("hackathon_2026", "cooling_peak"))["passed"] is False
+    assert assessed("hackathon_2026", "base")["passed"] is True
+    assert assessed("hackathon_2026", "cooling_peak")["passed"] is False

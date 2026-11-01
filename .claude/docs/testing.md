@@ -109,5 +109,13 @@ case dict and its folder, `example_plant(name, plant=None)` a new passing plant,
 `case_context(name)` a tool context holding the case and its files. `tests/fixtures/stored_runs.py`
 simulates the passing design on a case variant (`base`, `colder` 25 K/km, `cooling_peak` 15 MW) and
 stores design and run, for tests of assessment and verification; `variant_run` caches one per
-process and `warm_runs()` fills the cache from a synchronous fixture. No fixture builds a brief or
-a preset: a case is data.
+process and `warm_runs()` fills the cache from a synchronous fixture. `simulated(name)` caches one
+whole-year run of the `simulate` tool per example. No fixture builds a brief or a preset: a case
+is data.
+
+A gemini call on a whole year takes a large part of the one-second budget, mostly in gemini's
+evaluation, which copies the plant and applies the case for each metric. So a test of a gemini
+tool never runs a year in its body: a module-scoped, synchronous `warmed` fixture fills a
+`functools.cache` (`asyncio.run` of the tool call) and the test, a plain function, reads the
+cached output. Setup time does not count against the budget. A cached context or output is read,
+never changed.

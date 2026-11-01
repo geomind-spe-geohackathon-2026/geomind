@@ -232,3 +232,23 @@ async def test_save_profile_has_no_default_for_an_engineering_value():
     required = set(save_profile.input_schema["required"])
     assert required == {"name", "values", "unit", "start", "step", "service"}
     assert json.dumps(save_profile.input_schema)
+
+
+async def test_a_file_the_project_lacks_is_named_in_the_error(tmp_path):
+    """A missing demand file is a result the model can act on, never an internal error."""
+    data = example_case("shallow_district")[0]
+    session = StubSession(workspace=MemoryWorkspace(cases={"p": (data, tmp_path)}))
+    result = await call(set_case, {"source": "project"}, session, project="p")
+    assert result.output["error"]["code"] == "unknown_name"
+    assert "'demand.csv'" in result.output["error"]["message"]
+
+
+async def test_an_empty_file_is_a_file():
+    """An empty supplied file is used as given, not replaced by the run's older one."""
+    from geomind.tools.gemini.case import file_contents
+
+    session = StubSession()
+    await session.save_artifact("case/demand.csv", b"old")
+    context = Context(session=session)
+    data = {"demand": {"file": "demand.csv"}}
+    assert file_contents(context, data, {"demand.csv": b""}) == {"demand.csv": b""}

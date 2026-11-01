@@ -1,5 +1,7 @@
 """The study tools over gemini's example cases: size, search, sample, sensitivity and compare."""
 
+import asyncio
+import functools
 import json
 
 import pytest
@@ -102,15 +104,17 @@ async def test_optimize_stores_a_feasible_best():
     assert context.session.load_artifact("design/best") is not None
 
 
-async def test_optimize_with_no_variables_searches_the_choices_of_the_case():
-    """An empty list is the case's choices, which the shallow case declares."""
+async def search_the_choices():
+    """Return ``optimize`` of the shallow design over the case's choices."""
     context, reference = await started("shallow_district")
-    result = await run(
-        study.optimize,
-        context,
-        {"design": reference, "objective": "lcts", "variables": [], "evaluations": 10, "name": "b"},
-    )
-    assert result.output["best"]["parameters"]
+    arguments = {"design": reference, "objective": "lcts", "variables": []}
+    arguments.update({"evaluations": 10, "name": "b"})
+    return await run(study.optimize, context, arguments)
+
+
+def test_optimize_with_no_variables_searches_the_choices_of_the_case():
+    """An empty list is the case's choices, which the shallow case declares."""
+    assert slow_calls()["search"].output["best"]["parameters"]
 
 
 async def test_optimize_an_unknown_objective_is_gemini_error():
@@ -192,8 +196,8 @@ async def test_sensitivity_ranks_the_uncertain_values():
     assert "electricity" in result.output["rows"][0]["parameter"]
 
 
-async def test_compare_ranks_two_runs():
-    """Two stored runs, the sized and the unsized plant, come back ranked with their references."""
+async def compare_two_runs():
+    """Return ``(references, result)`` of ``compare`` on the shallow plant, unsized and sized."""
     import gemini as gm
 
     context, _ = await started("shallow_district")
@@ -206,6 +210,24 @@ async def test_compare_ranks_two_runs():
         stored = await save_run(context, design, results, {"steps": 1}, {}, ran_case(context))
         references.append(stored)
     result = await run(study.compare, context, {"references": references, "by": ["lcts"]})
+    return references, result
+
+
+@functools.cache
+def slow_calls():
+    """Return the search and the comparison, run once per process outside the timed calls."""
+    return {"search": asyncio.run(search_the_choices()), "compare": asyncio.run(compare_two_runs())}
+
+
+@pytest.fixture(scope="module", autouse=True)
+def warmed():
+    """Run the slow study calls before the tests read them."""
+    slow_calls()
+
+
+def test_compare_ranks_two_runs():
+    """Two stored runs, the sized and the unsized plant, come back ranked with their references."""
+    references, result = slow_calls()["compare"]
     assert [entry["reference"] for entry in result.output] == references
     assert result.output[0]["values"]["lcts"]["unit"] == "EUR/MWh"
     assert {entry["ranks"]["lcts"] for entry in result.output} <= {1, 2}

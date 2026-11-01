@@ -7,29 +7,25 @@ from geomind.engine import Context
 from geomind.errors import ToolError
 from geomind.stores import MemoryWorkspace
 from geomind.tools import search_documents
-from geomind.tools.gemini.stored import save_design
 from tests.fixtures.calls import call
-from tests.fixtures.cases import case_context, example_names, example_plant
+from tests.fixtures.cases import EXAMPLES, example_names
 from tests.fixtures.sessions import StubSession
+from tests.fixtures.stored_runs import simulated
 
 TOOLS = gd.tools.gemini
 MODULES = {"hackathon_2026": "boiler", "shallow_district": "heat_pump"}
 
 
 @pytest.fixture(scope="module", autouse=True)
-def gm():
-    """Return gemini; importing it takes more than one test call's budget."""
-    import gemini
-
-    return gemini
+def warmed():
+    """Run each example's year once, outside the timed test calls."""
+    for name in EXAMPLES:
+        simulated(name)
 
 
 async def ran(name):
-    """Return ``(session, problem, reference)`` of one run of an example's plant."""
-    context = await case_context(name)
-    await save_design(context, "p", example_plant(name))
-    args = {"design": "design/p"}
-    result = await call(TOOLS.simulate, args, context.session, problem=context.problem)
+    """Return ``(session, problem, reference)`` of the stored whole-year run of an example."""
+    context, result = simulated(name)
     return context.session, context.problem, result.output["reference"]
 
 

@@ -70,3 +70,27 @@ def warm_runs():
         variant_run(name, "base")
     for variant in ("colder", "cooling_peak"):
         variant_run("hackathon_2026", variant)
+
+
+async def tool_run(name):
+    """Return ``(context, result)``: the example's plant as design/p, run by the simulate tool."""
+    import geomind as gd
+    from tests.fixtures.calls import call
+
+    context = await case_context(name)
+    await save_design(context, "p", example_plant(name))
+    arguments = {"design": "design/p"}
+    result = await call(
+        gd.tools.gemini.simulate, arguments, context.session, problem=context.problem
+    )
+    return context, result
+
+
+@functools.cache
+def simulated(name):
+    """Return ``tool_run`` of an example, once per process; read it, never change it.
+
+    NOTE: a whole-year run takes a large part of a fast test's budget, so a module fixture runs it
+    outside the timed test call and the tests read it.
+    """
+    return asyncio.run(tool_run(name))

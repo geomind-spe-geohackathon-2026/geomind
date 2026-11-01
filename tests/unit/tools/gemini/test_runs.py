@@ -1,5 +1,8 @@
 """The tools that read the case's demand and run a plant on the case, on both example cases."""
 
+import asyncio
+import functools
+
 import pytest
 
 import geomind as gd
@@ -8,12 +11,14 @@ from geomind.tools.gemini.case import save_profile, set_case
 from geomind.tools.gemini.stored import save_design
 from tests.fixtures.calls import call
 from tests.fixtures.cases import (
+    EXAMPLES,
     SHALLOW_PEAK_HEATING,
     case_context,
     example_case,
     example_names,
     example_plant,
 )
+from tests.fixtures.stored_runs import simulated as year_run
 
 TOOLS = gd.tools.gemini
 HEATING_PEAK_MW = {"hackathon_2026": 30.0, "shallow_district": SHALLOW_PEAK_HEATING / 1e6}
@@ -29,11 +34,11 @@ ALLOWED_UNITS = {"MWh", "MEUR", "MEUR/yr", "EUR/MWh", "kt", "-", None}
 
 
 @pytest.fixture(scope="module", autouse=True)
-def gm():
-    """Return gemini; importing it takes more than one test call's budget."""
-    import gemini
-
-    return gemini
+def warmed():
+    """Run each example's year and its windows once, outside the timed test calls."""
+    for name in EXAMPLES:
+        year_run(name)
+        windowed(name)
 
 
 async def designed(name):
@@ -57,10 +62,9 @@ def case_steps(name):
 
 
 @example_names
-async def test_simulate_runs_the_stored_design_on_the_case(name):
+def test_simulate_runs_the_stored_design_on_the_case(name):
     """The run covers the case's time, no step fails and the reference reads back."""
-    session, problem = await designed(name)
-    result = await call(TOOLS.simulate, {"design": "design/p"}, session, problem=problem)
+    result = year_run(name)[1]
     summary = result.output["summary"]
     assert result.output["reference"].startswith("result/")
     assert summary["steps"] == case_steps(name) and summary["failed_steps"] == 0
@@ -70,36 +74,14 @@ async def test_simulate_runs_the_stored_design_on_the_case(name):
 
 
 @example_names
-async def test_the_summary_is_in_readable_units(name):
+def test_the_summary_is_in_readable_units(name):
     """Energy in MWh, money in MEUR or EUR/MWh, mass in kt: never joules or bare SI."""
-    summary = (await simulated(name)).output["summary"]
+    summary = year_run(name)[1].output["summary"]
     units = {item["unit"] for item in summary["report"].values() if isinstance(item, dict)}
     assert units <= ALLOWED_UNITS
     assert summary["report"]["heat_delivered"]["unit"] == "MWh"
     assert summary["report"]["heat_delivered"]["value"] > 0
     assert summary["coverage"]["heating_coverage"]["value"] == pytest.approx(1.0)
-
-
-@example_names
-async def test_a_run_is_reproducible(name):
-    """The same plant, case and options give the same reference."""
-    session, problem = await designed(name)
-    start, end, _ = WINDOWS[name]
-    arguments = {"design": "design/p", "start": start, "end": end}
-    first = await call(TOOLS.simulate, arguments, session, problem=problem)
-    again = await call(TOOLS.simulate, arguments, session, problem=problem)
-    assert first.output["reference"] == again.output["reference"]
-
-
-@example_names
-async def test_another_option_is_another_run(name):
-    """Another window of the same plant and case gives another reference."""
-    session, problem = await designed(name)
-    start, end, _ = WINDOWS[name]
-    arguments = {"design": "design/p", "start": start}
-    first = await call(TOOLS.simulate, {**arguments, "end": end}, session, problem=problem)
-    other = await call(TOOLS.simulate, {**arguments, "end": start}, session, problem=problem)
-    assert other.output["reference"] != first.output["reference"]
 
 
 @example_names
@@ -118,17 +100,51 @@ async def test_a_window_outside_the_case_is_an_input_error(name):
     assert result.is_error and "case's time" in result.output["error"]["message"]
 
 
-@example_names
-async def test_changes_apply_for_this_run_only(name):
-    """A change gives another run and leaves the stored design as it was."""
+async def window_runs(name):
+    """Return the stored design before, and four runs of it: plain, again, longer and changed."""
     session, problem = await designed(name)
     before = session.load_artifact("design/p")
-    plain = await call(TOOLS.simulate, {"design": "design/p"}, session, problem=problem)
-    changed = await call(
-        TOOLS.simulate, {"design": "design/p", "changes": CHANGES[name]}, session, problem=problem
-    )
-    assert changed.is_error is False
-    assert changed.output["reference"] != plain.output["reference"]
+    start, end, _ = WINDOWS[name]
+    arguments = {"design": "design/p", "start": start, "end": start}
+    variants = {
+        "plain": arguments,
+        "again": arguments,
+        "longer": {**arguments, "end": end},
+        "changed": {**arguments, "changes": CHANGES[name]},
+    }
+    runs = {
+        key: await call(TOOLS.simulate, value, session, problem=problem)
+        for key, value in variants.items()
+    }
+    return session, before, runs
+
+
+@functools.cache
+def windowed(name):
+    """Return ``window_runs`` of an example, once per process, outside the timed test calls."""
+    return asyncio.run(window_runs(name))
+
+
+@example_names
+def test_a_run_is_reproducible(name):
+    """The same plant, case and options give the same reference."""
+    runs = windowed(name)[2]
+    assert runs["plain"].output["reference"] == runs["again"].output["reference"]
+
+
+@example_names
+def test_another_option_is_another_run(name):
+    """Another window of the same plant and case gives another reference."""
+    runs = windowed(name)[2]
+    assert runs["longer"].output["reference"] != runs["plain"].output["reference"]
+
+
+@example_names
+def test_changes_apply_for_this_run_only(name):
+    """A change gives another run and leaves the stored design as it was."""
+    session, before, runs = windowed(name)
+    assert runs["changed"].is_error is False
+    assert runs["changed"].output["reference"] != runs["plain"].output["reference"]
     assert session.load_artifact("design/p") == before
 
 

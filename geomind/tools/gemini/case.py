@@ -79,7 +79,9 @@ def file_contents(context, data, supplied):
     """Return ``{name: bytes}`` of the files ``data`` names: ``supplied``, else the run's own."""
     files = {}
     for name in map(checked_name, case_files(data)):
-        content = supplied.get(name) or context.session.load_artifact(f"{CASE_FILE}{name}")
+        content = supplied.get(name)
+        if content is None:
+            content = context.session.load_artifact(f"{CASE_FILE}{name}")
         if content is not None:
             files[name] = content
     return files
@@ -157,9 +159,21 @@ def project_case(context):
             path="source",
         )
     data, folder = found
-    names = map(checked_name, case_files(data))
-    files = {name: (Path(folder) / name).read_bytes() for name in names}
+    files = {name: project_file(folder, name) for name in map(checked_name, case_files(data))}
     return copy.deepcopy(data), files
+
+
+def project_file(folder, name):
+    """Return the bytes of a file the project's case names, or raise naming the file."""
+    path = Path(folder) / name
+    if not path.is_file():
+        raise ToolError(
+            f"set_case: the project's case names the file {name!r}, which the project does not "
+            "have; expected the file beside its case.json, or ask_user for it",
+            code="unknown_name",
+            path="source",
+        )
+    return path.read_bytes()
 
 
 def origin_case(context):
