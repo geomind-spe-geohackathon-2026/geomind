@@ -7,14 +7,22 @@ from tests.fixtures.calls import call
 
 TOOLS = gd.tools.gemini
 PIPE = {
-    "length": "1000 m",
-    "inner_diameter": "0.2 m",
-    "elevation_change": "0 m",
+    "length": {"value": 1000, "unit": "m"},
+    "inner_diameter": {"value": 0.2, "unit": "m"},
+    "elevation_change": {"value": 0, "unit": "m"},
     "heat_transfer_coefficient": 1.0,
 }
 PIPE_INLETS = {
-    "fluid_in": {"m_dot": 40.0, "T": "80 degC", "p": "10 bar"},
-    "air_in": {"m_dot": 0.0, "T": "10 degC", "p": "1 bar"},
+    "fluid_in": {
+        "m_dot": {"value": 40, "unit": "kg/s"},
+        "T": {"value": 80, "unit": "degC"},
+        "p": {"value": 10, "unit": "bar"},
+    },
+    "air_in": {
+        "m_dot": {"value": 0, "unit": "kg/s"},
+        "T": {"value": 10, "unit": "degC"},
+        "p": {"value": 1, "unit": "bar"},
+    },
 }
 
 
@@ -46,7 +54,7 @@ async def test_list_modules_of_a_category_is_what_gemini_describes(gm):
     """The rows of one category are gemini's own names and descriptions."""
     result = await call(TOOLS.list_modules, {"category": "wells"})
     expected = [
-        {"name": name, "category": "wells", "summary": gm.modules.get(name).describe()["summary"]}
+        {"name": name, "category": "wells", "summary": gm.modules.get(name)().describe()["summary"]}
         for name in gm.modules.names("wells")
     ]
     assert result.output == expected
@@ -62,7 +70,7 @@ async def test_an_unknown_category_is_gemini_s_problem_with_a_suggestion(gm):
 async def test_describe_module_is_gemini_s_description_unchanged(gm):
     """The description is exactly ``describe()`` of the class."""
     result = await call(TOOLS.describe_module, {"name": "Pipe"})
-    assert result.output == gm.modules.get("Pipe").describe()
+    assert result.output == gm.modules.get("Pipe")().describe()
 
 
 @pytest.mark.parametrize(
@@ -81,15 +89,27 @@ async def test_an_unknown_module_is_unknown_name_with_suggestions(gm, tool, tool
     assert problem["suggestions"] == ["Pipe"]
 
 
-async def test_evaluate_module_returns_gemini_s_values_unchanged(gm):
-    """Unit strings are accepted, and every number is gemini's Value."""
+async def test_evaluate_module_returns_readable_units(gm):
+    """Quantities go in as ``{value, unit}`` and come out in bar, degC and kW, not SI."""
     result = await call(
         TOOLS.evaluate_module, {"name": "Pipe", "parameters": PIPE, "inlets": PIPE_INLETS}
     )
-    expected = gm.evaluate(gm.modules.get("Pipe"), PIPE, PIPE_INLETS, None)
     assert not result.is_error
-    assert result.output == expected
-    assert result.output["outputs"]["pressure_drop"]["unit"] == "Pa"
+    outputs = result.output["outputs"]
+    assert outputs["pressure_drop"]["unit"] == "bar"
+    assert result.output["outlets"]["fluid_out"]["T"]["unit"] == "degC"
+    assert result.output["outlets"]["loss_out"]["power"]["unit"] == "kW"
+    assert outputs["pressure_drop"]["value"] == pytest.approx(0.6812, abs=1e-3)
+
+
+async def test_a_unit_string_is_refused_by_gemini(gm):
+    """``"1000 m"`` is no quantity; gemini's problem reaches the model."""
+    parameters = {**PIPE, "length": "1000 m"}
+    result = await call(
+        TOOLS.evaluate_module, {"name": "Pipe", "parameters": parameters, "inlets": PIPE_INLETS}
+    )
+    assert result.is_error
+    assert result.output["error"]["code"] != "internal"
 
 
 async def test_a_missing_inlet_is_gemini_s_problem(gm):

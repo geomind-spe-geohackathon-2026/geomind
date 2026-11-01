@@ -15,10 +15,10 @@ the problem state as `update_state` does.
 |---|---|---|---|---|---|
 | `list_modules` | `catalogue.py` | `read` | `category=None` | `[{name, category, summary}]` | built |
 | `describe_module` | `catalogue.py` | `read` | `name` | gemini's module description | built |
-| `evaluate_module` | `catalogue.py` | `compute` | `name, parameters, inlets=None, controls=None` | gemini's evaluate result, of Values | built |
-| `list_plants` | `plants.py` | `read` | none | `[{name, summary}]` of the registered plants | built |
-| `read_plant` | `plants.py` | `read` | `design=None`: `None` is the project's plant from `Workspace.plant`, otherwise a design reference, `example/<Name>` (`gm.plants.example`) or `template/<name>` (`gm.plants.from_template`) | gemini's description with current values, and the plant file under `spec` | built |
-| `build_plant` | `plants.py` | `write` | `plant` (input schema: gemini's plant schema), `name` | `{design, problems}`; a plant that fails validation returns the problems and stores nothing | built |
+| `evaluate_module` | `catalogue.py` | `compute` | `name, parameters, inlets=None, controls=None` | gemini's `gm.call` result (`outlets`, `outputs`, `errors`) as `{value, unit}` in readable units (bar, degC, kW, m3/h); values with a dimension are `{value, unit}`, never text | built |
+| `list_plants` | `plants.py` | `read` | none | `{plants: [{name, summary}], capabilities}`; `capabilities` is `gm.plants.capabilities()`: roles, schedulable and choices of each class | built |
+| `read_plant` | `plants.py` | `read` | `design=None`: `None` is the project's plant from `Workspace.plant`, `design/<name>` a stored design, otherwise a plant class name (`gm.plants.get`) | `{plant, missing_parameters}`: `to_dict(structure=True)` and `missing_parameters()`; a class with missing parameters is a valid answer, the model fills them | built |
+| `build_plant` | `plants.py` | `write` | `plant` (input schema: `gm.plants.schema()`), `name` | `{design, problems}`; `gm.plants.validate(plant, on_error="record")` problems keep gemini's path, code and did-you-mean, and a plant with problems stores nothing; otherwise `gm.Plant.from_dict` is stored by `stored.save_design` | built |
 | `set_case` | `case.py` | `write` | `source=None, changes=None`: `source` is `project` or none (the state's case); `changes` an RFC 7386 merge patch on the case | `{case, version}`; the state's `case` replaced and its files kept as `case/<file name>`; a case `gm.Case.from_dict` rejects is an error with gemini's `path`, `code` and message | built |
 | `read_case` | `case.py` | `read` | `section=None`: a section of the case, or `schema` | the case, the section or `gm.Case.schema()`; no case is `invalid_input` | built |
 | `list_profiles` | `runs.py` | `read` | none | `[{name, quantity, unit, start, end}]`: gemini's profiles, then those stored in the run as `profile/<name>` | built |
@@ -43,10 +43,10 @@ filling a stub, because gemini's names change.
 |---|---|---|
 | `list_modules` | `gm.modules.names(category)`, `gm.modules.get(name).describe()` | real |
 | `describe_module` | `gm.modules.get(name).describe()` | real |
-| `evaluate_module` | `gm.modules.get`, `gm.evaluate` | real |
-| `list_plants` | `gm.plants.names`, `gm.plants.get(name).describe()` | real |
-| `read_plant` | `gm.plants.from_dict`, `plant.describe()` | real |
-| `build_plant` | `gm.plants.validate(plant, on_error="record")`, `gm.plants.spec_schema` | real |
+| `evaluate_module` | `gm.modules.get`, `gm.call(..., units=...)` | real |
+| `list_plants` | `gm.plants.names`, `gm.plants.get(name).describe()`, `gm.plants.capabilities` | real |
+| `read_plant` | `stored.load_design`, `gm.plants.get`, `plant.to_dict(structure=True)`, `plant.missing_parameters()` | real |
+| `build_plant` | `gm.plants.validate(plant, on_error="record")`, `gm.plants.schema`, `gm.Plant.from_dict` | real |
 | `set_case` | `gm.Case.from_dict` | real |
 | `read_case` | `gm.Case.schema` | real |
 | `list_profiles` | `gm.profiles.names`, `gm.profiles.get` | real; `quantity` needs `attrs["quantities"]`, which `api.md` does not list |
@@ -67,7 +67,9 @@ filling a stub, because gemini's names change.
 Both formats are frozen. Each is a key of `RunStore.save_artifact(run_id, key, data)`, so a store must
 accept the `/`; `check_run_store` tests it. An artifact belongs to its root run.
 
-- **A design** is a stored, validated plant dict. `build_plant` saves it under `design/<name>` and
+- **A design** is a stored, validated plant dict, `gm.Plant.to_dict(structure=True)`, which keeps
+  the plant's inputs and which `gm.Plant.from_dict` restores. `load_plant(context, design, where)` in
+  `plants.py` is the one function that returns a `gm.Plant` (`None` is the project's plant). `build_plant` saves it under `design/<name>` and
   returns that text. `<name>` is letters, digits, `.`, `_` or `-`.
 - **A result** is stored under `result/<id>` as JSON: `{path: {field: {unit, values, time?}}}`.
   `values` is the list of samples, `unit` their unit, and `time`, when there is one, the list of ISO
@@ -95,12 +97,6 @@ gemini's profiles or stored `profile/<name>` ones, which `gm.schedule` takes as 
 Without `profile` the run takes the brief's demand, and a brief without one is an error that says to ask the user. A state with no
 brief runs on the `hackathon_2027` preset, as before briefs were data; the summary always names
 the `brief`, the `demand` and the `rules` that ran, and adds `gm.kpi.totals`.
-
-**The input bridge.** A design keeps its setpoints and other inputs (a heat pump's
-`temperature_setpoint`, the air temperature) in its spec under `boundary[""]["inputs"]`,
-`{module path: {name: value}}`, which gemini validates and round-trips. `apply_inputs` in
-`tools/gemini/plants.py` sets them with `plant.set_inputs` whenever a plant is loaded. This is the
-one call outside gemini's `api.md`; it stays until gemini reads these inputs itself.
 
 ## Verification
 
@@ -175,7 +171,7 @@ again in a replay too, because all it changes is the run's own log. `Tool` is sh
 other sources (MCP later) fit: without `input_model`, only the required and known names of
 `input_schema` are checked. An agent names a tool by its attribute, on its own copy.
 `late_schemas` maps an input to a function that returns its schema when the tool is offered:
-`build_plant` gets gemini's plant schema that way, so `import geomind` stays free of gemini.
+`build_plant` gets `gm.plants.schema()` that way, so `import geomind` stays free of gemini.
 
 ## Dispatch
 
