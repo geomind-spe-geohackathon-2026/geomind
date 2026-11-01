@@ -15,6 +15,12 @@ from geomind.verify.design import verify_design
 MARK = "design loop: "
 DESIGN_TOKENS = 1000
 EXPLANATION_TOKENS = 6000
+APPROVE = "approve"
+RESTORE = "restore"
+CASE_OPTIONS = (
+    {"value": APPROVE, "label": "Approve the changed case: verify the design on it"},
+    {"value": RESTORE, "label": "Restore the case I gave and design for it"},
+)
 SIDES = (
     ("subsurface", "Subsurface side (wells, reservoir, injection, pressure): change the doublets."),
     ("surface", "Surface side (heating, cooling, equipment, topology): change the surface plant."),
@@ -98,6 +104,7 @@ class DesignDriver(Agent):
         self.economist = Delegate(Economist(), max_summary_tokens=DESIGN_TOKENS)
         self.explainer = Delegate(Explainer(), max_summary_tokens=EXPLANATION_TOKENS)
         self.update_state = tools.update_state
+        self.accept_case = tools.gemini.accept_case
         self.ask_user = tools.ask_user
         self.finish = tools.finish
 
@@ -116,11 +123,11 @@ class DesignDriver(Agent):
         if name == "designer":
             return self.after_design(context, note, index)
         if name == "ask_user":
-            return act(note, index, "designer", task=answered_task(context, output))
-        if name == "verifier":
+            return self.after_question(context, note, index, output)
+        if name in ("verifier", "accept_case"):
             return await self.after_verification(context, calls)
         if name == "economist":
-            return act(note, index, "explainer", task=explainer_task(context))
+            return act(note, index, "explainer", task=explainer_task(context, calls))
         if name == "explainer":
             answer = f"{output}\n\n{MARK}stop: verified after round {note['round']}"
             return act({**note, "stop": "verified"}, index, "finish", answer=answer)
@@ -157,6 +164,15 @@ class DesignDriver(Agent):
             return act({**note, "stop": "no_case"}, index, "finish", answer=answer)
         return act({**note, "missing": missing}, index, "ask_user", question=question_of(missing))
 
+    def after_question(self, context, note, index, answer):
+        """Act on the user's answer: on a changed case, accept or restore it; else design."""
+        asked = notes(context.messages)[-1]
+        if not asked.get("case_changed"):
+            return act(note, index, "designer", task=answered_task(context, answer))
+        if answer.strip() == APPROVE:
+            return act({**note, "approved": True}, index, "accept_case")
+        return act(note, index, "designer", task=restored_task(context, note["round"] + 1))
+
     async def after_verification(self, context, calls):
         """Check the design again with gemini, then cost it, route its failures, or stop."""
         found = await asyncio.to_thread(verify_design, context)
@@ -164,6 +180,11 @@ class DesignDriver(Agent):
         design = context.problem.design.get("reference")
         result = context.problem.verification.get("result")
         index = len(calls)
+        changed = case_change(found)
+        if changed is not None:
+            note = {"round": round_number, "case_changed": True}
+            question = changed_question(changed)
+            return act(note, index, "ask_user", question=question, options=list(CASE_OPTIONS))
         if found["passed"]:
             task = economist_task(design, result)
             return act({"round": round_number, "passed": True}, index, "economist", task=task)
@@ -212,6 +233,38 @@ def answered_task(context, answer):
     )
 
 
+def case_change(found):
+    """Return the ``case_changed`` failure of a verdict, or ``None``."""
+    return next((item for item in found["failures"] if item["name"] == "case_changed"), None)
+
+
+def changed_question(failure):
+    """Return the question to the user on a case the design run changed."""
+    lines = [
+        f"- {item['path']}: {item['change']}"
+        + (f" from {json.dumps(item.get('given'))} to {json.dumps(item.get('now'))}")
+        for item in failure["changes"]
+    ]
+    return "\n".join(
+        [
+            "The design run changed the case you gave. A design is verified only on a case you "
+            "approve. The changes:",
+            *lines,
+            "Approve the changed case, or restore yours?",
+        ]
+    )
+
+
+def restored_task(context, round_number):
+    """Return the designer's task after the user refused a change of the case."""
+    return (
+        f"{request_of(context)}\n\nRound {round_number}. The user did not approve the changes of "
+        "the case. Call set_case(source='origin') to restore the case the user gave, never change "
+        "it again, and design for it: size, simulate the whole year, check, optimize, and record "
+        "design.reference and design.result."
+    )
+
+
 def rounds(calls):
     """Return the number of the current round: each round starts with a designer call."""
     return sum(name == "designer" for name, _ in calls)
@@ -239,11 +292,15 @@ def economist_task(design, result):
     )
 
 
-def explainer_task(context):
-    """Return the explainer's task: the request and the verified design."""
+def explainer_task(context, calls):
+    """Return the explainer's task: the request, the verified design and the verifier's report."""
     request = request_of(context)
     design = context.problem.design.get("reference")
-    return f"Explain the verified design {design} for this request:\n\n{request}"
+    report = next((output for name, output in reversed(calls) if name == "verifier"), "")
+    return (
+        f"Explain the verified design {design} for this request:\n\n{request}\n\nThe "
+        f"verifier's report:\n\n{report}"
+    )
 
 
 def stop(context, note, index):

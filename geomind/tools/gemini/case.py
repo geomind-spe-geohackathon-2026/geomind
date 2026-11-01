@@ -4,9 +4,16 @@ The problem state holds the case as given, the content of a ``case.json`` and th
 model, validated by ``gm.Case.from_dict`` and never written back from ``Case.to_dict`` (which does
 not round-trip the demand). The files the case names are run artifacts ``case/<file name>``, so
 the run store is the source of truth and a run does not depend on a project folder.
+
+``case_origin`` in the state is the case the user or the project gave, ``{case, files}`` with the
+files as ``{name: sha256}``, each kept by its content as ``<sha256>.file``. Verification fails a
+design whose case differs from it (``case_changes``) until the user approves the change
+(``accept_case``, which only the design loop's driver holds), so no agent passes by weakening the
+case.
 """
 
 import copy
+import hashlib
 import io
 import re
 import tempfile
@@ -21,7 +28,8 @@ CASE_FILE = "case/"
 SERVICES = ("heating", "cooling")
 TIME_COLUMN = "time"
 PROFILE_NAME = re.compile(r"[A-Za-z0-9_-]+")
-SOURCES = ("project",)
+SOURCES = ("project", "origin")
+FILE = ".file"
 
 
 def merge_patch(target, patch):
@@ -77,6 +85,23 @@ def file_contents(context, data, supplied):
     return files
 
 
+def digests(files):
+    """Return ``{file name: sha256}`` of ``{file name: bytes}``."""
+    return {name: hashlib.sha256(content).hexdigest() for name, content in files.items()}
+
+
+async def keep_files(context, files):
+    """Keep each file once by its content, as ``<sha256>.file``."""
+    for content in files.values():
+        await context.session.save_artifact(f"{hashlib.sha256(content).hexdigest()}{FILE}", content)
+
+
+def kept_files(context, named):
+    """Return ``{file name: bytes}`` of ``{file name: sha256}`` that ``keep_files`` kept."""
+    load = context.session.load_artifact
+    return {name: load(f"{digest}{FILE}") for name, digest in named.items()}
+
+
 def build_case(data, files):
     """Return the ``gm.Case`` of a case dict, its files written to a folder for gemini to read."""
     import gemini as gm
@@ -96,13 +121,21 @@ def case_of(context):
     return build_case(data, file_contents(context, data, {}))
 
 
-async def store_case(context, data, supplied):
-    """Validate a case dict with its files, keep the files and the case; return the version."""
+async def store_case(context, data, supplied, origin=None):
+    """Validate a case dict with its files, keep the files and the case; return the version.
+
+    ``origin`` is ``(case dict, files)`` of the case the user or the project gave, kept as the
+    state's ``case_origin``; ``None`` leaves the origin as it is.
+    """
     files = file_contents(context, data, supplied)
     build_case(data, files)
     for name in supplied.keys() & files.keys():
         await context.session.save_artifact(f"{CASE_FILE}{name}", supplied[name])
     changes = [{"op": "replace", "path": "/case", "value": data}]
+    if origin is not None:
+        await keep_files(context, origin[1])
+        value = {"case": origin[0], "files": digests(origin[1])}
+        changes.append({"op": "add", "path": "/case_origin", "value": value})
     return await context.session.change_state(changes)
 
 
@@ -129,12 +162,27 @@ def project_case(context):
     return copy.deepcopy(data), files
 
 
+def origin_case(context):
+    """Return ``(case dict, {name: bytes})`` of the state's ``case_origin``, or raise."""
+    origin = context.problem.case_origin
+    if origin is None:
+        raise ToolError(
+            "set_case: the problem state has no case the user or the project gave; expected "
+            "source='project' or changes",
+            code="unknown_name",
+            path="source",
+        )
+    return copy.deepcopy(origin["case"]), kept_files(context, origin["files"])
+
+
 def base_case(context, source):
     """Return ``(case dict, supplied files)`` that ``set_case`` changes."""
     if source is None:
         return (state_case(context) if context.problem.case is not None else {}), {}
     if source == "project":
         return project_case(context)
+    if source == "origin":
+        return origin_case(context)
     raise ToolError(
         f"set_case: source = {source!r}; expected {join_names(SOURCES)} or none",
         path="source",
@@ -145,18 +193,35 @@ def base_case(context, source):
 async def set_case(context, source: str | None = None, changes: dict[str, Any] | None = None):
     """Set the case of the problem state: the project's case, changes to it, or both.
 
-    ``source`` is ``project`` to load the project's ``case.json`` and its files, or omitted to
-    start from the state's case (an empty one when it has none). ``changes`` is a JSON merge patch
-    (RFC 7386) on the case: an object merges into the case, a value replaces, null removes a key.
-    The sections are ``time``, ``environment``, ``demand``, ``choices``, ``constraints``,
-    ``assumptions`` and ``uncertainty``; ``read_case(section="schema")`` is the exact schema.
-    gemini validates the result: a rejected case comes back with the path and message to fix, and
-    nothing is stored. Returns the case and the state version.
+    ``source`` is ``project`` to load the project's ``case.json`` and its files, ``origin`` to go
+    back to the case the user or the project gave, or omitted to start from the state's case (an
+    empty one when it has none). ``changes`` is a JSON merge patch (RFC 7386) on the case: an
+    object merges into the case, a value replaces, null removes a key. The sections are ``time``,
+    ``environment``, ``demand``, ``choices``, ``constraints``, ``assumptions`` and
+    ``uncertainty``; ``read_case(section="schema")`` is the exact schema. gemini validates the
+    result: a rejected case comes back with the path and message to fix, and nothing is stored.
+    The project's case, or the first case of a chat, is the case the user gave; a design is
+    verified only on it, so any later change of it waits for the user's approval. Returns the case
+    and the state version.
     """
-    data, supplied = base_case(context, source)
-    data = merge_patch(data, changes or {})
-    version = await store_case(context, data, supplied)
+    base, supplied = base_case(context, source)
+    data = merge_patch(base, changes or {})
+    origin = given_case(context, source, (base, supplied), data)
+    version = await store_case(context, data, supplied, origin)
     return {"case": data, "version": version}
+
+
+def given_case(context, source, base, data):
+    """Return ``(case dict, files)`` that ``set_case`` keeps as the origin, or ``None``.
+
+    The project's case is the origin, without the changes of the same call; the first case of a
+    chat is the origin as it is set, since it comes from the user's request or answer.
+    """
+    if source == "project":
+        return base[0], file_contents(context, base[0], base[1])
+    if source is None and context.problem.case_origin is None:
+        return data, file_contents(context, data, {})
+    return None
 
 
 @tool(effect="read")

@@ -103,7 +103,10 @@ the design that ignores 25 K/km passes the checks but fails the `/case` state an
 The user's message of every `challenge2` task states what the Designer needs for `size_plant` and
 `optimize`: the backup policy (`peak`), the objective (`lcts`), the variables (none: the case's
 choices) and the evaluations (12). `answers` replies to the loop's first question (the run holds no
-case yet; the reply tells the Designer to use the project's case). Tasks state their criteria on
+case yet; the reply tells the Designer to use the project's case). A variant that changes the
+project's case (`colder_reservoir`, `user_profile`) has a second answer, `approve`: verification
+fails with `case_changed` until the user approves a case that differs from the one they gave, so
+the loop asks once. Tasks state their criteria on
 `/case` paths. The recordings are hand-written decisions (`model: hand-written`): the Designer
 builds gemini's `HackathonPlant` dict, sizes it, simulates, checks, optimises and simulates the best
 design; every reference and number in the tool results is from a real gemini run, because they were

@@ -1,19 +1,37 @@
 """Verify the design the problem state names, on the stored run that verifies it."""
 
 from geomind.errors import ToolError
-from geomind.tools.gemini.case import file_contents
-from geomind.tools.gemini.stored import RESULT, digests, load_run
+from geomind.tools.gemini.case import digests, file_contents
+from geomind.tools.gemini.origin import changes_of
+from geomind.tools.gemini.stored import RESULT, load_run
 from geomind.verify.verify import verify
 
 
-def unverified(name, reason):
+def unverified(name, reason, **details):
     """Return a verdict that failed before gemini's checks could run, saying why."""
     return {
         "passed": False,
         "checks": [],
-        "failures": [{"name": name, "domain": "coupled", "detail": reason}],
+        "failures": [{"name": name, "domain": "coupled", "detail": reason, **details}],
         "reason": reason,
     }
+
+
+def case_changed(context):
+    """Return the verdict of a case that differs from the one the user gave, or ``None``.
+
+    NOTE: a geomind process rule, not physics: a design that meets a weakened case has not met
+    the user's, so every difference waits for the user's approval.
+    """
+    changes = changes_of(context)
+    if not changes:
+        return None
+    paths = ", ".join(sorted({change["path"] for change in changes}))
+    reason = (
+        f"the case differs from the one the user gave ({paths}); the user must approve the "
+        "change, or the case goes back with set_case(source='origin')"
+    )
+    return unverified("case_changed", reason, changes=changes)
 
 
 def result_off_case(context, result):
@@ -65,4 +83,4 @@ def verify_design(context):
     mismatch = result_off_case(context, result)
     if mismatch is not None:
         return unverified("result_off_case", mismatch)
-    return verify(plant, results, case)
+    return case_changed(context) or verify(plant, results, case)

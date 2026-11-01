@@ -99,9 +99,9 @@ frozen; the tools themselves are in [tools.md](tools.md#catalogue). Every agent 
 | `Analyst` | `read_case`, `list_modules`, `describe_module`, `evaluate_module`, `list_plants`, `read_plant`, `list_profiles`, `read_profile`, `save_profile`, `simulate`, `read_result`, `compute_kpis`, `search_documents`, `update_state`, `read_skill`, `ask_user`, `finish` |
 | `Coordinator` | none: it answers with a `Route` |
 | `Designer` | `read_case`, `set_case`, `save_profile`, `list_plants`, `read_plant`, `list_modules`, `describe_module`, `evaluate_module`, `build_plant`, `size_plant`, `list_profiles`, `read_profile`, `simulate`, `read_result`, `check_results`, `optimize`, `search_documents`, `update_state`, `read_skill`, `ask_user`, `finish` |
-| `Verifier` | `check_results`, `compute_kpis`, `read_result`, `update_state`, `read_skill`, `finish` |
+| `Verifier` | `check_results`, `case_changes`, `read_case`, `compute_kpis`, `read_result`, `update_state`, `read_skill`, `finish` |
 | `Economist` | `compute_kpis`, `estimate_costs`, `compare`, `sample_uncertainty`, `sensitivity`, `read_result`, `update_state`, `read_skill`, `finish` |
-| `Explainer` | `read_plant`, `read_result`, `compute_kpis`, `estimate_costs`, `search_documents`, `finish` |
+| `Explainer` | `read_case`, `case_changes`, `read_plant`, `read_result`, `compute_kpis`, `estimate_costs`, `search_documents`, `finish` |
 | `CodeAssistant` | `ask_user`, `finish`, `run_python`, `read_file`, `write_file`; `test_module` is a later addition |
 | `Assistant` | `ask_user`, `finish` |
 | `Summarizer` | none |
@@ -109,7 +109,11 @@ frozen; the tools themselves are in [tools.md](tools.md#catalogue). Every agent 
 The Designer optimises directly after its own `check_results`: `gm.study.minimize` counts only
 trials that pass every constraint of the case as feasible, so no Verifier round comes before it, and
 when `optimize` returns `feasible: false` the Designer changes the topology or the variables itself.
-The Verifier calls `check_results` once, on the final design.
+The Verifier calls `check_results` once, on the final design, and reviews what gemini cannot see:
+the case changes since the user gave it (`case_changes`), a result that is not the design's whole
+year, and the assumptions the user has not confirmed. The driver hands its report to the
+Explainer. The verdict is still gemini's, through `verify_design`; on `case_changed` the driver
+asks the user to approve the changed case (`accept_case`) or restore theirs.
 
 ### Route
 

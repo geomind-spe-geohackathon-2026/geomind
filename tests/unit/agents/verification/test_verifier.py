@@ -11,6 +11,8 @@ def test_it_is_complete():
         "verifier",
         [
             "check_results",
+            "case_changes",
+            "read_case",
             "compute_kpis",
             "read_result",
             "update_state",

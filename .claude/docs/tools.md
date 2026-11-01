@@ -19,7 +19,9 @@ the problem state as `update_state` does.
 | `list_plants` | `plants.py` | `read` | none | `{plants: [{name, summary}], capabilities}`; `capabilities` is `gm.plants.capabilities()`: roles, schedulable and choices of each class | built |
 | `read_plant` | `plants.py` | `read` | `design=None`: `None` is the project's plant from `Workspace.plant`, `design/<name>` a stored design, otherwise a plant class name (`gm.plants.get`) | `{plant, missing_parameters}`: `to_dict(structure=True)` and `missing_parameters()`; a class with missing parameters is a valid answer, the model fills them | built |
 | `build_plant` | `plants.py` | `write` | `plant` (input schema: `gm.plants.schema()`), `name` | `{design, problems}`; `gm.plants.validate(plant, on_error="record")` problems keep gemini's path, code and did-you-mean, and a plant with problems stores nothing; otherwise `gm.Plant.from_dict` is stored by `stored.save_design` | built |
-| `set_case` | `case.py` | `write` | `source=None, changes=None`: `source` is `project` or none (the state's case); `changes` an RFC 7386 merge patch on the case | `{case, version}`; the state's `case` replaced and its files kept as `case/<file name>`; a case `gm.Case.from_dict` rejects is an error with gemini's `path`, `code` and message | built |
+| `set_case` | `case.py` | `write` | `source=None, changes=None`: `source` is `project`, `origin` (the case the user gave, with its files) or none (the state's case); `changes` an RFC 7386 merge patch on the case | `{case, version}`; the state's `case` replaced and its files kept as `case/<file name>`; the project's case or the first case of a chat also becomes `case_origin`; a case `gm.Case.from_dict` rejects is an error with gemini's `path`, `code` and message | built |
+| `case_changes` | `origin.py` | `read` | none | `[{path, change, given, now}]`: every difference of the state's case from `case_origin` (`changed`, `removed`, `added`; `file <name>` for a file's content); `[]` when it is the case the user gave | built |
+| `accept_case` | `origin.py` | `write` | none | `{version}`; `case_origin` becomes the state's case. Only the design loop's driver holds it, after the user approved the change | built |
 | `read_case` | `case.py` | `read` | `section=None`: a section of the case, or `schema` | the case, the section or `gm.Case.schema()`; no case is `invalid_input` | built |
 | `list_profiles` | `runs.py` | `read` | none | `[{service, column, file_unit, supply_temperature, return_temperature, start, end, steps, peak}]`: the heating and cooling demand of the state's case, temperatures in degC and the peak in MW | built |
 | `read_profile` | `runs.py` | `read` | `service` (`heating` or `cooling`), `start=None`, `end=None` (ISO 8601, inclusive) | `{service, time, value, unit}` of the case's demand in MW | built |
@@ -114,8 +116,8 @@ case with `save_profile`.
 `gd.verify.verify(plant, results, case)` (`verify/` may import `tools`, not the other way). Every
 check, balance and number is gemini's (`gm.evaluate`) on the case the run ran on; there is no
 geomind limit, tolerance or brief. A limit is a constraint of the case (`set_case`), and a numeric
-requirement of the problem state is one too: `Requirement.constraint` is its index in
-`case.constraints`.
+requirement of the problem state is one too: `Requirement.constraint` names it by its `on`,
+`quantity`, `over` and `when`.
 
 - `assess` returns `{passed, constraints, failures, balances, metrics}`. `constraints` are the
   report's checks of the case's constraints and of the services' supply temperatures
@@ -228,7 +230,8 @@ Both have effect `read`, so `ask` mode lets them through; `plan` mode runs neith
 
 `update_state(changes)` (`write`, not idempotent) applies JSON Patch operations to the problem state
 and emits `state.changed`; see [context.md](context.md#problem-state). An invalid patch is an error result that
-says how to fix it. The default rule of [permissions.md](permissions.md) allows it in `ask` mode.
+says how to fix it. A path under `/case` or `/case_origin` is `not_allowed`: only `set_case`
+writes the case, after gemini validates it. The default rule of [permissions.md](permissions.md) allows it in `ask` mode.
 
 ## Skills
 

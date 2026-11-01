@@ -14,13 +14,19 @@ import json
 import re
 
 from geomind.errors import ToolError
-from geomind.tools.gemini.case import build_case, file_contents, state_case
+from geomind.tools.gemini.case import (
+    build_case,
+    digests,
+    file_contents,
+    keep_files,
+    kept_files,
+    state_case,
+)
 
 DESIGN = "design/"
 RESULT = "result/"
 DESIGN_NAME = re.compile(r"[A-Za-z0-9._-]+")
 RUN_PARTS = ("plant", "case", "files", "results")
-FILE = ".file"
 
 
 def check_design_name(name, where):
@@ -54,11 +60,6 @@ def load_design(context, design, where):
     return gm.Plant.from_dict(data)
 
 
-def digests(files):
-    """Return ``{file name: sha256}`` of ``{file name: bytes}``."""
-    return {name: hashlib.sha256(content).hexdigest() for name, content in files.items()}
-
-
 def run_id(plant_data, case_data, files, options):
     """Return the id of a run: a hash of its plant dict, case dict, case files and options."""
     text = json.dumps([plant_data, case_data, digests(files), options], sort_keys=True, default=str)
@@ -82,8 +83,7 @@ async def save_run(context, plant, results, summary, options, ran):
     identifier = run_id(plant_data, case_data, files, options)
     reference = f"{RESULT}{identifier}"
     session = context.session
-    for content in files.values():
-        await session.save_artifact(f"{hashlib.sha256(content).hexdigest()}{FILE}", content)
+    await keep_files(context, files)
     await session.save_artifact(reference, summary)
     await session.save_artifact(f"{identifier}.results", results.to_bytes())
     await session.save_artifact(f"{identifier}.plant", plant_data)
@@ -94,10 +94,7 @@ async def save_run(context, plant, results, summary, options, ran):
 
 def run_files(context, identifier):
     """Return ``{file name: bytes}`` of the case files a stored run kept."""
-    named = context.session.load_artifact(f"{identifier}.files") or {}
-    return {
-        name: context.session.load_artifact(f"{digest}{FILE}") for name, digest in named.items()
-    }
+    return kept_files(context, context.session.load_artifact(f"{identifier}.files") or {})
 
 
 def load_run(context, reference, where):

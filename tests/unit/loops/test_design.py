@@ -10,6 +10,7 @@ from geomind.engine.recovery import recover
 from geomind.loops import DesignLoop
 from geomind.loops.design import DesignDriver, repeated, request_of, routed_task
 from geomind.types import Message
+from tests.fixtures.cases import example_case
 from tests.fixtures.runs import call, context, engine_for, logged, of_type, same_usage, says, uses
 
 FAILED = {
@@ -69,10 +70,11 @@ def verifier_round(index):
     ]
 
 
-async def run_loop(completions, case=CASE, max_rounds=5):
+async def run_loop(completions, case=CASE, max_rounds=5, origin=None):
     """Run a design loop on scripted completions; return the result and the events."""
     engine = engine_for(completions)
-    start = context("Design the plant of the case.", problem=ProblemState(case=case))
+    problem = ProblemState(case=case, case_origin=origin)
+    start = context("Design the plant of the case.", problem=problem)
     result = await DesignLoop(Designer(), Verifier(), max_rounds=max_rounds).run(engine, start)
     return result, engine, engine.store.load_events(start.run_id)
 
@@ -196,15 +198,17 @@ async def test_a_design_run_replays_offline_from_its_log(verdicts):
 async def test_a_run_without_a_case_asks_the_user_before_designing(verdicts):
     """No agent runs before the question; the answer goes to the designer, which sets the case."""
     verdicts.append(PASSED)
-    case = {"op": "add", "path": "/case", "value": CASE}
+    case, folder = example_case("shallow_district")
     script = [
-        uses(call("update_state", "c1", changes=[case])),
+        uses(call("set_case", "c1", changes=case)),
         *designer_round(1),
         *verifier_round(1),
         says("costs"),
         says("explained"),
     ]
     result, engine, events = await run_loop(script, case=None)
+    demand = (folder / "demand.csv").read_bytes()
+    engine.store.save_artifact(result.run_id, "case/demand.csv", demand)
     assert result.status == "waiting"
     assert "no case" in result.request.message
     assert agents_of(events) == []
@@ -215,6 +219,8 @@ async def test_a_run_without_a_case_asks_the_user_before_designing(verdicts):
     first = tasks_of(events, "designer")[0]
     assert "The user answered the question on the case: the project's heating" in first
     assert resumed.status == "done" and "stop: verified" in resumed.answer
+    problem = recover(events).problem
+    assert problem.case == problem.case_origin["case"] == case
 
 
 async def test_a_case_without_demand_asks_the_user():
@@ -260,3 +266,59 @@ async def test_the_designer_s_first_task_is_the_newest_message(verdicts):
     assert result.status == "done"
     assert tasks_of(events, "designer")[0].startswith("NEW: design a plant")
     assert "OLD" not in tasks_of(events, "explainer")[0]
+
+
+CHANGED = {
+    "passed": False,
+    "checks": [],
+    "failures": [
+        {
+            "name": "case_changed",
+            "domain": "coupled",
+            "detail": "the case differs",
+            "changes": [{"path": "constraints", "change": "removed", "given": {"on": "d0"}}],
+        }
+    ],
+}
+ORIGIN = {"case": CASE, "files": {}}
+
+
+async def test_a_changed_case_asks_the_user_and_an_approval_goes_on_to_the_costs(verdicts):
+    """The driver asks with two options; on approve it accepts the case and checks again."""
+    verdicts.extend([CHANGED, PASSED])
+    script = [*designer_round(1), *verifier_round(1), says("costs"), says("explained")]
+    result, engine, events = await run_loop(script, origin=ORIGIN)
+    assert result.status == "waiting"
+    assert "changed the case you gave" in result.request.message
+    assert "constraints: removed" in result.request.message
+    assert [option.value for option in result.request.options] == ["approve", "restore"]
+    resumed = await DesignLoop(Designer(), Verifier()).resume(
+        engine, result.run_id, result.request.id, {"text": "approve"}
+    )
+    events = engine.store.load_events(result.run_id)
+    assert resumed.status == "done" and "stop: verified" in resumed.answer
+    assert agents_of(events) == ["designer", "verifier", "economist", "explainer"]
+    assert recover(events).problem.case_origin["case"] == CASE
+
+
+async def test_a_refused_change_sends_the_designer_back_to_the_user_s_case(verdicts):
+    """On restore the next round is told to set the case back with source='origin'."""
+    verdicts.extend([CHANGED, PASSED])
+    script = [*designer_round(1), *verifier_round(1), *designer_round(2), *verifier_round(2)]
+    script += [says("costs"), says("explained")]
+    result, engine, _ = await run_loop(script, origin=ORIGIN)
+    resumed = await DesignLoop(Designer(), Verifier()).resume(
+        engine, result.run_id, result.request.id, {"text": "restore"}
+    )
+    events = engine.store.load_events(result.run_id)
+    second = tasks_of(events, "designer")[1]
+    assert resumed.status == "done"
+    assert "set_case(source='origin')" in second and second.startswith("Design the plant")
+
+
+async def test_the_explainer_reads_the_verifier_s_report(verdicts):
+    """The verifier's answer, with its notes on the case and the assumptions, reaches the user."""
+    verdicts.append(PASSED)
+    script = [*designer_round(1), *verifier_round(1), says("costs"), says("explained")]
+    _, _, events = await run_loop(script)
+    assert "The verifier's report:\n\nchecked" in tasks_of(events, "explainer")[0]

@@ -7,6 +7,7 @@ message: 'Design a deep-geothermal heating and cooling plant for the project''s 
   design.'
 answers:
 - Use the project's case.
+- approve
 plant: evals/projects/hackathon
 criteria:
 - kind: state

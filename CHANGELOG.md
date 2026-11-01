@@ -15,8 +15,11 @@ Problem state and backend contract:
 - `ProblemState.case` (a case dict as `case.json` holds it, or `null`) replaces `ProblemState.brief`;
   `case` replaces `brief` among the keys a patch may change. gemini's `Case.from_dict` validates it.
 - `Requirement` is `{id, text, constraint, status}`: a numeric requirement is a constraint of the
-  case, and `constraint` is its index in `case.constraints`. `metric`, `target` and `tolerance` are
-  gone.
+  case, and `constraint` names it by `{on, quantity, over, when}` (`ConstraintKey`), never by its
+  place in the list. `metric`, `target` and `tolerance` are gone.
+- `ProblemState.case_origin` (`{case, files}` or `null`): the case the user or the project gave,
+  and `case_origin` among the keys a patch may change. `update_state` refuses `/case` and
+  `/case_origin` (`not_allowed`); only the case tools write them.
 - New protocol method `Workspace.case(project_id) -> (case dict, folder) | None`, implemented by
   `MemoryWorkspace` (`cases=`) and `FileWorkspace` (`<root>/<project>/case.json`), checked by
   `check_workspace`.
@@ -33,6 +36,8 @@ Problem state and backend contract:
 Tools:
 
 - Removed: `set_brief`.
+- Added: `case_changes()` and `accept_case()` (the design loop's driver only); `set_case` takes
+  `source="origin"`.
 - Added: `set_case(source=None, changes=None)` (a JSON merge patch on the case, `source="project"`
   for the project's case), `read_case(section=None)`, `size_plant(design, backup, name)`,
   `sensitivity(design, metrics)`, `compare(references, by)`.
@@ -54,7 +59,11 @@ Tools:
 Verification: `gd.verify.verify(plant, results, case)` (was `requirements`, `limits`, `brief`);
 pass or fail is gemini's report, and each failure carries the domain that should fix it.
 `not_given`, `not_assessed`, the reservoir check and the operating-days reason are gone.
-`verify_design` fails a result whose case differs from the state's (`result_off_case`).
+`verify_design` fails a result whose case differs from the state's (`result_off_case`), and a case
+that differs from the one the user gave (`case_changed`, with the changes) until the user approves
+it: the design loop asks, then accepts the case or sends the designer back to it. The Verifier
+reports case changes, a stale result and unconfirmed assumptions, and the Explainer reads that
+report and the case.
 
 Routing: `Route` loses `brief` (nothing read it; the loop reads the user's message), and
 `Route.loop` and `LOOPS` hold only the built loops, `tool` and `design`, so a live request is never

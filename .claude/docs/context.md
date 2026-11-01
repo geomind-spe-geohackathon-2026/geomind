@@ -6,21 +6,23 @@ LLM call or an event stays in the engine.
 ## Problem state
 
 `ProblemState` (`context/state.py`) holds the notes of one chat, outside the message window: `version`,
-`goal`, `requirements`, `assumptions`, `design`, `results`, `verification`, `questions` and
-`case`. It is frozen: a change is a new state.
+`goal`, `requirements`, `assumptions`, `design`, `results`, `verification`, `questions`, `case`
+and `case_origin`. It is frozen: a change is a new state.
 
 | Key | Shape |
 |---|---|
 | `goal` | text |
-| `requirements` | `[{id, text, constraint, status}]`: the user's words; `constraint` is the index of the case constraint that gemini judges, or null; `status` starts `open` |
+| `requirements` | `[{id, text, constraint, status}]`: the user's words; `constraint` names the case constraint that gemini judges by its `{on, quantity, over, when}` (`ConstraintKey`; gemini's constraints have no id and a merge patch replaces the whole list, so never by index), or null; `status` starts `open` |
 | `assumptions` | `[{id, text, value, source, confirmed}]`; `source` is `user`, `agent` or `default` |
 | `design` | an object, free in shape; `reference` names the current `design/<name>` |
 | `results` | `[{id, summary, reference}]`; `reference` names the stored data |
 | `verification` | an object, free in shape; `result` names the `result/<id>` that verifies the design, which `Verified` checks again |
 | `questions` | `[{id, text}]` |
 | `case` | a [gemini case](#the-case) as the dict of a `case.json`, or `null` when no case is set; it replaced the former `brief` |
+| `case_origin` | `{case, files}`: the case the user or the project gave, its files as `{name: sha256}`, or `null`; see [the case](#the-case) |
 
-- **Writing.** The model writes through `update_state(changes)`. `apply_changes(state, changes)`
+- **Writing.** The model writes through `update_state(changes)`, except `case` and `case_origin`,
+  which only the case tools write (`update_state` refuses them with `not_allowed`). `apply_changes(state, changes)`
   takes the contract's JSON Patch operations, validates each one and returns a new state with
   `version + 1`, or raises `StateError` with what to fix. A patch applies whole or not at all.
 - **The log is the source of truth.** `run.started` stores the state a run starts from, and each
@@ -56,7 +58,16 @@ section names and the demand file.
   case through `Workspace.case(project)` and copies its files into the run; `changes` is an
   RFC 7386 JSON merge patch on the case. gemini validates the result; a rejected case comes back as
   a tool error with gemini's `path`, `code` and message, and nothing is stored. `save_profile`
-  adds a user's demand values to `demand`. `update_state` on `/case` also reaches it, unvalidated.
+  adds a user's demand values to `demand`. `update_state` cannot write it.
+- **The case the user gave.** `case_origin` is the project's case (`source="project"`, without the
+  changes of the same call) or the first case of the chat, which comes from the user's request or
+  answer. Later changes leave it as it is; each file is kept by its content as `<sha256>.file`.
+  `case_changes` (`origin.py`) lists every difference of `case` from it: a section key, a
+  constraint removed or added, a file whose content changed. `verify_design` fails a design with
+  `case_changed` while any difference is left, so no agent passes by weakening the case. The
+  design loop then asks the user: `approve` runs `accept_case` (only the driver holds it), which
+  makes the current case the origin; `restore` sends the designer back to
+  `set_case(source="origin")`.
 - **Who reads it.** `read_case(section=None)` returns the case, a section, or `gm.Case.schema()`
   for `section="schema"`. The gemini tools read the case through `case_of`.
 

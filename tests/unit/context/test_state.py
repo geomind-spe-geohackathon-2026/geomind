@@ -8,7 +8,11 @@ from geomind.context import ProblemState, apply_changes, render
 from geomind.errors import StateError
 from tests.fixtures.cases import example_case, example_names
 
-R1 = {"id": "R1", "text": "Cover the load", "constraint": 0}
+R1 = {
+    "id": "R1",
+    "text": "Cover the load",
+    "constraint": {"on": "heating_supply", "quantity": "unmet", "over": "max"},
+}
 A1 = {"id": "A1", "text": "Inlet temperature", "value": 80, "source": "user"}
 
 
@@ -136,7 +140,7 @@ def test_render_gives_one_line_per_item():
     assert render(state).splitlines() == [
         "Problem state, version 2",
         "Goal: Size it",
-        "Requirement R1 [open]: Cover the load (case constraint 0)",
+        "Requirement R1 [open]: Cover the load (case constraint unmet on heating_supply)",
         "Assumption A1 [unconfirmed, user]: Inlet temperature = 80",
         'Design: {"plant": "doublet"}',
         "Result X1: ok",
@@ -193,9 +197,13 @@ def test_render_shows_the_case_briefly(name):
 
 
 def test_a_requirement_is_text_with_a_link_to_a_case_constraint_never_a_target():
-    """A number is a constraint of the case; the requirement keeps the words and the index."""
+    """A number is a constraint of the case; the requirement keeps the words and its key."""
     state = with_items()
-    assert state.requirements[0].constraint == 0
+    key = state.requirements[0].constraint
+    assert key.matches({"on": "heating_supply", "quantity": "unmet", "over": "max", "max": 1})
+    assert not key.matches({"on": "heating_supply", "quantity": "unmet", "over": "sum"})
+    assert not key.matches({"on": "cooling_supply", "quantity": "unmet", "over": "max"})
+    assert "(case constraint unmet on heating_supply)" in render(state)
     with pytest.raises(StateError, match="metric"):
         apply_changes(
             ProblemState(),

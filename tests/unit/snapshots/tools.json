@@ -22,6 +22,19 @@
       "late_schemas": [],
       "name": "Delegate"
     },
+    "accept_case": {
+      "description": "Make the state's case the one the user gave, after the user approved its changes.",
+      "effect": "write",
+      "idempotent": false,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "title": "accept_case_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "accept_case"
+    },
     "ask_user": {
       "description": "Ask the user a question and wait for the answer, with fixed options if there are any.",
       "effect": "read",
@@ -115,6 +128,19 @@
         "plant"
       ],
       "name": "build_plant"
+    },
+    "case_changes": {
+      "description": "List how the state's case differs from the case the user or the project gave.",
+      "effect": "read",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "title": "case_changes_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "case_changes"
     },
     "check_results": {
       "description": "Check stored results against the case they ran on: gemini's report, balances and failures.",

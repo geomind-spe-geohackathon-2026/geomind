@@ -59,6 +59,50 @@
       "title": "Compaction",
       "type": "object"
     },
+    "ConstraintKey": {
+      "additionalProperties": false,
+      "description": "The fields that name a constraint of the case: ``on``, ``quantity``, ``over``, ``when``.\n\ngemini's constraints have no id, and a merge patch on ``constraints`` replaces the whole list,\nso a requirement names its constraint by these fields, never by its place in the list.",
+      "properties": {
+        "on": {
+          "title": "On",
+          "type": "string"
+        },
+        "over": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Over"
+        },
+        "quantity": {
+          "title": "Quantity",
+          "type": "string"
+        },
+        "when": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "When"
+        }
+      },
+      "required": [
+        "on",
+        "quantity"
+      ],
+      "title": "ConstraintKey",
+      "type": "object"
+    },
     "Question": {
       "additionalProperties": false,
       "description": "An open question for the user.",
@@ -81,19 +125,18 @@
     },
     "Requirement": {
       "additionalProperties": false,
-      "description": "A criterion of the task, in the user's words.\n\nA numeric one is a constraint of the case (``set_case``), and ``constraint`` is the index of\nthat constraint in ``case.constraints``; gemini judges it, the text is never parsed.",
+      "description": "A criterion of the task, in the user's words.\n\nA numeric one is a constraint of the case (``set_case``), and ``constraint`` names it by its\n``on``, ``quantity``, ``over`` and ``when``; gemini judges it, the text is never parsed.",
       "properties": {
         "constraint": {
           "anyOf": [
             {
-              "type": "integer"
+              "$ref": "#/$defs/ConstraintKey"
             },
             {
               "type": "null"
             }
           ],
-          "default": null,
-          "title": "Constraint"
+          "default": null
         },
         "id": {
           "title": "Id",
@@ -150,7 +193,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "The notes of one chat; ``version`` is raised by one with every change.\n\nNOTE: the state is frozen, so a change is always a new state and the only writer is ``apply`` of\nthe engine, over events. NOTE: ``compaction`` is kept here because ``save_state`` is the only\nper-chat storage of the contract, and ``load_history`` always returns every message. It is no\nkey of the document: a patch cannot reach it and ``render`` does not show it.",
+  "description": "The notes of one chat; ``version`` is raised by one with every change.\n\nNOTE: the state is frozen, so a change is always a new state and the only writer is ``apply`` of\nthe engine, over events. ``case_origin`` is ``{case, files}``, the case the user or the project\ngave, which ``set_case`` writes and verification compares the case with. NOTE: ``compaction``\nis kept here because ``save_state`` is the only\nper-chat storage of the contract, and ``load_history`` always returns every message. It is no\nkey of the document: a patch cannot reach it and ``render`` does not show it.",
   "properties": {
     "assumptions": {
       "default": [],
@@ -172,6 +215,19 @@
       ],
       "default": null,
       "title": "Case"
+    },
+    "case_origin": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Case Origin"
     },
     "compaction": {
       "anyOf": [

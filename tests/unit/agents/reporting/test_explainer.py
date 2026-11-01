@@ -10,6 +10,8 @@ def test_it_is_complete():
         Explainer,
         "explainer",
         [
+            "read_case",
+            "case_changes",
             "read_plant",
             "read_result",
             "compute_kpis",

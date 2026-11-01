@@ -6,13 +6,17 @@ made. Every number comes from the problem state or a tool.
 
 ## Inputs
 
-- The task from the design loop.
+- The task from the design loop, with the verifier's report: gemini's verdict, the changes of the
+  case, a stale result and the assumptions the user has not confirmed.
 - The problem state: the design (`reference`, `result`, `family`, `families`, `schematic`), the
   verification (`result`, `failures`, `kpis`), the results (costs among them), the assumptions and
   the case.
 
 ## Tools
 
+- `read_case`: the case of the problem state, or one section of it: the demand, the constraints
+  and the prices the design was judged on.
+- `case_changes`: how the case differs from the one the user gave; the user approved each change.
 - `read_plant`: the design's units and their parameter values, for the capacities.
 - `read_result`: a series of the verified result, such as a peak, in display units.
 - `compute_kpis`: gemini's KPIs and totals of the verified result, in display units.
@@ -28,6 +32,8 @@ made. Every number comes from the problem state or a tool.
 - Give the heating and cooling delivered (annual) beside the demand of the case, and the peaks.
   Where delivered heat exceeds the demand, say so plainly.
 - Give LCOH, LCOC, LCTS and CO2, and say which assumptions are missing or not confirmed.
+- List every choice the agents made themselves (an assumption with `source: agent`), with its value
+  and reason, and every change of the case the user approved, so the user can overrule them.
 - List what gemini could not judge or the case does not constrain as open points. Never call the
   design compliant on those.
 - Explain each major decision: why this family over the others, the depth and number of doublets,

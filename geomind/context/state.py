@@ -11,16 +11,34 @@ from geomind.types.patch import ITEM_LISTS, operation_problem
 from geomind.utils.strings import did_you_mean, join_names
 
 
+class ConstraintKey(Record):
+    """The fields that name a constraint of the case: ``on``, ``quantity``, ``over``, ``when``.
+
+    gemini's constraints have no id, and a merge patch on ``constraints`` replaces the whole list,
+    so a requirement names its constraint by these fields, never by its place in the list.
+    """
+
+    on: str
+    quantity: str
+    over: str | None = None
+    when: str | None = None
+
+    def matches(self, constraint):
+        """Tell whether a constraint dict of the case is the one this key names."""
+        named = self.model_dump(exclude_none=True)
+        return all(constraint.get(field) == value for field, value in named.items())
+
+
 class Requirement(Record):
     """A criterion of the task, in the user's words.
 
-    A numeric one is a constraint of the case (``set_case``), and ``constraint`` is the index of
-    that constraint in ``case.constraints``; gemini judges it, the text is never parsed.
+    A numeric one is a constraint of the case (``set_case``), and ``constraint`` names it by its
+    ``on``, ``quantity``, ``over`` and ``when``; gemini judges it, the text is never parsed.
     """
 
     id: str
     text: str
-    constraint: int | None = None
+    constraint: ConstraintKey | None = None
     status: str = "open"
 
 
@@ -60,7 +78,9 @@ class ProblemState(Record):
     """The notes of one chat; ``version`` is raised by one with every change.
 
     NOTE: the state is frozen, so a change is always a new state and the only writer is ``apply`` of
-    the engine, over events. NOTE: ``compaction`` is kept here because ``save_state`` is the only
+    the engine, over events. ``case_origin`` is ``{case, files}``, the case the user or the project
+    gave, which ``set_case`` writes and verification compares the case with. NOTE: ``compaction``
+    is kept here because ``save_state`` is the only
     per-chat storage of the contract, and ``load_history`` always returns every message. It is no
     key of the document: a patch cannot reach it and ``render`` does not show it.
     """
@@ -74,6 +94,7 @@ class ProblemState(Record):
     verification: dict[str, Any] = {}
     questions: tuple[Question, ...] = ()
     case: dict[str, Any] | None = None
+    case_origin: dict[str, Any] | None = None
     compaction: Compaction | None = None
 
     @model_validator(mode="after")
@@ -186,7 +207,8 @@ def apply_changes(state, changes):
 
 def _requirement_line(item):
     """Return one requirement as a line."""
-    linked = f" (case constraint {item.constraint})" if item.constraint is not None else ""
+    key = item.constraint
+    linked = f" (case constraint {key.quantity} on {key.on})" if key is not None else ""
     return f"Requirement {item.id} [{item.status}]: {item.text}{linked}"
 
 

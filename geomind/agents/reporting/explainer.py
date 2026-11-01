@@ -16,6 +16,8 @@ class Explainer(Agent):
         self.prompt = Prompt("explainer")
 
         # Tools
+        self.read_case = tools.gemini.read_case
+        self.case_changes = tools.gemini.case_changes
         self.read_plant = tools.gemini.read_plant
         self.read_result = tools.read_result
         self.compute_kpis = tools.gemini.compute_kpis
