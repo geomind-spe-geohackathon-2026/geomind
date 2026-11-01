@@ -8,8 +8,8 @@ is a new version.
 Every tool up to S4 exists now as a real `Tool`. Names, schemas and effects are
 [frozen](api.md#frozen-interfaces). A **stub** raises `NotImplementedYet("<tool> comes in <phase>")`,
 so a call is an error result with `code: "not_implemented"`. `gd.tools.gemini.<name>` is the public
-path; the package has one file per group. All are idempotent except `set_brief`, which writes the
-problem state as `update_state` does.
+path; the package has one file per group. All are idempotent except `set_case` and `save_profile`, which write
+the problem state as `update_state` does.
 
 | Tool | File | Effect | Inputs | Returns | Status |
 |---|---|---|---|---|---|
@@ -19,10 +19,11 @@ problem state as `update_state` does.
 | `list_plants` | `plants.py` | `read` | none | `[{name, summary}]` of the registered plants | built |
 | `read_plant` | `plants.py` | `read` | `design=None`: `None` is the project's plant from `Workspace.plant`, otherwise a design reference, `example/<Name>` (`gm.plants.example`) or `template/<name>` (`gm.plants.from_template`) | gemini's description with current values, and the plant file under `spec` | built |
 | `build_plant` | `plants.py` | `write` | `plant` (input schema: gemini's plant schema), `name` | `{design, problems}`; a plant that fails validation returns the problems and stores nothing | built |
-| `set_brief` | `brief.py` | `write` | `preset=None, changes=None`: a preset name (`hackathon_2027`), and the JSON of a partial `Brief` | `{brief, version}`; the state's `brief` replaced; an amount `gm.units` cannot read as its quantity is an `invalid_input` error | built |
+| `set_case` | `case.py` | `write` | `source=None, changes=None`: `source` is `project` or none (the state's case); `changes` an RFC 7386 merge patch on the case | `{case, version}`; the state's `case` replaced and its files kept as `case/<file name>`; a case `gm.Case.from_dict` rejects is an error with gemini's `path`, `code` and message | built |
+| `read_case` | `case.py` | `read` | `section=None`: a section of the case, or `schema` | the case, the section or `gm.Case.schema()`; no case is `invalid_input` | built |
 | `list_profiles` | `runs.py` | `read` | none | `[{name, quantity, unit, start, end}]`: gemini's profiles, then those stored in the run as `profile/<name>` | built |
 | `read_profile` | `runs.py` | `read` | `name, start=None, end=None` (ISO 8601); `name` is gemini's or a stored `profile/<name>` | a Value series | built |
-| `save_profile` | `runs.py` | `write` | `name, values, unit, start, step="1D", quantity="heating_demand"` | `{profile, steps, start, unit}`; the values, converted to W by `gm.units`, stored as `profile/<name>`; negative or missing values, a unit not of power, an unknown quantity or step are `invalid_input` | built |
+| `save_profile` | `case.py` | `write` | `name, values, unit, start, step, service`, all required: `unit` a unit of power, `step` `{value, unit}`, `service` `heating` or `cooling` | `{demand, steps, version}`; gemini checks the values (`gm.data.from_values`), they are written in `unit` as the column `name` of `<name>.csv` in the run's case files, the other service keeps its column, and the case's `demand` points at it; steps other than the case's `time` are gemini's error | built |
 | `simulate` | `runs.py` | `compute` | `design=None, changes=None, profile=None, start=None, end=None` | `{reference, summary}`; full results stored; the summary names the `brief`, `demand` and `rules` that ran | built |
 | `read_result` | `results.py` | `read` | `reference, path=None, field=None, start=None, end=None` (sample positions) | a Value series with `path` and `field`, otherwise `{path: {field: {min, max, mean}}}` | built |
 | `search_documents` | `results.py` | `read` | `query` | `[{id, title, text, score}]` | built |
@@ -46,10 +47,11 @@ filling a stub, because gemini's names change.
 | `list_plants` | `gm.plants.names`, `gm.plants.get(name).describe()` | real |
 | `read_plant` | `gm.plants.from_dict`, `plant.describe()` | real |
 | `build_plant` | `gm.plants.validate(plant, on_error="record")`, `gm.plants.spec_schema` | real |
-| `set_brief` | `gm.units.parse`, `gm.units.fits` | real |
+| `set_case` | `gm.Case.from_dict` | real |
+| `read_case` | `gm.Case.schema` | real |
 | `list_profiles` | `gm.profiles.names`, `gm.profiles.get` | real; `quantity` needs `attrs["quantities"]`, which `api.md` does not list |
 | `read_profile` | `gm.profiles.get` | real |
-| `save_profile` | `gm.units.fits`, `gm.units.convert` | real |
+| `save_profile` | `gm.data.from_values`, `gm.units.Quantity`, `gm.Case.from_dict` | real |
 | `simulate` | `gm.schedule`, `gm.simulate`, `gm.plants.from_dict`, `plant.set_params`, `Results.summary`, `Results.get`, `Results.names`, `Results.to_bytes` | real |
 | `read_result` | none: it reads the stored JSON | built |
 | `search_documents` | none: it reads `Workspace.documents` | built |
@@ -75,16 +77,16 @@ accept the `/`; `check_run_store` tests it. An artifact belongs to its root run.
   under another brief never overwrites it. Beside it, `simulate` keeps
   `<id>.results` (`Results.to_bytes()`), `<id>.plant` (the spec that ran) and `<id>.run` (the
   demand, rules and window it ran on), which `verify_design` compares with the brief.
-- **A profile** the user gave is stored under `profile/<name>` as JSON `{quantity, unit, start,
-  step, values}`, in W; the artifact `profiles` lists the stored names for `list_profiles`. A
-  profile from a project file is not read yet: `Workspace.documents` only searches, and reading a
-  file by name would be a new Workspace method of the contract.
+- **A case file** is stored under `case/<file name>` as bytes (the CSV of the demand or of a
+  profile), one name and no folder. `set_case(source="project")` and `save_profile` write them;
+  `case_of` reads them. The older `profile/<name>` artifact remains for `list_profiles` and
+  `simulate` until they read the case.
 
 ### How `simulate` runs
 
 `gm.schedule(plant, demand, rules)`, then `gm.simulate(plant, plan, on_error="record")`: a day
 that fails is one of gemini's problems in the summary (`failed_steps`, the first five `errors`)
-and the year still runs. The rules come from the problem state's [brief](context.md#the-brief)
+and the year still runs. The rules come from the problem state's [brief](context.md#the-case)
 through `schedule_rules` in `tools/gemini/brief.py`: its `doublet_flow` and `max_brine_cooling`,
 the source order `geothermal, heat_pump, boiler`, and `operating_days` `None` (gemini raises
 `NotImplementedYet` for any other value). A brief without the flow range or the brine cooling is
@@ -104,7 +106,7 @@ one call outside gemini's `api.md`; it stays until gemini reads these inputs its
 
 `tools/gemini/verification.py` holds the one verification, used by `check_results` and by
 `gd.verify.verify` (`verify/` may import `tools`, not the other way). It checks the limits of the
-problem state's [brief](context.md#the-brief) (`check_results` and `verify_design` read it; `verify`
+problem state's [brief](context.md#the-case) (`check_results` and `verify_design` read it; `verify`
 takes `brief=`), and without one those of the `hackathon_2027` preset, as before briefs were data.
 It returns `{passed, checks, failures, not_assessed, not_given, brief}`:
 

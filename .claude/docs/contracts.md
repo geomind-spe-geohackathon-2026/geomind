@@ -76,5 +76,10 @@ and to read one back `event_from_dict`.
 - Pass `sandbox` and `permissions` again to `Run.load`, like hooks and callbacks; a run does not
   store them.
 - `event.to_dict()` holds every field a store must keep, and `event_from_dict` restores it.
-- `save_artifact` keys may hold a `/`: `design/<name>` and `result/<id>`. `check_run_store` tests it.
+- `save_artifact` keys may hold a `/`: `design/<name>`, `result/<id>`, `profile/<name>` and
+  `case/<file name>` (bytes: the CSV files of the run's case). `check_run_store` tests them.
+- `Workspace.case(project_id)` returns the project's case as `(case dict, folder)` or `None`: the
+  content of its `case.json` as written, and a folder (a path) holding the files it names.
+  `check_workspace` needs a project whose case names a demand file. The file workspace reads
+  `<root>/<project>/case.json`; the memory one takes `cases={project: (dict, folder)}`.
 - `RunResult.stop_reason` may be `not_implemented`, with `status="failed"`.

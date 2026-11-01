@@ -1,17 +1,11 @@
 """The tools that read profiles and run a plant."""
 
 import asyncio
-import hashlib
-import json
-import math
-import re
 from datetime import datetime, timezone
 from typing import Any
 
 from geomind.errors import ToolError
 from geomind.tools.base import tool
-from geomind.tools.gemini.brief import brief_of, schedule_rules
-from geomind.tools.gemini.plants import load_plant
 
 SHOWN_ERRORS = 5
 
@@ -35,8 +29,6 @@ def parse_time(value, field, where):
 PROFILE = "profile/"
 PROFILE_INDEX = "profiles"
 """The artifact that lists the names of the profiles stored in a run."""
-QUANTITIES = ("heating_demand", "cooling_demand")
-PROFILE_NAME = re.compile(r"[A-Za-z0-9._-]+")
 
 
 def stored_frame(context, name, where):
@@ -113,70 +105,6 @@ def read_profile(context, name: str, start: str | None = None, end: str | None =
     }
 
 
-def profile_problem(name, values, quantity, step):
-    """Return ``(field, message)`` of what makes a user's profile unusable, or ``None``."""
-    import pandas as pd
-
-    if not PROFILE_NAME.fullmatch(name) or set(name) == {"."}:
-        return "name", f"name = {name!r}; expected letters, digits, '.', '_' or '-'"
-    if quantity not in QUANTITIES:
-        return "quantity", f"quantity = {quantity!r}; expected heating_demand or cooling_demand"
-    if not values:
-        return "values", "values = []; expected at least one value, one per step"
-    if min(values) < 0 or not all(math.isfinite(value) for value in values):
-        return "values", "values: expected finite, non-negative demand on every step"
-    try:
-        pd.tseries.frequencies.to_offset(step)
-    except ValueError:
-        return "step", f"step = {step!r}; expected a pandas frequency such as '1D'"
-    return None
-
-
-def stored_profile(name, values, unit, start, step, quantity):
-    """Return the stored form of a user's profile: its values converted to W by ``gm.units``."""
-    import gemini as gm
-
-    problem = profile_problem(name, values, quantity, step)
-    if problem is not None:
-        raise ToolError(f"save_profile: {problem[1]}", path=problem[0])
-    if not gm.units.fits(unit, "power"):
-        raise ToolError(f"save_profile: unit = {unit!r}; expected a unit of power", path="unit")
-    moment = parse_time(start, "start", "save_profile")
-    return {
-        "quantity": quantity,
-        "unit": "W",
-        "start": moment.isoformat(),
-        "step": step,
-        "values": [gm.units.convert(value, unit, "W") for value in values],
-    }
-
-
-@tool(effect="write")
-async def save_profile(
-    context,
-    name: str,
-    values: list[float],
-    unit: str,
-    start: str,
-    step: str = "1D",
-    quantity: str = "heating_demand",
-):
-    """Store a demand profile the user gave as values, one per step; return its reference.
-
-    ``unit`` is a unit of power (such as ``MW``), ``start`` the ISO 8601 time of the first value
-    and ``step`` a pandas frequency. ``quantity`` is heating_demand or cooling_demand. The profile
-    is stored as ``profile/<name>`` in W, for ``simulate(profile=...)`` and the brief's demand.
-    """
-    stored = await asyncio.to_thread(stored_profile, name, values, unit, start, step, quantity)
-    reference = f"{PROFILE}{name}"
-    await context.session.save_artifact(reference, stored)
-    known = context.session.load_artifact(PROFILE_INDEX) or []
-    if reference not in known:
-        await context.session.save_artifact(PROFILE_INDEX, [*known, reference])
-    count = len(stored["values"])
-    return {"profile": reference, "steps": count, "start": stored["start"], "unit": "W"}
-
-
 def stored_series(results):
     """Return results in the stored result format, ``{path: {field: {unit, values}}}``.
 
@@ -210,33 +138,7 @@ def demand_names(brief, profile):
 
 def run_plant(context, design, changes, profile, start, end):
     """Schedule and simulate a plant on the demand; return what ``simulate`` stores and says."""
-    import gemini as gm
-
-    brief, source = brief_of(context)
-    rules = schedule_rules(brief)
-    names = demand_names(brief, profile)
-    plant = load_plant(context, design, "simulate")
-    for path, params in (changes or {}).items():
-        plant.set_params(path, params)
-    plan = gm.schedule(plant, demand(context, names, start, end, "simulate"), rules)
-    results = gm.simulate(plant, plan, on_error="record")
-    spec = plant.to_dict()
-    key = json.dumps([spec, names, start, end, rules], sort_keys=True, default=str)
-    identifier = hashlib.sha256(key.encode()).hexdigest()[:16]
-    errors = results.errors()
-    summary = {
-        "steps": len(plan),
-        "start": plan.index[0].isoformat() if len(plan) else None,
-        "end": plan.index[-1].isoformat() if len(plan) else None,
-        "failed_steps": len(errors),
-        "errors": errors[:SHOWN_ERRORS],
-        "totals": gm.kpi.totals(plant, results),
-        "brief": source,
-        "demand": names,
-        "rules": rules,
-    }
-    run = {"demand": names, "rules": rules, "start": start, "end": end}
-    return identifier, stored_series(results), results.to_bytes(), spec, run, summary
+    raise ToolError("simulate: not_implemented until the case replaces the brief")
 
 
 @tool(effect="compute")

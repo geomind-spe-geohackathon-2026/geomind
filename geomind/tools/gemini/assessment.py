@@ -4,9 +4,7 @@ from typing import Any
 
 from geomind.errors import NotImplementedYet, ToolError
 from geomind.tools.base import tool
-from geomind.tools.gemini.brief import brief_of
 from geomind.tools.gemini.plants import apply_inputs
-from geomind.tools.gemini.verification import assess
 from geomind.utils.strings import did_you_mean, join_names
 
 RESULT = "result/"
@@ -37,9 +35,7 @@ def check_results(context, reference: str, limits: dict[str, Any] | None = None)
     cannot judge yet, and the limits the brief does not give. ``limits`` (what
     ``gm.checks.Limits.to_dict`` returns) are checked beside the brief's.
     """
-    brief, source = brief_of(context)
-    plant, results = stored_run(context, reference, "check_results")
-    return assess(plant, results, limits, brief, source)
+    raise ToolError("check_results: not_implemented until the case replaces the brief")
 
 
 def kpis(plant, results):

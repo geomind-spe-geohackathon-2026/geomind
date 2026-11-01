@@ -1,9 +1,12 @@
 """The problem state: the contract's patches, validation and rendering."""
 
+import json
+
 import pytest
 
 from geomind.context import ProblemState, apply_changes, render
 from geomind.errors import StateError
+from tests.fixtures.cases import example_case, example_names
 
 R1 = {"id": "R1", "text": "Cover the load", "metric": "coverage", "target": 1.0, "tolerance": 0.0}
 A1 = {"id": "A1", "text": "Inlet temperature", "value": 80, "source": "user"}
@@ -156,3 +159,34 @@ def test_render_keeps_a_requirement_without_a_metric_short():
         "Requirement R1 [open]: Be safe",
         "Assumption A1 [unconfirmed, agent]: Dry",
     ]
+
+
+@example_names
+def test_a_state_with_a_case_round_trips_as_json(name):
+    """The case is plain data: a state dumped to JSON and validated again is equal."""
+    case = example_case(name)[0]
+    state = apply_changes(ProblemState(), [{"op": "replace", "path": "/case", "value": case}])
+    assert state.case == case
+    assert ProblemState.model_validate(json.loads(state.model_dump_json())) == state
+
+
+def test_a_patch_can_change_one_value_of_the_case():
+    """``case`` is a key of the document, so a path may go below it."""
+    case = example_case("shallow_district")[0]
+    state = apply_changes(ProblemState(), [{"op": "replace", "path": "/case", "value": case}])
+    state = apply_changes(
+        state, [{"op": "replace", "path": "/case/time/start", "value": "2026-01-13"}]
+    )
+    assert state.case["time"]["start"] == "2026-01-13"
+    assert state.case["demand"] == case["demand"]
+
+
+@example_names
+def test_render_shows_the_case_briefly(name):
+    """The line names the time and the sections, never the demand values."""
+    case = example_case(name)[0]
+    state = apply_changes(ProblemState(), [{"op": "replace", "path": "/case", "value": case}])
+    line = render(state).splitlines()[1]
+    assert line.startswith(f"Case: time {case['time']['start']} to {case['time']['end']}")
+    assert "demand heating, cooling in demand.csv" in line
+    assert len(line) < 300

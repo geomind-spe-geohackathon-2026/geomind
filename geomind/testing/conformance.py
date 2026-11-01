@@ -4,6 +4,8 @@ Each raises ``AssertionError`` with a clear message. geomind's own tests run the
 and file implementations; the backend runs them against its own.
 """
 
+from pathlib import Path
+
 from geomind.types import Message
 from geomind.types.events import StepStarted, TextDelta
 
@@ -68,6 +70,7 @@ def _check_artifacts(store):
     store.save_artifact(RUN, "design/conformance", {"name": "doublet"})
     store.save_artifact(RUN, "result/conformance", {"plant": {}})
     store.save_artifact(RUN, "profile/conformance", {"values": [1.0]})
+    store.save_artifact(RUN, "case/conformance.csv", b"time,x\n1,2\n")
     _expect(
         store.load_artifact(RUN, "design/conformance") == {"name": "doublet"},
         "a design/<name> key must round-trip",
@@ -79,6 +82,10 @@ def _check_artifacts(store):
     _expect(
         store.load_artifact(RUN, "profile/conformance") == {"values": [1.0]},
         "a profile/<name> key must round-trip",
+    )
+    _expect(
+        store.load_artifact(RUN, "case/conformance.csv") == b"time,x\n1,2\n",
+        "a case/<file name> key must round-trip its bytes",
     )
 
 
@@ -94,11 +101,23 @@ def check_run_store(factory, seed_history=None):
     _check_artifacts(factory())
 
 
+def _check_case(workspace, project, missing_project):
+    """Check that the project's case is ``(dict, folder)`` with its files and unknown has none."""
+    found = workspace.case(project)
+    _expect(found is not None, "the project's case must load")
+    data, folder = found
+    _expect(isinstance(data, dict) and "time" in data, "a case must be the dict of a case.json")
+    file = (data.get("demand") or {}).get("file")
+    _expect(file is None or (Path(folder) / file).is_file(), "the folder must hold the case files")
+    _expect(workspace.case(missing_project) is None, "an unknown project must have no case")
+
+
 def check_workspace(factory, *, project, query, missing_project="conformance-missing"):
-    """Check a ``Workspace``; ``factory()`` holds a plant and a document matching ``query``."""
+    """Check a ``Workspace``; ``factory()`` holds a plant, a case and a document for ``query``."""
     workspace = factory()
     _expect(workspace.plant(project) is not None, "the project's plant must load")
     _expect(workspace.plant(missing_project) is None, "an unknown project must have no plant")
+    _check_case(workspace, project, missing_project)
     found = workspace.documents(project, query)
     _expect(found, "documents must find the query")
     for document in found:

@@ -7,7 +7,7 @@ LLM call or an event stays in the engine.
 
 `ProblemState` (`context/state.py`) holds the notes of one chat, outside the message window: `version`,
 `goal`, `requirements`, `assumptions`, `design`, `results`, `verification`, `questions` and
-`brief`. It is frozen: a change is a new state.
+`case`. It is frozen: a change is a new state.
 
 | Key | Shape |
 |---|---|
@@ -18,7 +18,7 @@ LLM call or an event stays in the engine.
 | `results` | `[{id, summary, reference}]`; `reference` names the stored data |
 | `verification` | an object, free in shape; `result` names the `result/<id>` that verifies the design, which `Verified` checks again |
 | `questions` | `[{id, text}]` |
-| `brief` | a [`Brief`](#the-brief), or `null` when no brief is set |
+| `case` | a [gemini case](#the-case) as the dict of a `case.json`, or `null` when no case is set |
 
 - **Writing.** The model writes through `update_state(changes)`. `apply_changes(state, changes)`
   takes the contract's JSON Patch operations, validates each one and returns a new state with
@@ -34,42 +34,31 @@ LLM call or an event stays in the engine.
 - **Shown to the model.** `render(state)` gives one line per item, the last part of every call, never
   in the message list. An untouched state (`version` 0) renders nothing.
 
-## The brief
+## The case
 
-`Brief` (`context/brief.py`) is what a design must meet, as a brief states it. Every field is
-optional, and `None` means "not given": a limit the brief does not give is not checked, and
-verification lists it under `not_given`.
+The problem is a gemini `gm.Case` (`case.json` and a demand CSV; sections `time`, `environment`,
+`demand`, `choices`, `constraints`, `assumptions` and `uncertainty`). The state holds it as plain
+JSON in `case`, and `context/` knows nothing of its content; `render` shows only the time, the
+section names and the demand file.
 
-| Field | Shape |
-|---|---|
-| `source` | a preset name, `user` (values the user gave) or `agent` |
-| `demand` | `{heating, cooling}`: a gemini profile name or a stored `profile/<name>` |
-| `doublets` | `{min, max}`, whole numbers |
-| `doublet_flow` | `{min, max}`, amounts |
-| `max_brine_cooling`, `pump_efficiency` | an amount |
-| `operating_days` | a whole number |
-| `volume_balance` | true when produced and injected liquid volumes must be equal |
-| `heating`, `cooling` | `{supply, return_temperature}`, amounts |
-| `reservoir` | `{depth, thickness, gradient, surface_temperature, pressure, permeability, density, viscosity, gas_liquid_ratio, gas_composition}`; the composition is mole fractions |
-
-An amount is what gemini takes: a text `"<number> <unit>"` or a Value `{value, unit}`. Nothing in
-`context/` converts it; the tools use `gm.units`.
-
-- **Presets.** `PRESETS` holds the named briefs, and is the only place their numbers live. The one
-  preset is `hackathon_2027`, the GEMINI hackathon challenge requirements of 28 October 2026: the
-  two gemini demand profiles, the reservoir and brine values, 1 to 3 doublets, 50 to 300 m3/h,
-  40 K, 70 % pump efficiency, equal volumes, 330 operating days, supply 100 and 20 degC. It gives
-  no return temperature: 60 and 25 degC are assumptions of a design. `preset(name)` returns one,
-  and `with_changes(brief, changes)` merges the JSON of a partial brief into one.
-- **Who sets it.** The Designer (or any agent) sets it with `set_brief(preset=None, changes=None)`,
-  or with `update_state` on `/brief`. In a design run the designer sets it first: the preset when
-  the request is the hackathon challenge, otherwise the values the request gives; it asks the user
-  for a demand the request does not give, and never takes the hackathon's numbers for another
-  brief. The `DesignLoop` driver checks after each designer round that the brief has a demand, and
-  asks the user when it has not.
-- **Who reads it.** `simulate` builds `gm.schedule`'s rules and takes the demand from it, and
-  verification checks its limits. Without a brief both use the `hackathon_2027` preset, as before
-  briefs were data, and say so in their output. `render` shows it to every agent.
+- **Stored as given.** `case` is the content of a `case.json` plus the merge-patch changes of the
+  user and the model, validated by `gm.Case.from_dict`. It is never `case.to_dict()`: that writes
+  the service unit as `W` but keeps the CSV column in its own unit, so `from_dict(to_dict())` reads
+  a kW file as W (gemini request 1 in the adaptation notes). A test keeps this: the stored case of
+  `shallow_district` gives its heating peak of 3.034 MW.
+- **The files.** The files a case names (`demand.file`, a profile file) are not in the state. The
+  run store keeps them as artifacts `case/<file name>` (bytes), so the run store is the source of
+  truth and a run does not read a project folder. `case_of(context)` in `tools/gemini/case.py`
+  writes them to a temporary folder and returns `gm.Case.from_dict(state.case, folder)`. With no
+  case it raises `ToolError` telling the model to call `set_case` or `ask_user`: there is no
+  fallback case anywhere.
+- **Who sets it.** `set_case(source=None, changes=None)`: `source="project"` loads the project's
+  case through `Workspace.case(project)` and copies its files into the run; `changes` is an
+  RFC 7386 JSON merge patch on the case. gemini validates the result; a rejected case comes back as
+  a tool error with gemini's `path`, `code` and message, and nothing is stored. `save_profile`
+  adds a user's demand values to `demand`. `update_state` on `/case` also reaches it, unvalidated.
+- **Who reads it.** `read_case(section=None)` returns the case, a section, or `gm.Case.schema()`
+  for `section="schema"`. The gemini tools read the case through `case_of`.
 
 ## Long conversations
 

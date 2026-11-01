@@ -87,3 +87,13 @@ async def test_large_tool_result_is_an_artifact_in_the_store(tmp_path):
     recorded = [event for event in events if event.type == "tool.result"][0]
     assert recorded.reference == recorded.output["reference"]
     assert "k" * 100 in store.load_artifact(result.run_id, recorded.reference)
+
+
+def test_file_store_keeps_a_case_file_under_its_name(tmp_path):
+    """A file of the run's case is ``case/<file name>``, bytes as written."""
+    store = FileRunStore(tmp_path)
+    store.save_artifact("r", "case/demand.csv", b"time,x\n")
+    assert (tmp_path / "r/artifacts/case/demand.csv.bin").read_bytes() == b"time,x\n"
+    assert store.load_artifact("r", "case/demand.csv") == b"time,x\n"
+    with pytest.raises(RunError, match="expected letters"):
+        store.save_artifact("r", "case/../x", b"x")

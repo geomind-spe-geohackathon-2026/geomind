@@ -1,6 +1,5 @@
 """Verify a design against its requirements and limits."""
 
-from geomind.context import Brief
 from geomind.context.state import Requirement
 from geomind.tools.gemini.verification import assess
 
@@ -49,8 +48,6 @@ def verify(plant, results, *, requirements=(), limits=None, brief=None):
     """
     from_requirements, skipped = requirement_limits(requirements)
     extra = {"limits": [*(limits or {}).get("limits", []), *from_requirements]}
-    if isinstance(brief, dict):
-        brief = Brief.model_validate(brief)
     found = assess(plant, results, extra, brief)
     found["not_assessed"] = [*found["not_assessed"], *skipped]
     return found

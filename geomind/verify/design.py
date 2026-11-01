@@ -2,7 +2,6 @@
 
 from geomind.errors import ToolError
 from geomind.tools.gemini.assessment import stored_run
-from geomind.tools.gemini.brief import schedule_rules
 from geomind.tools.gemini.runs import demand_names
 from geomind.verify.verify import verify
 
@@ -27,7 +26,7 @@ def off_brief(context, result, brief):
     if brief is None or run is None:
         return None
     try:
-        expected = {"demand": demand_names(brief, None), "rules": schedule_rules(brief)}
+        expected = {"demand": demand_names(brief, None), "rules": {}}
     except ToolError as error:
         return f"the brief cannot be simulated: {error}"
     for name, value in expected.items():
@@ -67,7 +66,7 @@ def verify_design(context):
             f"{result} is stale: it ran another plant than {design}; simulate the current design "
             "and check it",
         )
-    mismatch = off_brief(context, result, problem.brief)
+    mismatch = off_brief(context, result, problem.case)
     if mismatch is not None:
         return unverified("result_off_brief", mismatch)
-    return verify(plant, results, requirements=problem.requirements, brief=problem.brief)
+    return verify(plant, results, requirements=problem.requirements, brief=problem.case)

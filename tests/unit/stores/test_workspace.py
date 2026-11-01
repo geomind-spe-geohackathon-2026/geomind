@@ -1,6 +1,9 @@
-"""Workspaces: plants and keyword search."""
+"""Workspaces: plants, cases and keyword search."""
+
+import json
 
 from geomind.stores.workspace import FileWorkspace, MemoryWorkspace, search
+from tests.fixtures.cases import example_case, example_names
 
 DOCUMENTS = [
     {"id": "1", "title": "Pumps", "text": "a pump moves water"},
@@ -37,3 +40,23 @@ def test_file_workspace_reads_text_files(tmp_path):
 def test_file_workspace_without_a_plant(tmp_path):
     """A project without a plant file has no plant."""
     assert FileWorkspace(tmp_path).plant("p") is None
+
+
+@example_names
+def test_file_workspace_reads_a_case_and_its_folder(name):
+    """The case is the content of ``case.json``, as written, and the folder holds its files."""
+    data, folder = FileWorkspace(example_case(name)[1].parent).case(name)
+    assert data == json.loads((folder / "case.json").read_text())
+    assert (folder / data["demand"]["file"]).is_file()
+
+
+def test_file_workspace_without_a_case(tmp_path):
+    """A project without a case file has no case."""
+    assert FileWorkspace(tmp_path).case("p") is None
+
+
+def test_memory_workspace_keeps_cases_by_project():
+    """A case belongs to one project."""
+    workspace = MemoryWorkspace(cases={"a": ({"time": {}}, "folder")})
+    assert workspace.case("a") == ({"time": {}}, "folder")
+    assert workspace.case("b") is None

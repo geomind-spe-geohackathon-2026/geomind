@@ -11,9 +11,7 @@ never checked or passed; what gemini cannot judge yet is listed under ``not_asse
 
 import math
 
-from geomind.context import preset
 from geomind.errors import ToolError
-from geomind.tools.gemini.brief import FALLBACK, TOLERANCE, schedule_rules, si, text
 
 HEATING_GRID = "HeatingGrid"
 COOLING_GRID = "CoolingGrid"
@@ -323,7 +321,7 @@ def assess(plant, results, limits=None, brief=None, source=None):
     import gemini as gm
 
     if brief is None:
-        brief, source = preset(FALLBACK), f"no brief in the state: the {FALLBACK} preset"
+        raise ToolError("assess: not_implemented until the case replaces the brief")
     types = module_types(plant)
     merged = challenge_limits(plant, brief).to_dict()
     merged["limits"] += (limits or {}).get("limits", [])

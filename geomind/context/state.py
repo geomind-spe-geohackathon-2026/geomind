@@ -5,7 +5,6 @@ from typing import Any, Literal
 
 from pydantic import ValidationError, model_validator
 
-from geomind.context.brief import Brief
 from geomind.errors import StateError
 from geomind.types import Record
 from geomind.types.patch import ITEM_LISTS, operation_problem
@@ -72,7 +71,7 @@ class ProblemState(Record):
     results: tuple[Result, ...] = ()
     verification: dict[str, Any] = {}
     questions: tuple[Question, ...] = ()
-    brief: Brief | None = None
+    case: dict[str, Any] | None = None
     compaction: Compaction | None = None
 
     @model_validator(mode="after")
@@ -202,6 +201,17 @@ def _result_line(item):
     return f"Result {item.id}: {item.summary}{reference}"
 
 
+def _case_line(case):
+    """Return the case as one line: its time and its sections, never the demand itself."""
+    time = case.get("time") or {}
+    span = f"{time.get('start')} to {time.get('end')}"
+    sections = ", ".join(name for name in case if name != "time")
+    demand = case.get("demand") or {}
+    served = [name for name in ("heating", "cooling") if name in demand]
+    line = f"Case: time {span}; sections {sections or 'none'}"
+    return f"{line}; demand {', '.join(served)} in {demand.get('file')}" if served else line
+
+
 def render(state):
     """Return compact text, one line per item, or ``""`` for an untouched state."""
     if state.version == 0:
@@ -217,7 +227,6 @@ def render(state):
     if state.verification:
         lines.append(f"Verification: {json.dumps(state.verification)}")
     lines += [f"Question {item.id}: {item.text}" for item in state.questions]
-    if state.brief is not None:
-        brief = state.brief.model_dump(mode="json", exclude_none=True)
-        lines.append(f"Brief: {json.dumps(brief)}")
+    if state.case is not None:
+        lines.append(_case_line(state.case))
     return "\n".join(lines)

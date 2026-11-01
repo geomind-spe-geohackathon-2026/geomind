@@ -1,4 +1,4 @@
-"""The plants and documents of a project."""
+"""The plants, case and documents of a project."""
 
 import re
 from pathlib import Path
@@ -15,6 +15,12 @@ class Workspace(Protocol):
 
     def plant(self, project_id):
         """Return the stored plant as a gemini plant, or ``None``."""
+
+    def case(self, project_id):
+        """Return the project's case as ``(case dict, folder of its files)``, or ``None``.
+
+        The dict is the content of a ``case.json``, as written; the folder holds the files it names.
+        """
 
     def documents(self, project_id, query):
         """Return matching documents as ``[{id, title, text, score}]``, best first."""
@@ -33,16 +39,24 @@ def search(documents, query):
 
 
 class MemoryWorkspace:
-    """Hold ``plants`` by project id and ``documents`` as ``{id, title, text}`` by project id."""
+    """Hold ``plants``, ``cases`` and ``documents`` by project id.
 
-    def __init__(self, plants=None, documents=None):
+    A document is ``{id, title, text}``; a case is ``(case dict, folder of its files)``.
+    """
+
+    def __init__(self, plants=None, documents=None, cases=None):
         """Keep the given values."""
         self.plants = dict(plants or {})
+        self.cases = dict(cases or {})
         self.project_documents = dict(documents or {})
 
     def plant(self, project_id):
         """Return the plant of a project, or ``None``."""
         return self.plants.get(project_id)
+
+    def case(self, project_id):
+        """Return the case of a project, or ``None``."""
+        return self.cases.get(project_id)
 
     def documents(self, project_id, query):
         """Search the documents of a project."""
@@ -50,10 +64,10 @@ class MemoryWorkspace:
 
 
 class FileWorkspace:
-    """Read ``<root>/<project id>/plant.json`` and the text files in ``documents/``.
+    """Read ``<root>/<project id>/plant.json``, ``case.json`` and the text files in ``documents/``.
 
-    A plant file is gemini's plant spec. NOTE: gemini is imported only here, and only when a plant
-    is read, because ``import geomind`` should not pay for it.
+    A plant file is gemini's ``plant.json``. NOTE: gemini is imported only here, and only when a
+    plant is read, because ``import geomind`` should not pay for it.
     """
 
     def __init__(self, root):
@@ -67,7 +81,13 @@ class FileWorkspace:
             return None
         import gemini as gm
 
-        return gm.plants.from_dict(read_json(path))
+        return gm.Plant.from_json(path)
+
+    def case(self, project_id):
+        """Return ``(case dict, project folder)`` from ``case.json``, or ``None`` without it."""
+        folder = self.root / project_id
+        path = folder / "case.json"
+        return (read_json(path), folder) if path.exists() else None
 
     def documents(self, project_id, query):
         """Search the text files of a project."""

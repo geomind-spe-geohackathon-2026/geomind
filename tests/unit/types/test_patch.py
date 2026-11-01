@@ -14,6 +14,7 @@ ITEM = {"id": "R3", "text": "Cover peak cooling"}
         {"op": "replace", "path": "/assumptions/A1/confirmed", "value": True},
         {"op": "remove", "path": "/questions/Q2"},
         {"op": "replace", "path": "/goal", "value": "heat"},
+        {"op": "replace", "path": "/case/demand/file", "value": "mine.csv"},
         {"op": "add", "path": "/design/a~1b", "value": None},
     ],
 )
