@@ -93,7 +93,7 @@ Its four tasks are the hackathon case and three variants, each a case change:
 | `hackathon` | the case as it is | an unmet demand or a violated limit (`verified`) |
 | `more_cooling` | the `more_cooling` project, a 15 MW cooling peak | the hand-found design fails `cool_users.supply_in.temperature` (21.67 degC against 20 degC) and `cool_users.unmet_sensible` (`verified`) |
 | `colder_reservoir` | `set_case` changes `environment.ground.gradient` to 25 K/km | nothing physical: the design still passes, and no case constraint limits the boiler (for gemini's hand-found HackathonPlant its heat goes from 254 to 29 705 MWh and the LCTS from 48.5 to 53.6 EUR/MWh), and we do not invent one. The task checks `/case/environment/ground/gradient/value` is 25 and that the answer's LCTS is the 25 K/km value of the recorded design, 46.82 EUR/MWh (`number`), not the 35.93 of the same design at 30 K/km |
-| `user_profile` | the user's heating demand (the case's profile x 0.8) stored with `read_profile` and `save_profile` | `/case/demand/file` is not `heating_80.csv`, or the heating demand is unmet |
+| `user_profile` | 30 January days of the user's heating and cooling (30 values given in the message): `set_case` cuts `time`, drops the duration constraint and the demand, `save_profile` twice, `set_case` restores the temperatures | `/case/time/end` or `/case/demand/file` is not the user's, or the heating demand is unmet |
 
 A variant fails when the agents ignore its change: `tests/integration/test_evals.py` runs
 `tests/fixtures/recordings/*_ignored.jsonl` on the variant's task. The unsized hackathon design on
