@@ -29,9 +29,9 @@ the problem state as `update_state` does.
 | `simulate` | `runs.py` | `compute` | `design=None, changes=None, start=None, end=None` | `{reference, summary}`; the run is stored; the summary gives the plant, the case's time span, the window, `steps`, `failed_steps` and the first `failures`, the `report` totals in display units, the `violated` constraints and the demand `coverage` | built |
 | `read_result` | `results.py` | `read` | `reference, path=None, field=None, start=None, end=None` (ISO 8601, inclusive) | `{time, value, unit}` with `path` and `field`, otherwise `{path: {field: {min, max, mean}}}`, in MW, degC, bar, m3/h and kg/s | built |
 | `search_documents` | `results.py` | `read` | `query` | `[{id, title, text, score}]` | built |
-| `check_results` | `assessment.py` | `compute` | `reference` | gemini's verdict on the run's own case, in display units: `{passed, constraints: [check], failures: {total, groups}, balances: [check], metrics}` | built |
+| `check_results` | `assessment.py` | `compute` | `reference` | gemini's verdict on the run's own case, in display units: `{feasible, reasons: [{kind, name, message, ...}], requirements: [check], failures: {total, groups}, metrics}` | built |
 | `compute_kpis` | `assessment.py` | `compute` | `reference, names=None` | `{name: Value}` in display units: `gm.evaluate.totals` and the metrics of `gm.evaluate.report`; an unknown name is `unknown_name` with a did-you-mean | built |
-| `estimate_costs` | `assessment.py` | `compute` | `reference` | `{capex, opex, annualised_cost, lcoh, lcoc, lcts, npv, payback, co2}` as Values in display units, from the case's assumptions; a cost whose assumption is missing is `{error}` with gemini's `missing_assumption` and its path | built |
+| `estimate_costs` | `assessment.py` | `compute` | `reference` | `{capex, opex, annualised_cost, lcoh, lcoc, lcts, npv, payback, co2}` as Values in display units, from the case's `economics.json`; a cost whose figure is missing is `{error}` with gemini's `missing_assumption` and its path | built |
 | `test_module` | `assessment.py` | `execute` | `path` | gemini's `check_module` report, run in the sandbox | stub, S3 |
 | `size_plant` | `study.py` | `compute` | `design, backup, name`, all required: `backup` is `peak` or `none` | `{design, sizing}`; `gm.study.size` on the state's case, the sized plant stored as `design/<name>`, `sizing` gemini's notes (`sized`, `unchanged`, `broken`, `simulation`) with quantities as `{value, unit}` | built |
 | `optimize` | `study.py` | `compute` | `design, objective, variables, evaluations, name, constraints=None`: `variables` a list of `{path, parameter, lower, upper}` with `{value, unit}` bounds (counts for `size.doublets`); an empty list means the case's choices, there is no other default; a `case` or `case.<path>` variable is refused (the case is the user's) | `{best, feasible, fixed, trials, design}`; `best` is `Best.to_dict()` (SI values, the plant inside), the best plant stored as `design/<name>`; with no trial that ran there is no `design`; gemini's errors (`unknown_name`, `invalid_design`, `missing_value`) pass through | built |
@@ -60,7 +60,7 @@ filling a stub, because gemini's names change.
 | `simulate` | `gm.schedule`, `gm.simulate`, `gm.evaluate.report`, `totals`, `failures`, `plant.set_params`, `Results.to_bytes` | real |
 | `read_result` | `Results.get`, `Results.summary` through `load_run` | real |
 | `search_documents` | none: it reads `Workspace.documents` | built |
-| `check_results` | `gm.evaluate.report`, `failures`, `energy_balance`, `mass_balance`, `bounds`, `plant_balance`, `gm.Results.from_bytes` | real |
+| `check_results` | `gm.evaluate.verdict`, `report`, `gm.Results.from_bytes` | real |
 | `compute_kpis` | `gm.evaluate.totals`, `gm.evaluate.report` | real |
 | `estimate_costs` | `gm.evaluate.capex`, `opex`, `annualised_cost`, `lcoh`, `lcoc`, `lcts`, `npv`, `payback`, `co2`, `report` | real |
 | `test_module` | `gm.modules.load_file`, `gm.modules.get`, `gm.testing.check_module` | real |
@@ -119,43 +119,40 @@ case with `save_profile`.
 ## Verification
 
 `tools/gemini/verification.py` holds the one verification, used by `check_results` and by
-`gd.verify.verify(plant, results, case)` (`verify/` may import `tools`, not the other way). Every
-check, balance and number is gemini's (`gm.evaluate`) on the case the run ran on; there is no
-geomind limit, tolerance or brief. A limit is a constraint of the case (`set_case`), and a numeric
+`gd.verify.verify(plant, results, case)` (`verify/` may import `tools`, not the other way). Pass
+or fail is `gm.evaluate.verdict(plant, case, results)` and nothing else: geomind has no rule, limit,
+tolerance or brief of its own. A limit is a requirement of the case (`set_case`), and a numeric
 requirement of the problem state is one too: `Requirement.case_requirement` names it by its
 `name`.
 
-- `assess` returns `{passed, constraints, failures, balances, metrics}`. `constraints` are the
-  report's checks of the case's constraints and of the services' supply temperatures
-  (`{name, role, unit_path, quantity, passed, value, limit, worst_step}`), `failures`
-  `gm.evaluate.failures(results).to_dict()`, `balances` the energy and mass ledgers, the bounds and
-  the module balances of `gm.evaluate.plant_balance` that failed, and `metrics` the rest of the
-  report in display units. `passed` is true when gemini's report passed (no constraint failed and
-  one was judged), no step failed and no balance failed.
-- `verify` returns `{passed, checks, failures: [{name, domain, detail}], metrics}`: the same
-  verdict, with each failed constraint, balance and group of failed steps routed to a domain.
-- The only agent work geomind does is `domain_of`: `subsurface` (the `doublet` role, and failed
-  steps below a doublet), `sizing` (a `heating_supply` or `cooling_supply` role: the topology
-  works, the sizes do not), `surface` (any other role) or `coupled` (a balance, or failed steps in
-  no constrained unit). The roles are those of `gm.case.roles()`; the unit of a failed path is
-  found from the `unit_path` of the report's checks.
+- `assess` returns `{feasible, reasons, requirements, failures, metrics}`. `feasible` and `reasons`
+  are the verdict's (a reason has a `kind`: `requirement`, `failed_step`, `numerical` or `bound`),
+  `requirements` the report's checks (`{name, role, unit_path, quantity, passed, value, limit,
+  worst_step}`), `failures` `gm.evaluate.failures(results).to_dict()`, and `metrics` the rest of the
+  report, all in display units.
+- `verify` returns `{passed, checks, failures: [{name, kind, domain, detail}], metrics}`: `passed`
+  is `feasible`, `checks` the requirements, and each reason is routed to a domain; a `failed_step`
+  reason is listed as the groups of failed rows by module and code.
+- The only agent work geomind does is `domain_of`: a requirement by the `on` role (the reason's
+  `role`, or the case requirement of that name): `subsurface` (`doublet`), `sizing` (`heating_supply`
+  or `cooling_supply`: the topology works, the sizes do not), `surface` (any other role). A failed
+  step or a bound goes by the role of the unit its `path` lies in (found from the `unit_path` of the
+  report's checks); `numerical`, or a path in no unit of a known role, is `coupled`.
 - `verify_design` loads the run with `load_run` (plant, case, results) and adds two geomind
   process rules, not physics: a result whose plant is not the design's is `stale_result`, and one
   that ran on another case than the problem state's (the case dicts differ) is `result_off_case`.
   A missing or unknown result is `verification_missing` or `result_unknown`; all are `coupled`.
-- What the case does not constrain, gemini does not judge. The co-produced gas rule of the former
-  brief has no case form (see `.tmp/adapt/D.md`): the hackathon example's passing plant burns it
-  in its boiler.
+- What the case does not require, gemini does not judge.
 
 ## Costs
 
 `estimate_costs` calls `gm.evaluate.capex`, `opex`, `annualised_cost`, `lcoh`, `lcoc`, `lcts`,
 `npv`, `payback` and `co2` on the run's plant and case and shows them in display units (MEUR,
-MEUR/yr, EUR/MWh, kt, yr) through a gemini `Report` of the values. Prices, rates, lifetime and cost
-factors are the case's `assumptions`; geomind passes none and fills none. A cost whose assumption
-is missing is `{"error": {path, code: "missing_assumption", message}}` beside the others, and a
-case from which no cost can be computed fails the call with gemini's error. The agent asks the user
-or sets the assumption with `set_case`.
+MEUR/yr, EUR/MWh, kt, yr) through a gemini `Report` of the values. Prices, discount rate, analysis
+period and cost factors are the case's `economics.json`; geomind passes none and fills none. A cost
+whose figure is missing is `{"error": {path, code: "missing_assumption", message}}` beside the
+others, and a case from which no cost can be computed fails the call with gemini's error. The
+agent asks the user or sets it in the case's economics.
 
 ## Tool
 

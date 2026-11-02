@@ -106,7 +106,7 @@ record `design.reference` and `design.result`), the verifier on that final desig
 `Economist`, the `Explainer`, which finishes the run. Before designing, a state with no case or a
 case without demand makes the driver ask the user (`ask_user`); it stops with `no_case` at
 `max_rounds` when the designer still leaves none. After the verifier the driver checks the design
-again with gemini (`gd.verify` over the stored run, `verify/design.py`). Only a failure sends the
+again with gemini (`gd.verify` over the stored run, `verify/design.py`). Pass or fail is `gm.evaluate.verdict` alone. Only a failure sends the
 design back to the designer, with a task that routes gemini's failures (name, detail) by their
 domain: subsurface, surface, sizing, or coupled (subsurface first). The loop stops on a pass, at
 `max_rounds`, when one round fails exactly as the one before, or when an agent asks the user; each
