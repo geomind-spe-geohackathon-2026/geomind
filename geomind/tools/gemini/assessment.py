@@ -1,6 +1,6 @@
 """The tools that judge a stored run with gemini: checks, KPIs and costs on its own case."""
 
-from geomind.errors import NotImplementedYet, ToolError
+from geomind.errors import ToolError
 from geomind.tools.base import tool
 from geomind.tools.gemini.stored import load_run
 from geomind.tools.gemini.verification import METRIC_EXCLUDED, assess, displayed
@@ -98,9 +98,3 @@ def estimate_costs(context, reference: str):
     return {
         name: shown[name] if name in shown else {"error": errors[name].to_dict()} for name in COSTS
     }
-
-
-@tool(effect="execute")
-def test_module(context, path: str):
-    """Check an agent-written module file in the sandbox and return gemini's report."""
-    raise NotImplementedYet("test_module comes in S3")

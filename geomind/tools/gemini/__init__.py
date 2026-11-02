@@ -8,10 +8,10 @@ from geomind.tools.gemini.assessment import (
     check_results,
     compute_kpis,
     estimate_costs,
-    test_module,
 )
 from geomind.tools.gemini.case import read_case, save_profile, set_case
 from geomind.tools.gemini.catalogue import describe_module, evaluate_module, list_modules
+from geomind.tools.gemini.modules import test_module, write_module
 from geomind.tools.gemini.origin import accept_case, case_changes
 from geomind.tools.gemini.plants import build_plant, list_plants, read_plant, set_ranges
 from geomind.tools.gemini.results import read_result, search_documents
@@ -53,4 +53,5 @@ __all__ = [
     "simulate",
     "size_plant",
     "test_module",
+    "write_module",
 ]

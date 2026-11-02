@@ -5,7 +5,7 @@ is a new version.
 
 ## Catalogue
 
-Every tool exists now as a real `Tool`, except `test_module` (a stub, which needs Docker). Names, schemas and effects are
+Every tool exists now as a real `Tool`. Names, schemas and effects are
 [frozen](api.md#frozen-interfaces). A **stub** raises `NotImplementedYet("<tool> comes in <phase>")`,
 so a call is an error result with `code: "not_implemented"`. `gd.tools.gemini.<name>` is the public
 path; the package has one file per group. All are idempotent except `set_case` and `save_profile`, which write
@@ -33,7 +33,8 @@ the problem state as `update_state` does.
 | `check_results` | `assessment.py` | `compute` | `reference` | gemini's verdict on the run's own case, in display units: `{feasible, reasons: [{kind, name, message, ...}], requirements: [check], failures: {total, groups}, metrics}` | built |
 | `compute_kpis` | `assessment.py` | `compute` | `reference, names=None` | `{name: Value}` in display units: `gm.evaluate.totals` and the metrics of `gm.evaluate.report`; an unknown name is `unknown_name` with a did-you-mean | built |
 | `estimate_costs` | `assessment.py` | `compute` | `reference` | `{capex, opex, annualised_cost, lcoh, lcoc, lcts, npv, payback, co2}` as Values in display units, from the case's `economics.json`; a cost whose figure is missing is `{error}` with gemini's `missing_assumption` and its path | built |
-| `test_module` | `assessment.py` | `execute` | `path` | gemini's `check_module` report, run in the sandbox | stub, S3 |
+| `write_module` | `modules.py` | `write` | `name, code` | `{module: "module/<name>.py", name}`; stores the code as that artifact; `name` must be a Python identifier (`invalid_input`, path `name`) | built |
+| `test_module` | `modules.py` | `execute` | `name, example=None` | `{name, passed, modules, problems, undecided}` from `gm.modules.check` on every module class of the stored file, run in a Docker container on `gemini-sandbox:<gm.__version__>` (no network, no package mounted, the sandbox limits); a problem is `{path: "<Class>.<check>" or "import", message}`, `undecided` the checks that need an `example` (the `gm.call` arguments); the local sandbox is `not_allowed`, an unstored name `unknown_name` | built |
 | `size_plant` | `study.py` | `compute` | `design, name`: the backup policy is the plant's `params.backup` (the Designer sets it and records the assumption) | `{design, sizing}`; `gm.study.size` on the state's case, the sized plant stored as `design/<name>`, `sizing` gemini's notes (`sized`, `unchanged`, `broken`, `simulation`) with quantities as `{value, unit}` | built |
 | `optimize` | `study.py` | `compute` | `design, objective, evaluations, seed, name`, all required: the variables are the design's ranges and options (`set_ranges`), the constraints the case's requirements; a design with none is gemini's error | `{best, feasible, trials, design}`; `best` is `Best.to_dict()` (display units, the plant inside), the best plant stored as `design/<name>`; with no trial that ran there is no `design`; gemini's errors pass through | built |
 | `sample_uncertainty` | `study.py` | `compute` | `design, metrics, samples, seed`, all required | `Sample.to_dict()`: `samples` and `summary` per metric (`mean`, `p5`, `p50`, `p95`, `failed`); distributions only from the case's `uncertainty` (none is `missing_value`) | built |
@@ -66,7 +67,8 @@ filling a stub, because gemini's names change.
 | `check_results` | `gm.evaluate.verdict`, `report`, `gm.Results.from_bytes` | real |
 | `compute_kpis` | `gm.evaluate.totals`, `gm.evaluate.report` | real |
 | `estimate_costs` | `gm.evaluate.capex`, `opex`, `annualised_cost`, `lcoh`, `lcoc`, `lcts`, `npv`, `payback`, `co2`, `report` | real |
-| `test_module` | `gm.modules.load_file`, `gm.modules.get`, `gm.testing.check_module` | real |
+| `write_module` | none (stores text) | real |
+| `test_module` | `gm.modules.check`, `gm.__version__` (in the container) | real |
 | `size_plant` | `gm.study.size`, `Plant.sizing`, `Plant.to_dict` | real |
 | `optimize` | `gm.study.minimize`, `Best.to_dict` | real |
 | `sample_uncertainty` | `gm.study.sample`, `Sample.to_dict` | real |

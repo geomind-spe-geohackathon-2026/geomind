@@ -1,7 +1,6 @@
 # Sandbox
 
-The hands for code the model writes, in `geomind/sandbox/`. S3 uses it to write and test missing
-gemini modules. gemini tools are trusted library calls and stay in-process; model-written code only
+The hands for code the model writes, in `geomind/sandbox/`. `test_module` uses it to test the modules the agent writes. gemini tools are trusted library calls and stay in-process; model-written code only
 ever runs here and is never imported into the harness process.
 
 ## Protocols
@@ -40,10 +39,25 @@ more. The memory limit uses `RLIMIT_AS`, which macOS refuses, so on macOS memory
 `DockerSandbox(image=None)` starts one container per run: a read-only root, a size-limited
 in-memory workspace, CPU and memory limits, no network unless the manifest opens it, and each
 manifest package mounted read-only. The container receives no environment from this process.
-gemini's dependencies must be in the image; the default `python:<version>-slim` does not have them,
-so S3 needs an image with them.
+gemini's dependencies must be in the image; the default `python:<version>-slim` does not have them.
 
-The integration test has the `docker` marker and skips without a daemon.
+The image of module tests is `gemini-sandbox:<gm.__version__>`, built in the gemini checkout with
+`make sandbox-image` (`docker/sandbox.Dockerfile`: gemini installed, non-root user). Without it
+`docker run` fails and `test_module` says so.
+
+The docker tests (`tests/integration/test_docker_sandbox.py`, `test_module_sandbox.py`) have the
+`docker` marker and skip without a daemon or the image.
+
+## Testing agent-written modules
+
+`write_module(name, code)` stores `module/<name>.py` as an artifact. `test_module(name, example=None)`
+(`geomind/tools/gemini/modules.py`) provisions its own `DockerSandbox` on the image above, with
+`Manifest.from_runtime()` limits, no network and `packages=()` (the image's gemini is the version
+that is checked), copies in the code, `example.json` and `geomind/sandbox/module_runner.py`, runs the
+runner and closes the container. The runner imports the file with its output sent to standard error,
+calls `gm.modules.check` on every `Module` subclass the file defines and prints JSON; geomind turns
+it into `{passed, modules, problems, undecided}`. The code never runs in the harness process.
+**`LocalSandbox` is refused for agent code** (`not_allowed`), whatever else is configured.
 
 ## Lifecycle
 
