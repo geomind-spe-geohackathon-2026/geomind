@@ -5,13 +5,10 @@ The summary itself is an LLM call, so it is made in ``engine/compaction.py``.
 
 from geomind import runtime
 from geomind.context.history import SUMMARY_HEADING, split_turns
+from geomind.errors import RunError
+from geomind.types import RULE_MODEL
+from geomind.utils.models import fetch_context_windows
 
-DEFAULT_CONTEXT_WINDOW = 128_000
-CONTEXT_WINDOWS = {
-    "anthropic/claude-sonnet-5.5": 200_000,
-    "anthropic/claude-haiku-5.5": 200_000,
-    "anthropic/claude-opus-5.5": 200_000,
-}
 CHARACTERS_PER_TOKEN = 4
 
 
@@ -28,9 +25,39 @@ def estimate_tokens(messages):
     return characters // CHARACTERS_PER_TOKEN
 
 
-def is_over_threshold(messages, model):
-    """Tell whether rendered messages pass the share of the model's window that is allowed."""
-    window = CONTEXT_WINDOWS.get(model, DEFAULT_CONTEXT_WINDOW)
+def context_window(model, fetcher=fetch_context_windows):
+    """Return the context window of a model in tokens, or raise ``RunError``.
+
+    The setting ``context_window`` wins; else the provider's model list, read once per call of a
+    model with ``fetcher``. geomind keeps no table and makes no guess.
+    """
+    explicit = runtime.get("context_window")
+    if explicit is not None:
+        return explicit
+    try:
+        found = fetcher().get(model)
+    except Exception as error:
+        raise RunError(
+            f"compaction: context window of {model!r} = unknown; the model list failed "
+            f"({type(error).__name__}); set GEOMIND_CONTEXT_WINDOW"
+        ) from error
+    if found is None:
+        raise RunError(
+            f"compaction: context window of {model!r} = unknown; not in the provider's model "
+            "list; set GEOMIND_CONTEXT_WINDOW"
+        )
+    return found
+
+
+def is_over_threshold(messages, model, fetcher=fetch_context_windows):
+    """Tell whether rendered messages pass the share of the model's window that is allowed.
+
+    A rule agent calls no model, and a fake run without a model has no window unless the setting
+    gives one; neither is ever over.
+    """
+    if model == RULE_MODEL or (model is None and runtime.get("context_window") is None):
+        return False
+    window = context_window(model, fetcher)
     return estimate_tokens(messages) > runtime.get("compaction_threshold") * window
 
 

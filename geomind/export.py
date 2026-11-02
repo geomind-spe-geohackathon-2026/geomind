@@ -125,6 +125,10 @@ def _header(events, manifest):
     ]
     models = models_by_agent(events)
     lines += [f"- {agent}: {', '.join(found)}" for agent, found in models.items()]
+    configured = {role: model for role, model in started.models.items() if model}
+    if configured:
+        lines += ["", "Models configured by role:", ""]
+        lines += [f"- {role}: {model}" for role, model in configured.items()]
     return [*lines, ""]
 
 

@@ -28,7 +28,7 @@
               "role": "user"
             }
           ],
-          "model": "anthropic/claude-sonnet-5.5",
+          "model": "deepseek/deepseek-v4.1-flash-1017",
           "output_tokens": 5
         }
       ],

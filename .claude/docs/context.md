@@ -112,3 +112,10 @@ one line. An agent that has the `read_skill` tool gets the list of names with on
 system prompt; the rest costs nothing until it is read. `read_skill(name)` returns one skill, and an
 unknown name is an error result with the close match. The skills are `gemini-units` and
 `reading-results`.
+
+## Context window
+
+`context_window(model)` in `geomind/context/compaction.py` returns the window in tokens: the setting
+`context_window` (`GEOMIND_CONTEXT_WINDOW`) if set, else `context_length` from OpenRouter's public
+model list. When neither gives it, it raises `RunError` naming `GEOMIND_CONTEXT_WINDOW`; there is no
+table and no guess (before 0.4.2 an unknown model got 128 000).

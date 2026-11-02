@@ -161,9 +161,12 @@ PROMPT = [
 ]
 
 
-def test_an_anthropic_model_caches_the_system_prompt():
+MARKED = {"cache_marked_models": ["vendor/"]}
+
+
+def test_a_marked_model_caches_the_system_prompt():
     """The first system message, after the tools, ends with a cache breakpoint; nothing else."""
-    body = body_of("anthropic/claude-sonnet-5.5", PROMPT)
+    body = body_of("vendor/model", PROMPT, **MARKED)
     first = body["messages"][0]
     assert first["content"] == [
         {"type": "text", "text": "You are the designer.", "cache_control": {"type": "ephemeral"}}
@@ -173,13 +176,22 @@ def test_an_anthropic_model_caches_the_system_prompt():
     assert "cache_control" not in body
 
 
-def test_other_models_and_the_setting_turned_off_send_no_hint():
-    """Only Anthropic models get the hint, and ``prompt_caching=False`` removes it."""
+def test_an_automatic_caching_model_and_the_setting_turned_off_send_no_hint():
+    """A model that caches on its own, DeepSeek, gets no hint; neither does a disabled setting."""
     for body in (
-        body_of("openai/gpt-5", PROMPT),
-        body_of("anthropic/claude-sonnet-5.5", PROMPT, prompt_caching=False),
+        body_of("deepseek/deepseek-v4.1-flash-1017", PROMPT, **MARKED),
+        body_of("deepseek/deepseek-v4.1-flash-1017", PROMPT),
+        body_of("vendor/model", PROMPT, prompt_caching=False, **MARKED),
     ):
         assert body["messages"][0]["content"] == "You are the designer."
+
+
+async def test_a_call_without_a_model_is_refused_before_the_network(monkeypatch):
+    """No model: the error names the setting, and the transport is never used."""
+    monkeypatch.delenv("GEOMIND_MODEL")
+    llm = provider(lambda request: pytest.fail("network used"))
+    with pytest.raises(ProviderError, match="GEOMIND_MODEL"):
+        await llm.complete([], [], model=None, settings=SETTINGS)
 
 
 def test_provider_setting_orders_the_providers():

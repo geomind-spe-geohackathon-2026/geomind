@@ -117,6 +117,7 @@ class RunSession:
             settings=runtime.state(),
             loop_state=self.loop_state(),
             versions=current_versions(),
+            models=runtime.role_models(),
         )
 
     def loop_state(self):

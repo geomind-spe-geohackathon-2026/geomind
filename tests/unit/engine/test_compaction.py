@@ -4,7 +4,6 @@ from geomind import runtime
 from geomind.engine import Engine
 from geomind.engine.context import Context
 from geomind.engine.recovery import recover
-from geomind.runtime import FIXED_CHEAP_MODEL
 from geomind.types import Message
 from geomind.types.runlog import runlog
 from tests.fixtures.runs import Worker, context, engine_for, of_type, run, says, types
@@ -49,7 +48,7 @@ async def test_the_summarizer_runs_on_its_cheap_model_without_tools():
     """Its one call is what ``Summarizer`` declares."""
     _, engine, _ = await compacted_run([says("s"), says("a")])
     call = engine.llm.llm.calls[0]
-    assert (call["model"], call["tools"]) == (FIXED_CHEAP_MODEL, [])
+    assert (call["model"], call["tools"]) == (runtime.get("summarizer_model"), [])
     assert "0qqq" in call["messages"][1].content
 
 

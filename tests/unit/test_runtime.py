@@ -28,11 +28,11 @@ def test_settings_work_as_decorator():
 
 
 def test_default_model_reads_the_environment(monkeypatch):
-    """``GEOMIND_MODEL`` wins over the fixed default."""
+    """``GEOMIND_MODEL`` wins; unset means no model."""
     monkeypatch.setenv("GEOMIND_MODEL", "x/y")
     assert runtime.get("default_model") == "x/y"
     monkeypatch.delenv("GEOMIND_MODEL")
-    assert runtime.get("default_model") == runtime.FIXED_DEFAULT_MODEL
+    assert runtime.get("default_model") is None
 
 
 def test_cheap_model_reads_the_environment(monkeypatch):
@@ -40,7 +40,7 @@ def test_cheap_model_reads_the_environment(monkeypatch):
     monkeypatch.setenv("GEOMIND_CHEAP_MODEL", "x/cheap")
     assert (runtime.get("coordinator_model"), runtime.get("summarizer_model")) == ("x/cheap",) * 2
     monkeypatch.delenv("GEOMIND_CHEAP_MODEL")
-    assert runtime.get("coordinator_model") == runtime.FIXED_CHEAP_MODEL
+    assert runtime.get("coordinator_model") is None
 
 
 def test_provider_reads_the_environment(monkeypatch):
@@ -84,3 +84,11 @@ async def test_load_state_stays_in_its_task():
     before = runtime.get("max_steps")
     assert await asyncio.create_task(change()) == 9
     assert runtime.get("max_steps") == before
+
+
+def test_missing_model_settings_name_the_environment_variables(monkeypatch):
+    """With neither variable set, both are named and every role has no model."""
+    monkeypatch.delenv("GEOMIND_MODEL")
+    monkeypatch.delenv("GEOMIND_CHEAP_MODEL")
+    assert runtime.missing_model_settings() == ["GEOMIND_MODEL", "GEOMIND_CHEAP_MODEL"]
+    assert set(runtime.role_models().values()) == {None}

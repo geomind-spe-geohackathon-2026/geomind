@@ -12,8 +12,7 @@ from geomind.errors import UnknownNameError
 from geomind.utils.context import ContextSetting
 from geomind.utils.strings import did_you_mean
 
-FIXED_DEFAULT_MODEL = "anthropic/claude-sonnet-5.5"
-FIXED_CHEAP_MODEL = "anthropic/claude-haiku-5.5"
+ROLES = ("analyst", "coordinator", "designer", "economist", "explainer", "summarizer", "verifier")
 _FIXED = {
     "max_steps": 30,
     "retry_count": 3,
@@ -34,31 +33,57 @@ _FIXED = {
     "explainer_model": None,
     "verifier_model": None,
 }
-ADDED_SETTINGS = frozenset({"provider"})
+ADDED_SETTINGS = frozenset({"provider", "context_window", "cache_marked_models"})
 _settings = ContextVar("geomind_settings", default=None)
 
 
-def _providers():
-    """Return the provider slugs of ``GEOMIND_PROVIDER`` (comma-separated), or ``None``."""
-    text = os.environ.get("GEOMIND_PROVIDER", "")
-    slugs = [slug.strip() for slug in text.split(",") if slug.strip()]
-    return slugs or None
+def _listed(name):
+    """Return the comma-separated items of an environment variable, or ``None``."""
+    items = [item.strip() for item in os.environ.get(name, "").split(",") if item.strip()]
+    return items or None
+
+
+def _integer(name):
+    """Return an environment variable as an integer, or ``None`` when unset."""
+    text = os.environ.get(name)
+    return int(text) if text else None
 
 
 def _defaults():
     """Return the default settings; environment variables choose models and providers.
 
-    ``GEOMIND_MODEL`` is the default model, ``GEOMIND_CHEAP_MODEL`` the model of the
-    coordinator and the summarizer, and ``GEOMIND_PROVIDER`` the OpenRouter providers to try.
+    geomind holds no model id. ``GEOMIND_MODEL`` is the default model, ``GEOMIND_CHEAP_MODEL`` the
+    model of the coordinator and the summarizer; unset means ``None``, and a real provider refuses
+    to call. ``GEOMIND_PROVIDER`` lists the OpenRouter providers to try, ``GEOMIND_CONTEXT_WINDOW``
+    sets the context window in tokens and ``GEOMIND_CACHE_MARKED_MODELS`` the model id prefixes
+    that get cache breakpoints; unset means the provider's list, and none.
     """
-    cheap = os.environ.get("GEOMIND_CHEAP_MODEL", FIXED_CHEAP_MODEL)
+    cheap = os.environ.get("GEOMIND_CHEAP_MODEL") or None
     return {
-        "default_model": os.environ.get("GEOMIND_MODEL", FIXED_DEFAULT_MODEL),
+        "default_model": os.environ.get("GEOMIND_MODEL") or None,
         **_FIXED,
         "coordinator_model": cheap,
         "summarizer_model": cheap,
-        "provider": _providers(),
+        "provider": _listed("GEOMIND_PROVIDER"),
+        "context_window": _integer("GEOMIND_CONTEXT_WINDOW"),
+        "cache_marked_models": _listed("GEOMIND_CACHE_MARKED_MODELS"),
     }
+
+
+def role_models():
+    """Return the model id of each role from the settings; ``None`` where none is set."""
+    return {role: get(f"{role}_model") or get("default_model") for role in ROLES}
+
+
+def missing_model_settings():
+    """Return the environment variables whose absence leaves a role without a model."""
+    cheap_roles = ("coordinator", "summarizer")
+    missing = []
+    for role, model in role_models().items():
+        name = "GEOMIND_CHEAP_MODEL" if role in cheap_roles else "GEOMIND_MODEL"
+        if model is None and name not in missing:
+            missing.append(name)
+    return missing
 
 
 def state():

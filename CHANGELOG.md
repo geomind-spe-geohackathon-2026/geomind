@@ -4,6 +4,23 @@
 interface raises the minor version, and an addition or a fix raises the patch version. The rule and
 the list of frozen interfaces are in [.claude/docs/api.md](.claude/docs/api.md#frozen-interfaces).
 
+## [Unreleased]
+
+Additive: geomind holds no model id (Sahand, 2026-11-02: no Anthropic model anywhere).
+
+- `FIXED_DEFAULT_MODEL` and `FIXED_CHEAP_MODEL` are removed. `default_model`, `coordinator_model`
+  and `summarizer_model` are `None` unless `GEOMIND_MODEL` / `GEOMIND_CHEAP_MODEL` set them;
+  `OpenRouter` refuses a call without a model, naming the setting. Fake runs need no model.
+- `run.started` records `models` (the model of every role; optional, old logs load) and the export
+  header lists them.
+- Context window: new setting `context_window` (`GEOMIND_CONTEXT_WINDOW`), else the provider's
+  `context_length`; unknown raises `RunError` (before, an unknown model got a guessed 128 000, and
+  `CONTEXT_WINDOWS` / `DEFAULT_CONTEXT_WINDOW` held three Anthropic models).
+- Caching: `CACHED_MODELS` is removed; new setting `cache_marked_models` (`GEOMIND_CACHE_MARKED_MODELS`)
+  lists the model id prefixes that get cache breakpoints, none by default; DeepSeek caches on its own.
+- `geomind check-live` lists every role with its model and fails on a role without a model or an
+  Anthropic model id. A test greps the package, evals and docs for Anthropic model ids.
+
 ## [0.4.1] - 2026-11-02
 
 Additive: models and OpenRouter providers can be chosen by deployment configuration.

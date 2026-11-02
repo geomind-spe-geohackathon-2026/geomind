@@ -88,7 +88,7 @@ def test_run_passes_the_model(service, monkeypatch):
         cli, "OpenRouter", lambda: OpenRouter(api_key="sk-model-test", transport=transport)
     )
     cli.main(["run", "x", "--model", "a/b"])
-    assert seen == [runtime.FIXED_CHEAP_MODEL, "a/b"]
+    assert seen == [runtime.get("coordinator_model"), "a/b"]
 
 
 def test_run_with_a_failing_service_reports_it(service, capsys):
@@ -210,7 +210,7 @@ def test_run_writes_a_manifest_beside_its_log(service, gm, capsys):
     assert len(manifest["gemini"]["commit"]) == 40
     assert manifest["inputs"] == {}
     assert manifest["models"] == {
-        "coordinator": [runtime.FIXED_CHEAP_MODEL],
+        "coordinator": [runtime.get("coordinator_model")],
         "analyst": [runtime.get("default_model")],
     }
     assert manifest["seeds"]["temperature"] == 0
