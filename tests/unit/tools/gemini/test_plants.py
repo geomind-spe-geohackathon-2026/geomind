@@ -5,6 +5,7 @@ import copy
 import json
 import shutil
 
+import gemini
 import pytest
 
 import geomind as gd
@@ -99,14 +100,14 @@ async def test_list_plants_names_every_class_with_its_summary(gm):
     assert "capabilities" not in result.output
 
 
-async def test_list_plants_gives_the_capabilities_and_roles_of_one_class(gm):
+@pytest.mark.parametrize("name", gemini.plants.names())
+async def test_list_plants_gives_the_capabilities_and_roles_of_one_class(gm, name):
     """Every class's capabilities are reachable, and its roles are those it uses."""
     capabilities, roles = gm.plants.capabilities(), gm.plants.roles()
-    for name in gm.plants.names():
-        output = (await call(TOOLS.list_plants, {"plant_class": name})).output
-        assert output["capabilities"] == capabilities[name]
-        assert output["roles"] == {role: roles[role] for role in capabilities[name]["roles"]}
-    assert set(capabilities["HeatingPlant"]) == {"roles", "schedulable", "ranges"}
+    output = (await call(TOOLS.list_plants, {"plant_class": name})).output
+    assert output["capabilities"] == capabilities[name]
+    assert output["roles"] == {role: roles[role] for role in capabilities[name]["roles"]}
+    assert set(capabilities[name]) == {"roles", "schedulable", "ranges"}
 
 
 async def test_list_plants_with_an_unknown_class_suggests_one():
