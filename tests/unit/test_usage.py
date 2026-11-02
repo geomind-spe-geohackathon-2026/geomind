@@ -6,12 +6,11 @@ import pytest
 
 import geomind as gd
 from geomind import runtime
-from geomind.cli import _models, render_markdown
 from geomind.engine import Context, Engine, Permissions
+from geomind.export import models_by_agent, render_export
 from geomind.providers import FakeLLM
 from geomind.stores import MemoryRunStore
 from geomind.types import Usage
-from geomind.types.runlog import runlog
 from tests.fixtures.runs import Lead, Worker, call, context, logged, same_usage, says, uses
 
 ROUTING = Usage(input_tokens=1000, output_tokens=20, cost=0.25)
@@ -104,11 +103,10 @@ def test_the_export_totals_equal_the_usage():
     """``show --format md`` totals, by agent and by step, are ``RunResult.usage``."""
     store = MemoryRunStore()
     result = gd.Run(message="hello", llm=FakeLLM([route(), says("answer")]), store=store).start()
-    text = render_markdown(runlog(store.load_events(result.run_id)))
+    text = render_export(store.load_events(result.run_id))
     usage = result.usage
-    counts = f"| 2 | {usage.input_tokens} | {usage.output_tokens} | {round(usage.cost, 6)} |"
-    assert f"| Total {counts}" in text
-    assert f"| Total | | | | {counts}" in text
+    counts = f"| 2 | {usage.input_tokens} | 0 | {usage.output_tokens} | {round(usage.cost, 6)} |"
+    assert text.count(f"| Total {counts}") == 2
     assert f"| coordinator | 1 | {ROUTING.input_tokens} |" in text
 
 
@@ -116,5 +114,5 @@ def test_the_manifest_names_the_routing_model():
     """The models per agent include the coordinator's."""
     store = MemoryRunStore()
     result = gd.Run(message="hello", llm=FakeLLM([route(), says("answer")]), store=store).start()
-    models = _models(store.load_events(result.run_id))
+    models = models_by_agent(store.load_events(result.run_id))
     assert set(models) == {"coordinator", "analyst"}

@@ -12,6 +12,9 @@ from pathlib import Path
 import pytest
 
 from geomind import cli
+from geomind.export import render_export
+from geomind.stores.run import FileRunStore
+from geomind.utils.json import read_json
 from tests.fixtures import ROOT
 from tests.fixtures.cases import example_folder
 
@@ -38,6 +41,7 @@ PROJECTS = {
 @pytest.mark.parametrize("name", RECORDINGS)
 def test_a_case_gives_a_verified_design_that_replays(name, monkeypatch, tmp_path, capsys):
     """The run ends verified, with capacities, energies, costs and open points, and replays."""
+    (tmp_path / "again").mkdir()
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr("builtins.input", lambda prompt: "Use the project's case.")
     arguments = ["run", REQUEST, "--loop", "design", "--mode", "auto"]
@@ -50,3 +54,25 @@ def test_a_case_gives_a_verified_design_that_replays(name, monkeypatch, tmp_path
         assert heading in output
     assert cli.main(["replay", str(run)]) == 0
     assert capsys.readouterr().out.startswith("pass:")
+    text = check_export(run)
+    monkeypatch.chdir(tmp_path / "again")
+    assert cli.main(arguments) == 0
+    again = next(path for path in Path(".runs").iterdir() if path.name != "chats")
+    assert check_export(again) == text
+
+
+def check_export(run):
+    """Check that the export holds every part in order, and return it."""
+    events = FileRunStore(run.parent).load_events(run.name)
+    manifest = read_json(run / "run_manifest.json")
+    text = render_export(events, manifest)
+    parts = ["## Request", "Models by role:", "## LLM calls", "## Appendix: system prompts"]
+    parts += ["## Tokens by agent", "## Tokens by step", "## Totals"]
+    positions = [text.index(part) for part in parts]
+    assert positions == sorted(positions)
+    assert f"gemini version: {manifest['gemini']['version']}" in text
+    assert text.count("### Call ") == text.count("Tokens: ") == 20
+    for agent in ("designer", "verifier", "economist", "explainer"):
+        assert text.count(f"### {agent}\n") == 1
+    assert "- build_plant(" in text and "(0 cached)" in text
+    return text

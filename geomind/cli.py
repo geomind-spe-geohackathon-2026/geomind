@@ -16,6 +16,7 @@ from geomind.context import ProblemState, render
 from geomind.engine import Engine, Permissions, callbacks
 from geomind.engine.hooks import CostBudget, TokenBudget
 from geomind.errors import GeomindError, RunError
+from geomind.export import models_by_agent, render_export
 from geomind.providers import FakeLLM, OpenRouter, Recorder
 from geomind.run import LOOPS, Run, loop_of
 from geomind.sandbox import DockerSandbox, LocalSandbox
@@ -23,13 +24,12 @@ from geomind.stores import FileWorkspace
 from geomind.stores.casefiles import named_files
 from geomind.stores.run import FileRunStore
 from geomind.stores.workspace import read_bytes
-from geomind.types import RULE_MODEL, Message
+from geomind.types import Message
 from geomind.types.runlog import runlog
 from geomind.utils.json import read_json, write_json
 
 RUNS_FOLDER = ".runs"
 MESSAGE_CHARACTERS = 2000
-COUNTS = "LLM calls | Tokens in | Tokens out | Cost"
 ROUTER = "coordinator"
 
 
@@ -125,17 +125,6 @@ def _inputs(args):
     }
 
 
-def _models(events):
-    """Return the model ids each agent called, from the ``step.started`` events."""
-    models = {}
-    for event in events:
-        if event.type == "step.started" and event.model and event.model != RULE_MODEL:
-            models.setdefault(event.agent, [])
-            if event.model not in models[event.agent]:
-                models[event.agent].append(event.model)
-    return models
-
-
 def write_manifest(root, run_id, args):
     """Write ``run_manifest.json`` beside a run's log: what reproduces it.
 
@@ -159,7 +148,7 @@ def write_manifest(root, run_id, args):
         },
         "gemini": {"version": gm.__version__, **_repository(Path(gm.__file__).parents[1])},
         "inputs": _inputs(args),
-        "models": _models(events),
+        "models": models_by_agent(events),
         "settings": started.settings,
         "seeds": {"geomind": None, "gemini": None, "temperature": 0},
     }
@@ -302,7 +291,7 @@ def _chat_command(chat, command):
     if command == "/state":
         print(_state_text(chat))
     elif command == "/log" and chat.last_run is not None:
-        print(render_log(runlog(chat.store.load_events(chat.last_run)), False))
+        print(render_log(runlog(chat.store.load_events(chat.last_run))))
     elif command == "/log":
         print("(no turn yet)")
     elif command == "/reset":
@@ -373,10 +362,8 @@ def _tool_lines(tool_call, heading):
     ]
 
 
-def render_log(log, is_markdown):
-    """Return the text of a run log: steps, then totals; Markdown is the export of a report."""
-    if is_markdown:
-        return render_markdown(log)
+def render_log(log):
+    """Return the text of a run log: steps, then totals."""
     run = log["run"]
     lines = [f"Run {run['id']}: {run['status']}"]
     for step in log["steps"]:
@@ -394,127 +381,20 @@ def render_log(log, is_markdown):
     return "\n".join(lines)
 
 
-def _token_row(name, calls):
-    """Return one table row: a name, the number of model calls and their tokens and cost.
-
-    NOTE: a rule step is logged as a completion of the model ``rule``; it calls no model, so it is
-    not counted.
-    """
-    calls = [call for call in calls if call["model"] != RULE_MODEL]
-    tokens_in = sum(call["input_tokens"] for call in calls)
-    tokens_out = sum(call["output_tokens"] for call in calls)
-    cost = round(sum(call["cost"] for call in calls), 6)
-    return f"| {name} | {len(calls)} | {tokens_in} | {tokens_out} | {cost} |"
-
-
-def _token_tables(log):
-    """Return the tables of tokens by agent and by step, each with the total."""
-    by_agent, every = {}, []
-    step_rows = []
-    for number, step in enumerate(log["steps"], 1):
-        calls = list(step["llm_calls"])
-        by_agent.setdefault(step["agent"], []).extend(calls)
-        every += calls
-        models = ", ".join(sorted({call["model"] for call in calls})) or "none"
-        delegated = step["parent"] if step["parent"] is not None else ""
-        step_rows.append(
-            _token_row(
-                f"{number} | {step['index']} | {step['agent']} | {delegated} | {models}", calls
-            )
-        )
-    head = f"| Agent | {COUNTS} |"
-    step_head = f"| # | Step | Agent | Delegated by step | Model | {COUNTS} |"
-    agents = [_token_row(name, calls) for name, calls in by_agent.items()]
-    total = _token_row("Total", every)
-    return [
-        "## Tokens by agent",
-        "",
-        head,
-        "|---|---|---|---|---|",
-        *agents,
-        total,
-        "",
-        "## Tokens by step",
-        "",
-        step_head,
-        "|---|---|---|---|---|---|---|---|---|",
-        *step_rows,
-        _token_row("Total | | | |", every),
-        "",
-    ]
-
-
-def _prompts(log):
-    """Return each agent's system prompt, the first part of its first LLM call."""
-    found = {}
-    for step in log["steps"]:
-        for call in step["llm_calls"]:
-            first = call["messages"][0] if call["messages"] else None
-            if first and first["role"] == "system" and step["agent"] not in found:
-                found[step["agent"]] = first["content"]
-    return found
-
-
-def _step_lines(step, prompts, seen):
-    """Return the Markdown of one step: new messages, answers in full, then tool calls."""
-    parent = f", delegated by step {step['parent']}" if step["parent"] is not None else ""
-    lines = [f"## Step {step['index']} ({step['agent']}{parent})"]
-    key = (step["agent"], step["parent"])
-    for call in step["llm_calls"]:
-        lines.append(
-            f"### LLM call: {call['model']}, {call['input_tokens']} tokens in, "
-            f"{call['output_tokens']} out, cost {call['cost']}"
-        )
-        users = [item for item in call["messages"] if item["role"] == "user"]
-        lines += [f"  user: {item['content']}" for item in users[seen.get(key, 0) :]]
-        seen[key] = len(users)
-        context = [
-            item["content"]
-            for item in call["messages"][1:]
-            if item["role"] == "system" and item["content"] != prompts.get(step["agent"])
-        ]
-        lines += [f"  context: {text}" for text in context]
-        lines.append(f"  answer: {call['answer']}")
-    for tool_call in step["tool_calls"]:
-        lines += _tool_lines(tool_call, "### ")
-    return lines
-
-
-def render_markdown(log):
-    """Return the export of a run for a report: tokens, prompts, then every step.
-
-    Tokens are by agent, by step and in total, the routing call and nested runs included. Each
-    agent's system prompt is printed once; a step shows the messages new to it, its answers in
-    full and its tool calls, whose output is cut at ``MESSAGE_CHARACTERS``.
-    """
-    run = log["run"]
-    usage = run["usage"]
-    prompts = _prompts(log)
-    lines = [
-        f"# Run {run['id']}: {run['status']}",
-        "",
-        f"Loop: {run['loop']}. Started {run['started']}, ended {run['ended']}.",
-        "",
-        *_token_tables(log),
-        "## Prompts",
-        "",
-    ]
-    for agent, text in prompts.items():
-        lines += [f"### {agent}", "", text, ""]
-    seen = {}
-    for step in log["steps"]:
-        lines += _step_lines(step, prompts, seen)
-    lines.append(
-        f"## Totals: {usage['input_tokens']} tokens in, {usage['output_tokens']} out, "
-        f"cost {usage['cost']}"
-    )
-    return "\n".join(lines)
+def _read_manifest(folder):
+    """Return a run's ``run_manifest.json``, or ``None`` for a run that has none."""
+    path = folder / "run_manifest.json"
+    return read_json(path) if path.exists() else None
 
 
 def _command_show(args):
     """Print the log of a stored run."""
     store, run_id = _split_run_folder(args.run)
-    print(render_log(runlog(store.load_events(run_id)), args.format == "md"))
+    events = store.load_events(run_id)
+    if args.format == "md":
+        print(render_export(events, _read_manifest(Path(args.run))))
+        return 0
+    print(render_log(runlog(events)))
     return 0
 
 

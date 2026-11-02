@@ -120,9 +120,9 @@ def test_show_prints_prompts_answers_and_tokens(service, capsys):
     capsys.readouterr()
     assert cli.main(["show", run_folder(), "--format", "md"]) == 0
     output = capsys.readouterr().out
-    assert output.startswith("# Run ") and "## Step 1 (analyst)" in output
-    assert "user: Say hello" in output and "answer: Hello" in output
-    assert "7 tokens in" in output and "## Totals" in output
+    assert output.startswith("# Agent log") and "### Call 2: analyst" in output
+    assert "Say hello" in output and "Hello" in output
+    assert "Tokens: 7 in (0 cached), 3 out, cost 0.002" in output and "## Totals" in output
 
 
 def test_show_md_has_token_tables_prompts_once_and_full_answers(service, capsys):
@@ -134,10 +134,10 @@ def test_show_md_has_token_tables_prompts_once_and_full_answers(service, capsys)
     cli.main(["show", run_folder(), "--format", "md"])
     output = capsys.readouterr().out
     assert "## Tokens by agent" in output and "## Tokens by step" in output
-    assert "| analyst | 1 | 7 | 3 | 0.002 |" in output
-    assert "| coordinator | 1 | 7 | 3 | 0.002 |" in output
-    assert "| Total | 2 | 14 | 6 | 0.004 |" in output
-    assert "## Prompts" in output and output.count("## Role") == 2
+    assert "| analyst | 1 | 7 | 0 | 3 | 0.002 |" in output
+    assert "| coordinator | 1 | 7 | 0 | 3 | 0.002 |" in output
+    assert "| Total | 2 | 14 | 0 | 6 | 0.004 |" in output
+    assert "## Appendix: system prompts" in output and output.count("## Role") == 2
     assert long.strip() in output
 
 
@@ -250,7 +250,7 @@ def test_show_marks_a_nested_step():
             {"index": 1, "agent": "lead.helper", "parent": 2, "llm_calls": [], "tool_calls": []}
         ],
     }
-    assert "Step 1 (lead.helper, delegated by step 2)" in cli.render_log(log, False)
+    assert "Step 1 (lead.helper, delegated by step 2)" in cli.render_log(log)
 
 
 def test_run_replay_and_show_with_a_fake_llm(monkeypatch, tmp_path, capsys):
