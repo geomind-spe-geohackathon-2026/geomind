@@ -104,8 +104,8 @@ def _over_retries(session, tool):
 
 
 async def _reuse(session, call, recorded):
-    """Record the stored result of a replay, after the state changes its nested runs made."""
-    for changes in session.engine.recorded_changes.get(call.id, ()):
+    """Record the stored result of a replay, after the state changes its reused nested runs made."""
+    for changes in session.engine.recorded_changes.get(session.state.run_id, {}).get(call.id, ()):
         await session.change_state(list(changes))
     result = ToolResult(
         call_id=call.id,
@@ -124,7 +124,7 @@ async def _execute(session, agent, tool, call):
         await session.emit(
             ToolStarted, index=session.state.step, call_id=call.id, tool=call.name, input=call.input
         )
-    recorded = session.engine.recorded.get(call.id)
+    recorded = session.engine.recorded.get(session.state.run_id, {}).get(call.id)
     if recorded is not None and not (tool.replays and recorded.source == "tool"):
         await _reuse(session, call, recorded)
         return _over_retries(session, tool)

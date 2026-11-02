@@ -14,7 +14,19 @@ from geomind.stores.run import MemoryRunStore
 from geomind.tools import Delegate, tool, update_state
 from geomind.types import Action, Deny, Message, ToolCall
 from geomind.types.events import RunStarted, StateChanged, ToolRecorded, ToolStarted
-from tests.fixtures.runs import EXECUTED, Worker, call, context, engine_for, lookup, run, says, uses
+from tests.fixtures.runs import (
+    EXECUTED,
+    Helper,
+    Lead,
+    Worker,
+    call,
+    context,
+    engine_for,
+    lookup,
+    run,
+    says,
+    uses,
+)
 
 
 class Rewriting(MemoryRunStore):
@@ -342,6 +354,137 @@ def test_parallel_delegates_keep_their_own_state_changes():
     assert [change[0]["value"]["by"] for change in changes["b"]] == ["from b"]
 
 
+async def replayed_log(engine, run_id):
+    """Replay a run and return its result and the events of the replayed tree."""
+    log = []
+    result = await Engine.replay(engine.store, run_id, replayed=log)
+    return result, log
+
+
+def nested_ids(events):
+    """Return the ids of the runs of a log that have a parent, in log order."""
+    return [e.run_id for e in events if e.type == "run.started" and e.parent is not None]
+
+
+async def test_a_nested_run_runs_again_with_its_own_completions():
+    """The replayed log holds the nested run's completions and tool results."""
+    script = [
+        uses(call("helper", task="find")),
+        uses(call("lookup", "n1", key="k")),
+        says("found"),
+        says("end"),
+    ]
+    result, engine, events = await run(script, agent=Lead())
+    EXECUTED.clear()
+    replayed, log = await replayed_log(engine, result.run_id)
+    assert replayed.answer == "end"
+    assert EXECUTED == ["lookup"]
+    assert [
+        (e.type, e.run_id, e.index) for e in log if e.type in ("llm.completed", "tool.result")
+    ] == [(e.type, e.run_id, e.index) for e in events if e.type in ("llm.completed", "tool.result")]
+    assert nested_ids(log) == nested_ids(events)
+
+
+async def test_a_changed_completion_of_a_nested_run_names_that_run():
+    """A nested run whose answer differs is a mismatch naming its run id and agent."""
+    script = [uses(call("helper", task="find")), says("found"), says("end")]
+    result, engine, events = await run(script, agent=Lead())
+    nested = nested_ids(events)[0]
+    stored = engine.store.events[result.run_id]
+    for position, event in enumerate(stored):
+        if event.type == "llm.completed" and event.run_id == nested:
+            changed = event.completion.model_copy(update={"text": "other"})
+            stored[position] = event.model_copy(update={"completion": changed})
+    with pytest.raises(
+        ReplayError, match=f"run {nested} \\(.*helper.*\\): .*recorded answer 'found'"
+    ):
+        await Engine.replay(engine.store, result.run_id)
+
+
+async def test_delegates_of_one_step_replay_with_their_own_completions():
+    """Two delegates of one step each get the completions of their own nested run."""
+    script = [
+        uses(call("helper", "d1", task="A"), call("helper", "d2", task="B")),
+        says("answer A"),
+        says("answer B"),
+        says("end"),
+    ]
+    result, engine, events = await run(script, agent=Lead())
+    replayed, log = await replayed_log(engine, result.run_id)
+    answers = {e.run_id: e.answer for e in log if e.type == "run.finished"}
+    recorded = {e.run_id: e.answer for e in events if e.type == "run.finished"}
+    assert answers == recorded and replayed.answer == "end"
+
+
+def test_nested_runs_are_matched_to_their_call_by_step_and_task():
+    """Calls of one step keep their own nested run, whatever the order of the log."""
+    from geomind.engine.replay import _children
+
+    assert _children(delegated_log(), "root") == {"a": "child-a", "b": "child-b"}
+
+
+class Middle(Agent):
+    """Delegates to a helper."""
+
+    def __init__(self):
+        """Declare the delegate."""
+        super().__init__()
+
+        # Tools
+        self.helper = Delegate(Helper())
+
+        # Model
+        self.model = Model("fake/model")
+
+
+class Top(Agent):
+    """Delegates to a middle agent."""
+
+    def __init__(self):
+        """Declare the delegate."""
+        super().__init__()
+
+        # Tools
+        self.middle = Delegate(Middle())
+
+        # Model
+        self.model = Model("fake/model")
+
+
+async def test_a_three_level_tree_replays_at_every_depth():
+    """The deepest run's tool calls come back in the replayed log."""
+    script = [
+        uses(call("middle", task="m")),
+        uses(call("helper", "h1", task="h")),
+        uses(call("lookup", "l1", key="k")),
+        says("deep"),
+        says("middle done"),
+        says("end"),
+    ]
+    result, engine, events = await run(script, agent=Top())
+    EXECUTED.clear()
+    replayed, log = await replayed_log(engine, result.run_id)
+    assert replayed.answer == "end" and EXECUTED == ["lookup"]
+    assert len(nested_ids(log)) == 2
+    assert sum(e.type == "llm.completed" for e in log) == 6
+    assert any(e.type == "tool.result" and e.tool == "lookup" for e in log)
+
+
+async def test_a_stored_loop_shaped_recording_replays(tmp_path):
+    """A log read back from a file, as a 0.3.0 run left it, replays its nested runs."""
+    from geomind.stores.run import FileRunStore
+
+    script = [
+        uses(call("helper", task="find")),
+        uses(call("lookup", key="k")),
+        says("f"),
+        says("e"),
+    ]
+    result, engine, _ = await run(script, agent=Lead(), store=FileRunStore(tmp_path))
+    replayed, log = await replayed_log(Engine(store=FileRunStore(tmp_path)), result.run_id)
+    assert replayed.answer == "e" and len(nested_ids(log)) == 1
+
+
 async def test_a_replay_with_other_versions_reports_them_and_still_runs():
     """A recorded gemini version that differs is a report, never an error."""
     result, engine, _ = await run([says("end")])
@@ -368,3 +511,20 @@ async def test_a_replay_of_a_log_without_versions_reports_no_difference():
         e.model_copy(update={"versions": {}}) if isinstance(e, RunStarted) else e for e in events
     ]
     assert version_differences(stripped) == {}
+
+
+async def test_nested_runs_of_a_project_run_are_reused_without_a_workspace():
+    """The log holds no project files, so without a workspace a nested run is not run again."""
+    from geomind.stores import MemoryWorkspace
+
+    engine = engine_for(
+        [uses(call("helper", task="f")), uses(call("lookup", key="k")), says("f"), says("e")]
+    )
+    start = context(project="p")
+    await engine.run(Lead(), start)
+    EXECUTED.clear()
+    log = []
+    await Engine.replay(engine.store, start.run_id, replayed=log)
+    assert EXECUTED == [] and sum(e.type == "llm.completed" for e in log) == 2
+    await Engine.replay(engine.store, start.run_id, replayed=log, workspace=MemoryWorkspace())
+    assert EXECUTED == ["lookup"]

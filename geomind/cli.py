@@ -339,7 +339,8 @@ def _difference_text(differences):
 def _command_replay(args):
     """Rerun a stored run offline and print pass or the first mismatch."""
     store, run_id = _split_run_folder(args.run)
-    result = asyncio.run(Engine.replay(store, run_id))
+    workspace, _ = _project(args.project)
+    result = asyncio.run(Engine.replay(store, run_id, workspace=workspace))
     print(f"pass: {result.steps} steps, stop reason {result.stop_reason}")
     differences = version_differences(store.load_events(run_id))
     if differences:
@@ -441,6 +442,7 @@ def _parser():
     chat.set_defaults(function=_command_chat)
     replay = commands.add_parser("replay", help="rerun a stored run offline")
     replay.add_argument("run")
+    replay.add_argument("--project", help="the project folder, to replay nested runs that read it")
     replay.set_defaults(function=_command_replay)
     show = commands.add_parser("show", help="print the log of a stored run")
     show.add_argument("run")

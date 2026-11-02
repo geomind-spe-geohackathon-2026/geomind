@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](.claude/docs/api.md#f
 
 ## [Unreleased]
 
+- `Engine.replay` replays every nested run of a loop run, not only the root: each nested run runs
+  again with a `FakeLLM` of its own recorded completions, and its calls and answer are compared,
+  so a difference names the run and its agent. The replayed log has the same runs, steps, LLM
+  calls and tool calls. New keywords `replayed=` (a list that receives the replayed events) and
+  `workspace=` (and `geomind replay --project`); a run with a project replayed without a workspace
+  reuses its nested runs as before. 0.3.0 logs replay unchanged.
 - `run.started` records `versions` (`geomind`, `gemini`, `python`) on every run, nested ones
   included; it is not streamed and `public_fields` is unchanged. A 0.3.0 log has none and still
   loads, recovers, replays and exports (the export falls back to `run_manifest.json`).

@@ -190,8 +190,8 @@ Open geomind items:
 - **Plant runs with an agent-written module.** `test_module` checks a module in the sandbox, but
   `build_plant` and `simulate` cannot load it: a plant run with it needs `simulate` in the sandbox.
   The Designer records such a family as blocked.
-- **Replay of loop runs** replays only the root run (nested runs are reused), so a replayed log
-  lacks the nested calls and the loop name.
+- **Replay of a run with a project, without `--project`** reuses its nested runs (their answer
+  and state changes), as the log holds no workspace; with the folder every nested run runs again.
 - **Versions of a 0.3.0 log are not in the event log**; the export reads them from
   `run_manifest.json` (newer runs record them on `run.started`).
 - The Docker tests of the module sandbox need the `gemini-sandbox:<gemini version>` image

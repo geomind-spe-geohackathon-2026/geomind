@@ -146,23 +146,26 @@ decision `wait` and pauses on the same request id, and an answer to the parent p
 
 ## Replay
 
-`await Engine.replay(store, run_id)` (`replay.py`) reruns a stored run through
-`FakeLLM.from_events`, without network and with permissive permissions, since the log holds the
-outcome of the original decisions. A rule step calls no model, so the replay never stops it. A
-reused nested run is not run again: the problem-state changes it logged are applied again with its
-answer, and the artifacts it saved are read from the recorded chat's space in the store. A nested run belongs to
-the call whose step and task it started with (`parent_step` and its first message), not to every
-call open while it ran, so parallel delegates keep their own changes. `read` and `compute` tools
-run again; others reuse recorded results, as do calls that were denied or answered. A paused run
-stops where its log ends, so it never runs its pending tool. Calls are compared by their place in
-the run (the step, then the position in the model's `tool_calls`), not by the order parallel calls
-finished in. A different tool, input, output, `is_error`, count or answer raises `ReplayError`
-naming the first differing step. A different geomind, gemini or python version from the recorded
-`run.started.versions` is no error: `version_differences(events)` (`replay.py`) returns `{name:
-(recorded, current)}` (`{}` for a log without versions, and for equal versions), and `geomind
-replay` prints it as one line, `versions differ: ...`, after the pass line. `Engine.replay` returns
-the plain `RunResult`, so a library caller asks `version_differences(store.load_events(run_id))`.
-`session.current_versions()` builds what a new run records.
+`await Engine.replay(store, run_id, *, replayed=None, workspace=None)` (`replay.py`) reruns a
+stored run and every nested run of its tree, without network and with permissive permissions,
+since the log holds the outcome of the original decisions. Each run has its own `FakeLLM` built
+from its own `llm.completed` events and its own recording rules (results, refused answers, end of
+the recording), keyed by run id because call ids repeat across runs. A nested run that ended with
+an answer runs again as a real nested run with its recorded run id; it belongs to the call whose
+step and task it started with (`parent_step` and its first message, `_child_calls`), not to every
+call open while it ran, so parallel delegates keep their own runs, at any depth. The delegate
+call is then not reused: its result comes from the nested run, and the nested run writes its own
+state changes. A nested run that did not end with an answer, or any nested run of a run with a
+project when no `workspace` is given (the log holds no project files), is reused as before: its
+recorded answer, its state changes (`_nested_changes`) and, from the recorded chat's space in the
+store, its artifacts. A replayed nested run reads an artifact it did not write itself from there too.
+A rule step calls no model, so the replay never stops it. In every run, `read` and `compute` tools
+run again; others reuse recorded results, as do calls that were denied or answered. A paused run,
+or a nested run still waiting on the user, stops where its log ends. Calls of every run are
+compared by their place in the run (the step, then the position in the model's `tool_calls`), and
+the end of every finished nested run too. A difference raises `ReplayError` naming the run id,
+its agent, the step and the tool. `replayed`, a list, receives the events of the replayed tree,
+and the root log names the loop of the recording, so exports of a run and its replay compare.
 
 ## Stores and workspaces
 
