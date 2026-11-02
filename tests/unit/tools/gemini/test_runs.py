@@ -2,6 +2,7 @@
 
 import asyncio
 import functools
+import json
 
 import pytest
 
@@ -18,6 +19,7 @@ from tests.fixtures.cases import (
     example_names,
     example_plant,
 )
+from tests.fixtures.stored_runs import scaled_column
 from tests.fixtures.stored_runs import simulated as year_run
 
 TOOLS = gd.tools.gemini
@@ -39,6 +41,27 @@ def warmed():
     for name in EXAMPLES:
         year_run(name)
         windowed(name)
+    peak_run("hackathon_2026")
+
+
+@functools.cache
+def peak_run(name):
+    """Return the result of ``simulate`` on a case whose cooling demand is scaled to fail it."""
+
+    async def run():
+        context = await case_context(name)
+        file = context.problem.case["demand"]["cooling"]["power"]["file"]
+        content = context.session.load_artifact(f"case/{file}")
+        scaled = scaled_column(
+            content, example_case(name)[0]["demand"]["cooling"]["power"]["column"], 1.5
+        )
+        await context.session.save_artifact(f"case/{file}", scaled)
+        await save_design(context, "p", example_plant(name))
+        return await call(
+            TOOLS.simulate, {"design": "design/p"}, context.session, problem=context.problem
+        )
+
+    return asyncio.run(run())
 
 
 async def designed(name):
@@ -71,6 +94,8 @@ def test_simulate_runs_the_stored_design_on_the_case(name):
     assert summary["plant"] == "design/p"
     assert summary["case_time"]["start"] and summary["case_time"]["step"]["unit"] in ("d", "h")
     assert summary["failures"] == []
+    assert summary["verdict"]["feasible"] is True and summary["unmet"] == []
+    assert "constraints" not in summary and "violated" not in summary
 
 
 @example_names
@@ -205,6 +230,8 @@ async def test_list_profiles_names_the_services_of_the_demand(name):
     result = await call(TOOLS.list_profiles, {}, session, problem=problem)
     rows = {row["service"]: row for row in result.output}
     assert set(rows) == {"heating", "cooling"}
+    power = example_case(name)[0]["demand"]["heating"]["power"]
+    assert rows["heating"]["power"] == power
     assert rows["heating"]["supply_temperature"]["unit"] == "degC"
     assert rows["heating"]["peak"]["unit"] == "MW"
     assert rows["heating"]["peak"]["value"] == pytest.approx(HEATING_PEAK_MW[name])
@@ -236,29 +263,22 @@ def profile_call(service, values):
 
 
 async def test_a_30_day_user_profile_simulates():
-    """set_case cuts the case to 30 days, save_profile adds the user's demand, simulate runs."""
+    """set_case cuts the case to 30 days, save_profile points the demand at the user's values."""
     context = await case_context("hackathon_2026")
     session = context.session
     await save_design(context, "p", example_plant("hackathon_2026"))
     original = example_case("hackathon_2026")[0]
-    limits = [c for c in original["constraints"] if c.get("over") != "duration"]
+    durations = {c["name"]: None for c in original["requirements"] if c.get("over") == "duration"}
     time = {"start": "2027-01-01", "end": "2027-01-31", "step": {"value": 1, "unit": "d"}}
-    cut = {"changes": {"time": time, "demand": None, "constraints": limits}}
-    await call(set_case, cut, session, problem=context.problem)
+    cut = {"changes": {"time": time}, "requirements": durations}
+    first = await call(set_case, cut, session, problem=context.problem)
+    assert first.is_error is False, first.output
     heating = [18 + 8 * (day % 7) / 6 for day in range(30)]
     for service, values in (("heating", heating), ("cooling", [5.0] * 30)):
         saved = await call(
             save_profile, profile_call(service, values), session, problem=evolved(session)
         )
         assert saved.is_error is False, saved.output
-    temperatures = {
-        service: {
-            key: original["demand"][service][key]
-            for key in ("supply_temperature", "return_temperature")
-        }
-        for service in ("heating", "cooling")
-    }
-    await call(set_case, {"changes": {"demand": temperatures}}, session, problem=evolved(session))
     problem = evolved(session)
     ran = await call(TOOLS.simulate, {"design": "design/p"}, session, problem=problem)
     assert ran.is_error is False, ran.output
@@ -267,3 +287,44 @@ async def test_a_30_day_user_profile_simulates():
     assert summary["report"]["heat_delivered"]["value"] >= sum(heating) * 24 * (1 - 1e-6)
     read = await call(TOOLS.read_profile, {"service": "heating"}, session, problem=problem)
     assert max(read.output["value"]) == pytest.approx(max(heating))
+    listed = await call(TOOLS.list_profiles, {}, session, problem=problem)
+    power = {row["service"]: row["power"] for row in listed.output}["heating"]
+    assert power == {"unit": "MW", "file": "data/heating.csv", "column": "heating"}
+
+
+def test_an_unmet_requirement_is_listed_by_name():
+    """A cooling peak the plant cannot serve is a verdict, not an error: the unmet ones show."""
+    summary = peak_run("hackathon_2026").output["summary"]
+    assert summary["verdict"]["feasible"] is False and summary["report"]["passed"] is False
+    assert {"cold_delivered", "cooling_supply_temperature"} <= {
+        item["name"] for item in summary["unmet"]
+    }
+    assert all(item["passed"] is False for item in summary["unmet"])
+
+
+@example_names
+async def test_a_missing_case_file_is_named(name):
+    """A case whose series is not in the run says which file is missing."""
+    context = await case_context(name)
+    file = example_case(name)[0]["demand"]["heating"]["power"]["file"]
+    context.session.artifacts.pop(f"case/{file}")
+    await save_design(context, "p", example_plant(name))
+    result = await call(
+        TOOLS.simulate, {"design": "design/p"}, context.session, problem=context.problem
+    )
+    assert result.is_error and file in result.output["error"]["message"]
+
+
+async def test_a_plant_that_gemini_s_check_rejects_comes_back_with_the_issue():
+    """Equipment without a cost in the economics is gemini's issue with its path, nothing runs."""
+    context = await case_context("hackathon_2026")
+    economics = json.loads(context.session.load_artifact("case/economics.json"))
+    del economics["capex"]["drilling"]
+    await context.session.save_artifact("case/economics.json", json.dumps(economics).encode())
+    await save_design(context, "p", example_plant("hackathon_2026"))
+    result = await call(
+        TOOLS.simulate, {"design": "design/p"}, context.session, problem=context.problem
+    )
+    error = result.output["error"]
+    assert result.is_error and error["path"] == "economics.capex.drilling"
+    assert error["code"] == "missing_assumption"

@@ -23,10 +23,10 @@ the problem state as `update_state` does.
 | `case_changes` | `origin.py` | `read` | none | `[{path, change, given, now}]`: every difference of the state's case from `case_origin` (`changed`, `removed`, `added`; a section key, `requirements.<name>`, `file <name>` for a file's content, the economics file included); `[]` when it is the case the user gave | built |
 | `accept_case` | `origin.py` | `write` | none | `{version}`; `case_origin` becomes the state's case. Only the design loop's driver holds it, after the user approved the change | built |
 | `read_case` | `case.py` | `read` | `section=None`: a key of the case, `economics` or `schema` | the case, the section, the parsed economics file, or `gm.Case.schema()` with `economics_schema`; no case is `invalid_input` | built |
-| `list_profiles` | `runs.py` | `read` | none | `[{service, column, file_unit, supply_temperature, return_temperature, start, end, steps, peak}]`: the heating and cooling demand of the state's case, temperatures in degC and the peak in MW | built |
+| `list_profiles` | `runs.py` | `read` | none | `[{service, power, supply_temperature, return_temperature, start, end, steps, peak}]`: the heating and cooling demand of the state's case, `power` the `{unit, file, column}` its series names, temperatures in degC and the peak in MW | built |
 | `read_profile` | `runs.py` | `read` | `service` (`heating` or `cooling`), `start=None`, `end=None` (ISO 8601, inclusive) | `{service, time, value, unit}` of the case's demand in MW | built |
 | `save_profile` | `case.py` | `write` | `name, values, unit, start, step, service`, all required: `unit` a unit of power, `step` `{value, unit}`, `service` `heating` or `cooling` | `{demand, time, steps, version}`; gemini checks the values (`gm.case.from_values`), they are written in `unit` as the column `name` of `data/<name>.csv` (first column `time`) in the run's case files and the service's `power` becomes `{unit, file, column}`; a profile that does not cover the case's `time` sets it to the profile's span in the same call; gemini rejects a case that does not fit and nothing is stored | built |
-| `simulate` | `runs.py` | `compute` | `design=None, changes=None, start=None, end=None` | `{reference, summary}`; the run is stored; the summary gives the plant, the case's time span, the window, `steps`, `failed_steps` and the first `failures`, the `report` totals in display units, the `violated` constraints and the demand `coverage` | built |
+| `simulate` | `runs.py` | `compute` | `design=None, changes=None, start=None, end=None` | `{reference, summary}`; the run is stored; the summary gives the plant, the case's time span, the window, `steps`, `failed_steps` and the first `failures`, the `report` totals in display units, gemini's `verdict`, the `unmet` requirements (the checks with `passed` false) and the demand `coverage` | built |
 | `read_result` | `results.py` | `read` | `reference, path=None, field=None, start=None, end=None` (ISO 8601, inclusive) | `{time, value, unit}` with `path` and `field`, otherwise `{path: {field: {min, max, mean}}}`, in MW, degC, bar, m3/h and kg/s | built |
 | `search_documents` | `results.py` | `read` | `query` | `[{id, title, text, score}]` | built |
 | `check_results` | `assessment.py` | `compute` | `reference` | gemini's verdict on the run's own case, in display units: `{passed, constraints: [check], failures: {total, groups}, balances: [check], metrics}` | built |
@@ -54,10 +54,10 @@ filling a stub, because gemini's names change.
 | `build_plant` | `gm.plants.validate(plant, on_error="record")`, `gm.plants.schema`, `gm.Plant.from_dict` | real |
 | `set_case` | `gm.Case.from_dict`, `Case.check` | real |
 | `read_case` | `gm.Case.schema`, `gm.case.Economics.schema` | real |
-| `list_profiles` | `gm.Case` (`case.demand`), `gm.units.Quantity` | real |
+| `list_profiles` | `gm.Case` (`case.demand.<service>`, `case.to_dict()`), `gm.units.Quantity` | real |
 | `read_profile` | `gm.Case` (`case.demand.frame`), `gm.units.convert` | real |
 | `save_profile` | `gm.case.from_values`, `gm.units.Quantity`, `gm.Case.from_dict`, `Case.check` | real |
-| `simulate` | `gm.schedule`, `gm.simulate`, `gm.evaluate.report`, `totals`, `failures`, `plant.set_params`, `Results.to_bytes` | real |
+| `simulate` | `gm.schedule`, `gm.simulate` (which runs `gm.check`), `gm.evaluate.report`, `totals`, `failures`, `plant.set_params`, `Results.to_bytes` | real |
 | `read_result` | `Results.get`, `Results.summary` through `load_run` | real |
 | `search_documents` | none: it reads `Workspace.documents` | built |
 | `check_results` | `gm.evaluate.report`, `failures`, `energy_balance`, `mass_balance`, `bounds`, `plant_balance`, `gm.Results.from_bytes` | real |
@@ -108,11 +108,13 @@ run. A reference no run made is `unknown_name` with `path` `reference`.
 
 The plant is `load_plant` (the project's, or a stored `design/<name>`), `changes` set on it with
 `plant.set_params` as `{"value", "unit"}` (a bare number is refused for a parameter with a unit),
-the case is `case_of(context)`, then `gm.simulate(plant, case, on_error="record")`: the plan is
+the case is `case_of(context)`, then `gm.simulate(plant, case)`: the plan is
 `gm.schedule(plant, case)`, which belongs to gemini and the case. A window `start`, `end` cuts that
-plan (`gm.simulate(..., plan=...)`); the case's own time changes with `set_case`. A day that fails
-is one of gemini's problems in the summary (`failed_steps`, the first `failures`) and the run goes
-on. A state without a case gives the `set_case` or `ask_user` error of `case_of`. The demand is the
+plan (`gm.simulate(..., plan=...)`) and the run's case: its `time` is cut to the window, since
+gemini judges a run against the case's time, and the stored run keeps that case. What `gm.check`
+finds wrong (a parameter without a value, a missing capex, a role) is gemini's error with the
+issues' `path` and `message`, and nothing runs. A step that fails physically is a failed row
+(`failed_steps`, the first `failures`) and the run goes on. A state without a case gives the `set_case` or `ask_user` error of `case_of`. The demand is the
 case's: `list_profiles` and `read_profile` read `case.demand`, and a user's profile enters the
 case with `save_profile`.
 
