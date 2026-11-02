@@ -83,7 +83,8 @@ class ProjectBudget(Hook):
     The project has spent ``ledger.spent(project_id)`` in finished runs, which the backend
     stores; this run adds ``context.session.total_usage``, nested runs included. A run being
     resumed is not finished, so the ledger does not hold it and its steps count once. At least
-    one cap is required: there is no default.
+    one cap is required: there is no default. The ledger is read once per root run, at its first
+    call, so runs of the project running at the same time are not counted against each other.
     """
 
     def __init__(self, ledger, project_id, max_tokens=None, max_cost=None):
@@ -94,10 +95,18 @@ class ProjectBudget(Hook):
         self.project_id = project_id
         self.max_tokens = max_tokens
         self.max_cost = max_cost
+        self._earlier = {}
+
+    def _spent_before(self, context):
+        """Return what the project spent before this root run, read from the ledger once."""
+        root = context.session.state.root
+        if root not in self._earlier:
+            self._earlier[root] = self.ledger.spent(self.project_id)
+        return self._earlier[root]
 
     def before_llm_call(self, context, agent, messages):
         """Deny the call once the project reaches a cap."""
-        usage = self.ledger.spent(self.project_id) + context.session.total_usage
+        usage = self._spent_before(context) + context.session.total_usage
         used = usage.input_tokens + usage.output_tokens
         if self.max_tokens is not None and used >= self.max_tokens:
             return self._deny("token", used, self.max_tokens)

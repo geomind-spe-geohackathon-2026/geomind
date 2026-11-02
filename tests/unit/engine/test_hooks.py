@@ -383,3 +383,22 @@ def test_project_budget_without_a_cap_is_an_error():
     """There is no default cap."""
     with pytest.raises(BudgetError, match="expected max_tokens or max_cost"):
         ProjectBudget(MemoryUsageLedger(), "p")
+
+
+class CountingLedger(MemoryUsageLedger):
+    """Count the reads."""
+
+    reads = 0
+
+    def spent(self, project_id):
+        """Count one read."""
+        self.reads += 1
+        return super().spent(project_id)
+
+
+async def test_project_budget_reads_the_ledger_once_per_run():
+    """Several calls of a run, nested runs included, read the ledger once."""
+    ledger = CountingLedger()
+    script = [uses(call("lookup", key="k")), uses(call("lookup", key="k")), says("end")]
+    await run(script, hooks=[ProjectBudget(ledger, "p", max_tokens=1000)])
+    assert ledger.reads == 1

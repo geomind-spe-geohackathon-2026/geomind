@@ -35,7 +35,9 @@ so they are passed again when a run resumes in another process.
   sums the root runs under a `FileRunStore` root whose `run.started.project` is the project and
   that have a `run.finished`, with their nested runs, once. A paused or running run is not
   finished, so a resumed run is not in the ledger and its earlier steps count once, through the
-  session. A project cap does not replace a run cap. Pass it in `gd.Run(hooks=[...])`;
+  session. The ledger is read once per root run, at its first LLM call; this run's usage is added live.
+  Runs of one project running at the same time are not counted against each other, because the
+  ledger holds finished runs only. A project cap does not replace a run cap. Pass it in `gd.Run(hooks=[...])`;
   `geomind run --project P --project-max-cost USD --project-max-tokens N` sets it with
   `FileUsageLedger(".runs")`.
 - `RequireApproval(tools)` is a shortcut for ask rules, in their place in the

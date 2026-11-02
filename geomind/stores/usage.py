@@ -3,9 +3,9 @@
 from pathlib import Path
 from typing import Protocol
 
+from geomind.stores.run import FileRunStore
 from geomind.types import Usage
-from geomind.types.events import LLM_EVENTS, event_from_dict
-from geomind.utils.json import read_lines
+from geomind.types.events import LLM_EVENTS
 
 
 class UsageLedger(Protocol):
@@ -64,7 +64,9 @@ class FileUsageLedger:
         folder = Path(self.root)
         if not folder.is_dir():
             return total
+        store = FileRunStore(folder)
         for log in sorted(folder.glob("*/events.jsonl")):
-            events = [event_from_dict(line) for line in read_lines(log)]
-            total += _finished_usage(events, project_id) or Usage()
+            if log.parent.name == "chats":
+                continue
+            total += _finished_usage(store.load_events(log.parent.name), project_id) or Usage()
         return total
