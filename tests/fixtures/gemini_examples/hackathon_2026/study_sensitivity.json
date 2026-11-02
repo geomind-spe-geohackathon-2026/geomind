@@ -1,0 +1,16 @@
+{
+  "format": 1,
+  "kind": "study",
+  "name": "hackathon_2026_sensitivity",
+  "about": "One-at-a-time sensitivity of LCTS of the best design; run with the plant given in memory.",
+  "cases": [
+    "case.json"
+  ],
+  "plants": [
+    "plants/HackathonPlant.json"
+  ],
+  "method": "sensitivity",
+  "metrics": [
+    "lcts"
+  ]
+}

@@ -10,6 +10,9 @@ Every test belongs to one automatically marked folder tier:
 - `tests/integration/` combines runtime components and receives `integration`.
 - `tests/e2e/` runs complete public workflows and receives `e2e`.
 - `tests/fixtures/` contains recorded completions as JSON.
+- `tests/fixtures/gemini_examples/` is a copy of gemini's two example projects from tag v0.5.5: the
+  published wheel ships no examples, and tests never read a sibling gemini folder. Refresh the copy
+  when the gemini pin moves and the examples change.
 
 The registered markers are `unit`, `integration`, `e2e`, `slow` and `docker`, with strict marker
 checking. Default options run in parallel with `-n auto --dist loadgroup` and select

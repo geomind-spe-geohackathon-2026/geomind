@@ -1,0 +1,27 @@
+{
+  "format": 1,
+  "kind": "study",
+  "name": "hackathon_2026_brief",
+  "about": "The same search on plants without the pump intake limits, which the brief does not state.",
+  "cases": [
+    "case.json"
+  ],
+  "plants": [
+    "plants_brief/HackathonPlant.json",
+    "plants_brief/HeatingAbsorptionCoolingPlant.json",
+    "plants_brief/HeatingCoolingPlant.json",
+    "plants_brief/HeatingFullCoolingPlant.json",
+    "plants_brief/HeatingHeatPumpCoolingPlant.json",
+    "plants_brief/HeatingPlant.json"
+  ],
+  "prepare": [
+    "size"
+  ],
+  "method": "minimize",
+  "objective": "lcts",
+  "metrics": [
+    "co2"
+  ],
+  "evaluations": 20,
+  "seed": 0
+}

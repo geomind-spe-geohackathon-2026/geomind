@@ -1,0 +1,27 @@
+{
+  "format": 1,
+  "kind": "study",
+  "name": "hackathon_2026",
+  "about": "Size and search every candidate on LCTS, pump intake limits of the plants (standard stages) applied.",
+  "cases": [
+    "case.json"
+  ],
+  "plants": [
+    "plants/HackathonPlant.json",
+    "plants/HeatingAbsorptionCoolingPlant.json",
+    "plants/HeatingCoolingPlant.json",
+    "plants/HeatingFullCoolingPlant.json",
+    "plants/HeatingHeatPumpCoolingPlant.json",
+    "plants/HeatingPlant.json"
+  ],
+  "prepare": [
+    "size"
+  ],
+  "method": "minimize",
+  "objective": "lcts",
+  "metrics": [
+    "co2"
+  ],
+  "evaluations": 20,
+  "seed": 0
+}

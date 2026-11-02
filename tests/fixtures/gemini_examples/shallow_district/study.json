@@ -1,0 +1,13 @@
+{
+  "format": 1,
+  "kind": "study",
+  "name": "shallow_district",
+  "about": "The stored plant run once on the case.",
+  "cases": [
+    "case.json"
+  ],
+  "plants": [
+    "plants/HeatingHeatPumpCoolingPlant.json"
+  ],
+  "method": "run"
+}

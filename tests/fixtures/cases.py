@@ -1,4 +1,8 @@
-"""gemini's example projects: where they are and what they hold, for tests that read a case."""
+"""gemini's example projects: where they are and what they hold, for tests that read a case.
+
+The published gemini wheel ships no examples, so ``gemini_examples/`` holds a copy of the two
+projects from gemini's tag v0.5.5 (without their README and PDF).
+"""
 
 import copy
 import json
@@ -18,9 +22,7 @@ PLANTS = {"hackathon_2026": "HackathonPlant", "shallow_district": "HeatingHeatPu
 
 def example_folder(name):
     """Return the folder of one of gemini's example projects."""
-    import gemini as gm
-
-    return Path(gm.__file__).resolve().parents[1] / "examples" / name
+    return Path(__file__).parent / "gemini_examples" / name
 
 
 @cache

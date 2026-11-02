@@ -1,0 +1,153 @@
+{
+  "format": 1,
+  "kind": "economics",
+  "name": "shallow_district",
+  "currency": {
+    "value": "EUR"
+  },
+  "price_year": {
+    "value": 2015
+  },
+  "discount_rate": {
+    "value": 0.04
+  },
+  "analysis_period": {
+    "value": 30,
+    "unit": "yr"
+  },
+  "capex": {
+    "drilling": {
+      "value": 1239.1304347826087,
+      "unit": "EUR/m"
+    },
+    "heat_pump": {
+      "value": 0.73786,
+      "unit": "EUR/W"
+    },
+    "boiler": {
+      "value": 0.06073,
+      "unit": "EUR/W"
+    },
+    "chp": {
+      "value": 0.96155,
+      "unit": "EUR/W"
+    },
+    "degasser": {
+      "value": 1000000.0,
+      "unit": "EUR"
+    },
+    "compression_chiller": {
+      "value": 0.73786,
+      "unit": "EUR/W"
+    },
+    "production_pump": {
+      "value": 0.5,
+      "unit": "EUR/W"
+    },
+    "injection_pump": {
+      "value": 0.5,
+      "unit": "EUR/W"
+    },
+    "heat_exchanger": {
+      "value": 0.5,
+      "unit": "EUR/(W/K)"
+    },
+    "cooler": {
+      "value": 0.1,
+      "unit": "EUR/W"
+    },
+    "pipe": {
+      "value": 500,
+      "unit": "EUR/m"
+    },
+    "flare": {
+      "value": 100000,
+      "unit": "EUR"
+    },
+    "gas_makeup": {
+      "value": 50000,
+      "unit": "EUR"
+    }
+  },
+  "opex": {
+    "fixed": {
+      "heat_pump": {
+        "value": 0.2239,
+        "unit": "%/yr"
+      },
+      "boiler": {
+        "value": 3.25,
+        "unit": "%/yr"
+      },
+      "chp": {
+        "value": 1.0263,
+        "unit": "%/yr"
+      },
+      "degasser": {
+        "value": 1.5,
+        "unit": "%/yr"
+      },
+      "compression_chiller": {
+        "value": 1.5,
+        "unit": "%/yr"
+      },
+      "production_pump": {
+        "value": 1.5,
+        "unit": "%/yr"
+      },
+      "injection_pump": {
+        "value": 1.5,
+        "unit": "%/yr"
+      },
+      "heat_exchanger": {
+        "value": 1.5,
+        "unit": "%/yr"
+      },
+      "cooler": {
+        "value": 1.5,
+        "unit": "%/yr"
+      },
+      "pipe": {
+        "value": 1.5,
+        "unit": "%/yr"
+      },
+      "flare": {
+        "value": 1.5,
+        "unit": "%/yr"
+      },
+      "gas_makeup": {
+        "value": 1.5,
+        "unit": "%/yr"
+      },
+      "drilling": {
+        "value": 1,
+        "unit": "%/yr"
+      }
+    }
+  },
+  "energy": {
+    "electricity": {
+      "value": 120,
+      "unit": "EUR/MWh"
+    },
+    "gas": {
+      "value": 55,
+      "unit": "EUR/MWh"
+    }
+  },
+  "accounting": {
+    "allocation": {
+      "heat_cost_share": {
+        "value": 0.8
+      }
+    },
+    "gwp": {
+      "standard": {
+        "value": "IPCC AR6 WG1 table 7.15, GWP100 of fossil methane"
+      },
+      "CH4": {
+        "value": 29.8
+      }
+    }
+  }
+}
