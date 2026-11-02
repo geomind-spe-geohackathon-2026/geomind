@@ -22,14 +22,15 @@ COSTS = (
 
 @tool(effect="compute")
 def check_results(context, reference: str):
-    """Check stored results against the case they ran on: gemini's report, balances and failures.
+    """Check stored results against the case they ran on: gemini's verdict and report.
 
-    Returns ``{passed, constraints, failures, balances, metrics}``, gemini's, in display units:
-    ``constraints`` one check per unit of each constraint of the case and per service supply
-    temperature, ``failures`` the failed and skipped steps by module and code, ``balances`` the
-    ledgers and the failed module balances, and ``metrics`` the energies, capacities, costs and
-    CO2. ``passed`` is true when no constraint, balance or step failed. A limit is a constraint
-    of the case: set it with ``set_case``.
+    Returns ``{feasible, reasons, requirements, failures, metrics}``, gemini's, in display units.
+    ``feasible`` is ``gm.evaluate.verdict``, the one rule: true when nothing is wrong. ``reasons``
+    says what is, each with a ``kind`` (``requirement``, ``failed_step``, ``numerical`` or
+    ``bound``), a ``name`` and a ``message``. ``requirements`` is one check per unit of each
+    requirement of the case and per service supply temperature, ``failures`` the failed and skipped
+    steps by module and code, and ``metrics`` the energies, capacities, costs and CO2. A limit is a
+    requirement of the case: set it with ``set_case``.
     """
     return assess(*load_run(context, reference, "check_results"))
 
@@ -82,11 +83,10 @@ def estimate_costs(context, reference: str):
     """Estimate capex, opex, LCOH, LCOC, LCTS, NPV, payback, CO2 and the annualised cost.
 
     Every value is gemini's (``gm.evaluate``) on the run's case, in display units with its parts;
-    prices, rates, lifetime and cost factors are the case's ``assumptions``. An assumption the
-    case lacks is never filled: a cost that needs it is ``{"error": {path, code, message}}`` with
-    gemini's error (code ``missing_assumption``, the path in the case), and when no cost can be
-    computed the call fails with the first of them. Set the assumption with ``set_case`` or ask the
-    user.
+    prices, discount rate, analysis period and cost factors are the case's ``economics.json``.
+    Nothing the file lacks is filled: a cost that needs it is ``{"error": {path, code, message}}``
+    with gemini's error (its code and the path in the case), and when no cost can be computed the
+    call fails with the first of them. Set the value in the case's economics or ask the user.
     """
     import gemini as gm
 

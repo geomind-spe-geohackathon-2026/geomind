@@ -1,10 +1,16 @@
-"""Verification over gemini's report: the balances, and the domain each failure goes to."""
+"""Verification over gemini's verdict: the metrics, and the domain each reason goes to."""
 
 import functools
 
 import pytest
 
-from geomind.tools.gemini.verification import assess, balances, domain_of, role_domain, unit_roles
+from geomind.tools.gemini.verification import (
+    assess,
+    domain_of,
+    requirement_roles,
+    role_domain,
+    unit_roles,
+)
 from tests.fixtures.stored_runs import variant_run, warm_runs
 
 
@@ -40,44 +46,60 @@ def loaded(name, variant="base"):
 
 def test_every_role_of_gemini_has_a_domain(gm):
     """The doublets are subsurface, the supplies sizing, every other role surface."""
-    domains = {role: role_domain(role) for role in gm.case.roles()}
+    domains = {role: role_domain(role) for role in gm.plants.roles()}
     assert domains["doublet"] == "subsurface"
     assert domains["heating_supply"] == domains["cooling_supply"] == "sizing"
     assert {domains[role] for role in domains} == {"subsurface", "sizing", "surface"}
     assert domains["heat_pump"] == domains["boiler"] == domains["chiller"] == "surface"
 
 
-def test_a_failed_check_goes_to_the_domain_of_its_role():
-    """A constraint check names its role; a balance names none, so it is coupled."""
-    assert domain_of({"name": "d0.x", "role": "doublet"}, {}) == "subsurface"
-    assert domain_of({"name": "hp.cop", "role": "heat_pump"}, {}) == "surface"
-    assert domain_of({"name": "energy_balance"}, {}) == "coupled"
+def test_a_requirement_goes_to_the_domain_of_its_role():
+    """The reason names its role; without it the case's requirement of that name gives it."""
+    assert domain_of({"kind": "requirement", "name": "x", "role": "doublet"}, {}) == "subsurface"
+    assert domain_of({"kind": "requirement", "name": "x", "role": "heat_pump"}, {}) == "surface"
+    assert domain_of({"kind": "requirement", "name": "q"}, {}, {"q": "heating_supply"}) == "sizing"
+    assert domain_of({"kind": "requirement", "name": "q"}, {}) == "coupled"
 
 
-def test_a_failure_group_goes_to_the_domain_of_the_unit_it_lies_in():
-    """Rows that failed below a doublet are subsurface; below no constrained unit, coupled."""
+def test_a_reason_of_a_unit_goes_to_the_domain_of_the_role_of_that_unit():
+    """Rows or bounds below a doublet are subsurface; below no unit of a known role, coupled."""
     roles = {"d0": "doublet", "heat_users": "heating_supply"}
-    assert domain_of({"path": "d0.reservoir", "code": "out_of_range"}, roles) == "subsurface"
-    assert domain_of({"path": "heat_users", "code": "no_convergence"}, roles) == "sizing"
-    assert domain_of({"path": "boiler", "code": "no_convergence"}, roles) == "coupled"
+    assert domain_of({"kind": "failed_step", "path": "d0.reservoir"}, roles) == "subsurface"
+    assert domain_of({"kind": "bound", "path": "heat_users.x"}, roles) == "sizing"
+    assert domain_of({"kind": "bound", "path": "boiler.x"}, roles) == "coupled"
+    assert domain_of({"kind": "failed_step"}, roles) == "coupled"
 
 
-def test_the_roles_come_from_the_constraint_checks_of_the_report():
-    """``unit_path`` and ``role`` of gemini's checks give the units and their roles."""
-    found = assess(*loaded("hackathon_2026"))
-    roles = unit_roles(found["constraints"])
+def test_a_numerical_reason_is_coupled_wherever_it_lies():
+    """A balance or a loop belongs to no one side."""
+    assert domain_of({"kind": "numerical", "path": "d0", "role": "doublet"}, {"d0": "doublet"}) == (
+        "coupled"
+    )
+
+
+def test_the_roles_come_from_the_requirement_checks_and_the_case(gm):
+    """The report's ``unit_path`` and ``role`` give the units; the case gives the names."""
+    plant, case, _ = loaded("hackathon_2026")
+    roles = unit_roles(assessed("hackathon_2026", "base")["requirements"])
     assert roles["d0"] == "doublet" and roles["heat_users"] == "heating_supply"
+    assert requirement_roles(case)["production_flow_range"] == "doublet"
 
 
-@pytest.mark.parametrize("name", ["hackathon_2026", "shallow_district"])
-def test_the_balances_hold_on_a_design_that_runs(name):
-    """The three ledgers are there and pass; the plant balance lists only what failed."""
-    checks = balances(*loaded(name))
-    assert [check["name"] for check in checks] == ["energy_balance", "mass_balance", "bounds"]
-    assert all(check["passed"] for check in checks)
+def test_the_verdict_is_gemini_s_and_the_metrics_hold_no_report_structure(gm):
+    """``feasible`` is ``gm.evaluate.verdict``; the metrics are the numbers of the report."""
+    found = assessed("hackathon_2026", "cooling_peak")
+    assert (
+        found["feasible"]
+        is gm.evaluate.verdict(*loaded("hackathon_2026", "cooling_peak"))["feasible"]
+    )
+    assert not {"requirements", "verdict", "services", "passed"} & set(found["metrics"])
+    assert found["metrics"]["failed_steps"] == 0
 
 
-def test_a_design_that_runs_on_its_case_passes_and_a_hot_cooling_peak_does_not():
-    """The verdict is gemini's report: passed with no failed constraint, balance or step."""
-    assert assessed("hackathon_2026", "base")["passed"] is True
-    assert assessed("hackathon_2026", "cooling_peak")["passed"] is False
+def test_a_design_that_runs_on_its_case_is_feasible_and_a_hot_cooling_peak_is_not():
+    """The verdict is gemini's: feasible with no reason, infeasible with the reasons it gives."""
+    base = assessed("hackathon_2026", "base")
+    assert base["feasible"] is True and base["reasons"] == []
+    peak = assessed("hackathon_2026", "cooling_peak")
+    assert peak["feasible"] is False
+    assert {reason["kind"] for reason in peak["reasons"]} == {"requirement"}

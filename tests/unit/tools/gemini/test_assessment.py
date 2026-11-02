@@ -57,14 +57,14 @@ async def assess(tool, name, variant="base", **tool_input):
 
 
 @example_names
-def test_a_design_that_meets_its_case_passes_gemini_s_checks(name):
-    """Constraints, balances and steps are all gemini's, and none fails."""
+def test_a_design_that_meets_its_case_is_feasible_by_gemini_s_verdict(name):
+    """The verdict is gemini's: feasible, no reason, no failed row."""
     output = assessed("check_results", name, "base")
-    assert output["passed"] is True
+    assert output["feasible"] is True
+    assert output["reasons"] == []
     assert output["failures"] == {"total": 0, "groups": []}
-    assert output["constraints"]
-    assert all(check["passed"] is not False for check in output["constraints"])
-    assert {"energy_balance", "mass_balance", "bounds"} <= {c["name"] for c in output["balances"]}
+    assert output["requirements"]
+    assert all(check["passed"] is not False for check in output["requirements"])
     assert output["metrics"]["failed_steps"] == 0
 
 
@@ -73,29 +73,33 @@ def test_check_results_shows_values_in_display_units():
     output = assessed("check_results", "hackathon_2026", "base")
     metrics = output["metrics"]
     assert (metrics["heat_delivered"]["unit"], metrics["capex"]["unit"]) == ("MWh", "MEUR")
-    units = {check["limit"]["unit"] for check in output["constraints"]}
+    units = {check["limit"]["unit"] for check in output["requirements"]}
     assert units >= {"m3/h", "degC"}
 
 
-def test_a_cooling_peak_beyond_the_plant_fails_the_cooling_supply():
-    """At 15 MW the cooling grid gets water warmer than the case asks, and gemini says so."""
+def test_a_cooling_peak_beyond_the_plant_fails_the_cold_delivered_and_its_supply():
+    """At 15 MW the cooling is not all delivered and the grid gets warmer water than asked."""
     output = assessed("check_results", "hackathon_2026", "cooling_peak")
-    failed = [check for check in output["constraints"] if check["passed"] is False]
-    assert output["passed"] is False
-    assert [check["name"] for check in failed] == ["cool_users.supply_in.temperature"]
-    assert (failed[0]["role"], failed[0]["quantity"]) == ("cooling_supply", "temperature")
-    assert failed[0]["value"]["value"] > failed[0]["limit"]["value"]
-    assert failed[0]["limit"] == {"value": 20.0, "unit": "degC"}
+    assert output["feasible"] is False
+    reasons = {reason["name"]: reason for reason in output["reasons"]}
+    assert set(reasons) == {"cold_delivered", "cooling_supply_temperature"}
+    assert {reason["kind"] for reason in reasons.values()} == {"requirement"}
+    supply = reasons["cooling_supply_temperature"]
+    assert (supply["role"], supply["quantity"]) == ("cooling_supply", "temperature")
+    assert supply["value"]["value"] > supply["limit"]["value"]
+    assert supply["limit"] == {"value": 20.0, "unit": "degC"}
+    failed = [check for check in output["requirements"] if check["passed"] is False]
+    assert [check["name"] for check in failed] == ["cold_delivered", "cooling_supply_temperature"]
 
 
 def test_a_colder_reservoir_is_met_by_the_boiler_and_still_passes():
-    """No constraint of the case limits the boiler, so gemini passes the 25 K/km variant.
+    """No requirement of the case limits the boiler, so gemini passes the 25 K/km variant.
 
     The cost shows the difference: the boiler gives over a hundred times the heat.
     """
     base = assessed("check_results", "hackathon_2026", "base")
     colder = assessed("check_results", "hackathon_2026", "colder")
-    assert colder["passed"] is True
+    assert colder["feasible"] is True
     assert colder["metrics"]["boiler_heat"]["value"] > 100 * base["metrics"]["boiler_heat"]["value"]
 
 
@@ -149,12 +153,12 @@ async def test_costs_are_gemini_s_values_of_the_case_in_display_units():
 
 
 async def test_a_cost_whose_assumption_is_missing_is_gemini_s_error_beside_the_others():
-    """The shallow case gives no heat revenue: NPV and payback say so, capex is still there."""
+    """The shallow economics gives no heat revenue: NPV and payback say so, capex is still there."""
     output = assessed("estimate_costs", "shallow_district", "base")
     assert output["capex"]["unit"] == "MEUR" and output["lcts"]["unit"] == "EUR/MWh"
     for name in ("npv", "payback"):
         assert output[name]["error"]["code"] == "missing_assumption"
-        assert output[name]["error"]["path"] == "assumptions.finance.revenue.heat"
+        assert output[name]["error"]["path"] == "economics.revenue.heat"
 
 
 def test_costs_follow_the_cooling_demand():
@@ -164,13 +168,13 @@ def test_costs_follow_the_cooling_demand():
     assert peak["opex"]["value"] > base["opex"]["value"]
 
 
-async def test_a_case_without_assumptions_gives_gemini_s_missing_assumption():
+async def test_a_case_without_economics_gives_gemini_s_missing_assumption():
     """The model reads the path to ask the user for; nothing is filled in."""
     context, _, result = await stored_run("shallow_district")
     identifier = result.removeprefix("result/")
     ran_on = dict(context.session.load_artifact(f"{identifier}.case"))
-    del ran_on["assumptions"]
+    del ran_on["economics"]
     await context.session.save_artifact(f"{identifier}.case", ran_on)
     output = (await assess_in(context, TOOLS.estimate_costs, result)).output
     assert output["error"]["code"] == "missing_assumption"
-    assert output["error"]["path"].startswith("assumptions")
+    assert output["error"]["path"].startswith("economics")

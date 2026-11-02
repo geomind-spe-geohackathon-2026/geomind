@@ -36,12 +36,13 @@ def test_the_named_design_is_checked_on_its_stored_run(name):
 
 
 def test_a_design_that_fails_gemini_s_checks_is_routed_by_domain():
-    """The 15 MW cooling peak fails, and the failure names the domain that should fix it."""
+    """The 15 MW cooling peak fails the cold delivered; the failure names the domain to fix it."""
     context, design, result = variant_run("hackathon_2026", "cooling_peak")
     found = verdict(context, design, result)
     assert found["passed"] is False
-    assert [(item["name"], item["domain"]) for item in found["failures"]] == [
-        ("cool_users.supply_in.temperature", "sizing")
+    assert [(item["name"], item["kind"], item["domain"]) for item in found["failures"]] == [
+        ("cold_delivered", "requirement", "sizing"),
+        ("cooling_supply_temperature", "requirement", "sizing"),
     ]
 
 
