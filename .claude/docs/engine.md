@@ -169,8 +169,9 @@ and `FileRunStore(root=".runs")` add `add_message(chat_id, message)`.
 An artifact key of `FileRunStore` is one safe name, or a [reference](tools.md#references) of the
 form `design/<name>`, `result/<id>` or `case/<file name>`; any other `/` raises `RunError`.
 
-`Workspace` has `plant(project_id)` and `documents(project_id, query)`. `MemoryWorkspace(plants,
-documents)` holds values; `FileWorkspace(root)` reads `<root>/<project id>/plant.json`, loaded with
-`gm.plants.from_dict`, and text files in `documents/`, searched by keyword count.
+`Workspace` has `plants(project_id)`, `case(project_id)` and `documents(project_id, query)`.
+`MemoryWorkspace(plants, documents, cases)` holds values; `FileWorkspace(root)` reads gemini's
+project folder `<root>/<project id>/`: the plant files `plants/*.json` as dicts by file stem, and
+text files in `documents/`, searched by keyword count.
 `gd.testing.check_run_store` and `check_workspace` are the
 conformance checks.

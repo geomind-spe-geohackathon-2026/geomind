@@ -26,11 +26,14 @@ def test_file_store_passes(tmp_path):
     check_run_store(lambda: gd.stores.FileRunStore(tmp_path / str(next(counter))), seed_history)
 
 
+PLANTS = {"P": {"kind": "plant"}}
+
+
 def workspace():
     """Return a filled memory workspace."""
     documents = {"p": [{"id": "1", "title": "Heat", "text": "heat pump"}]}
     cases = {"p": example_case("shallow_district")}
-    return gd.stores.MemoryWorkspace({"p": object()}, documents, cases)
+    return gd.stores.MemoryWorkspace({"p": PLANTS}, documents, cases)
 
 
 def test_memory_workspace_passes():
@@ -85,7 +88,7 @@ def test_a_workspace_that_finds_nothing_fails():
     with pytest.raises(AssertionError, match="find the query"):
         check_workspace(
             lambda: gd.stores.MemoryWorkspace(
-                {"p": object()}, cases={"p": example_case("shallow_district")}
+                {"p": PLANTS}, cases={"p": example_case("shallow_district")}
             ),
             project="p",
             query="heat",
@@ -100,7 +103,7 @@ def test_a_workspace_without_a_case_fails():
             return None
 
     with pytest.raises(AssertionError, match="case must load"):
-        check_workspace(lambda: NoCase({"p": object()}, {"p": []}), project="p", query="heat")
+        check_workspace(lambda: NoCase({"p": PLANTS}, {"p": []}), project="p", query="heat")
 
 
 def test_a_store_that_loses_case_files_fails():
@@ -127,7 +130,7 @@ def test_a_workspace_that_forgets_a_case_file_fails():
 
     with pytest.raises(AssertionError, match="economics.json"):
         check_workspace(
-            lambda: Forgetful({"p": object()}, {"p": []}, {"p": example_case("shallow_district")}),
+            lambda: Forgetful({"p": PLANTS}, {"p": []}, {"p": example_case("shallow_district")}),
             project="p",
             query="heat",
         )
@@ -144,4 +147,17 @@ def test_a_workspace_with_an_unsafe_file_name_fails():
 def workspace_with(files, data):
     """Return a memory workspace whose case has these files."""
     documents = {"p": [{"id": "1", "title": "Heat", "text": "heat"}]}
-    return gd.stores.MemoryWorkspace({"p": object()}, documents, {"p": (data, files)})
+    return gd.stores.MemoryWorkspace({"p": PLANTS}, documents, {"p": (data, files)})
+
+
+def test_a_workspace_without_plants_fails():
+    """The plant files of the project are part of the contract."""
+    with pytest.raises(AssertionError, match="plants must be"):
+        check_workspace(
+            lambda: gd.stores.MemoryWorkspace(
+                cases={"p": example_case("shallow_district")},
+                documents={"p": [{"id": "1", "title": "Heat", "text": "heat"}]},
+            ),
+            project="p",
+            query="heat",
+        )

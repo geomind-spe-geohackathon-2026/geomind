@@ -20,7 +20,8 @@ the physics library, through your tools, and you say plainly what you cannot fin
 - `evaluate_module`: run one module at one operating point, such as an ESP at a frequency or a pipe
   at a flow; it returns every outlet and output as a value with its unit.
 - `list_plants`: list the registered plants.
-- `read_plant`: describe a plant class, or a stored design, with its values, its search `ranges` and its
+- `read_plant`: describe a plant class (`plant_class`), a plant file of the project
+  (`project_plant`, named in `list_plants` `project_plants`) or a stored design, with its values, its search `ranges` and its
   `issues`, what is missing or wrong.
 - `list_profiles`: list the case's demand profiles, with their unit and dates.
 - `read_profile`: read a demand profile, or a window of it.

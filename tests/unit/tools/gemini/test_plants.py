@@ -3,6 +3,7 @@
 import asyncio
 import copy
 import json
+import shutil
 
 import pytest
 
@@ -10,9 +11,15 @@ import geomind as gd
 from geomind.engine import Context
 from geomind.errors import ToolError
 from geomind.stores import FileWorkspace, MemoryWorkspace
-from geomind.tools.gemini.plants import load_plant, project_plant, set_ranges
+from geomind.tools.gemini.plants import load_plant, set_ranges, workspace_plant
 from tests.fixtures.calls import call
-from tests.fixtures.cases import case_context, example_plant, example_plant_files
+from tests.fixtures.cases import (
+    PLANTS,
+    case_context,
+    example_folder,
+    example_plant,
+    example_plant_files,
+)
 from tests.fixtures.sessions import StubSession
 
 TOOLS = gd.tools.gemini
@@ -154,6 +161,24 @@ async def test_a_class_name_reads_as_a_plant_with_its_missing_values(gm):
         "quantity",
         "accepted",
     }
+
+
+@pytest.mark.parametrize("example", ["hackathon_2026", "shallow_district"])
+async def test_a_class_read_with_a_case_reports_the_plant_issues_and_gemini_s_error(example):
+    """Gemini's check raises for a class with a case: the plant's own issues come back instead."""
+    session = StubSession()
+    context = await case_context(example, session)
+    result = await call(
+        TOOLS.read_plant,
+        {"plant_class": "HeatingHeatPumpCoolingPlant"},
+        session,
+        problem=context.problem,
+    )
+    assert not result.is_error
+    output = session.artifacts[result.output["reference"]]
+    assert output["checked_against"] == "plant"
+    assert output["issues"]
+    assert output["gemini_error"]["message"]
 
 
 async def test_an_unknown_class_name_is_gemini_s_problem_with_suggestions():
@@ -328,16 +353,66 @@ async def test_reading_an_unknown_design_reference_is_unknown_name(design):
     assert result.output["error"]["code"] == "unknown_name"
 
 
+def example_workspace(example):
+    """Return a memory workspace whose project ``p1`` holds every plant file of an example."""
+    files = {
+        name.removeprefix("plants/").removesuffix(".json"): json.loads(content)
+        for name, content in example_plant_files(example).items()
+    }
+    return MemoryWorkspace(plants={"p1": files})
+
+
 @every_example_plant
-async def test_read_plant_of_the_project_is_its_dict(example, plant):
-    """Without a design, it is the workspace plant's dict, the plant object left unchanged."""
-    project_plant_object = example_plant(example, plant)
-    before = copy.deepcopy(project_plant_object.to_dict(structure=True))
-    workspace = MemoryWorkspace(plants={"p1": project_plant_object})
-    result = await call(TOOLS.read_plant, {}, StubSession(workspace=workspace), project="p1")
-    assert result.output["plant"] == before
-    assert project_plant_object.to_dict(structure=True) == before
+async def test_read_plant_by_project_plant_name_is_its_dict(example, plant):
+    """A named project plant reads as the file's dict, the workspace left unchanged."""
+    workspace = example_workspace(example)
+    before = copy.deepcopy(workspace.plants("p1"))
+    session = StubSession(workspace=workspace)
+    result = await call(TOOLS.read_plant, {"project_plant": plant}, session, project="p1")
+    assert result.output["plant"] == example_plant(example, plant).to_dict(structure=True)
+    assert workspace.plants("p1") == before
     json.dumps(result.output)
+
+
+async def test_read_plant_without_a_name_reads_the_one_plant_of_a_project():
+    """A project with exactly one plant file needs no name."""
+    workspace = example_workspace("shallow_district")
+    result = await call(TOOLS.read_plant, {}, StubSession(workspace=workspace), project="p1")
+    assert result.output["plant"] == plant_dict("shallow_district", PLANTS["shallow_district"])
+
+
+async def test_read_plant_without_a_name_in_a_project_of_several_names_them():
+    """Several files and no name: the error names the files and the three ways to choose."""
+    session = StubSession(workspace=example_workspace("hackathon_2026"))
+    result = await call(TOOLS.read_plant, {}, session, project="p1")
+    error = result.output["error"]
+    assert error["code"] == "unknown_name" and error["path"] == "project_plant"
+    for text in ("HackathonPlant", "HeatingPlant", "plant class", "stored design"):
+        assert text in error["message"]
+
+
+async def test_an_unknown_project_plant_name_lists_the_known_ones():
+    """The error names what the project holds."""
+    session = StubSession(workspace=example_workspace("hackathon_2026"))
+    result = await call(TOOLS.read_plant, {"project_plant": "Nope"}, session, project="p1")
+    assert result.output["error"]["code"] == "unknown_name"
+    assert "HeatingPlant" in result.output["error"]["message"]
+
+
+async def test_list_plants_names_the_plant_files_of_the_project():
+    """``project_plants`` is the sorted file names; empty without a project."""
+    session = StubSession(workspace=example_workspace("hackathon_2026"))
+    result = await call(TOOLS.list_plants, {}, session, project="p1")
+    assert result.output["project_plants"] == sorted(HACKATHON_PLANTS)
+    assert (await call(TOOLS.list_plants, {})).output["project_plants"] == []
+
+
+async def test_project_plant_with_another_argument_is_refused():
+    """The three ways to name a plant exclude each other."""
+    session = StubSession(workspace=example_workspace("hackathon_2026"))
+    arguments = {"project_plant": "HeatingPlant", "plant_class": "HeatingPlant"}
+    result = await call(TOOLS.read_plant, arguments, session, project="p1")
+    assert result.output["error"]["path"] == "design"
 
 
 async def test_read_plant_without_a_project_says_so():
@@ -353,19 +428,11 @@ async def test_read_plant_of_a_project_without_a_plant_says_so():
     assert result.output["error"]["code"] == "unknown_name"
 
 
-def test_a_project_with_several_plants_says_which_and_what_to_use_instead(tmp_path):
-    """The error names the files and points to a plant class or a stored design."""
-    folder = tmp_path / "p1" / "plants"
-    folder.mkdir(parents=True)
-    for file, content in example_plant_files("hackathon_2026").items():
-        if "HeatingPlant" in file or "HackathonPlant" in file:
-            (tmp_path / "p1" / file).write_bytes(content)
+def test_a_file_workspace_project_with_several_plants_needs_a_name(tmp_path):
+    """The file workspace of the hackathon layout gives each file by its stem."""
+    shutil.copytree(example_folder("hackathon_2026"), tmp_path / "p1")
     context = Context(session=StubSession(workspace=FileWorkspace(tmp_path)), project="p1")
-    with pytest.raises(ToolError) as caught:
-        project_plant(context, "read_plant")
-    message = str(caught.value)
-    assert "HackathonPlant" in message
-    assert "HeatingPlant" in message
-    assert "plant class" in message
-    assert "stored design" in message
-    assert caught.value.code == "unknown_name"
+    with pytest.raises(ToolError, match="several plants"):
+        workspace_plant(context, "read_plant")
+    plant = workspace_plant(context, "read_plant", "HeatingPlant")
+    assert plant.to_dict()["type"] == "HeatingPlant"

@@ -88,9 +88,11 @@ and to read one back `event_from_dict`.
   checks that every named file is there and every name is a safe relative path. The file workspace
   reads gemini's project folder `<root>/<project>/` (`case.json`, `economics.json`, `data/`,
   `plants/`, `documents/`); the memory one takes `cases={project: (dict, files)}`.
-  `Workspace.plant(project_id)` returns a `gm.Plant` built by `gm.Plant.from_dict` from the one
-  plant file (`kind: plant`) of `plants/`; a project with several plant files is ambiguous and the
-  file workspace raises `UnknownNameError`.
+  `Workspace.plants(project_id)` returns `{name: plant file dict}`, one entry per `plants/*.json`
+  (the name is the file stem, the dict the file as written, `kind: plant`), and `{}` without
+  plants; the memory one takes `plants={project: {name: dict}}`. There is no single-plant method:
+  `read_plant` picks the file by name, or the only one (`gm.Plant.from_dict` builds it per call).
+  `check_workspace` checks the shape and `{}` for an unknown project.
 - **What the backend stores for a project.** Its `case.json` (the case as written, read by
   `Workspace.case`), its `economics.json`, the series files they name and its plant files. The problem state holds the case under the key
   `case` (it replaced `brief`), and a run copies the files into its own `case/<file name>`

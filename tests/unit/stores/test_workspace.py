@@ -5,7 +5,6 @@ import shutil
 
 import pytest
 
-from geomind.errors import UnknownNameError
 from geomind.stores.casefiles import is_safe_name, named_files
 from geomind.stores.workspace import FileWorkspace, MemoryWorkspace, search
 from tests.fixtures.cases import (
@@ -32,8 +31,8 @@ def test_search_ranks_by_keyword_count():
 
 def test_memory_workspace_keeps_projects_apart():
     """Values belong to one project."""
-    workspace = MemoryWorkspace({"a": "plant"}, {"a": DOCUMENTS})
-    assert workspace.plant("a") == "plant" and workspace.plant("b") is None
+    workspace = MemoryWorkspace({"a": {"P": {"kind": "plant"}}}, {"a": DOCUMENTS})
+    assert workspace.plants("a") == {"P": {"kind": "plant"}} and workspace.plants("b") == {}
     assert workspace.documents("b", "heat") == []
 
 
@@ -49,8 +48,8 @@ def test_file_workspace_reads_text_files(tmp_path):
 
 
 def test_file_workspace_without_a_plant(tmp_path):
-    """A project without a plant file has no plant."""
-    assert FileWorkspace(tmp_path).plant("p") is None
+    """A project without a plant file has no plants."""
+    assert FileWorkspace(tmp_path).plants("p") == {}
 
 
 @pytest.fixture(scope="module")
@@ -78,17 +77,22 @@ def test_the_file_and_memory_workspaces_agree(projects, name):
     assert memory.case(name) == FileWorkspace(projects).case(name)
 
 
-def test_file_workspace_reads_the_plant_file(projects):
-    """The one file of ``plants/`` is a gemini plant built by ``Plant.from_dict``."""
-    plant = FileWorkspace(projects).plant("shallow_district")
-    file = json.loads(example_plant_files("shallow_district").popitem()[1])
-    assert plant.to_dict()["type"] == file["type"]
+@example_names
+def test_file_workspace_reads_every_plant_file_by_its_stem(projects, name):
+    """``plants`` is ``{stem: file dict}`` of ``plants/*.json``, as written."""
+    plants = FileWorkspace(projects).plants(name)
+    files = example_plant_files(name)
+    assert plants == {
+        file.removeprefix("plants/").removesuffix(".json"): json.loads(content)
+        for file, content in files.items()
+    }
+    assert {file["kind"] for file in plants.values()} == {"plant"}
 
 
-def test_file_workspace_refuses_to_pick_among_several_plants(projects):
-    """The hackathon project has six plant files, so ``plant`` names no one of them."""
-    with pytest.raises(UnknownNameError, match="several plants"):
-        FileWorkspace(projects).plant("hackathon_2026")
+def test_the_hackathon_project_has_several_plants_and_shallow_district_one(projects):
+    """A project may hold any number of plant files."""
+    assert len(FileWorkspace(projects).plants("hackathon_2026")) == 6
+    assert len(FileWorkspace(projects).plants("shallow_district")) == 1
 
 
 def test_file_workspace_without_a_case(tmp_path):
