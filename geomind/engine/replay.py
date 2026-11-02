@@ -162,11 +162,8 @@ def _children(tree, run_id):
 
 
 def _nested_changes(events, run_id):
-    """Return, by (step, call id) of the run, the problem-state changes made during that call.
+    """Return, by (step, call id) of the run, the problem-state changes its nested runs logged.
 
-    These are the changes of the nested runs the call started and the run's own changes while the
-    call was open (the first open call, when calls run in parallel). A replay applies them when it
-    reuses the call's result instead of running the tool.
     NOTE: a nested run that did not end with an answer is not run again; its recorded result is
     reused and the replay applies again what it wrote in the shared problem state, in log order.
     A nested run that ended with an answer runs again and writes its own changes.
@@ -174,24 +171,11 @@ def _nested_changes(events, run_id):
     owners = _child_calls(events, run_id)
     own = _results(e for e in events if e.run_id == run_id)
     changes = {(result.index, result.call_id): [] for result in own}
-    open_calls = []
     for e in events:
-        if e.run_id == run_id and e.type in ("tool.started", "tool.result"):
-            open_calls = _tracked(open_calls, e)
-            continue
-        own = open_calls[0] if open_calls else None
-        key = own if e.run_id == run_id else owners.get(e.run_id)
+        key = owners.get(e.run_id)
         if e.type == "state.changed" and key in changes:
             changes[key].append(e.changes)
     return changes
-
-
-def _tracked(open_calls, event):
-    """Return the calls still open after a ``tool.started`` or ``tool.result`` of the run."""
-    key = (event.index, event.call_id)
-    if event.type == "tool.started":
-        return [*open_calls, key]
-    return [item for item in open_calls if item != key]
 
 
 def _signature(event):

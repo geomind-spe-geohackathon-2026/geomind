@@ -29,7 +29,7 @@ Studies the app can list. A new required tool argument; the coordinator sets the
 - Replay of a log of another geomind version (or with none recorded) keeps the recorded results
   of pure tools and the state changes they made, and still compares completions, calls, steps and
   answers: a 0.3.1 log with study calls (no `name`, other outputs) replays. Tools that write the
-  state still run. A run's own state changes during a reused call are applied too.
+  state still run.
 - A log of 0.3.1 without `study.recorded` loads, replays and exports. Recorded model calls of
   `run_study`, `sample_uncertainty` and `sensitivity` from 0.3.1 lack the new `name`, so the
   recordings of this repository carry one (`families`, `draws`).

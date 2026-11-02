@@ -621,36 +621,6 @@ async def test_a_log_of_another_version_still_fails_on_a_changed_answer():
         await Engine.replay(engine.store, result.run_id)
 
 
-@tool(effect="read")
-async def set_goal(context, goal: str):
-    """Set the goal in the problem state, as a pure tool that also writes it."""
-    await context.session.change_state([{"op": "replace", "path": "/goal", "value": goal}])
-    return "set"
-
-
-class GoalSetter(Worker):
-    """Has the pure tool that writes the state."""
-
-    def __init__(self):
-        """Add the tool."""
-        super().__init__()
-        self.set_goal = set_goal
-
-
-async def test_a_reused_pure_tool_still_applies_the_state_it_wrote():
-    """A log of another version does not run the tool, so the replay applies its recorded change."""
-    result, engine, events = await run(
-        [uses(call("set_goal", goal="cover the peak")), says("end")], agent=GoalSetter()
-    )
-    engine.store.events[result.run_id] = [
-        e.model_copy(update={"versions": {}}) if isinstance(e, RunStarted) else e for e in events
-    ]
-    replayed = []
-    await Engine.replay(engine.store, result.run_id, replayed=replayed)
-    changes = [e for e in replayed if isinstance(e, StateChanged)]
-    assert [c.changes[0]["value"] for c in changes] == ["cover the peak"]
-
-
 async def test_a_reused_call_is_not_validated_against_the_schema_of_today():
     """An old input that fails the schema of the tool now is not a validation failure here."""
     result, engine, events = await run(
@@ -670,3 +640,30 @@ async def test_a_reused_call_is_not_validated_against_the_schema_of_today():
     assert [(e.input, e.output, e.is_error, e.is_validation) for e in recorded] == [
         ({"left": 1}, 3, False, False)
     ]
+
+
+class Stater(Worker):
+    """Has ``update_state`` beside the pure tools."""
+
+    def __init__(self):
+        """Add the tool."""
+        super().__init__()
+        self.update_state = update_state
+
+
+async def test_a_state_change_beside_a_reused_call_is_applied_once():
+    """A pure call beside ``update_state`` in one step does not get its change applied twice."""
+    change = {"op": "replace", "path": "/goal", "value": "cover the peak"}
+    result, engine, events = await run(
+        [
+            uses(call("add", "a", left=1, right=2), call("update_state", "b", changes=[change])),
+            says("end"),
+        ],
+        agent=Stater(),
+    )
+    engine.store.events[result.run_id] = [
+        e.model_copy(update={"versions": {}}) if isinstance(e, RunStarted) else e for e in events
+    ]
+    replayed = []
+    await Engine.replay(engine.store, result.run_id, replayed=replayed)
+    assert len([e for e in replayed if isinstance(e, StateChanged)]) == 1

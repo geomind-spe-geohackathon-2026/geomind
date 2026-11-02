@@ -24,7 +24,9 @@ def stored(tmp_path_factory):
 
     NOTE: the log was made by the code of commit a38bad6 from ``evals/recordings/compare/
     two_families.jsonl`` as it was then, so its ``run_study`` call has no ``name``. The archive
-    holds the events, the manifest and the artifacts the replay reads.
+    holds the whole events log, the manifest and the five artifacts the replay reads (the final
+    result and its plant, case and files, and the best design); each other artifact was dropped
+    after a replay without it still passed.
     """
     root = tmp_path_factory.mktemp("log")
     with tarfile.open(ARCHIVE) as archive:
