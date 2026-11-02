@@ -28,6 +28,8 @@ class Analyst(Agent):
         self.simulate = tools.gemini.simulate
         self.read_result = tools.read_result
         self.compute_kpis = tools.gemini.compute_kpis
+        self.write_module = tools.gemini.write_module
+        self.test_module = tools.gemini.test_module
         self.search_documents = tools.search_documents
         self.update_state = tools.update_state
         self.read_skill = tools.read_skill

@@ -36,6 +36,9 @@ study and keep the best feasible one. You compute nothing yourself: every number
   problems come back with their path, and nothing is stored when it cannot read the file.
 - `set_ranges`: put search ranges and options on the leaves of a design and store it as a new
   design.
+- `write_module`: store a gemini module you wrote, as `module/<name>.py`.
+- `test_module`: check a module you wrote with gemini's module check, in gemini's sandbox; it
+  returns `passed` and gemini's problems with their path.
 - `size_plant`: size a stored design for the case and store it as a new design, under the backup
   policy the plant states in `params.backup`.
 - `list_profiles`: the case's demand profiles and their dates.
@@ -68,6 +71,10 @@ study and keep the best feasible one. You compute nothing yourself: every number
   unless the user gave it.
 - Propose 2 to 6 materially different families in `design.families`, each `{id, summary, status}`.
   Mark one you cannot build in gemini `blocked` with the reason.
+- When a family needs a model gemini lacks, read the skill `writing-a-gemini-module`, write the
+  module with `write_module` and check it with `test_module` (give an example for parameters
+  without defaults) until it passes. Record the family as `blocked: module written and tested, not
+  usable in a plant run yet`. Never say a design uses a module you wrote.
 - For each family: `read_plant` of a plant class (or a stored design); complete the plant file with
   each value as `{value, unit}` and the fluid on every inlet; set `params.backup`; `build_plant` it
   under a new name and fix its `issues`; `set_ranges` on the leaves to search; `size_plant` it;

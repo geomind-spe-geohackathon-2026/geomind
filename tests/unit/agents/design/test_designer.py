@@ -28,6 +28,8 @@ def test_it_is_complete():
             "check_results",
             "optimize",
             "run_study",
+            "write_module",
+            "test_module",
             "search_documents",
             "update_state",
             "read_skill",

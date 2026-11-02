@@ -26,6 +26,8 @@ def test_it_declares_the_tools_it_needs():
         "simulate",
         "read_result",
         "compute_kpis",
+        "write_module",
+        "test_module",
         "search_documents",
         "update_state",
         "read_skill",

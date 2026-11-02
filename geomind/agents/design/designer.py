@@ -40,6 +40,8 @@ class Designer(Agent):
         self.check_results = tools.gemini.check_results
         self.optimize = tools.gemini.optimize
         self.run_study = tools.gemini.run_study
+        self.write_module = tools.gemini.write_module
+        self.test_module = tools.gemini.test_module
         self.search_documents = tools.search_documents
         self.update_state = tools.update_state
         self.read_skill = tools.read_skill
