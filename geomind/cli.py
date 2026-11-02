@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from uuid import uuid4
 
-from geomind import agents, runtime
+from geomind import agents, live, runtime
 from geomind.agents import Route
 from geomind.context import ProblemState, render
 from geomind.engine import Engine, Permissions, callbacks
@@ -177,11 +177,27 @@ def _budgets(args):
     return caps
 
 
+def _require_cap(args):
+    """Refuse ``--mode auto`` against the real provider without a spending cap."""
+    uncapped = args.max_cost is None and args.max_tokens is None
+    if args.mode == "auto" and args.recording is None and uncapped:
+        raise RunError("run: --mode auto with a live provider needs --max-cost or --max-tokens")
+
+
+def _command_check_live(args):
+    """Print what a live run still lacks; exit 1 when anything is missing."""
+    lines, ready = live.report(args.max_cost, args.max_tokens)
+    print("\n".join(lines))
+    print("ready" if ready else "not ready")
+    return 0 if ready else 1
+
+
 def _command_run(args):
     """Run one message, asking in the terminal when the run pauses.
 
     Without ``--loop`` the coordinator routes the message; ``--loop`` names the loop instead.
     """
+    _require_cap(args)
     workspace, project = _project(args.project)
     _require_case(args, workspace, project)
     with runtime.settings(**_changes(args)):
@@ -519,6 +535,10 @@ def _parser():
     run.add_argument("--max-tokens", type=int, help="deny model calls once the run used this many")
     run.add_argument("--max-cost", type=float, help="deny model calls once the run cost this, USD")
     run.set_defaults(function=_command_run)
+    check = commands.add_parser("check-live", help="check what a first live run needs")
+    check.add_argument("--max-tokens", type=int)
+    check.add_argument("--max-cost", type=float)
+    check.set_defaults(function=_command_check_live)
     chat = commands.add_parser("chat", help="talk to one agent in the terminal")
     chat.add_argument("--agent", default="analyst")
     chat.add_argument("--project")

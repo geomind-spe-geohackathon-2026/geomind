@@ -61,6 +61,11 @@ the routing, for testing one agent by hand, and so does a `run.loop` set before 
   the recording and of the project's plant, the model ids each agent called, the run's settings, and
   the seeds (none: gemini is deterministic, geomind draws no random numbers, agents run at
   temperature 0).
+  `--mode auto` with OpenRouter and no cap refuses to start (`RunError`).
+- `geomind check-live [--max-cost USD] [--max-tokens N]` checks a first live run: `OPENROUTER_API_KEY`
+  set (the value is never printed), every role's model id in OpenRouter's public model list (one
+  GET; skipped with a message when it fails), and a cap given. It prints one line per missing item
+  and exits 1 when anything is missing. See `evals.md`, "First live run".
 - `geomind chat [--agent NAME] [--project PATH] [--live] [--recording FILE] [--model ID]
   [--max-steps N]` is an interactive session with any agent of `gd.agents`, skeletons included,
   `analyst` by default. Each turn prints the streamed

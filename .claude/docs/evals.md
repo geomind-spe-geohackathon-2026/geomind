@@ -149,3 +149,38 @@ verified design, not a model; the live run replaces it. A design run needs a pro
 example's `plant.json`), not by an agent. A live run shows what the agents find on their own; the
 scripted runs show only that the harness carries a verified design from the command line to the
 report.
+
+## First live run
+
+The harness has never called a model. Do the first live run in three steps, each with a cap.
+
+```bash
+export OPENROUTER_API_KEY=...        # in your shell only, never in a file
+geomind check-live --max-cost 1
+geomind run "What is the ESP operating point?" --loop tool --project <folder> --mode auto --max-cost 1
+geomind run "<the brief>" --loop design --project <case folder> --mode auto --max-cost 20 \
+  --record evals/runs/official_brief_live.jsonl
+```
+
+1. `geomind check-live --max-cost 1` prints one line per missing item and exits non-zero when
+   anything is missing: the key (only "set" or "not set" is shown), a model id of any role (the
+   resolved settings, `default_model` where a role has none) absent from OpenRouter's public model
+   list, and the cap. Without network the list check is skipped with a message.
+2. A cheap Analyst question: `geomind run "<question about the project>" --loop tool --project
+   <folder> --mode auto --max-cost 1`. `--loop tool` is the Analyst's loop.
+3. The design loop with `--loop design --project <case folder> --mode auto --max-cost 20 --record
+   evals/runs/official_brief_live.jsonl`. `--record` writes every completion of the run as a
+   recording; `geomind run ... --recording FILE` and `geomind replay .runs/<id>` replay it offline.
+   Runs are stored in `.runs/<id>/` (log and `run_manifest.json`).
+
+`geomind run --mode auto` with the real provider and neither `--max-cost` nor `--max-tokens`
+refuses to start. A recording needs no cap.
+
+What to check in the answer: the verdict is feasible; the assumptions are listed (agent choices
+with `confirmed: false` and a reason); costs are in display units, not SI; `geomind show <run>
+--format md` shows the token table by agent and step, and the total stays under the cap (a run over
+it ends `denied`).
+
+To re-record the challenge2 recordings live: `python -m evals.run --agent <name> --live` for each
+agent folder under `evals/tasks/`, and `python -m evals.run --agent challenge2 --live` for the suite
+(each writes its recordings anew); then run the same commands without `--live` to confirm they pass. The scripted recordings of the previous section are replaced by `official_brief_live.jsonl`.
