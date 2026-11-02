@@ -119,8 +119,12 @@
     "method": "minimize",
     "parent": null,
     "run": "run-1",
+    "run_id": "run-1",
+    "sequence": 1,
     "study": "study/families",
-    "tool": "run_study"
+    "time": "2026-10-31T12:00:00+00:00",
+    "tool": "run_study",
+    "type": "study.recorded"
   },
   "text.delta": {
     "agent": "analyst",

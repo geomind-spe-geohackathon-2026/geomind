@@ -428,7 +428,7 @@
       "name": "list_profiles"
     },
     "list_studies": {
-      "description": "List the studies stored in this chat: what ran, over which designs, and whether it is current.",
+      "description": "List the studies stored in this chat: what ran, over which designs, and whether current.",
       "effect": "read",
       "idempotent": true,
       "input_schema": {
