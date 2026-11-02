@@ -50,6 +50,8 @@ RUN_STORE_METHODS = (
     "load_state",
     "save_artifact",
     "load_artifact",
+    "save_chat_artifact",
+    "load_chat_artifact",
     "load_events",
 )
 RESULT_FIELDS = ("run_id", "status", "answer", "request", "usage", "stop_reason")
@@ -79,10 +81,14 @@ def test_section_two_events_are_frozen(frozen):
 
 
 def test_section_three_protocols_are_frozen(frozen):
-    """``RunStore``, ``Workspace`` (with ``case`` since 0.2.0), ``LLM`` and ``SandboxProvider``."""
+    """``RunStore``, ``Workspace``, ``LLM`` and ``SandboxProvider``, as of 0.3.0.
+
+    0.3.0 added the chat artifacts of ``RunStore`` and ``Workspace.plants``, and the files of
+    ``Workspace.case``.
+    """
     protocols = frozen["protocols"]
     assert set(protocols["RunStore"]) == set(RUN_STORE_METHODS)
-    assert set(protocols["Workspace"]) == {"plant", "documents", "case"}
+    assert set(protocols["Workspace"]) == {"plants", "documents", "case"}
     assert (
         protocols["LLM"]["complete"] == "(self, messages, tools, *, model, settings, on_text=None)"
     )
