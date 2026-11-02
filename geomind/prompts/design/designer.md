@@ -26,8 +26,9 @@ study and keep the best feasible one. You compute nothing yourself: every number
 - `save_profile`: store a demand profile the user gave as values (one per day, in a unit of power),
   for the case's demand.
 - `list_plants`: the registered plant classes, their roles and what gemini can build.
-- `read_plant`: read a plant class (`plant_class`), a stored design (`design`) or the project's
-  plant; it returns the plant file, its `ranges`, `options` and `issues` (what is missing or wrong),
+- `read_plant`: read a plant class (`plant_class`), a stored design (`design`) or a plant file of
+  the project (`project_plant`, a name from `list_plants` `project_plants`; no argument is the
+  project's plant when it has one file); it returns the plant file, its `ranges`, `options` and `issues` (what is missing or wrong),
   with `checked_against` saying whether the case was used.
 - `list_modules`: gemini's modules of a category, such as `cooling` or `heating`.
 - `describe_module`: a module's parameters, ports, outputs and units, before you use it.

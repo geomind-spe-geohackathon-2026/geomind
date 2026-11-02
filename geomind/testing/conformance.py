@@ -111,11 +111,21 @@ def _check_case(workspace, project, missing_project):
     _expect(workspace.case(missing_project) is None, "an unknown project must have no case")
 
 
+def _is_plant_file(item):
+    """Return whether ``(name, file)`` is a plant name with a plant file dict."""
+    name, file = item
+    return isinstance(name, str) and isinstance(file, dict)
+
+
 def check_workspace(factory, *, project, query, missing_project="conformance-missing"):
-    """Check a ``Workspace``; ``factory()`` holds a plant, a case and a document for ``query``."""
+    """Check a ``Workspace``; ``factory()`` holds plants, a case and a document for ``query``."""
     workspace = factory()
-    _expect(workspace.plant(project) is not None, "the project's plant must load")
-    _expect(workspace.plant(missing_project) is None, "an unknown project must have no plant")
+    plants = workspace.plants(project)
+    _expect(
+        isinstance(plants, dict) and plants and all(map(_is_plant_file, plants.items())),
+        "the project's plants must be {name: plant file dict}",
+    )
+    _expect(workspace.plants(missing_project) == {}, "an unknown project must have no plants")
     _check_case(workspace, project, missing_project)
     found = workspace.documents(project, query)
     _expect(found, "documents must find the query")

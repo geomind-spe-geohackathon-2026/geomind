@@ -3,7 +3,7 @@
 import asyncio
 from typing import Any
 
-from geomind.errors import ToolError, UnknownNameError
+from geomind.errors import ToolError
 from geomind.tools.base import tool
 from geomind.tools.gemini.case import case_of
 from geomind.tools.gemini.stored import load_design, save_design
@@ -17,8 +17,11 @@ def plant_schema():
 
 
 @tool(effect="read")
-def list_plants():
-    """List the plant classes with their summary, capabilities (with ranges) and roles.
+def list_plants(context):
+    """List the plant classes and the project's plant files, with capabilities and roles.
+
+    ``project_plants`` are the names of the project's plant files (``read_plant``
+    ``project_plant`` reads one); it is empty without a project or plants.
 
     ``capabilities`` maps a class to its ``roles``, whether it is ``schedulable`` and its
     ``ranges``, the leaves of the plant file that may state a search range (``set_ranges`` sets
@@ -27,6 +30,7 @@ def list_plants():
     import gemini as gm
 
     return {
+        "project_plants": project_plant_names(context),
         "plants": [
             {"name": name, "summary": gm.plants.get(name).describe()["summary"]}
             for name in gm.plants.names()
@@ -36,41 +40,60 @@ def list_plants():
     }
 
 
-def project_plant(context, where):
-    """Return the plant of the run's project, or raise a result the model can act on."""
+def project_plant_names(context):
+    """Return the names of the plant files of the run's project, or ``[]`` without one."""
+    workspace = context.session.workspace
+    if workspace is None or context.project is None:
+        return []
+    return sorted(workspace.plants(context.project))
+
+
+def workspace_plant(context, where, name=None):
+    """Return the plant file ``name`` of the run's project, or its one file when ``name`` is None.
+
+    A run without a project, a project without plants, an unknown name or several files with no
+    name raise a result the model can act on.
+    """
     workspace = context.session.workspace
     if workspace is None or context.project is None:
         raise ToolError(
             f"{where}: this run has no project; expected a workspace and one, or a design",
             code="not_allowed",
         )
-    try:
-        plant = workspace.plant(context.project)
-    except UnknownNameError as error:
-        raise ToolError(
-            f"{where}: {error}; name a plant class (plant_class) or a stored design (design)",
-            code="unknown_name",
-            path="design",
-        ) from error
-    if plant is None:
+    plants = workspace.plants(context.project)
+    if not plants:
         raise ToolError(
             f"{where}: project {context.project!r} has no plant; expected a design reference",
             code="unknown_name",
             path="design",
         )
-    return plant
-
-
-def load_plant(context, design, where):
-    """Return a new gemini plant: the project's (``design`` None) or a stored ``design/<name>``.
-
-    The project's plant is copied through its plant dict, so a run never changes the workspace's
-    plant object.
-    """
+    names = ", ".join(sorted(plants))
+    if name is None and len(plants) > 1:
+        raise ToolError(
+            f"{where}: project {context.project!r} has several plants ({names}); name one "
+            "(project_plant), a plant class (plant_class) or a stored design (design)",
+            code="unknown_name",
+            path="project_plant",
+        )
+    if name is not None and name not in plants:
+        raise ToolError(
+            f"{where}: project {context.project!r} has no plant {name!r}; expected one of {names}",
+            code="unknown_name",
+            path="project_plant",
+        )
     import gemini as gm
 
+    return gm.Plant.from_dict(plants[name or next(iter(plants))])
+
+
+def load_plant(context, design, where, project_plant=None):
+    """Return a new gemini plant: a stored ``design/<name>`` or a plant file of the project.
+
+    With neither ``design`` nor ``project_plant``, the project's one plant file. A plant is built
+    from the file's dict each time, so a run never changes the workspace's plants.
+    """
     if design is None:
-        return gm.Plant.from_dict(project_plant(context, where).to_dict(structure=True))
+        return workspace_plant(context, where, project_plant)
     return load_design(context, design, where)
 
 
@@ -103,7 +126,14 @@ def plant_issues(context, plant):
 
     if context.problem.case is None:
         return {"checked_against": "plant", "issues": [issue_dict(i) for i in plant.check()]}
-    issues = gm.check(plant, case_of(context))
+    try:
+        issues = gm.check(plant, case_of(context))
+    except gm.errors.ValidationError as error:
+        return {
+            "checked_against": "plant",
+            "issues": [issue_dict(i) for i in plant.check()],
+            "gemini_error": error.to_dict(),
+        }
     return {"checked_against": "case", "issues": [issue_dict(i) for i in issues]}
 
 
@@ -145,30 +175,38 @@ def plant_view(plant):
 
 
 @tool(effect="read")
-def read_plant(context, design: str | None = None, plant_class: str | None = None):
-    """Read the project's plant, a stored design or a plant class: file, ranges, issues.
+def read_plant(
+    context,
+    design: str | None = None,
+    plant_class: str | None = None,
+    project_plant: str | None = None,
+):
+    """Read a project plant file, a stored design or a plant class: file, ranges, issues.
 
-    Give ``design`` as ``design/<name>`` or ``plant_class`` as a name from
-    ``list_plants``, not both; with neither, the project's plant is read (a project with several
-    plant files needs one of the two). Returns ``plant`` (the plant file ``build_plant`` takes),
-    ``ranges`` (each searchable leaf as ``{min, max}`` in display units), ``options`` and
-    ``issues`` (what is wrong or missing, with path, kind, quantity and accepted units). With a
-    case in the state the issues come from ``gm.check(plant, case)`` and ``checked_against`` is
-    ``case``; without one they come from the plant alone (``plant``), which lists as missing
-    what the case would fill. A class is read without values: every parameter it needs is
-    missing until you fill it in a plant file.
+    Give one of ``project_plant`` (a name from ``list_plants`` ``project_plants``),
+    ``design`` as ``design/<name>`` or ``plant_class`` (a name from ``list_plants``); with none,
+    the project's plant is read when it has exactly one file. Returns ``plant`` (the plant file
+    ``build_plant`` takes), ``ranges`` (each searchable leaf as ``{min, max}`` in display units),
+    ``options`` and ``issues`` (what is wrong or missing, with path, kind, quantity and accepted
+    units). With a case in the state the issues come from ``gm.check(plant, case)`` and
+    ``checked_against`` is ``case``; without one they come from the plant alone (``plant``),
+    which lists as missing what the case would fill. When gemini cannot check the plant against
+    the case (a class has no values), the issues are the plant's own, ``checked_against`` is
+    ``plant`` and ``gemini_error`` holds gemini's message. A class is read without values: every
+    parameter it needs is missing until you fill it in a plant file.
     """
     import gemini as gm
 
-    if design is not None and plant_class is not None:
+    if sum(argument is not None for argument in (design, plant_class, project_plant)) > 1:
         raise ToolError(
-            "read_plant: design and plant_class are both given; expected one of them",
+            "read_plant: design, plant_class and project_plant are mutually exclusive; "
+            "expected one of them",
             path="design",
         )
     if plant_class is not None:
         plant = gm.plants.get(plant_class)
     else:
-        plant = load_plant(context, design, "read_plant")
+        plant = load_plant(context, design, "read_plant", project_plant)
     return {**plant_view(plant), **plant_issues(context, plant)}
 
 
