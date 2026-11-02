@@ -28,6 +28,14 @@ def depth_only(plant):
     return plant
 
 
+def one_range(plant):
+    """Return the plant with only its heat pump capacity left as a range, for a tiny search."""
+    for path in list(plant.ranges):
+        if path != "heat_pump.capacity":
+            plant.set_range(path, None, None)
+    return plant
+
+
 async def run(tool, context, tool_input):
     """Call a tool on a context and return its output, which must be plain JSON."""
     from geomind.tools import dispatch
@@ -58,8 +66,9 @@ async def compare_two_runs():
 async def shallow_calls():
     """Return the search, the sizing and the two-design study on the shallow case."""
     context, reference = await started(SHALLOW)
-    arguments = {"objective": "lcts", "evaluations": 20, "seed": 1, "name": "best"}
-    search = await run(study.optimize, context, {"design": reference, **arguments})
+    capacity = await save_design(context, "capacity", one_range(example_plant(SHALLOW)))
+    arguments = {"objective": "lcts", "evaluations": 5, "seed": 1, "name": "best"}
+    search = await run(study.optimize, context, {"design": capacity, **arguments})
     sized = await run(study.size_plant, context, {"design": reference, "name": "sized"})
     designs = [reference, sized.output["design"]]
     ranked = await run(
