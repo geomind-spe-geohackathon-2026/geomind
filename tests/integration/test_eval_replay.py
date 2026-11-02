@@ -37,19 +37,38 @@ async def replay_all(made):
     return count
 
 
-@pytest.mark.parametrize("agent", ["analyst", "designer", "explainer", "coordinator"])
-def test_the_recordings_of_a_single_agent_replay(gemini_loaded, stored, agent):  # noqa: F811
-    """Each task of the agent runs from its recording into a store, and that run replays."""
-    outcomes = evals.run_agent(agent)
-    assert asyncio.run(replay_all(stored)) == len(outcomes) > 0
+def tasks(agents, marks=()):
+    """Return one test parameter per task file of the task folders ``agents``."""
+    return [
+        pytest.param(agent, path.stem, id=f"{agent}-{path.stem}", marks=marks)
+        for agent in agents
+        for path in sorted((evals.ROOT / "tasks" / agent).glob("*.yaml"))
+    ]
+
+
+def run_and_replay(stored, agent, name):
+    """Run one task from its recording into a store, and replay it."""
+    path = evals.ROOT / "tasks" / agent / f"{name}.yaml"
+    llm = evals.FakeLLM.from_recording(evals.ROOT / "recordings" / agent / f"{name}.jsonl")
+    evals.run_task(name, evals.load_task(path), agent, llm)
+    assert asyncio.run(replay_all(stored)) == 1
+
+
+@pytest.mark.parametrize(
+    ("agent", "name"), tasks(["analyst", "designer", "explainer", "coordinator"])
+)
+@pytest.mark.usefixtures("gemini_loaded")
+def test_the_recording_of_a_single_agent_task_replays(stored, agent, name):
+    """The task runs from its recording into a store, and that run replays."""
+    run_and_replay(stored, agent, name)
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("suite", ["challenge2", "compare"])
-def test_the_recordings_of_a_loop_suite_replay(gemini_loaded, stored, suite):  # noqa: F811
-    """Each task of the suite runs through its loop into a store, and that run replays.
+@pytest.mark.parametrize(("agent", "name"), tasks(["challenge2", "compare"]))
+@pytest.mark.usefixtures("gemini_loaded")
+def test_the_recording_of_a_loop_task_replays(stored, agent, name):
+    """The task runs through its loop into a store, and that run replays.
 
     NOTE: slow, because the loops simulate a year in each task.
     """
-    outcomes = evals.run_agent(suite)
-    assert asyncio.run(replay_all(stored)) == len(outcomes) > 0
+    run_and_replay(stored, agent, name)
