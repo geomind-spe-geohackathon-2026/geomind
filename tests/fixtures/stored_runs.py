@@ -34,7 +34,7 @@ async def stored_run(name, changes=None, scale=None, plant=None):
     context = await case_context(name)
     data = merge_patch(context.problem.case, changes or {})
     if scale is not None:
-        file = data["demand"]["file"]
+        file = data["demand"]["cooling"]["power"]["file"]
         content = context.session.load_artifact(f"case/{file}")
         await context.session.save_artifact(f"case/{file}", scaled_column(content, *scale))
     context.problem = ProblemState(case=data)
@@ -47,7 +47,7 @@ async def stored_run(name, changes=None, scale=None, plant=None):
     return context, reference, result
 
 
-COLDER = {"environment": {"ground": {"gradient": {"value": 25, "unit": "K/km"}}}}
+COLDER = {"site": {"ground": {"gradient": {"value": 25, "unit": "K/km"}}}}
 """The colder-reservoir variant of the hackathon case: its lowest declared gradient."""
 COOLING_COLUMN = "cooling_demand_MWcool"
 
