@@ -148,6 +148,38 @@ results, summary, options, ran) -> "result/<id>"` and `load_run(context, referen
 case, results)`. `<id>` also covers the contents of the case's files, so a changed file is a new
 run. A reference no run made is `unknown_name` with `path` `reference`.
 
+### Stored references
+
+Every argument that takes a stored reference (`design` and `designs`, `reference` and
+`references`, `study`) has a JSON Schema `pattern` (`^design/[A-Za-z0-9._-]+$`, `^result/...$`,
+`^study/...$`) and a description with one example, built by `references.reference_schema` through
+the tool's `late_schemas`. The pattern is a hint to the model and is not enforced by the input
+model, so a wrong reference reaches the tool and gets `unknown_name` with the form, an example, the
+stored references of that kind in the chat and, for a name given without its prefix, the reference
+meant. `stored.save_design` and `save_run` keep the chat artifacts `designs.index` and
+`results.index` (`{references: [...]}`, oldest first) for that listing, as `studies.index` does
+for studies; a chat from before the indexes lists the designs its studies read and wrote, and no
+earlier result.
+
+### What a gemini error adds
+
+`dispatch.error_output` passes a gemini error through its own `to_dict()`, extended by
+`tools/gemini/explain.py`:
+
+- A rejected unit (`invalid_unit`, `unit = '...'`, no accepted units in gemini's message) keeps
+  gemini's message and adds the unit it probably meant and every unit of that dimension, read
+  from `gm.units.names()` and `gm.units.si_unit`. No alias is accepted: the model must call again
+  with a unit gemini lists. `save_profile` knows its step is a duration and lists
+  `gm.units.names("duration")`.
+- A study gemini rejects for a missing search range (`size_plant`, `optimize`, `run_study` with
+  `prepare: ["size"]` or `minimize`) keeps gemini's message, path and code and adds, per design
+  that lacks the range, the `set_ranges(design=..., ranges={path: ...}, name=...)` call that adds
+  it. The unit is the leaf's unit in the plant file; the bounds are the placeholders `<min>` and
+  `<max>`, never a number. The text says the range is not in the case: ask the user with `ask_user`, propose values
+  with a reason, and call `set_ranges` only after the user confirms (ranges, and uncertainty
+  ranges, come only from the user or the case). A search over a plant with no range and no options lists the first
+  twelve leaves that can state a range, with their units.
+
 ### How `simulate` runs
 
 The plant is `load_plant` (the project's, or a stored `design/<name>`), `changes` set on it with
@@ -280,7 +312,15 @@ Both have effect `read`, so `ask` mode lets them through; `plan` mode runs neith
 `update_state(changes)` (`write`, not idempotent) applies JSON Patch operations to the problem state
 and emits `state.changed`; see [context.md](context.md#problem-state). An invalid patch is an error result that
 says how to fix it. A path under `/case` or `/case_origin` is `not_allowed`: only `set_case`
-writes the case, after gemini validates it. The default rule of [permissions.md](permissions.md) allows it in `ask` mode.
+writes the case, after gemini validates it. The offered schema types `changes`: `op` an enum, `path` a pattern over the allowed roots and
+`value` any of the `Requirement`, `Assumption`, `Result` and `Question` models (`anyOf`, since a
+requirement and an assumption of the same keys both fit) or plain data. The input model is still
+`list[dict]`, so what was valid stays valid; before the patch is applied the tool checks the path
+form and the value against the model of the list (`/results/-` for an add, `/results/<id>` for a
+replace or remove, `/results/<id>/<field>` for a field, `/results` with a list, never a position),
+and a refused change names the shape expected there. The shape of a key of `design` or `verification` comes from `ProblemState` alone
+(`state.annotation_at`): once the state types it, a value of another shape is refused with the
+expected one; an open `dict[str, Any]` is not checked. The default rule of [permissions.md](permissions.md) allows it in `ask` mode.
 
 ## Skills
 

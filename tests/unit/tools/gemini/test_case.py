@@ -334,6 +334,24 @@ async def test_save_profile_refuses_values_gemini_refuses():
     assert len(session.changes) == before
 
 
+@pytest.mark.parametrize("unit", ["day", "hour"])
+async def test_save_profile_with_a_step_unit_gemini_rejects_lists_the_durations(unit):
+    """The error keeps gemini's message and lists the units gemini accepts for a duration."""
+    import gemini as gm
+
+    session, problem = await loaded("shallow_district")
+    step = {"value": 1, "unit": unit}
+    before = len(session.changes)
+    result = await call(save_profile, {**PROFILE, "step": step}, session, problem=problem)
+    error = result.output["error"]
+    assert result.is_error is True
+    assert error["code"] == "invalid_unit"
+    assert f"unit = {unit!r}; expected a known unit" in error["message"]
+    for accepted in gm.units.names("duration"):
+        assert accepted in error["message"]
+    assert len(session.changes) == before
+
+
 async def test_save_profile_needs_a_case():
     """The time of the run comes from the case, so there must be one."""
     result = await call(save_profile, PROFILE, StubSession())
@@ -375,3 +393,25 @@ async def test_an_empty_file_is_a_file():
     context = Context(session=session)
     data = {"demand": {"heating": {"power": {"file": "data/demand.csv"}}}}
     assert file_contents(context, data, {"data/demand.csv": b""}) == {"data/demand.csv": b""}
+
+
+async def test_save_profile_reads_the_case_files_off_the_event_loop(monkeypatch):
+    """The artifact reads of save_profile run in a worker thread, not on the event loop."""
+    import threading
+
+    from geomind.tools.gemini import case as case_module
+
+    threads = []
+    reader = case_module.file_contents
+
+    def watched(*arguments):
+        threads.append(threading.current_thread())
+        return reader(*arguments)
+
+    monkeypatch.setattr(case_module, "file_contents", watched)
+    session, problem = await loaded("hackathon_2026")
+    threads.clear()
+    result = await call(save_profile, PROFILE, session, problem=problem)
+    assert result.is_error is False, result.output
+    assert len(threads) >= 2
+    assert threading.main_thread() not in threads

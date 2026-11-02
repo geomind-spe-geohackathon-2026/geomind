@@ -2,6 +2,7 @@
 
 from geomind.errors import ToolError
 from geomind.tools.base import tool
+from geomind.tools.gemini.references import reference_schema
 from geomind.tools.gemini.stored import load_run
 from geomind.tools.gemini.verification import METRIC_EXCLUDED, assess, displayed
 from geomind.utils.strings import did_you_mean, join_names
@@ -20,7 +21,7 @@ COSTS = (
 """The costs of ``estimate_costs``, all functions of ``gm.evaluate``."""
 
 
-@tool(effect="compute")
+@tool(effect="compute", late_schemas={"reference": reference_schema("result")})
 def check_results(context, reference: str):
     """Check stored results against the case they ran on: gemini's verdict and report.
 
@@ -45,7 +46,7 @@ def kpi_values(plant, case, results):
     return {**totals, **metrics}
 
 
-@tool(effect="compute")
+@tool(effect="compute", late_schemas={"reference": reference_schema("result")})
 def compute_kpis(context, reference: str, names: list[str] | None = None):
     """Compute KPIs of stored results in display units, all of them without ``names``.
 
@@ -78,7 +79,7 @@ def cost_values(plant, case, results):
     return values, errors
 
 
-@tool(effect="compute")
+@tool(effect="compute", late_schemas={"reference": reference_schema("result")})
 def estimate_costs(context, reference: str):
     """Estimate capex, opex, LCOH, LCOC, LCTS, NPV, payback, CO2 and the annualised cost.
 

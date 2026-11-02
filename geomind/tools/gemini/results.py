@@ -2,6 +2,7 @@
 
 from geomind.errors import ToolError
 from geomind.tools.base import tool
+from geomind.tools.gemini.references import reference_schema
 from geomind.tools.gemini.runs import parse_time
 from geomind.tools.gemini.stored import load_run
 
@@ -15,7 +16,7 @@ READ_UNITS = {
 """The units in which the model reads a stored result: gemini's family keys for ``units=``."""
 
 
-@tool(effect="read")
+@tool(effect="read", late_schemas={"reference": reference_schema("result")})
 def read_result(
     context,
     reference: str,

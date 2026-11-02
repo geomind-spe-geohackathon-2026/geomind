@@ -6,6 +6,7 @@ from typing import Any
 from geomind.errors import ToolError
 from geomind.tools.base import tool
 from geomind.tools.gemini.case import case_of
+from geomind.tools.gemini.references import reference_schema
 from geomind.tools.gemini.stored import load_design, save_design
 
 
@@ -167,7 +168,7 @@ def plant_view(plant):
     }
 
 
-@tool(effect="read")
+@tool(effect="read", late_schemas={"design": reference_schema("design", optional=True)})
 def read_plant(
     context,
     design: str | None = None,
@@ -218,7 +219,7 @@ async def build_plant(context, plant: dict[str, Any], name: str):
     return {"design": design, **plant_issues(context, built)}
 
 
-@tool(effect="write")
+@tool(effect="write", late_schemas={"design": reference_schema("design")})
 async def set_ranges(
     context,
     design: str,
@@ -226,7 +227,10 @@ async def set_ranges(
     name: str,
     options: dict[str, list[Any]] | None = None,
 ):
-    """Put search ranges and options on the leaves of a design; store it as design/<name>.
+    """Set search ranges on a design: they come from the user or the case, so ask_user first.
+
+    Propose values with ask_user and set them only after the user confirms. The result is stored
+    as design/<name>.
 
     ``ranges`` is ``{path: {"min": {"value", "unit"}, "max": {"value", "unit"}}}``; a count such
     as ``size.doublets`` takes plain numbers; a side left out is open and a leaf with neither

@@ -57,10 +57,13 @@ def _problem(error):
 def error_output(error):
     """Return the result a model reads for an error, in gemini's Problem shape.
 
-    A gemini error passes through its own ``to_dict()`` unchanged.
+    A gemini error passes through its own ``to_dict()``; a rejected unit also lists the accepted
+    ones.
     """
     if not isinstance(error, (GeomindError, pydantic.ValidationError)):
-        return {"error": error.to_dict()}
+        from geomind.tools.gemini.explain import explained
+
+        return {"error": explained(error)}
     return {"error": _problem(error).model_dump(mode="json")}
 
 

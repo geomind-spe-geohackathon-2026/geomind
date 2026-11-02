@@ -1,6 +1,7 @@
 """The tools that list the studies of a chat and read one back."""
 
 from geomind.tools.base import tool
+from geomind.tools.gemini.references import reference_schema
 from geomind.tools.gemini.stored import case_id, load_study, ran_case, study_index
 
 
@@ -28,7 +29,7 @@ def list_studies(context):
     ]
 
 
-@tool(effect="read")
+@tool(effect="read", late_schemas={"study": reference_schema("study")})
 def read_study(context, study: str):
     """Read a stored study: what ran, what came back, the designs it read and wrote, and its case.
 

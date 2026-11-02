@@ -6,6 +6,8 @@ from typing import Literal
 
 from geomind.tools.base import tool
 from geomind.tools.gemini.case import build_case
+from geomind.tools.gemini.explain import range_guidance
+from geomind.tools.gemini.references import reference_schema
 from geomind.tools.gemini.stored import (
     case_id,
     check_study_free,
@@ -75,22 +77,30 @@ def size_design(plant, case):
     return gm.study.size(plant, case)
 
 
-@tool(effect="compute", timeout=STUDY_TIMEOUT_S, runs_alone=True)
+@tool(
+    effect="compute",
+    timeout=STUDY_TIMEOUT_S,
+    runs_alone=True,
+    late_schemas={"design": reference_schema("design")},
+)
 async def size_plant(context, design: str, name: str):
     """Size a stored design for the state's case; store the sized plant as design ``name``.
 
-    The backup policy for the boiler is the plant's own ``params.backup``: ``peak`` covers the
-    whole heating peak with the doublets off, ``none`` covers only what the doublets cannot
-    reach. The policy has no default: set it in the plant first, as an assumption when the user
-    gave none. ``name`` names the sized design and the study ``study/<name>`` that records the
-    call; a taken name is refused. Returns the new design reference, the ``study`` key and
+    Sizing reads the plant's ranges (``size.doublets`` min and max, when its class takes doublets)
+    and its ``params.backup``; set what is missing with ``set_ranges`` first. The boiler's backup
+    policy is the plant's own ``params.backup``: ``peak`` covers the whole heating peak with
+    the doublets off, ``none`` covers only what the doublets cannot reach. The policy has no
+    default: set it in the plant first, as an assumption when the user gave none. ``name`` names
+    the sized design and the study ``study/<name>`` that records the call; a taken name is
+    refused. Returns the new design reference, the ``study`` key and
     gemini's notes: what was ``sized`` with its reason, what stayed ``unchanged``, what is
     ``broken`` and the ``simulation`` that judged it.
     """
     settings = {"method": "run", "prepare": ["size"]}
     written = [f"design/{name}"]
     ran, plants, study, case = prepared(context, "size_plant", name, [design], settings, written)
-    sized = await asyncio.to_thread(size_design, plants[design], build_case(*ran))
+    with range_guidance(plants):
+        sized = await asyncio.to_thread(size_design, plants[design], build_case(*ran))
     reference = await save_design(context, name, sized)
     result = {"sizing": to_plain(sized.sizing)}
     found = (study.to_dict(), result)
@@ -113,7 +123,12 @@ def minimized(found):
     return {"best": best, "feasible": found["feasible"], "evaluations": found["evaluations"]}
 
 
-@tool(effect="compute", timeout=STUDY_TIMEOUT_S, runs_alone=True)
+@tool(
+    effect="compute",
+    timeout=STUDY_TIMEOUT_S,
+    runs_alone=True,
+    late_schemas={"design": reference_schema("design")},
+)
 async def optimize(context, design: str, objective: str, evaluations: int, seed: int, name: str):
     """Search a stored design for the values that minimise a metric; store the best as ``name``.
 
@@ -131,9 +146,10 @@ async def optimize(context, design: str, objective: str, evaluations: int, seed:
     settings["seed"] = seed
     written = [f"design/{name}"]
     ran, plants, study, case = prepared(context, "optimize", name, [design], settings, written)
-    found = await asyncio.to_thread(
-        minimize_design, plants[design], build_case(*ran), objective, evaluations, seed
-    )
+    with range_guidance(plants):
+        found = await asyncio.to_thread(
+            minimize_design, plants[design], build_case(*ran), objective, evaluations, seed
+        )
     best = found["best"]
     result = {
         "best": best.to_dict(),
@@ -158,11 +174,18 @@ def sample_design(plant, case, metrics, samples, seed):
     return gm.study.sample(plant, case, metrics, samples, seed)
 
 
-@tool(effect="compute", timeout=STUDY_TIMEOUT_S, runs_alone=True)
+@tool(
+    effect="compute",
+    timeout=STUDY_TIMEOUT_S,
+    runs_alone=True,
+    late_schemas={"design": reference_schema("design")},
+)
 async def sample_uncertainty(
     context, design: str, metrics: list[str], samples: int, seed: int, name: str
 ):
-    """Sample a stored design over the uncertainty the case declares; return a summary per metric.
+    """Sample a design over the case's uncertainty (from the user or the case, never made up).
+
+    Returns a summary per metric.
 
     The distributions are only those of the case's ``uncertainty`` (set them with ``set_case``);
     a case without any is an error. ``samples`` draws are simulated, one run each, from ``seed``.
@@ -189,9 +212,16 @@ def sensitivity_of_design(plant, case, metrics):
     return gm.study.sensitivity(plant, case, metrics)
 
 
-@tool(effect="compute", timeout=STUDY_TIMEOUT_S, runs_alone=True)
+@tool(
+    effect="compute",
+    timeout=STUDY_TIMEOUT_S,
+    runs_alone=True,
+    late_schemas={"design": reference_schema("design")},
+)
 async def sensitivity(context, design: str, metrics: list[str], name: str):
-    """Rank the case's uncertain values by their effect on the metrics of a stored design.
+    """Rank the case's uncertain values (from the user or the case, never made up) by effect.
+
+    The metrics are those of a stored design.
 
     Each value the case declares an ``uncertainty`` for is set at its low and high bound. ``name``
     names the study ``study/<name>`` that records the call; a taken name is refused. Returns the
@@ -250,7 +280,12 @@ async def store_runs(context, name, result):
     return runs
 
 
-@tool(effect="compute", timeout=STUDY_TIMEOUT_S, runs_alone=True)
+@tool(
+    effect="compute",
+    timeout=STUDY_TIMEOUT_S,
+    runs_alone=True,
+    late_schemas={"designs": reference_schema("design", many=True)},
+)
 async def run_study(
     context,
     designs: list[str],
@@ -267,7 +302,8 @@ async def run_study(
 
     This is how alternatives are compared: one study over several topologies. ``method`` is
     ``run`` (simulate as it is), ``minimize`` (search each design's ranges), ``sample`` or
-    ``sensitivity``; ``prepare=["size"]`` sizes each design first, under its own ``params.backup``.
+    ``sensitivity``; ``prepare=["size"]`` sizes each design first, from its ranges and its own
+    ``params.backup``.
     The settings a method needs are gemini's: ``minimize`` needs ``objective``, ``evaluations``
     and ``seed``; ``sample`` needs ``metrics``, ``samples`` and ``seed``; ``sensitivity`` needs
     ``metrics``. A missing or unread setting is gemini's error; none has a default. ``name``
@@ -282,8 +318,9 @@ async def run_study(
     settings = {"method": method, "objective": objective, "metrics": metrics, "seed": seed}
     settings |= {"evaluations": evaluations, "samples": samples, "prepare": prepare}
     written = [f"design/{name}_{design_stem(design)}" for design in designs]
-    _, _, study, case = prepared(context, "run_study", name, designs, settings, written)
-    result = await asyncio.to_thread(study_runs, study)
+    _, plants, study, case = prepared(context, "run_study", name, designs, settings, written)
+    with range_guidance(plants):
+        result = await asyncio.to_thread(study_runs, study)
     runs = await store_runs(context, name, result)
     best = {case_name: run and run.plant_name for case_name, run in result.best.items()}
     stored = {item["plant_name"]: item["design"] for item in runs}
@@ -302,7 +339,7 @@ def compare_runs(runs, by):
     return gm.evaluate.compare(reports, by), reports
 
 
-@tool(effect="compute")
+@tool(effect="compute", late_schemas={"references": reference_schema("result", many=True)})
 async def compare(context, references: list[str], by: list[str]):
     """Compare stored runs on metrics such as ``lcts`` or ``co2``; return one entry per run.
 
