@@ -83,8 +83,9 @@ finishes in the background and its result is dropped.
 
 ## References
 
-Both formats are frozen. Each is a key of `RunStore.save_artifact(run_id, key, data)`, so a store must
-accept the `/`; `check_run_store` tests it. An artifact belongs to its root run.
+Both formats are frozen. Each is a key of `RunStore.save_chat_artifact(chat_id, key, data)`, so a
+store must accept the `/`; `check_run_store` tests it. An artifact belongs to its chat, so a later
+message of the same chat reads it; a run without a chat uses its root run id as its chat id.
 
 - **A design** is a stored, validated plant dict, `gm.Plant.to_dict(structure=True)`, which keeps
   the plant's inputs and which `gm.Plant.from_dict` restores. `load_plant(context, design, where)` in
