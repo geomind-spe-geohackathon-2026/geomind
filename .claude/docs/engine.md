@@ -60,6 +60,9 @@ A run stops on exactly one reason, in `RunResult.stop_reason`:
 | `not_implemented` | `failed` | a stub loop or hook; its message names the phase |
 | `error` | `failed` | a provider failed, a tool was called wrongly too often, the output never fit, or any other exception |
 
+A root run that stops on a budget, time or step limit has an `answer` anyway, built from its record
+with no LLM call (see [hooks](hooks.md#shipped-hooks)); its `stop_reason` and `status` stay.
+
 Any `Exception` ends the run with `error`, with its class and message in an `error` event, because
 a provider made by the backend raises its own errors and a client must see the run end. A dying
 process is a `BaseException`, is not caught, and can be recovered.
@@ -188,7 +191,7 @@ methods included. `MemoryRunStore`
 and `FileRunStore(root=".runs")` add `add_message(chat_id, message)`.
 `UsageLedger.spent(project_id)` (`gd.stores`) returns the `Usage` of the finished runs of a
 project; `MemoryUsageLedger.add(project_id, usage)` and `FileUsageLedger(root)` ship, and
-`ProjectBudget` reads one.
+`ProjectBudget` reads one, in a worker thread (`asyncio.to_thread`).
 `FileRunStore` writes `<root>/<run id>/events.jsonl` and `artifacts/`, and
 `<root>/chats/<chat id>/history.jsonl`, `state.json` and `artifacts/`. Unsafe ids raise
 `RunError`.

@@ -1,11 +1,17 @@
 """Decision points that can deny or pause, and the shipped hooks."""
 
 import asyncio
+import json
+import math
+from time import monotonic
 
 from geomind.engine.callbacks import call_maybe_async
 from geomind.errors import BudgetError
-from geomind.types import Allow, Cancel, Deny, Request
+from geomind.types import RULE_MODEL, Allow, Cancel, Deny, Request
 from geomind.verify.design import verify_design
+
+CHARACTERS_PER_TOKEN_BOUND = 2
+"""Characters per token that never overstate what a provider counts, for the input bound."""
 
 
 class Hook:
@@ -46,77 +52,232 @@ async def ask_hooks(hooks, point, context, agent, subject):
     return changed or (None, None)
 
 
-class TokenBudget(Hook):
-    """Stop a run before an LLM call once it has used ``max_tokens``, nested runs included."""
+def input_bound(agent, messages):
+    """Return an upper bound of the input tokens of a call: its messages and tool schemas.
 
-    def __init__(self, max_tokens):
-        """Keep the limit."""
+    NOTE: text is about four characters per token, code and JSON about two or three, so one token
+    per ``CHARACTERS_PER_TOKEN_BOUND`` characters never falls under what a provider counts.
+    """
+    text = "".join(message.model_dump_json() for message in messages)
+    text += json.dumps(agent.tool_schemas())
+    return -(-len(text) // CHARACTERS_PER_TOKEN_BOUND)
+
+
+def token_room(cap, used, held, tokens_in):
+    """Return the output tokens that fit under a token cap after the input of one call."""
+    return cap - used - held - tokens_in
+
+
+def cost_room(cap, spent, held, tokens_in, price):
+    """Return the output tokens that fit under a cost cap after the input of one call.
+
+    ``price`` is ``(input price, output price)`` per token, or ``None`` when the model has none:
+    then only a cap already reached is refused.
+    """
+    left = cap - spent - held
+    if price is None:
+        return math.inf if left > 0 else 0
+    left -= tokens_in * price[0]
+    if left <= 0:
+        return 0
+    return math.inf if price[1] <= 0 else math.floor(left / price[1])
+
+
+def price_of(prices, model):
+    """Return ``(input, output)`` per token of a model from a mapping or function, else ``None``."""
+    if prices is None:
+        return None
+    return prices(model) if callable(prices) else prices.get(model)
+
+
+class Capped(Hook):
+    """The shared part of the budgets: the reserve for the answer and the fit of one call.
+
+    ``answer_reserve`` is an amount, in the unit of the cap, held back from every call except
+    those of the agents named in ``answer_agents`` and the last step of a run, so the agent that
+    writes the answer can still pay for it. Unset it is off, and then ``answer_agents`` is not
+    used. ``prices`` is a mapping from model id to ``(input, output)`` price per token, or a
+    function that returns one; without a price a cost cap only refuses a call once it is reached.
+    A cap bounds the input of a call only with ``prices`` (cost) or ``bound_input=True`` (tokens);
+    unset, a call is refused once the cap is reached, as before.
+    """
+
+    def __init__(self, answer_reserve=None, answer_agents=None, prices=None, bound_input=False):
+        """Keep the reserve and the prices; a reserve needs the agents that may spend it."""
+        if answer_reserve is not None and not answer_agents:
+            raise BudgetError("budget: answer_reserve needs answer_agents; expected names")
+        self.answer_reserve = answer_reserve
+        self.answer_agents = tuple(answer_agents or ())
+        self.prices = prices
+        self.bounds_input = bound_input or prices is not None
+
+    def _held(self, context, agent):
+        """Return the reserve held back from this call: none for the answer's own agents."""
+        if self.answer_reserve is None:
+            return 0
+        if agent.name in self.answer_agents or context.steps_left == 1:
+            return 0
+        return self.answer_reserve
+
+    def _fit(self, context, agent, room, reason):
+        """Deny a call that has no room, else lower its ``max_tokens`` to what fits."""
+        session = context.session
+        if room < 1:
+            session.note_limit(reason)
+            return Deny(reason=reason)
+        ceiling = agent.model.max_tokens
+        is_call = self.bounds_input and agent.model.resolved_name() != RULE_MODEL
+        if is_call and room != math.inf and (ceiling is None or room < ceiling):
+            session.limit_output(int(room))
+        return None
+
+    def _tokens_in(self, agent, messages):
+        """Return the input bound of a call; zero for a rule step and where bounding is off."""
+        if not self.bounds_input or agent.model.resolved_name() == RULE_MODEL:
+            return 0
+        return input_bound(agent, messages)
+
+
+class TokenBudget(Capped):
+    """Keep a run under ``max_tokens``, nested runs included, with no call past the cap.
+
+    With ``bound_input=True``, before each LLM call it bounds the call: the input
+    (``input_bound``) plus the output the call may use. A call whose input does not fit is denied;
+    otherwise the call's ``max_tokens`` is lowered to what fits. Without it, a call is refused once
+    the cap is reached.
+    """
+
+    def __init__(self, max_tokens, answer_reserve=None, answer_agents=None, bound_input=False):
+        """Keep the limit, the optional reserve and whether to bound the input."""
+        super().__init__(answer_reserve, answer_agents, bound_input=bound_input)
         self.max_tokens = max_tokens
 
     def before_llm_call(self, context, agent, messages):
-        """Deny the call over the budget."""
+        """Deny the call that does not fit, or lower its output limit."""
         usage = context.session.total_usage
         used = usage.input_tokens + usage.output_tokens
-        if used >= self.max_tokens:
-            return Deny(reason=f"token budget: used {used} of {self.max_tokens}")
-        return None
+        tokens_in = self._tokens_in(agent, messages)
+        held = self._held(context, agent)
+        room = token_room(self.max_tokens, used, held, tokens_in)
+        reason = f"token budget: used {used} of {self.max_tokens}"
+        if used < self.max_tokens:
+            reason += f"; the next call needs about {tokens_in} input tokens and {held} are kept"
+        return self._fit(context, agent, room, reason)
 
 
-class CostBudget(Hook):
-    """Stop a run before an LLM call once it has cost ``max_cost``, nested runs included."""
+class CostBudget(Capped):
+    """Keep a run under ``max_cost``, nested runs included, with no call past the cap.
 
-    def __init__(self, max_cost):
-        """Keep the limit."""
+    Before each LLM call it estimates the call: the input bound times the input price plus the
+    ``max_tokens`` it may use times the output price, from ``prices``. A call whose input does not
+    fit is denied; otherwise ``max_tokens`` is lowered to what fits, so the run ends at or below
+    the cap. A model without a price is only refused once the cap is reached.
+    """
+
+    def __init__(self, max_cost, answer_reserve=None, answer_agents=None, prices=None):
+        """Keep the limit, the optional reserve and the prices."""
+        super().__init__(answer_reserve, answer_agents, prices)
         self.max_cost = max_cost
 
     def before_llm_call(self, context, agent, messages):
-        """Deny the call over the budget."""
+        """Deny the call that does not fit, or lower its output limit."""
         cost = context.session.total_usage.cost
-        if cost >= self.max_cost:
-            return Deny(reason=f"cost budget: used {cost} of {self.max_cost}")
-        return None
+        tokens_in = self._tokens_in(agent, messages)
+        price = price_of(self.prices, agent.model.resolved_name())
+        held = self._held(context, agent)
+        room = cost_room(self.max_cost, cost, held, tokens_in, price)
+        reason = f"cost budget: used {cost} of {self.max_cost}"
+        if cost < self.max_cost:
+            reason += f"; the next call needs about {tokens_in} input tokens and {held} is kept"
+        return self._fit(context, agent, room, reason)
 
 
-class ProjectBudget(Hook):
-    """Stop a run before an LLM call once its project has used a cap, this run included.
+class TimeLimit(Hook):
+    """Stop a run before an LLM call once ``max_seconds`` have passed since its first call.
+
+    The clock starts at the first LLM call of a root run, in this process; a run resumed in
+    another process starts it anew. There is no default: the limit is required.
+    """
+
+    def __init__(self, max_seconds, clock=monotonic):
+        """Keep the limit and the clock, which tests replace."""
+        self.max_seconds = max_seconds
+        self.clock = clock
+        self._started = {}
+
+    def before_llm_call(self, context, agent, messages):
+        """Deny the call once the time is up."""
+        root = context.session.state.root
+        elapsed = self.clock() - self._started.setdefault(root, self.clock())
+        if elapsed < self.max_seconds:
+            return None
+        reason = f"time limit: {elapsed:.0f} s of {self.max_seconds} s"
+        context.session.note_limit(reason)
+        return Deny(reason=reason)
+
+
+class ProjectBudget(Capped):
+    """Keep a project under a cap, this run included, with no call past it.
 
     The project has spent ``ledger.spent(project_id)`` in finished runs, which the backend
     stores; this run adds ``context.session.total_usage``, nested runs included. A run being
     resumed is not finished, so the ledger does not hold it and its steps count once. At least
     one cap is required: there is no default. The ledger is read once per root run, at its first
-    call, so runs of the project running at the same time are not counted against each other.
+    call, in a worker thread, so runs of the project running at the same time are not counted
+    against each other. A call is fitted as for ``TokenBudget`` and ``CostBudget``;
+    ``answer_reserve`` needs exactly one cap, as it has one unit.
     """
 
-    def __init__(self, ledger, project_id, max_tokens=None, max_cost=None):
+    def __init__(
+        self,
+        ledger,
+        project_id,
+        max_tokens=None,
+        max_cost=None,
+        answer_reserve=None,
+        answer_agents=None,
+        prices=None,
+        bound_input=False,
+    ):
         """Keep the ledger, the project and the caps; raise ``BudgetError`` with neither cap."""
         if max_tokens is None and max_cost is None:
             raise BudgetError("project budget: expected max_tokens or max_cost; got neither")
+        if answer_reserve is not None and max_tokens is not None and max_cost is not None:
+            raise BudgetError("project budget: answer_reserve has one unit; expected one cap")
+        super().__init__(answer_reserve, answer_agents, prices, bound_input)
         self.ledger = ledger
         self.project_id = project_id
         self.max_tokens = max_tokens
         self.max_cost = max_cost
         self._earlier = {}
 
-    def _spent_before(self, context):
+    async def _spent_before(self, context):
         """Return what the project spent before this root run, read from the ledger once."""
         root = context.session.state.root
         if root not in self._earlier:
-            self._earlier[root] = self.ledger.spent(self.project_id)
+            self._earlier[root] = await asyncio.to_thread(self.ledger.spent, self.project_id)
         return self._earlier[root]
 
-    def before_llm_call(self, context, agent, messages):
-        """Deny the call once the project reaches a cap."""
-        usage = self._spent_before(context) + context.session.total_usage
+    async def before_llm_call(self, context, agent, messages):
+        """Deny the call that does not fit under a cap, or lower its output limit."""
+        usage = await self._spent_before(context) + context.session.total_usage
         used = usage.input_tokens + usage.output_tokens
-        if self.max_tokens is not None and used >= self.max_tokens:
-            return self._deny("token", used, self.max_tokens)
-        if self.max_cost is not None and usage.cost >= self.max_cost:
-            return self._deny("cost", usage.cost, self.max_cost)
-        return None
+        tokens_in = self._tokens_in(agent, messages)
+        held = self._held(context, agent)
+        rooms = []
+        if self.max_tokens is not None:
+            room = token_room(self.max_tokens, used, held, tokens_in)
+            rooms.append((room, self._reason("token", used, self.max_tokens)))
+        if self.max_cost is not None:
+            price = price_of(self.prices, agent.model.resolved_name())
+            room = cost_room(self.max_cost, usage.cost, held, tokens_in, price)
+            rooms.append((room, self._reason("cost", usage.cost, self.max_cost)))
+        room, reason = min(rooms, key=lambda item: item[0])
+        return self._fit(context, agent, room, reason)
 
-    def _deny(self, kind, used, cap):
-        """Return the denial that names the project, the cap and what was spent."""
-        return Deny(reason=f"project {kind} budget: {self.project_id} used {used} of {cap}")
+    def _reason(self, kind, used, cap):
+        """Return the denial text that names the project, the cap and what was spent."""
+        return f"project {kind} budget: {self.project_id} used {used} of {cap}"
 
 
 class RequireApproval(Hook):

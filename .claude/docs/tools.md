@@ -300,6 +300,7 @@ A validation error takes `path` from the first input field that failed. Every ot
 | `not_implemented` | the capability has its final signature and is not built yet; do not retry |
 | `not_allowed` | the run cannot do this: no sandbox, no project, or a path outside the sandbox |
 | `timeout` | the tool passed its time limit |
+| `budget` | a budget or time limit stopped a delegate's nested run; the message names it with what was spent and the cap |
 | `internal` | a bug or a crash; the detail is in the log, never in the result |
 
 A permission denial is no error class: its result is the reason as text, with `is_error` set and

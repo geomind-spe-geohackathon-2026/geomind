@@ -120,3 +120,13 @@ def test_the_export_of_a_replayed_run_equals_the_original(monkeypatch):
     asyncio.run(Engine.replay(engine.store, start.run_id))
     replayed = [event for events in stores[0].events.values() for event in events]
     assert render_export(replayed) == render_export(original)
+
+
+def test_a_run_that_a_limit_stopped_exports_its_reason_and_partial_answer():
+    """The export shows the stop and the answer built from the record; an answered run has none."""
+    engine = engine_for([uses(call("lookup", key="x")), uses(call("lookup", "c2", key="x"))])
+    start = context("What is x?")
+    asyncio.run(engine.run(Worker(), start, max_steps=1))
+    text = render_export(engine.store.load_events(start.run_id))
+    assert "## Stop" in text and "Stop reason: step_limit" in text and "Asked: What is x?" in text
+    assert "## Stop" not in exported()[1]

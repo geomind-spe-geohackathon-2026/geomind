@@ -21,13 +21,49 @@ so they are passed again when a run resumes in another process.
 
 ## Shipped hooks
 
-- `TokenBudget(max_tokens)` and `CostBudget(max_cost)` deny the next LLM call over the budget. They
-  read `context.session.total_usage`: the usage of the run and of every run above it, so a
+- `TokenBudget(max_tokens, answer_reserve=None, answer_agents=None, bound_input=False)` and
+  `CostBudget(max_cost, answer_reserve=None, answer_agents=None, prices=None)` keep a run under the
+  cap. They read `context.session.total_usage`: the usage of the run and of every run above it, so a
   delegate's calls count against the whole run's budget. A nested run's usage joins its parent's
   when it ends, and a sibling still running is not counted yet. `geomind run --max-tokens` and
   `--max-cost` set them.
-- `ProjectBudget(ledger, project_id, max_tokens=None, max_cost=None)` denies the next LLM call once
-  `ledger.spent(project_id)` plus this run's `total_usage` reaches a cap. At least one cap is
+  **No call past the cap.** With `prices` (a mapping from model id to `(input, output)` price per
+  token, or a function that returns one) a cost budget estimates each call before it is made: the
+  input bound (`input_bound`: the messages and tool schemas at one token per two characters, never
+  under what a provider counts) times the input price, plus the call's `max_tokens` times the
+  output price. If that passes the cap the hook lowers the call's `max_tokens` to what fits, through
+  the session (`limit_output`, used once); if even the input does not fit, the call is denied. A run
+  then ends at or below its cap. A token budget does the same with `bound_input=True`. Both are off
+  when unset (a call is then refused only once the cap is reached), and a model without a price, or
+  a rule step, is not estimated. geomind has no price table: prices come from OpenRouter's public
+  model list (`GET /models`), fetched once per process in `geomind/utils/models.py` together with
+  the context windows. A library caller that builds `gd.Run` fills the argument with
+  `prices = await load_prices([models of the run])` (`geomind.utils.models`, read off the event
+  loop); a model the list does not price raises `ValueError` naming it. `geomind run` does this
+  for the roles' models on a live run with a cost cap, says when it cannot (the cap then refuses
+  a call only once reached), and a run from a recording fetches none.
+  **`answer_reserve`.** An amount, in the unit of the cap, held back from every call except those
+  of the agents named in `answer_agents` (`agent.name`, such as `explainer`) and the last step of a
+  run, so the agent that writes the answer can still pay for it. No default: unset it is off, and a
+  reserve without `answer_agents` raises `BudgetError`. It is an argument of the hook, not a
+  `gd.runtime` setting, because it belongs to one cap and one unit.
+- `TimeLimit(max_seconds, clock=time.monotonic)` denies an LLM call once `max_seconds` have passed
+  since the first LLM call of the root run, in this process (a run resumed elsewhere starts the
+  clock anew). The limit is required; there is no default.
+- **After a limit stop.** When a root run whose answer is text ends on `TokenBudget`,
+  `CostBudget`, `ProjectBudget` or `TimeLimit` (`denied`) or on the step limit, the engine gives it
+  an answer built with no LLM call from the problem state and the log (`geomind/engine/partial.py`):
+  what was asked, the designs, studies and results with their references, gemini's checks, the
+  open questions and unconfirmed assumptions, why it stopped and what a rerun with a higher limit
+  does next. It is `RunResult.answer` and the `answer` of `run.finished`, with `stop_reason` and
+  `status` unchanged, and it is streamed as `text.delta` like any answer. A denial that is no limit
+  (a user's refusal, `Cancellation`) and a nested run have no such answer, nor has an agent whose
+  output is not text. `geomind export` shows it in a `## Stop` section.
+- `ProjectBudget(ledger, project_id, max_tokens=None, max_cost=None, answer_reserve=None,
+  answer_agents=None, prices=None, bound_input=False)` keeps the project under a cap: it fits calls
+  as the two budgets above do, and denies the next LLM call once
+  `ledger.spent(project_id)` plus this run's `total_usage` reaches a cap. `answer_reserve` needs
+  exactly one cap. At least one cap is
   required (`BudgetError` otherwise) and there is no default. The reason reads `project token
   budget: <project> used N of CAP` (or `cost`). The ledger is a `UsageLedger` (see
   [engine](engine.md)): `spent(project_id)` returns the `Usage` of every finished run of the
@@ -35,7 +71,8 @@ so they are passed again when a run resumes in another process.
   sums the root runs under a `FileRunStore` root whose `run.started.project` is the project and
   that have a `run.finished`, with their nested runs, once. A paused or running run is not
   finished, so a resumed run is not in the ledger and its earlier steps count once, through the
-  session. The ledger is read once per root run, at its first LLM call; this run's usage is added live.
+  session. The ledger is read once per root run, at its first LLM call, in a worker thread
+  (`asyncio.to_thread`), because a ledger is sync and may be a database; this run's usage is added live.
   Runs of one project running at the same time are not counted against each other, because the
   ledger holds finished runs only. A project cap does not replace a run cap. Pass it in `gd.Run(hooks=[...])`;
   `geomind run --project P --project-max-cost USD --project-max-tokens N` sets it with

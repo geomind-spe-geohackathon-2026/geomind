@@ -32,7 +32,9 @@ async def run_child(session, agent, task):
         parent_step=state.step,
         root=state.root,
     )
-    return await session.engine.drive(child)
+    result = await session.engine.drive(child)
+    session.child_limit = child.limit_reached
+    return result
 
 
 def _result_of_state(state):
@@ -58,10 +60,12 @@ async def answer_child(session, pending, request_id, answer):
     state = recover(engine.store.load_events(session.state.root), pending.child)
     if state.status != "running":
         result = _result_of_state(state)
-    elif state.pending is None:
-        result = await engine.proceed(session.spawn(state, tool.agent), None, None)
     else:
-        result = await engine.proceed(session.spawn(state, tool.agent), request_id, answer)
+        child = session.spawn(state, tool.agent)
+        result = await engine.proceed(
+            child, *((None, None) if state.pending is None else (request_id, answer))
+        )
+        session.child_limit = child.limit_reached
     session.child_usage = result.usage
     return await _finish_delegate(session, pending, tool, result)
 
@@ -69,7 +73,7 @@ async def answer_child(session, pending, request_id, answer):
 async def _finish_delegate(session, pending, tool, result):
     """Turn the outcome of a nested run into the result of the delegate call."""
     try:
-        outcome = tool.outcome(result)
+        outcome = tool.outcome(result, session.child_limit)
     except ToolError as error:
         failed = text_result(pending.call, error_output(error), is_error=True)
         await record_result(session, pending.call, failed)

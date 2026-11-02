@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from uuid import uuid4
 
+import httpx
+
 from geomind import agents, live, runtime
 from geomind.agents import Route
 from geomind.context import ProblemState, render
@@ -28,6 +30,7 @@ from geomind.stores.workspace import read_bytes
 from geomind.types import Message
 from geomind.types.runlog import runlog
 from geomind.utils.json import read_json, write_json
+from geomind.utils.models import fetch_prices, load_prices
 
 RUNS_FOLDER = ".runs"
 MESSAGE_CHARACTERS = 2000
@@ -157,18 +160,40 @@ def write_manifest(root, run_id, args):
     return manifest
 
 
-def _budgets(args):
-    """Return the spending caps of ``--max-tokens`` and ``--max-cost``, over the whole run."""
+def _fetch_prices(fetcher=None):
+    """Return the prices of the models of the run's roles, or ``None`` and say why.
+
+    A model without a price, or a failed fetch, leaves the cost caps able to refuse a call only
+    once reached.
+    """
+    models = {model for model in live.role_models().values() if model}
+    try:
+        return asyncio.run(load_prices(models, fetcher or fetch_prices))
+    except (httpx.HTTPError, OSError, KeyError, ValueError, GeomindError) as error:
+        print(f"prices: not fetched ({type(error).__name__}); cost caps cannot bound a call")
+        return None
+
+
+def _budgets(args, fetcher=None):
+    """Return the spending caps of ``--max-tokens`` and ``--max-cost``, over the whole run.
+
+    A live run bounds each call: the prices come from OpenRouter's list. A run from a recording
+    costs nothing and fetches none.
+    """
+    is_live = args.recording is None
+    prices = None
+    if is_live and (args.max_cost is not None or args.project_max_cost is not None):
+        prices = _fetch_prices(fetcher)
     caps = []
     if args.max_tokens is not None:
-        caps.append(TokenBudget(args.max_tokens))
+        caps.append(TokenBudget(args.max_tokens, bound_input=is_live))
     if args.max_cost is not None:
-        caps.append(CostBudget(args.max_cost))
-    caps.extend(_project_budgets(args))
+        caps.append(CostBudget(args.max_cost, prices=prices))
+    caps.extend(_project_budgets(args, prices, is_live))
     return caps
 
 
-def _project_budgets(args):
+def _project_budgets(args, prices=None, is_live=False):
     """Return the project cap of ``--project-max-tokens`` and ``--project-max-cost``, if any."""
     if args.project_max_tokens is None and args.project_max_cost is None:
         return []
@@ -176,7 +201,16 @@ def _project_budgets(args):
         raise RunError("run: --project-max-tokens and --project-max-cost need --project")
     ledger = FileUsageLedger(RUNS_FOLDER)
     project = Path(args.project).name
-    return [ProjectBudget(ledger, project, args.project_max_tokens, args.project_max_cost)]
+    return [
+        ProjectBudget(
+            ledger,
+            project,
+            args.project_max_tokens,
+            args.project_max_cost,
+            prices=prices,
+            bound_input=is_live,
+        )
+    ]
 
 
 def _require_cap(args):
