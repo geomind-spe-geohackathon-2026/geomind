@@ -4,6 +4,17 @@
 interface raises the minor version, and an addition or a fix raises the patch version. The rule and
 the list of frozen interfaces are in [.claude/docs/api.md](.claude/docs/api.md#frozen-interfaces).
 
+## [0.4.1] - 2026-11-02
+
+Additive: models and OpenRouter providers can be chosen by deployment configuration.
+
+- `GEOMIND_CHEAP_MODEL` sets `coordinator_model` and `summarizer_model` (else `FIXED_CHEAP_MODEL`),
+  as `GEOMIND_MODEL` already sets `default_model`.
+- New setting `provider`, from `GEOMIND_PROVIDER` (comma-separated OpenRouter provider slugs, for
+  example `relace/fp4`): `OpenRouter` sends it as `provider: {"order": [...]}`. `None` sends nothing.
+- `runtime.load_state` accepts a state stored before a setting was added (`ADDED_SETTINGS`); the new
+  setting takes its default, so older runs still resume.
+
 ## [0.4.0] - 2026-11-02
 
 Breaking (minor): `name` is now required on `run_study`, `sample_uncertainty` and `sensitivity`.

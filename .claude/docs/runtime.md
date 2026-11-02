@@ -12,8 +12,12 @@
   `compaction_threshold` (a share of the model's window), `compaction_keep_turns`.
 - Role settings: `analyst_model`, `designer_model`, `verifier_model`, `economist_model` and
   `explainer_model` are `None`, which means `default_model`; `coordinator_model` and
-  `summarizer_model` default to `FIXED_CHEAP_MODEL`.
+  `summarizer_model` come from `GEOMIND_CHEAP_MODEL`, else `FIXED_CHEAP_MODEL`.
+- `provider`: the OpenRouter providers to try, in order (see
+  [providers.md](providers.md#openrouter)), from `GEOMIND_PROVIDER` (comma-separated slugs, for
+  example `relace/fp4`); `None` lets OpenRouter choose.
 
 Unknown names raise `gd.errors.UnknownNameError`. asyncio tasks and `asyncio.to_thread` workers
 start from a copy of their creator's context, while new threads start from the defaults. A run
-stores the settings it starts with, and a resumed run applies them again.
+stores the settings it starts with, and a resumed run applies them again; a setting added after
+the run was stored (`ADDED_SETTINGS`) takes its default.

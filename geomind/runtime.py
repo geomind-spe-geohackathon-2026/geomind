@@ -29,19 +29,36 @@ _FIXED = {
     "compaction_threshold": 0.6,
     "compaction_keep_turns": 6,
     "analyst_model": None,
-    "coordinator_model": FIXED_CHEAP_MODEL,
     "designer_model": None,
     "economist_model": None,
     "explainer_model": None,
-    "summarizer_model": FIXED_CHEAP_MODEL,
     "verifier_model": None,
 }
+ADDED_SETTINGS = frozenset({"provider"})
 _settings = ContextVar("geomind_settings", default=None)
 
 
+def _providers():
+    """Return the provider slugs of ``GEOMIND_PROVIDER`` (comma-separated), or ``None``."""
+    text = os.environ.get("GEOMIND_PROVIDER", "")
+    slugs = [slug.strip() for slug in text.split(",") if slug.strip()]
+    return slugs or None
+
+
 def _defaults():
-    """Return the default settings; ``GEOMIND_MODEL`` chooses the default model."""
-    return {"default_model": os.environ.get("GEOMIND_MODEL", FIXED_DEFAULT_MODEL), **_FIXED}
+    """Return the default settings; environment variables choose models and providers.
+
+    ``GEOMIND_MODEL`` is the default model, ``GEOMIND_CHEAP_MODEL`` the model of the
+    coordinator and the summarizer, and ``GEOMIND_PROVIDER`` the OpenRouter providers to try.
+    """
+    cheap = os.environ.get("GEOMIND_CHEAP_MODEL", FIXED_CHEAP_MODEL)
+    return {
+        "default_model": os.environ.get("GEOMIND_MODEL", FIXED_DEFAULT_MODEL),
+        **_FIXED,
+        "coordinator_model": cheap,
+        "summarizer_model": cheap,
+        "provider": _providers(),
+    }
 
 
 def state():
@@ -60,12 +77,18 @@ def get(name):
 
 
 def load_state(mapping):
-    """Replace the settings with the complete mapping that ``state()`` returns."""
-    if set(mapping) != set(_defaults()):
+    """Replace the settings with a mapping that ``state()`` returned.
+
+    A name this version added after the mapping was stored takes its default, so a run stored
+    by an older version still resumes; any other missing name or an unknown name raises.
+    """
+    defaults = _defaults()
+    missing = set(defaults) - set(mapping) - ADDED_SETTINGS
+    if set(mapping) - set(defaults) or missing:
         raise UnknownNameError(
             f"runtime: settings = {sorted(mapping)}; expected every name of runtime.state()"
         )
-    _settings.set(dict(mapping))
+    _settings.set({**defaults, **mapping})
 
 
 def settings(**changes):

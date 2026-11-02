@@ -30,6 +30,10 @@ raise `ProviderError` with `status` and the message; 429, 5xx, timeouts and conn
 retryable. Tool arguments that are not valid JSON stay visible as `{invalid_json_arguments: text}`,
 so validation sends them back to the model. `transport` replaces the network in tests.
 
+**Provider routing.** When the setting `provider` is a list of provider slugs, the request sends
+`provider: {"order": [...]}`, so OpenRouter tries those providers first, in that order, and falls
+back to others as usual. `None` (the default) sends no `provider` field.
+
 **Prompt caching.** With the setting `prompt_caching` (on by default), a request to a model of
 `CACHED_MODELS` (`anthropic/`) sends its first system message, the agent's prompt, as one text
 part with `cache_control: {"type": "ephemeral"}` (five minutes). The prompt is cached in the order

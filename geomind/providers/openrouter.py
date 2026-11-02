@@ -180,6 +180,9 @@ class OpenRouter:
             body["tools"] = [_tool_json(tool) for tool in tools]
         if settings.get("max_tokens") is not None:
             body["max_tokens"] = settings["max_tokens"]
+        providers = runtime.get("provider")
+        if providers:
+            body["provider"] = {"order": list(providers)}
         return body
 
     async def complete(self, messages, tools, *, model, settings, on_text=None):

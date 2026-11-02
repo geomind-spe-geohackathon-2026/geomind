@@ -182,6 +182,13 @@ def test_other_models_and_the_setting_turned_off_send_no_hint():
         assert body["messages"][0]["content"] == "You are the designer."
 
 
+def test_provider_setting_orders_the_providers():
+    """The ``provider`` setting becomes OpenRouter's provider order; unset sends none."""
+    assert "provider" not in body_of("a/b", PROMPT, provider=None)
+    body = body_of("a/b", PROMPT, provider=["relace/fp4", "other"])
+    assert body["provider"] == {"order": ["relace/fp4", "other"]}
+
+
 async def test_cached_tokens_are_reported_in_usage():
     """The tokens read from the cache come from OpenRouter's ``prompt_tokens_details``."""
     usage = {

@@ -35,6 +35,33 @@ def test_default_model_reads_the_environment(monkeypatch):
     assert runtime.get("default_model") == runtime.FIXED_DEFAULT_MODEL
 
 
+def test_cheap_model_reads_the_environment(monkeypatch):
+    """``GEOMIND_CHEAP_MODEL`` sets the coordinator and the summarizer."""
+    monkeypatch.setenv("GEOMIND_CHEAP_MODEL", "x/cheap")
+    assert (runtime.get("coordinator_model"), runtime.get("summarizer_model")) == ("x/cheap",) * 2
+    monkeypatch.delenv("GEOMIND_CHEAP_MODEL")
+    assert runtime.get("coordinator_model") == runtime.FIXED_CHEAP_MODEL
+
+
+def test_provider_reads_the_environment(monkeypatch):
+    """``GEOMIND_PROVIDER`` is a comma-separated list; unset means OpenRouter chooses."""
+    monkeypatch.delenv("GEOMIND_PROVIDER", raising=False)
+    assert runtime.get("provider") is None
+    monkeypatch.setenv("GEOMIND_PROVIDER", " a/fp4, b ,")
+    assert runtime.get("provider") == ["a/fp4", "b"]
+
+
+def test_older_state_loads_without_added_settings():
+    """A state stored before ``provider`` existed still loads, with its default."""
+    stored = {name: value for name, value in runtime.state().items() if name != "provider"}
+
+    async def load():
+        runtime.load_state({**stored, "max_steps": 7})
+        return runtime.get("max_steps"), runtime.get("provider")
+
+    assert asyncio.run(load()) == (7, None)
+
+
 def test_unknown_setting_suggests_a_name():
     """A typo gets a close match."""
     with pytest.raises(UnknownNameError, match="did you mean 'max_steps'"):
