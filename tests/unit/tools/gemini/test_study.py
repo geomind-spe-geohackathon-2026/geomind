@@ -85,6 +85,30 @@ async def shallow_calls():
         "shallow": ranked,
         "again": await run(study.run_study, context, again),
         "shallow_context": context,
+        **await rejected_calls(context),
+    }
+
+
+def without_ranges(plant, kept=()):
+    """Return the plant with every range removed except the paths in ``kept``."""
+    for path in list(plant.ranges):
+        if path not in kept:
+            plant.set_range(path, None, None)
+    return plant
+
+
+async def rejected_calls(context):
+    """Return the calls gemini rejects for a missing range: a sizing, a study and a search."""
+    plant = without_ranges(example_plant(SHALLOW), kept=("depth",))
+    open_doublets = await save_design(context, "nodoublets", plant)
+    bare = await save_design(context, "bare", without_ranges(example_plant(SHALLOW)))
+    sizing = await run(study.size_plant, context, {"design": open_doublets, "name": "s2"})
+    prepared = {"designs": [open_doublets], "method": "run", "prepare": ["size"], "name": "s3"}
+    searching = {"objective": "lcts", "evaluations": 5, "seed": 1, "name": "s4"}
+    return {
+        "unsized": sizing,
+        "unsized_study": await run(study.run_study, context, prepared),
+        "unsearched": await run(study.optimize, context, {"design": bare, **searching}),
     }
 
 
@@ -450,3 +474,48 @@ async def test_study_recorded_is_sent_once_after_the_artifact_is_saved():
         "agent": "worker",
         "parent": None,
     }
+
+
+def test_size_plant_names_the_missing_range_and_the_call_that_adds_it():
+    """The error keeps gemini's message, names the path and gives set_ranges without a number."""
+    error = slow_calls()["studies"]["unsized"].output["error"]
+    assert error["code"] == "missing_value"
+    assert "size.doublets.range is missing" in error["message"]
+    assert "set_ranges(design='design/nodoublets'" in error["message"]
+    assert "'size.doublets': {'min': <min>, 'max': <max>}" in error["message"]
+    assert not any(character.isdigit() for character in error["message"].split("set_ranges")[1])
+
+
+def test_run_study_with_prepare_size_names_the_missing_range():
+    """A study that sizes first is rejected for the same range, with the same call."""
+    error = slow_calls()["studies"]["unsized_study"].output["error"]
+    assert "set_ranges(design='design/nodoublets'" in error["message"]
+
+
+def test_optimize_with_no_range_lists_the_leaves_with_their_units():
+    """A search over a plant with nothing to search names leaves and units, and the call."""
+    error = slow_calls()["studies"]["unsearched"].output["error"]
+    assert error["code"] == "invalid_design"
+    assert "depth [m]" in error["message"]
+    assert "set_ranges(design='design/bare'" in error["message"]
+
+
+def test_the_study_tools_offer_the_reference_pattern_with_an_example():
+    """Each argument that takes a stored reference has a pattern and one example."""
+    properties = study.size_plant.schema()["input_schema"]["properties"]
+    assert properties["design"]["pattern"] == "^design/[A-Za-z0-9._-]+$"
+    assert "design/boiler_only" in properties["design"]["description"]
+    items = study.run_study.schema()["input_schema"]["properties"]["designs"]["items"]
+    assert items["pattern"] == "^design/[A-Za-z0-9._-]+$"
+    results = study.compare.schema()["input_schema"]["properties"]["references"]["items"]
+    assert results["pattern"] == "^result/[A-Za-z0-9._-]+$"
+
+
+async def test_size_plant_with_a_name_without_its_prefix_lists_the_stored_designs():
+    """The model's ``hphp2`` gets the designs of the chat and the form it meant."""
+    context, _ = await started(SHALLOW, reference="hphp2")
+    result = await run(study.size_plant, context, {"design": "hphp2", "name": "n"})
+    message = result.output["error"]["message"]
+    assert result.output["error"]["code"] == "unknown_name"
+    assert "stored design references: design/hphp2" in message
+    assert "did you mean 'design/hphp2'" in message

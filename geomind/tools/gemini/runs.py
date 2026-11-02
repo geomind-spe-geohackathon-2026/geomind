@@ -9,6 +9,7 @@ from geomind.errors import ToolError
 from geomind.tools.base import tool
 from geomind.tools.gemini.case import build_case, case_of
 from geomind.tools.gemini.plants import load_plant
+from geomind.tools.gemini.references import reference_schema
 from geomind.tools.gemini.stored import ran_case, save_run
 
 SHOWN_GROUPS = 5
@@ -242,7 +243,7 @@ def run_plant(context, design, changes, start, end):
     return plant, results, summary, {"start": start, "end": end}, ran
 
 
-@tool(effect="compute")
+@tool(effect="compute", late_schemas={"design": reference_schema("design", optional=True)})
 async def simulate(
     context,
     design: str | None = None,

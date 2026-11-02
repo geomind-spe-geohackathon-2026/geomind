@@ -26,6 +26,7 @@ from geomind.tools.gemini.case import (
     kept_files,
     state_case,
 )
+from geomind.tools.gemini.references import index_reference, unknown_reference
 from geomind.types.events import StudyRecorded
 
 DESIGN = "design/"
@@ -49,6 +50,7 @@ async def save_design(context, name, plant):
     check_design_name(name, "design")
     reference = f"{DESIGN}{name}"
     await context.session.save_artifact(reference, plant.to_dict(structure=True))
+    await index_reference(context, "design", reference)
     return reference
 
 
@@ -58,12 +60,7 @@ def load_design(context, design, where):
 
     data = context.session.load_artifact(design) if design.startswith(DESIGN) else None
     if data is None:
-        raise ToolError(
-            f"{where}: design = {design!r}; expected a reference such as 'design/<name>' that a"
-            " tool returned",
-            code="unknown_name",
-            path="design",
-        )
+        raise unknown_reference(context, "design", design, where, "design")
     return gm.Plant.from_dict(data)
 
 
@@ -96,6 +93,7 @@ async def save_run(context, plant, results, summary, options, ran):
     await session.save_artifact(f"{identifier}.plant", plant_data)
     await session.save_artifact(f"{identifier}.case", case_data)
     await session.save_artifact(f"{identifier}.files", digests(files))
+    await index_reference(context, "result", reference)
     return reference
 
 
@@ -114,11 +112,7 @@ def load_run(context, reference, where):
     identifier = reference.removeprefix(RESULT) if reference.startswith(RESULT) else ""
     parts = [context.session.load_artifact(f"{identifier}.{part}") for part in RUN_PARTS]
     if not identifier or None in parts:
-        raise ToolError(
-            f"{where}: reference = {reference!r}; expected a reference that simulate returned",
-            code="unknown_name",
-            path="reference",
-        )
+        raise unknown_reference(context, "result", reference, where, "reference")
     plant_data, case_data, _, data = parts
     case = build_case(case_data, run_files(context, identifier))
     return gm.Plant.from_dict(plant_data), case, gm.Results.from_bytes(data)
@@ -211,10 +205,5 @@ def load_study(context, study, where):
     """Return the record of a stored ``study/<name>``, or raise ``unknown_name``."""
     data = context.session.load_artifact(study) if study.startswith(STUDY) else None
     if data is None:
-        raise ToolError(
-            f"{where}: study = {study!r}; expected a reference such as 'study/<name>' that a tool"
-            " returned or list_studies listed",
-            code="unknown_name",
-            path="study",
-        )
+        raise unknown_reference(context, "study", study, where, "study")
     return data

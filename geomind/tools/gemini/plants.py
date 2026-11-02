@@ -6,6 +6,7 @@ from typing import Any
 from geomind.errors import ToolError
 from geomind.tools.base import tool
 from geomind.tools.gemini.case import case_of
+from geomind.tools.gemini.references import reference_schema
 from geomind.tools.gemini.stored import load_design, save_design
 
 
@@ -167,7 +168,7 @@ def plant_view(plant):
     }
 
 
-@tool(effect="read")
+@tool(effect="read", late_schemas={"design": reference_schema("design", optional=True)})
 def read_plant(
     context,
     design: str | None = None,
@@ -218,7 +219,7 @@ async def build_plant(context, plant: dict[str, Any], name: str):
     return {"design": design, **plant_issues(context, built)}
 
 
-@tool(effect="write")
+@tool(effect="write", late_schemas={"design": reference_schema("design")})
 async def set_ranges(
     context,
     design: str,

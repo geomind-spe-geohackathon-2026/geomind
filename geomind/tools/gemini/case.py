@@ -13,6 +13,7 @@ design whose case differs from it (``case_changes``) until the user approves the
 case.
 """
 
+import asyncio
 import copy
 import hashlib
 import io
@@ -23,6 +24,7 @@ from typing import Any, Literal
 from geomind.errors import ToolError
 from geomind.stores.casefiles import case_files, is_safe_name, named_files
 from geomind.tools.base import tool
+from geomind.tools.gemini.explain import unit_error
 from geomind.utils.strings import did_you_mean, join_names
 
 CASE_FILE = "case/"
@@ -147,7 +149,7 @@ async def store_case(context, data, supplied, origin=None):
     ``origin`` is ``(case dict, files)`` of the case the user or the project gave, kept as the
     state's ``case_origin``; ``None`` leaves the origin as it is. A rejected case stores nothing.
     """
-    files = file_contents(context, data, supplied)
+    files = await asyncio.to_thread(file_contents, context, data, supplied)
     checked_case(data, files)
     for name in supplied.keys() & files.keys():
         await context.session.save_artifact(f"{CASE_FILE}{name}", supplied[name])
@@ -388,7 +390,10 @@ def step_seconds(step):
         raise ToolError(
             f"save_profile: step = {step!r}; expected {{'value': 1, 'unit': 'd'}}", path="step"
         )
-    return gm.units.Quantity(step["value"], step["unit"]).to("s").value
+    try:
+        return gm.units.Quantity(step["value"], step["unit"]).to("s").value
+    except gm.errors.ValidationError as error:
+        raise unit_error(error, "duration") from error
 
 
 def followed_time(case, frame, step):
@@ -435,7 +440,7 @@ async def save_profile(
     check_profile_name(name)
     quantity = f"{service}_demand"
     frame = gm.case.from_values(values, unit, start, step_seconds(step), quantity)
-    case = case_of(context)
+    case = await asyncio.to_thread(case_of, context)
     data = state_case(context)
     file = f"data/{name}.csv"
     demand = data.setdefault("demand", {})

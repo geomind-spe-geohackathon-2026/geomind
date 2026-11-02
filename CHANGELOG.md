@@ -24,6 +24,23 @@ Additive: geomind holds no model id (Sahand, 2026-11-02: no Anthropic model anyw
 - `geomind check-live` lists every role with its model and fails on a role without a model or an
   Anthropic model id. A test greps the package, evals and docs for Anthropic model ids.
 
+Additive: tool schemas and error texts tell the model what the call needs, so it does not learn
+reference forms, sizing ranges, units and state shapes from failures.
+
+- Every argument that takes a stored reference has a JSON Schema `pattern` and a description with
+  an example (not enforced by the input model). A wrong reference gets `unknown_name` listing the
+  stored references of its kind; `designs.index` and `results.index` are new chat artifacts.
+- `size_plant`, `optimize` and `run_study` name each missing search range and give the
+  `set_ranges` call that adds it, with the unit of the leaf and no number. `size_plant`'s
+  description says sizing reads the ranges and `params.backup`.
+- A unit gemini rejects (`save_profile` step `day`, any tool) gets gemini's message plus the units
+  gemini accepts, read from `gm.units`.
+- `update_state` offers a typed `changes` schema (`op` enum, `path` pattern, `value` over the
+  state's models) and a refused change returns the shape expected for its path. The input model
+  is unchanged, so every input valid before stays valid.
+- Fix: `save_profile` read the case and its files on the event loop; it now reads them in a worker
+  thread (`asyncio.to_thread`), as the docs said.
+
 ## [0.4.1] - 2026-11-02
 
 Additive: models and OpenRouter providers can be chosen by deployment configuration.
