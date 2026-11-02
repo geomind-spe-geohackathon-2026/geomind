@@ -117,5 +117,8 @@ unknown name is an error result with the close match. The skills are `gemini-uni
 
 `context_window(model)` in `geomind/context/compaction.py` returns the window in tokens: the setting
 `context_window` (`GEOMIND_CONTEXT_WINDOW`) if set, else `context_length` from OpenRouter's public
-model list. When neither gives it, it raises `RunError` naming `GEOMIND_CONTEXT_WINDOW`; there is no
-table and no guess (before 0.4.2 an unknown model got 128 000).
+model list. `load_windows` reads the list once per process, in a worker thread, when a run on a real
+provider starts (and before a call, for a resumed run); when the list cannot be read or lacks a
+model it raises `RunError` naming `GEOMIND_CONTEXT_WINDOW`. There is no table and no guess (before
+0.4.2 an unknown model got 128 000). A fake or scripted run never fetches and is never over the
+threshold unless the setting gives a window.

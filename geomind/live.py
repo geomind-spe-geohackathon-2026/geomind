@@ -9,7 +9,7 @@ from geomind.utils.models import BASE_URL, LIST_TIMEOUT
 
 KEY_NAME = "OPENROUTER_API_KEY"
 ROLES = runtime.ROLES
-FORBIDDEN_PREFIX = "anthro" + "pic/"
+FORBIDDEN_PREFIX = "anthropic/"
 
 
 def fetch_model_ids():

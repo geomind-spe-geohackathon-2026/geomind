@@ -97,7 +97,7 @@ def pytest_configure(config):
 
 
 TEST_MODEL = "deepseek/deepseek-v4.1-flash-1017"
-TEST_CHEAP_MODEL = "deepseek/deepseek-v4.1-lite-1017"
+TEST_CHEAP_MODEL = TEST_MODEL
 TEST_CONTEXT_WINDOW = "128000"
 
 
@@ -107,3 +107,11 @@ def deployment_settings(monkeypatch):
     monkeypatch.setenv("GEOMIND_MODEL", TEST_MODEL)
     monkeypatch.setenv("GEOMIND_CHEAP_MODEL", TEST_CHEAP_MODEL)
     monkeypatch.setenv("GEOMIND_CONTEXT_WINDOW", TEST_CONTEXT_WINDOW)
+
+
+@pytest.fixture(autouse=True)
+def no_loaded_windows():
+    """Start each test without context windows read from a provider."""
+    from geomind.context.compaction import forget_windows
+
+    forget_windows()

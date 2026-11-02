@@ -75,6 +75,17 @@ def role_models():
     return {role: get(f"{role}_model") or get("default_model") for role in ROLES}
 
 
+def model_problems():
+    """Return one line per role without a model, naming the setting that would give it one."""
+    cheap_roles = ("coordinator", "summarizer")
+    lines = []
+    for role, model in role_models().items():
+        if model is None:
+            name = "GEOMIND_CHEAP_MODEL" if role in cheap_roles else "GEOMIND_MODEL"
+            lines.append(f"{role}: set {name} or {role}_model")
+    return lines
+
+
 def missing_model_settings():
     """Return the environment variables whose absence leaves a role without a model."""
     cheap_roles = ("coordinator", "summarizer")

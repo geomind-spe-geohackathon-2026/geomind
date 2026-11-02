@@ -10,11 +10,14 @@ Additive: geomind holds no model id (Sahand, 2026-11-02: no Anthropic model anyw
 
 - `FIXED_DEFAULT_MODEL` and `FIXED_CHEAP_MODEL` are removed. `default_model`, `coordinator_model`
   and `summarizer_model` are `None` unless `GEOMIND_MODEL` / `GEOMIND_CHEAP_MODEL` set them;
-  `OpenRouter` refuses a call without a model, naming the setting. Fake runs need no model.
+  A run on a real provider (`needs_models`) is refused before `run.started` with a `RunError`
+  naming each role's missing setting (`designer: set GEOMIND_MODEL or designer_model`);
+  `OpenRouter` also refuses a call without a model. Fake runs need no model.
 - `run.started` records `models` (the model of every role; optional, old logs load) and the export
   header lists them.
 - Context window: new setting `context_window` (`GEOMIND_CONTEXT_WINDOW`), else the provider's
-  `context_length`; unknown raises `RunError` (before, an unknown model got a guessed 128 000, and
+  `context_length`, read once per process off the event loop at the start of a run on a real
+  provider (a fake run never fetches); unknown raises `RunError` at the start (before, an unknown model got a guessed 128 000, and
   `CONTEXT_WINDOWS` / `DEFAULT_CONTEXT_WINDOW` held three Anthropic models).
 - Caching: `CACHED_MODELS` is removed; new setting `cache_marked_models` (`GEOMIND_CACHE_MARKED_MODELS`)
   lists the model id prefixes that get cache breakpoints, none by default; DeepSeek caches on its own.

@@ -158,6 +158,8 @@ class OpenRouter:
     ``transport`` replaces the network, for tests.
     """
 
+    needs_models = True
+
     def __init__(self, api_key=None, base_url=BASE_URL, transport=None):
         """Read ``OPENROUTER_API_KEY`` when no key is given."""
         self.api_key = api_key or os.environ.get("OPENROUTER_API_KEY")

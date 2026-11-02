@@ -28,7 +28,8 @@ given, and raises `ProviderError` when there is none. It streams with `httpx.Asy
 `request_timeout` setting, and fills `Usage`, including cost, from the response. HTTP and API errors
 raise `ProviderError` with `status` and the message; 429, 5xx, timeouts and connection failures are
 retryable. Tool arguments that are not valid JSON stay visible as `{invalid_json_arguments: text}`,
-so validation sends them back to the model. `transport` replaces the network in tests. A call
+so validation sends them back to the model. `transport` replaces the network in tests. The engine refuses a run on a provider with `needs_models = True` (`OpenRouter`, also through
+`Recorder` and the retry layer) before `run.started` when a role has no model. A call
 with `model=None` raises `ProviderError` naming the unset `GEOMIND_MODEL` / `GEOMIND_CHEAP_MODEL`
 before any request. `geomind.utils.models.fetch_context_windows()` reads `context_length` of every
 model from the public list.

@@ -4,9 +4,10 @@ import pytest
 
 from geomind import runtime
 from geomind.context.compaction import (
-    context_window,
     estimate_tokens,
+    forget_windows,
     is_over_threshold,
+    load_windows,
     older_turns,
     transcript,
 )
@@ -39,24 +40,33 @@ def test_the_threshold_is_a_share_of_the_explicit_window():
     assert is_over_threshold([text("user", "x" * ((limit + 1) * 4))], "any/model")
 
 
-def test_the_window_comes_from_the_provider_list(monkeypatch):
-    """With no setting, the injected model list gives the window."""
+async def test_the_window_comes_from_the_provider_list_once(monkeypatch):
+    """With no setting, one fetch fills every model; two loads fetch once."""
     monkeypatch.delenv("GEOMIND_CONTEXT_WINDOW")
-    assert context_window("a/b", lambda: {"a/b": 1000}) == 1000
-    assert is_over_threshold([text("user", "x" * 4000)], "a/b", lambda: {"a/b": 1000})
+    fetches = []
+
+    def fetcher():
+        fetches.append(1)
+        return {"a/b": 1000}
+
+    await load_windows({"a/b"}, fetcher)
+    await load_windows({"a/b"}, fetcher)
+    assert len(fetches) == 1
+    assert is_over_threshold([text("user", "x" * 4000)], "a/b")
 
 
-def test_an_unknown_window_is_an_error_not_a_guess(monkeypatch):
+async def test_an_unknown_window_is_an_error_not_a_guess(monkeypatch):
     """A model the list lacks, or a list that fails, raises and names the setting."""
     monkeypatch.delenv("GEOMIND_CONTEXT_WINDOW")
     with pytest.raises(RunError, match="GEOMIND_CONTEXT_WINDOW"):
-        context_window("a/b", lambda: {})
+        await load_windows({"a/b"}, lambda: {})
+    forget_windows()
 
     def broken():
         raise OSError("no network")
 
     with pytest.raises(RunError, match="OSError"):
-        context_window("a/b", broken)
+        await load_windows({"a/b"}, broken)
 
 
 def test_the_threshold_is_a_setting():
@@ -89,4 +99,4 @@ def test_a_rule_agent_and_a_modelless_fake_run_are_never_over(monkeypatch):
     """No model, no window to compare with."""
     monkeypatch.delenv("GEOMIND_CONTEXT_WINDOW")
     assert not is_over_threshold([text("user", "x" * 10**7)], "rule")
-    assert not is_over_threshold([text("user", "x" * 10**7)], None)
+    assert not is_over_threshold([text("user", "x" * 10**7)], "a/b")

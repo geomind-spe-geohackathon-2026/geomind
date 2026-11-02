@@ -3,6 +3,15 @@
 from typing import Protocol
 
 
+def needs_models(llm):
+    """Tell whether a provider, or the one it wraps, is real: it calls a model by id."""
+    while llm is not None:
+        if getattr(llm, "needs_models", False):
+            return True
+        llm = getattr(llm, "llm", None)
+    return False
+
+
 class LLM(Protocol):
     """One model call: ``on_text(delta)`` streams text, ``settings`` holds temperature and limits.
 

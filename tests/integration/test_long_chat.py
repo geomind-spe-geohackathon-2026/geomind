@@ -1,5 +1,7 @@
 """A long chat stays under its threshold and remembers what it compacted."""
 
+import pytest
+
 from geomind import runtime
 from geomind.agents import Assistant
 from geomind.context.compaction import estimate_tokens
@@ -15,6 +17,13 @@ FACT = "The well on the north site is 2345 m deep."
 TURN_CHARACTERS = 2000
 LIMIT = 15_500
 SHARE = LIMIT / 128_000
+
+
+@pytest.fixture(autouse=True)
+def distinct_summarizer():
+    """Give the summarizer its own model id, so the fake provider can tell its calls."""
+    with runtime.settings(summarizer_model="fake/summarizer"):
+        yield
 
 
 class Remembering:

@@ -4,14 +4,32 @@ import builtins
 import platform
 
 import gemini as gm
+import httpx
+import pytest
 
 import geomind
+from geomind import runtime
+from geomind.context import compaction
+from geomind.engine import Engine, Permissions
 from geomind.engine.session import RunSession, current_versions
 from geomind.engine.state import RunState, Stop, is_cancel
+from geomind.errors import RunError
+from geomind.providers import OpenRouter
 from geomind.sandbox import LocalSandbox
 from geomind.stores import MemoryWorkspace
 from geomind.types import Cancel, Deny
-from tests.fixtures.runs import Lead, call, engine_for, of_type, run, says, types, uses
+from tests.fixtures.runs import (
+    Lead,
+    Worker,
+    call,
+    context,
+    engine_for,
+    of_type,
+    run,
+    says,
+    types,
+    uses,
+)
 
 
 def test_is_cancel():
@@ -99,3 +117,31 @@ def test_a_run_without_gemini_records_no_gemini_key(monkeypatch):
 
     monkeypatch.setattr(builtins, "__import__", refuse)
     assert set(current_versions()) == {"geomind", "python"}
+
+
+def failing_transport():
+    """Return a transport that fails the test if a request is made."""
+    return httpx.MockTransport(lambda request: pytest.fail("network used"))
+
+
+async def test_a_real_provider_without_a_model_is_refused_before_any_event():
+    """The refusal names every role's missing setting; no event is logged, no request made."""
+    engine = Engine(
+        llm=OpenRouter(api_key="sk-test", transport=failing_transport()),
+        permissions=Permissions(mode="auto"),
+    )
+    start = context()
+    with runtime.settings(default_model=None):
+        with pytest.raises(RunError, match="designer: set GEOMIND_MODEL or designer_model"):
+            await engine.run(Worker(), start)
+    assert engine.store.load_events(start.run_id) == []
+
+
+async def test_a_scripted_run_never_fetches_the_context_windows(monkeypatch):
+    """Fake provider, model set, no window setting: no fetch."""
+    monkeypatch.delenv("GEOMIND_CONTEXT_WINDOW")
+    monkeypatch.setattr(
+        compaction, "fetch_context_windows", lambda: pytest.fail("fetched"), raising=True
+    )
+    result, _, _ = await run([says("x")])
+    assert result.status == "done"
