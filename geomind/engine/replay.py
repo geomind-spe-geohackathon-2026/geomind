@@ -26,7 +26,7 @@ class _Script:
         """Index the decisions of the events of one run."""
         self.llm = FakeLLM.from_events(events)
         self.scripted = len(self.llm.completions)
-        self.results = {e.call_id: e for e in _results(events)}
+        self.results = {(e.index, e.call_id): e for e in _results(events)}
         self.refusals = {
             e.index: e.output
             for e in events
@@ -42,7 +42,8 @@ class _Recording(Hook):
     NOTE: a run with no script raises, and the engine would end that run as an error, so the
     first such error is kept in ``failure`` for ``replay_run`` to raise. The hook is engine-wide
     but every rule is per run, because call ids are not unique
-    across the runs of a tree and each run has its own completions.
+    across the runs of a tree and each run has its own completions. A call is matched by its
+    step and id, since a model may reuse an id in a later step.
     """
 
     def __init__(self, scripts):
@@ -70,7 +71,7 @@ class _Recording(Hook):
 
     def before_tool_call(self, context, agent, call):
         """Use the recorded input, or end the replay at a call without a result."""
-        recorded = self._script(context).results.get(call.id)
+        recorded = self._script(context).results.get((context.session.state.step, call.id))
         if recorded is None:
             return Cancel(reason=END_OF_RECORDING)
         return Allow(input=recorded.input) if recorded.input != call.input else None
@@ -130,14 +131,14 @@ def _results(events):
 
 
 def _child_calls(events, run_id):
-    """Return, by nested run id, the call of ``run_id`` that started it, at any depth.
+    """Return, by nested run id, the (step, call id) of ``run_id`` that started it, at any depth.
 
     A delegate's nested run starts at the call's step with the call's task as its first message;
     a run nested deeper belongs to the call of its parent. Parallel calls of one step overlap in the
     log, so the order of events cannot tell them apart.
     """
     calls = {
-        (e.index, e.input.get("task")): e.call_id
+        (e.index, e.input.get("task")): (e.index, e.call_id)
         for e in events
         if e.type == "tool.started" and e.run_id == run_id
     }
@@ -152,29 +153,28 @@ def _child_calls(events, run_id):
 
 
 def _children(tree, run_id):
-    """Return, by call id of ``run_id``, the nested run that call started directly."""
+    """Return, by (step, call id) of ``run_id``, the nested run that call started directly."""
     parents = {e.run_id: e.parent for e in tree if e.type == "run.started"}
     owners = _child_calls(tree, run_id)
     return {
-        call_id: child
-        for child, call_id in owners.items()
-        if call_id is not None and parents[child] == run_id
+        key: child for child, key in owners.items() if key is not None and parents[child] == run_id
     }
 
 
 def _nested_changes(events, run_id):
-    """Return, by call id of the run, the problem-state changes its nested runs logged.
+    """Return, by (step, call id) of the run, the problem-state changes its nested runs logged.
 
     NOTE: a nested run that did not end with an answer is not run again; its recorded result is
     reused and the replay applies again what it wrote in the shared problem state, in log order.
     A nested run that ended with an answer runs again and writes its own changes.
     """
     owners = _child_calls(events, run_id)
-    changes = {result.call_id: [] for result in _results(e for e in events if e.run_id == run_id)}
+    own = _results(e for e in events if e.run_id == run_id)
+    changes = {(result.index, result.call_id): [] for result in own}
     for e in events:
-        call_id = owners.get(e.run_id)
-        if e.type == "state.changed" and call_id in changes:
-            changes[call_id].append(e.changes)
+        key = owners.get(e.run_id)
+        if e.type == "state.changed" and key in changes:
+            changes[key].append(e.changes)
     return changes
 
 
@@ -190,12 +190,16 @@ def _in_step_order(results, events):
     is not theirs. A result without a logged completion keeps its log order after the others.
     """
     places = {
-        call.id: (event.index, position)
+        (event.index, call.id): (event.index, position)
         for event in events
         if event.type == "llm.completed"
         for position, call in enumerate(event.completion.tool_calls)
     }
-    return sorted(results, key=lambda result: places.get(result.call_id, (result.index, inf)))
+
+    def place(result):
+        return places.get((result.index, result.call_id), (result.index, inf))
+
+    return sorted(results, key=place)
 
 
 def _compare_calls(recorded, replayed, is_complete, label):
@@ -270,11 +274,9 @@ def _arm(engine, tree, scripts):
     """
     started = {e.run_id: e for e in tree if e.type == "run.started"}
     for parent in scripts:
-        children = {c: r for c, r in _children(tree, parent).items() if r in scripts}
+        children = {k: r for k, r in _children(tree, parent).items() if r in scripts}
         engine.recorded[parent] = {
-            call_id: event
-            for call_id, event in scripts[parent].results.items()
-            if call_id not in children
+            key: event for key, event in scripts[parent].results.items() if key not in children
         }
         engine.recorded_changes[parent] = _nested_changes(tree, parent)
         for child in children.values():

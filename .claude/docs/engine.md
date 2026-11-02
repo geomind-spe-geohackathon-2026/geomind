@@ -150,7 +150,8 @@ decision `wait` and pauses on the same request id, and an answer to the parent p
 stored run and every nested run of its tree, without network and with permissive permissions,
 since the log holds the outcome of the original decisions. Each run has its own `FakeLLM` built
 from its own `llm.completed` events and its own recording rules (results, refused answers, end of
-the recording), keyed by run id because call ids repeat across runs. A nested run that ended with
+the recording), keyed by run id because call ids repeat across runs, and within a run by step and call id, because
+a model may reuse an id in a later step (ids are unique only within one completion). A nested run that ended with
 an answer runs again as a real nested run with its recorded run id; it belongs to the call whose
 step and task it started with (`parent_step` and its first message, `_child_calls`), not to every
 call open while it ran, so parallel delegates keep their own runs, at any depth. The delegate

@@ -4,6 +4,13 @@
 interface raises the minor version, and an addition or a fix raises the patch version. The rule and
 the list of frozen interfaces are in [.claude/docs/api.md](.claude/docs/api.md#frozen-interfaces).
 
+## [Unreleased]
+
+- Fix: `Engine.replay` matches a run's recorded results by step and call id, not by call id alone.
+  A model that reuses an id in a later step (`explainer/unverified`, `analyst/module_lookup`) no
+  longer gets the input of the later call at the earlier step. New test replaying every eval
+  recording.
+
 ## [0.3.1] - 2026-11-02
 
 Additive: a new optional event field and a stronger replay; nothing renamed or removed.
