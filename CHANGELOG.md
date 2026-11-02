@@ -29,7 +29,9 @@ Also additive: a run ends at or below its cap, and a run that a limit stopped st
 - `CostBudget(prices=...)`, `TokenBudget(bound_input=True)` and `ProjectBudget` fit each LLM call
   before it is made: the input bound times the input price plus `max_tokens` times the output
   price. A call that passes the cap gets a lower `max_tokens`; one whose input does not fit is
-  denied. Off when unset. `geomind run` reads the prices from OpenRouter's public model list.
+  denied. Off when unset. Prices come from OpenRouter's public model list, fetched once per process
+  with the context windows (`geomind.utils.models.fetch_prices`); a library caller fills
+  `prices` with `await load_prices(models)`, which raises `ValueError` for an unpriced model.
   Fixes runs that overshot the cap by one call (9% of 0.50 USD, 63% of 0.01 USD in live tests).
 - `answer_reserve` and `answer_agents` on the budgets keep an amount for the agent that writes the
   answer. No default; off when unset. A hook argument, not a `gd.runtime` setting.

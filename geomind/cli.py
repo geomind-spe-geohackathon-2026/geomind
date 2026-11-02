@@ -21,7 +21,6 @@ from geomind.engine.replay import nested_runs_reused, version_differences
 from geomind.errors import GeomindError, RunError
 from geomind.export import models_by_agent, render_export
 from geomind.providers import FakeLLM, OpenRouter, Recorder
-from geomind.providers.openrouter import BASE_URL
 from geomind.run import LOOPS, Run, loop_of
 from geomind.sandbox import DockerSandbox, LocalSandbox
 from geomind.stores import FileUsageLedger, FileWorkspace
@@ -31,6 +30,7 @@ from geomind.stores.workspace import read_bytes
 from geomind.types import Message
 from geomind.types.runlog import runlog
 from geomind.utils.json import read_json, write_json
+from geomind.utils.models import fetch_prices, load_prices
 
 RUNS_FOLDER = ".runs"
 MESSAGE_CHARACTERS = 2000
@@ -161,22 +161,15 @@ def write_manifest(root, run_id, args):
 
 
 def _fetch_prices(fetcher=None):
-    """Return ``{model id: (input, output)}`` price per token from OpenRouter's public list.
+    """Return the prices of the models of the run's roles, or ``None`` and say why.
 
-    The list is the one ``live`` already reads for model ids. A failed fetch returns ``None`` and
-    says so on stderr: cost caps then refuse a call only once reached.
+    A model without a price, or a failed fetch, leaves the cost caps able to refuse a call only
+    once reached.
     """
+    models = {model for model in live.role_models().values() if model}
     try:
-        if fetcher is not None:
-            return fetcher()
-        response = httpx.get(f"{BASE_URL}/models", timeout=live.LIST_TIMEOUT)
-        response.raise_for_status()
-        return {
-            item["id"]: (float(item["pricing"]["prompt"]), float(item["pricing"]["completion"]))
-            for item in response.json()["data"]
-            if {"prompt", "completion"} <= set(item.get("pricing") or {})
-        }
-    except (httpx.HTTPError, OSError, KeyError, ValueError) as error:
+        return asyncio.run(load_prices(models, fetcher or fetch_prices))
+    except (httpx.HTTPError, OSError, KeyError, ValueError, GeomindError) as error:
         print(f"prices: not fetched ({type(error).__name__}); cost caps cannot bound a call")
         return None
 

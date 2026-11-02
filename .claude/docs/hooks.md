@@ -35,9 +35,13 @@ so they are passed again when a run resumes in another process.
   the session (`limit_output`, used once); if even the input does not fit, the call is denied. A run
   then ends at or below its cap. A token budget does the same with `bound_input=True`. Both are off
   when unset (a call is then refused only once the cap is reached), and a model without a price, or
-  a rule step, is not estimated. geomind has no price table: `geomind run` reads the prices of
-  OpenRouter's public model list (`GET /models`, the list `check-live` already uses) for a live run
-  with a cost cap, and says on the output when it cannot, and a run from a recording fetches none.
+  a rule step, is not estimated. geomind has no price table: prices come from OpenRouter's public
+  model list (`GET /models`), fetched once per process in `geomind/utils/models.py` together with
+  the context windows. A library caller that builds `gd.Run` fills the argument with
+  `prices = await load_prices([models of the run])` (`geomind.utils.models`, read off the event
+  loop); a model the list does not price raises `ValueError` naming it. `geomind run` does this
+  for the roles' models on a live run with a cost cap, says when it cannot (the cap then refuses
+  a call only once reached), and a run from a recording fetches none.
   **`answer_reserve`.** An amount, in the unit of the cap, held back from every call except those
   of the agents named in `answer_agents` (`agent.name`, such as `explainer`) and the last step of a
   run, so the agent that writes the answer can still pay for it. No default: unset it is off, and a

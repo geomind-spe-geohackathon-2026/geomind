@@ -418,7 +418,10 @@ def test_a_live_cost_cap_bounds_calls_with_the_prices_of_the_list(monkeypatch):
     """A live run's cost cap carries the fetched prices; a recording fetches none."""
     prices = {"fake/model": (1e-6, 2e-6)}
     args = cli._parser().parse_args(["run", "x", "--max-cost", "1"])
-    budget = cli._budgets(args, fetcher=lambda: prices)[0]
+    with runtime.settings(
+        default_model="fake/model", coordinator_model="fake/model", summarizer_model="fake/model"
+    ):
+        budget = cli._budgets(args, fetcher=lambda: prices)[0]
     assert budget.prices == prices and budget.bounds_input
     offline = cli._parser().parse_args(["run", "x", "--max-cost", "1", "--recording", "r"])
     assert cli._budgets(offline, fetcher=lambda: prices)[0].prices is None
