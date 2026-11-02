@@ -178,16 +178,16 @@ and `FileRunStore(root=".runs")` add `add_message(chat_id, message)`.
 
 **Where an artifact lives.** The problem state is per chat, so every artifact it can name is in the
 chat's space (`save_chat_artifact(chat_id, key)`): `case/<file name>`, `<sha256>.file`,
-`design/<name>`, `result/<id>` and `<id>.results`/`.plant`/`.case`/`.files`, `module/<name>.py`,
+`design/<name>`, `study/<name>` and `studies.index`, `result/<id>` and `<id>.results`/`.plant`/`.case`/`.files`, `module/<name>.py`,
 and a cut tool output. `RunSession.save_artifact`/`load_artifact` use it, with the chat id of the
 run, or its root run id for a run without a chat (a CLI `run`), so nothing changes for that run. The
 run's own space (`save_artifact(run_id, key)`) is for what no state names and is not used by the
-engine today. `design/<name>` is written once: the same content again is fine, other content is a
+engine today. `design/<name>` and `study/<name>` are written once: the same content again is fine, other content is a
 `ToolError` (path `name`) that asks for a new name, so a result never points at a changed design;
 `RunSession` checks it for every caller, so the rule holds for any store.
 
 An artifact key of `FileRunStore` is one safe name, or a [reference](tools.md#references) of the
-form `design/<name>`, `result/<id>` or `case/<file name>`; any other `/` raises `RunError`.
+form `design/<name>`, `study/<name>`, `result/<id>` or `case/<file name>`; any other `/` raises `RunError`.
 
 `Workspace` has `plants(project_id)`, `case(project_id)` and `documents(project_id, query)`.
 `MemoryWorkspace(plants, documents, cases)` holds values; `FileWorkspace(root)` reads gemini's

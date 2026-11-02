@@ -118,8 +118,9 @@ A folder of `SUITES` in `evals/run.py` runs its tasks through a loop instead of 
 
 `compare/two_families` (project `hackathon`) asks the `CompareLoop` for two topologies of the
 project's case, `HeatingAbsorptionCoolingPlant` and `HeatingCoolingPlant`, with the peak backup
-policy and the doublets (1 to 2) as the only range, compared with one `run_study` (objective
-`lcts`, 5 evaluations, seed 1). Criteria: `run_study` and `check_results` are called,
+policy and the doublets (1 to 2) as the only range, compared with one `run_study` named `families` (objective
+`lcts`, 5 evaluations, seed 1), whose designs are stored as `design/families_<plant>`; the
+`sample_uncertainty` calls of the challenge2 recordings are named `draws`. Criteria: `run_study` and `check_results` are called,
 `/design/study/runs` and `/design/reference` are set, `/verification/passed` is true and
 `verified` holds (gemini's verdict on the recorded design). The recording is hand-written
 (`model: hand-written`, the task file says so): the decisions are by hand, the numbers in the tool

@@ -26,9 +26,24 @@ the whole tree. `event.to_dict()` holds every field and `event_from_dict` rebuil
 | `tool.finished` | `ToolFinished` | `{index, call_id, output_summary, duration, error?}` |
 | `step.finished` | `StepFinished` | `{index, usage, text}`; `text` is the step's full assistant text, `""` if none |
 | `state.changed` | `StateChanged` | `{version, changes}` |
+| `study.recorded` | `StudyRecorded` | `{run, index, call_id, study, tool, method, designs, best?}` |
 | `request` | `RequestMade` | `{request, call_id?, kind, message, options?}` |
 | `usage` | `UsageUpdated` | `{input_tokens, output_tokens, cost}`, running totals |
 | `run.finished` | `RunFinished` | `{status, stop_reason, message?}` |
+
+`study.recorded` is sent once by a study tool, after its artifact `study/<name>` and `studies.index`
+are saved (see [Stored studies](tools.md#stored-studies)); it is public but not one of the ten
+events of the shared contract. `run` is the run that called the tool, `index` its step, `call_id`
+the call (`null` outside a call), `study` the key `study/<name>`, `tool` the study tool, `method`
+the gemini study method (`run`, `minimize`, `sample`, `sensitivity`), `designs` the names of the
+plants it ran over (the `designs.read` references without `design/`) and `best` the reference of
+the design it recommends; like every optional key it is left out of `data()` when `null`.
+Callbacks get it as `on_study_recorded`. A log of 0.3.1 or older has none.
+
+**Unknown types.** A log written by a newer version may hold event types this one lacks. Every
+reader of a log ignores them: `events_from_dicts` skips a `type` that is not in `EVENT_CLASSES`,
+`FileRunStore.load_events` uses it, and the same rule binds the backend's store and stream.
+`event_from_dict` still raises `RunError` for an unknown type, as a direct call asks for one.
 
 `run.started` also stores, not streamed, `versions`: `{geomind, gemini, python}` of the process that
 began the run, on every run, nested ones included; `gemini` is left out when it cannot be imported.

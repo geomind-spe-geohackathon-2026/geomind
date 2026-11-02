@@ -25,6 +25,8 @@ def test_it_is_complete():
             "read_profile",
             "simulate",
             "read_result",
+            "list_studies",
+            "read_study",
             "check_results",
             "optimize",
             "run_study",

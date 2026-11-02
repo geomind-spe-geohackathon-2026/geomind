@@ -5,13 +5,21 @@ import json
 from typing import Literal
 
 from geomind.tools.base import tool
-from geomind.tools.gemini.case import case_of
-from geomind.tools.gemini.stored import load_design, load_run, ran_case, save_design
+from geomind.tools.gemini.case import build_case
+from geomind.tools.gemini.stored import (
+    case_id,
+    check_study_free,
+    design_stem,
+    load_design,
+    load_run,
+    ran_case,
+    save_design,
+    save_study,
+)
 
 STUDY_TIMEOUT_S = 900
 """How long a study tool waits for gemini; a search past it comes back as a ``timeout`` error."""
 CASE_FILE = "case/case.json"
-PLANTS_FOLDER = "plants/"
 
 
 def to_plain(node):
@@ -27,6 +35,39 @@ def to_plain(node):
     return node
 
 
+def study_of(name, settings, case_parts, plants):
+    """Return the ``gm.Study`` named ``name`` over one case and ``{design reference: plant dict}``.
+
+    NOTE: the study names its plants by the references of the stored designs, and its case by
+    ``case/case.json``, which stands for the state's case; ``save_study`` keeps the case's id.
+    """
+    import gemini as gm
+
+    case_data, case_files = case_parts
+    data = {"format": 1, "kind": "study", "name": name, "cases": [CASE_FILE]}
+    data["plants"] = list(plants)
+    data.update({key: value for key, value in settings.items() if value is not None})
+    files = {CASE_FILE: json.dumps(case_data).encode()}
+    files.update({f"case/{file}": content for file, content in case_files.items()})
+    files.update({reference: json.dumps(plant).encode() for reference, plant in plants.items()})
+    return gm.Study.from_dict(data, files=files)
+
+
+def prepared(context, tool_name, name, designs, settings, written):
+    """Return ``(ran case, {reference: plant}, gm.Study, case id)`` of a study about to run.
+
+    The name, the settings and the designs are checked, and so is that the study and the designs
+    it would store are free, before anything long runs.
+    """
+    ran = ran_case(context)
+    plants = {design: load_design(context, design, tool_name) for design in designs}
+    dicts = {design: plant.to_dict(structure=True) for design, plant in plants.items()}
+    study = study_of(name, settings, ran, dicts)
+    case = case_id(ran)
+    check_study_free(context, name, study.to_dict(), case, written, tool_name)
+    return ran, plants, study, case
+
+
 def size_design(plant, case):
     """Return the plant sized for the case, under the backup policy the plant states."""
     import gemini as gm
@@ -34,21 +75,29 @@ def size_design(plant, case):
     return gm.study.size(plant, case)
 
 
-@tool(effect="compute", timeout=STUDY_TIMEOUT_S)
+@tool(effect="compute", timeout=STUDY_TIMEOUT_S, runs_alone=True)
 async def size_plant(context, design: str, name: str):
-    """Size a stored design for the state's case and store the sized plant as design ``name``.
+    """Size a stored design for the state's case; store the sized plant as design ``name``.
 
     The backup policy for the boiler is the plant's own ``params.backup``: ``peak`` covers the
     whole heating peak with the doublets off, ``none`` covers only what the doublets cannot
     reach. The policy has no default: set it in the plant first, as an assumption when the user
-    gave none. Returns the new design reference and gemini's notes: what was ``sized`` with its
-    reason, what stayed ``unchanged``, what is ``broken`` and the ``simulation`` that judged it.
+    gave none. ``name`` names the sized design and the study ``study/<name>`` that records the
+    call; a taken name is refused. Returns the new design reference, the ``study`` key and
+    gemini's notes: what was ``sized`` with its reason, what stayed ``unchanged``, what is
+    ``broken`` and the ``simulation`` that judged it.
     """
-    plant = load_design(context, design, "size_plant")
-    case = case_of(context)
-    sized = await asyncio.to_thread(size_design, plant, case)
+    settings = {"method": "run", "prepare": ["size"]}
+    written = [f"design/{name}"]
+    ran, plants, study, case = prepared(context, "size_plant", name, [design], settings, written)
+    sized = await asyncio.to_thread(size_design, plants[design], build_case(*ran))
     reference = await save_design(context, name, sized)
-    return {"design": reference, "sizing": to_plain(sized.sizing)}
+    result = {"sizing": to_plain(sized.sizing)}
+    found = (study.to_dict(), result)
+    key = await save_study(
+        context, name, "size_plant", found, ([design], [reference]), reference, case
+    )
+    return {"design": reference, "study": key, "sizing": result["sizing"]}
 
 
 def minimize_design(plant, case, objective, evaluations, seed):
@@ -58,31 +107,48 @@ def minimize_design(plant, case, objective, evaluations, seed):
     return gm.study.minimize(plant, case, objective, evaluations, seed)
 
 
-@tool(effect="compute", timeout=STUDY_TIMEOUT_S)
+def minimized(found):
+    """Return gemini's plain form of a search: the best without its plant, as a study keeps it."""
+    best = found["best"].to_dict() | {"plant": None}
+    return {"best": best, "feasible": found["feasible"], "evaluations": found["evaluations"]}
+
+
+@tool(effect="compute", timeout=STUDY_TIMEOUT_S, runs_alone=True)
 async def optimize(context, design: str, objective: str, evaluations: int, seed: int, name: str):
     """Search a stored design for the values that minimise a metric; store the best as ``name``.
 
     ``objective`` is a metric such as ``lcts``, ``lcoh``, ``lcoc``, ``annualised_cost`` or ``co2``;
     a leading ``-`` maximises it. The variables are the ranges and options of the design (set them
     with ``set_ranges``); a design with none is gemini's error. The constraints are the case's
-    requirements, which the user owns. ``evaluations`` and ``seed`` have no default. Returns the
-    ``best`` (its value, parameters and plant, in display units), ``feasible``, the ``trials``
-    run and the stored ``design``. When no trial is feasible the best is the least violating one
-    and its ``reason`` says why. A search that takes longer than 15 minutes comes back as a
-    ``timeout`` error: ask for fewer evaluations.
+    requirements, which the user owns. ``evaluations`` and ``seed`` have no default. ``name``
+    names the stored best design and the study ``study/<name>`` that records the call; a taken
+    name is refused. Returns the ``best`` (its value, parameters and plant, in display units),
+    ``feasible``, the ``trials`` run, the stored ``design`` and the ``study`` key. When no trial
+    is feasible the best is the least violating one and its ``reason`` says why. A search that
+    takes longer than 15 minutes comes back as a ``timeout`` error: ask for fewer evaluations.
     """
-    plant = load_design(context, design, "optimize")
-    case = case_of(context)
-    found = await asyncio.to_thread(minimize_design, plant, case, objective, evaluations, seed)
+    settings = {"method": "minimize", "objective": objective, "evaluations": evaluations}
+    settings["seed"] = seed
+    written = [f"design/{name}"]
+    ran, plants, study, case = prepared(context, "optimize", name, [design], settings, written)
+    found = await asyncio.to_thread(
+        minimize_design, plants[design], build_case(*ran), objective, evaluations, seed
+    )
     best = found["best"]
     result = {
         "best": best.to_dict(),
         "feasible": found["feasible"],
         "trials": len(found["history"]),
     }
+    wrote = []
     if best["plant"] is not None:
-        result["design"] = await save_design(context, name, best["plant"])
-    return result
+        wrote = [await save_design(context, name, best["plant"])]
+    recommended = wrote[0] if wrote and found["feasible"] else None
+    recorded = (study.to_dict(), minimized(found))
+    key = await save_study(
+        context, name, "optimize", recorded, ([design], wrote), recommended, case
+    )
+    return result | {"study": key} | ({"design": wrote[0]} if wrote else {})
 
 
 def sample_design(plant, case, metrics, samples, seed):
@@ -92,19 +158,28 @@ def sample_design(plant, case, metrics, samples, seed):
     return gm.study.sample(plant, case, metrics, samples, seed)
 
 
-@tool(effect="compute", timeout=STUDY_TIMEOUT_S)
-async def sample_uncertainty(context, design: str, metrics: list[str], samples: int, seed: int):
+@tool(effect="compute", timeout=STUDY_TIMEOUT_S, runs_alone=True)
+async def sample_uncertainty(
+    context, design: str, metrics: list[str], samples: int, seed: int, name: str
+):
     """Sample a stored design over the uncertainty the case declares; return a summary per metric.
 
     The distributions are only those of the case's ``uncertainty`` (set them with ``set_case``);
     a case without any is an error. ``samples`` draws are simulated, one run each, from ``seed``.
-    Each metric has ``mean``, ``p5``, ``p50`` and ``p95`` in display units and ``failed``, the
-    number of draws left out because their run had failed steps.
+    ``name`` names the study ``study/<name>`` that records the call; a taken name is refused.
+    Returns the ``study`` key and, in ``summary``, each metric's ``mean``, ``p5``, ``p50`` and
+    ``p95`` in display units and ``failed``, the number of draws left out because their run had
+    failed steps.
     """
-    plant = load_design(context, design, "sample_uncertainty")
-    case = case_of(context)
-    sample = await asyncio.to_thread(sample_design, plant, case, metrics, samples, seed)
-    return to_plain(sample.to_dict())
+    settings = {"method": "sample", "metrics": metrics, "samples": samples, "seed": seed}
+    ran, plants, study, case = prepared(context, "sample_uncertainty", name, [design], settings, [])
+    sample = await asyncio.to_thread(
+        sample_design, plants[design], build_case(*ran), metrics, samples, seed
+    )
+    result = to_plain(sample.to_dict())
+    found = (study.to_dict(), result)
+    key = await save_study(context, name, "sample_uncertainty", found, ([design], []), None, case)
+    return {"study": key, **result}
 
 
 def sensitivity_of_design(plant, case, metrics):
@@ -114,37 +189,24 @@ def sensitivity_of_design(plant, case, metrics):
     return gm.study.sensitivity(plant, case, metrics)
 
 
-@tool(effect="compute", timeout=STUDY_TIMEOUT_S)
-async def sensitivity(context, design: str, metrics: list[str]):
+@tool(effect="compute", timeout=STUDY_TIMEOUT_S, runs_alone=True)
+async def sensitivity(context, design: str, metrics: list[str], name: str):
     """Rank the case's uncertain values by their effect on the metrics of a stored design.
 
-    Each value the case declares an ``uncertainty`` for is set at its low and high bound; the list
-    is sorted by effect, each item ``{parameter, metric, low, high, at_low, at_high, effect}``.
+    Each value the case declares an ``uncertainty`` for is set at its low and high bound. ``name``
+    names the study ``study/<name>`` that records the call; a taken name is refused. Returns the
+    ``study`` key and ``rows``, sorted by effect, each ``{parameter, metric, low, high, at_low,
+    at_high, effect}``.
     """
-    plant = load_design(context, design, "sensitivity")
-    case = case_of(context)
-    tornado = await asyncio.to_thread(sensitivity_of_design, plant, case, metrics)
-    return to_plain(tornado.to_dict())
-
-
-def design_stem(design):
-    """Return the name of a stored design reference, ``design/<name>`` without its prefix."""
-    return design.rsplit("/", 1)[-1]
-
-
-def study_of(settings, case_parts, plants):
-    """Return the ``gm.Study`` over one case and the plants ``{name: plant dict}``."""
-    import gemini as gm
-
-    case_data, case_files = case_parts
-    data = {"format": 1, "kind": "study", "name": "study", "cases": [CASE_FILE]}
-    data["plants"] = [f"{PLANTS_FOLDER}{name}.json" for name in plants]
-    data.update({key: value for key, value in settings.items() if value is not None})
-    files = {CASE_FILE: json.dumps(case_data).encode()}
-    files.update({f"case/{name}": content for name, content in case_files.items()})
-    for name, plant in plants.items():
-        files[f"{PLANTS_FOLDER}{name}.json"] = json.dumps(plant).encode()
-    return gm.Study.from_dict(data, files=files)
+    settings = {"method": "sensitivity", "metrics": metrics}
+    ran, plants, study, case = prepared(context, "sensitivity", name, [design], settings, [])
+    tornado = await asyncio.to_thread(
+        sensitivity_of_design, plants[design], build_case(*ran), metrics
+    )
+    result = to_plain(tornado.to_dict())
+    found = (study.to_dict(), result)
+    key = await save_study(context, name, "sensitivity", found, ([design], []), None, case)
+    return {"study": key, **result}
 
 
 def study_runs(study):
@@ -177,11 +239,23 @@ def run_entry(run, entry, reference):
     return result
 
 
-@tool(effect="compute", timeout=STUDY_TIMEOUT_S)
+async def store_runs(context, name, result):
+    """Store the plant each run ended with as ``design/<name>_<plant>``; return the runs shown."""
+    comparison = result.to_dict()["comparison"]
+    runs = []
+    for run in result.runs:
+        reference = await save_design(context, f"{name}_{run.plant_name}", run.plant)
+        entries = ranked_entries(comparison, run.case_name)
+        runs.append(run_entry(run, entries.get(len(runs)), reference))
+    return runs
+
+
+@tool(effect="compute", timeout=STUDY_TIMEOUT_S, runs_alone=True)
 async def run_study(
     context,
     designs: list[str],
     method: Literal["run", "minimize", "sample", "sensitivity"],
+    name: str,
     objective: str | None = None,
     metrics: list[str] | None = None,
     evaluations: int | None = None,
@@ -196,28 +270,28 @@ async def run_study(
     ``sensitivity``; ``prepare=["size"]`` sizes each design first, under its own ``params.backup``.
     The settings a method needs are gemini's: ``minimize`` needs ``objective``, ``evaluations``
     and ``seed``; ``sample`` needs ``metrics``, ``samples`` and ``seed``; ``sensitivity`` needs
-    ``metrics``. A missing or unread setting is gemini's error; none has a default. Returns
-    ``runs``, one per design in order: ``plant_name``, ``feasible``, ``verdict``, ``metrics`` in
-    display units, ``ranks`` and ``pareto`` (rank 1 is best, over the objective then the metrics),
-    ``note``, what the method ``found`` and the stored ``design`` the run ended with (the sized or
-    the best plant). ``best`` names the feasible design ranked first by the objective, if any.
+    ``metrics``. A missing or unread setting is gemini's error; none has a default. ``name``
+    names the study ``study/<name>`` that records the call, and each design it ends with is
+    stored as ``design/<name>_<plant name>``; a taken name is refused. Returns the ``study`` key
+    and ``runs``, one per design in order: ``plant_name``, ``feasible``, ``verdict``, ``metrics``
+    in display units, ``ranks`` and ``pareto`` (rank 1 is best, over the objective then the
+    metrics), ``note``, what the method ``found`` and the stored ``design`` the run ended with
+    (the sized or the best plant). ``best`` names the feasible design ranked first by the
+    objective, if any.
     """
-    ran = ran_case(context)
-    plants = {design_stem(design): load_design(context, design, "run_study") for design in designs}
     settings = {"method": method, "objective": objective, "metrics": metrics, "seed": seed}
     settings |= {"evaluations": evaluations, "samples": samples, "prepare": prepare}
-    study = study_of(
-        settings, ran, {name: plant.to_dict(structure=True) for name, plant in plants.items()}
-    )
+    written = [f"design/{name}_{design_stem(design)}" for design in designs]
+    _, _, study, case = prepared(context, "run_study", name, designs, settings, written)
     result = await asyncio.to_thread(study_runs, study)
-    comparison = result.to_dict()["comparison"]
-    runs = []
-    for run in result.runs:
-        reference = await save_design(context, f"{run.plant_name}_best", run.plant)
-        entries = ranked_entries(comparison, run.case_name)
-        runs.append(run_entry(run, entries.get(len(runs)), reference))
-    best = {name: None if run is None else run.plant_name for name, run in result.best.items()}
-    return {"runs": runs, "best": best}
+    runs = await store_runs(context, name, result)
+    best = {case_name: run and run.plant_name for case_name, run in result.best.items()}
+    stored = {item["plant_name"]: item["design"] for item in runs}
+    first = next((plant for plant in best.values() if plant is not None), None)
+    found = (study.to_dict(), result.to_dict())
+    kept = (designs, [item["design"] for item in runs])
+    key = await save_study(context, name, "run_study", found, kept, stored.get(first), case)
+    return {"study": key, "runs": runs, "best": best}
 
 
 def compare_runs(runs, by):

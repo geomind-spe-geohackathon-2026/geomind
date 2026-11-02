@@ -29,6 +29,7 @@ PUBLIC_EVENTS = (
     "tool.finished",
     "step.finished",
     "state.changed",
+    "study.recorded",
     "request",
     "usage",
     "run.finished",

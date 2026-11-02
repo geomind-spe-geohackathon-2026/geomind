@@ -6,6 +6,7 @@ from geomind.errors import RunError
 from geomind.stores.run import FileRunStore, MemoryRunStore
 from geomind.types import Message
 from geomind.types.events import StepStarted
+from geomind.utils.json import append_line
 from tests.fixtures.runs import call, run, says, uses
 
 
@@ -119,3 +120,19 @@ def test_file_store_layout_of_a_chat_artifact(tmp_path):
     assert (tmp_path / "chats/c/artifacts/design/d.json").is_file()
     with pytest.raises(RunError, match="expected letters"):
         store.save_chat_artifact("c", "case/../x", b"x")
+
+
+def test_the_file_store_skips_an_event_type_it_does_not_know(tmp_path):
+    """A log written by a newer version loads without the events this version lacks."""
+    store = FileRunStore(tmp_path)
+    store.save_event("r", StepStarted(run_id="r", index=1))
+    append_line(tmp_path / "r" / "events.jsonl", {"type": "from.the.future", "run_id": "r"})
+    store.save_event("r", StepStarted(run_id="r", index=2))
+    assert [event.index for event in store.load_events("r")] == [1, 2]
+
+
+def test_a_study_is_an_artifact_key_of_the_file_store(tmp_path):
+    """``study/<name>`` is a reference kind like ``design/<name>``."""
+    store = FileRunStore(tmp_path)
+    store.save_chat_artifact("c", "study/s", {"a": 1})
+    assert store.load_chat_artifact("c", "study/s") == {"a": 1}

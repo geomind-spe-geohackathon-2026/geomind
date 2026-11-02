@@ -103,7 +103,7 @@ async def dispatch(tool, call, context):
         output = error_output(error)
         return _result(tool, call, started, output, is_error=True, is_validation=True)
     try:
-        output = await _call(tool, arguments, context)
+        output = await _call(tool, arguments, context.for_call(call.id))
     except TimeoutError:
         error = ToolError(f"{tool.name}: timed out after {tool.timeout} s", code="timeout")
         return _result(tool, call, started, error_output(error), is_error=True)

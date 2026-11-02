@@ -14,6 +14,7 @@ CALLBACK_METHODS = {
     "tool.finished": "on_tool_end",
     "permission": "on_permission",
     "state.changed": "on_state_change",
+    "study.recorded": "on_study_recorded",
     "request": "on_request",
     "step.finished": "on_step_end",
     "error": "on_error",
@@ -61,6 +62,9 @@ class Callback:
 
     def on_state_change(self, engine, event):
         """Observe a change of the problem state."""
+
+    def on_study_recorded(self, engine, event):
+        """Observe a study stored in the chat."""
 
     def on_request(self, engine, event):
         """Observe a pause; the request is already in the log."""

@@ -14,6 +14,8 @@ def test_it_is_complete():
             "case_changes",
             "read_plant",
             "read_result",
+            "list_studies",
+            "read_study",
             "compute_kpis",
             "estimate_costs",
             "search_documents",

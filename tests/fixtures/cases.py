@@ -87,3 +87,23 @@ async def case_context(name, session=None, project=None):
     for file, content in files.items():
         await session.save_artifact(f"case/{file}", content)
     return Context(session=session, problem=ProblemState(case=data), project=project)
+
+
+async def engine_context(name, project=None):
+    """Return ``(context, events)``: a case context over a real session, with the run's event list.
+
+    NOTE: the session is the engine's own, so a design is write-once and an event is saved before
+    anything acts on it, as in a run; ``events`` fills as the tools emit.
+    """
+    from geomind.engine.log import RunLog
+    from geomind.engine.session import RunSession
+    from geomind.engine.state import RunState
+    from tests.fixtures.runs import Worker, engine_for
+
+    engine = engine_for([])
+    log = RunLog(engine, "r1")
+    state = RunState(root="r1", run_id="r1", chat="chat", agent="worker")
+    session = RunSession(engine, log, state, Worker())
+    context = await case_context(name, session=session, project=project)
+    state.problem = context.problem
+    return context, engine.store.events.setdefault("r1", [])

@@ -41,16 +41,20 @@ study and keep the best feasible one. You compute nothing yourself: every number
 - `test_module`: check a module you wrote with gemini's module check, in gemini's sandbox; it
   returns `passed` and gemini's problems with their path.
 - `size_plant`: size a stored design for the case and store it as a new design, under the backup
-  policy the plant states in `params.backup`.
+  policy the plant states in `params.backup`; its `name` also names the study `study/<name>`.
 - `list_profiles`: the case's demand profiles and their dates.
 - `read_profile`: a demand profile, or a window of it.
 - `simulate`: run a design on the case; it returns a result reference and a summary.
 - `read_result`: read a stored result.
+- `list_studies`: the studies stored in this chat: key, tool, method, plants, best design, and
+  `current`, whether the case is still the one the study ran on.
+- `read_study`: a stored study: the study file that ran, gemini's result, the designs it read and wrote.
 - `check_results`: gemini's verdict of a result against the case: `feasible`, its `reasons` and
   the `requirements` it judged.
 - `optimize`: search a stored design over its ranges for the values that minimise an objective,
   with the best stored as a new design and `feasible` saying whether any trial was feasible.
-- `run_study`: one study over several stored designs on the case, ranking them.
+- `run_study`: one study over several stored designs on the case, ranking them; each design it ends
+  with is stored as `design/<study name>_<plant name>`.
 - `search_documents`: the project's documents, when there is a project.
 - `update_state`: record requirements, assumptions, the design families and the current design.
 - `read_skill`: read `designing-a-plant` before you build, and `gemini-units` before you use units.
@@ -97,7 +101,7 @@ study and keep the best feasible one. You compute nothing yourself: every number
   design brings its own ranges and `params.backup`. Keep the feasible design the study ranks first
   (`best`), `simulate` it for the whole year and take it as the final design. When none is
   feasible, change the topologies or ranges and study again.
-- Record the study in `design.study`: `{designs, method, objective, evaluations, seed, best,
+- Record the study in `design.study`: `{key, designs, method, objective, evaluations, seed, best,
   runs: [{design, feasible, ranks, metrics}]}` as the tool returned them, so that the economist
   and the explainer can read the ranking.
 - Simulate the whole year (no `start` or `end`) of the final design, so that its result is fresh:
@@ -112,6 +116,13 @@ study and keep the best feasible one. You compute nothing yourself: every number
 - Record the other families you built and simulated for the whole year as `design.alternatives`,
   a list of `{family, design, result}`, beside `design.start_result`. Never record a family you
   did not simulate.
+- Every study gets a name of its own (`name` on `size_plant`, `optimize` and `run_study`): a short
+  word for what it does, never reused, because a taken name is refused. The tool returns the study
+  as `study/<name>`; a study never changes after it is stored. Use `list_studies` to see the studies
+  of the chat before you run one again, and to see whether a study is `current`: one that ran on an
+  older case is not evidence for this one.
+- Cite the study key (`study/<name>`) that every comparison, ranking or choice of a design relies
+  on, in the state (`design.study` holds it as `key`) and in your answer.
 - A tool error tells you what to fix: gemini's path, message and suggestions. Read it, correct the
   call and try again. `not_implemented` will not work later: record it on the family and move on.
 

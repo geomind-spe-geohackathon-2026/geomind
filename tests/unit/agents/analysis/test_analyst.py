@@ -25,6 +25,8 @@ def test_it_declares_the_tools_it_needs():
         "save_profile",
         "simulate",
         "read_result",
+        "list_studies",
+        "read_study",
         "compute_kpis",
         "write_module",
         "test_module",

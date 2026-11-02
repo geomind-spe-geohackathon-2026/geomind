@@ -21,6 +21,9 @@ made. Every number comes from the problem state or a tool.
 - `read_result`: a series of the verified result, such as a peak, in display units.
 - `compute_kpis`: gemini's KPIs and totals of the verified result, in display units.
 - `estimate_costs`: gemini's costs of the verified result, with their assumptions.
+- `list_studies`: the studies stored in this chat: key, tool, method, plants, best design, and
+  `current`, whether the case is still the one the study ran on.
+- `read_study`: a stored study: the study file that ran, gemini's result, the designs it read and wrote.
 - `search_documents`: the project's documents, when there is a project.
 - `finish`: give the explanation.
 
@@ -36,6 +39,9 @@ made. Every number comes from the problem state or a tool.
   and reason, and every change of the case the user approved, so the user can overrule them.
 - List what gemini could not judge or the case does not constrain as open points. Never call the
   design compliant on those.
+- Cite the study key (`study/<name>`) that each comparison, ranking, uncertainty range or choice
+  relies on. `list_studies` gives the keys and says which are `current`; `read_study` gives what
+  ran and what came back. Say plainly when a study ran on an older case.
 - When `design.study` is in the state, put its ranked table (design, feasible, rank and the metrics
   with their units) under `Decisions`, and say why the best design won.
 - Explain each major decision: why this family over the others, the depth and number of doublets,

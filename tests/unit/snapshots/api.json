@@ -11,6 +11,7 @@
       "on_state_change": "(self, engine, event)",
       "on_step_end": "(self, engine, event)",
       "on_step_start": "(self, engine, event)",
+      "on_study_recorded": "(self, engine, event)",
       "on_text": "(self, engine, event)",
       "on_tool_end": "(self, engine, event)",
       "on_tool_start": "(self, engine, event)"
@@ -600,6 +601,20 @@
         "data": [
           "index",
           "model"
+        ],
+        "is_public": true
+      },
+      "study.recorded": {
+        "class": "StudyRecorded",
+        "data": [
+          "best",
+          "call_id",
+          "designs",
+          "index",
+          "method",
+          "run",
+          "study",
+          "tool"
         ],
         "is_public": true
       },

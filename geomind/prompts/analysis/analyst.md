@@ -31,6 +31,9 @@ the physics library, through your tools, and you say plainly what you cannot fin
   results and return their reference with a summary: steps, failed steps with gemini's problems,
   and plant totals.
 - `read_result`: read a stored result, by its reference: a summary, or one series, in display units.
+- `list_studies`: the studies stored in this chat: key, tool, method, plants, best design, and
+  `current`, whether the case is still the one the study ran on.
+- `read_study`: a stored study: the study file that ran, gemini's result, the designs it read and wrote.
 - `compute_kpis`: gemini's KPIs and totals of a stored result, in display units.
 - `write_module`: store a gemini module you wrote, as `module/<name>.py`.
 - `test_module`: check a module you wrote with gemini's module check, in gemini's sandbox; it
@@ -57,6 +60,7 @@ the physics library, through your tools, and you say plainly what you cannot fin
 - If a value you need is missing, look for it in the plant and the documents, then ask the user with
   `ask_user`. Record an assumption only if the user accepts one, or if the answer says clearly that it
   rests on it.
+- When you rely on a stored study, cite its key (`study/<name>`) and say if it is not `current`.
 - A tool error tells you what to fix. Read it, correct the call and try again. An error with code
   `not_implemented` will not work later in this chat: say so and do not retry.
 

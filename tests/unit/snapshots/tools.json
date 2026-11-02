@@ -427,6 +427,19 @@
       "late_schemas": [],
       "name": "list_profiles"
     },
+    "list_studies": {
+      "description": "List the studies stored in this chat: what ran, over which designs, and whether it is current.",
+      "effect": "read",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "title": "list_studies_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "list_studies"
+    },
     "optimize": {
       "description": "Search a stored design for the values that minimise a metric; store the best as ``name``.",
       "effect": "compute",
@@ -700,6 +713,27 @@
       "late_schemas": [],
       "name": "read_skill"
     },
+    "read_study": {
+      "description": "Read a stored study: what ran, what came back, the designs it read and wrote, and its case.",
+      "effect": "read",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "study": {
+            "title": "Study",
+            "type": "string"
+          }
+        },
+        "required": [
+          "study"
+        ],
+        "title": "read_study_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "read_study"
+    },
     "run_python": {
       "description": "Run Python code in the sandbox and return its exit code and output.",
       "effect": "execute",
@@ -772,6 +806,10 @@
             "default": null,
             "title": "Metrics"
           },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
           "objective": {
             "anyOf": [
               {
@@ -827,7 +865,8 @@
         },
         "required": [
           "designs",
-          "method"
+          "method",
+          "name"
         ],
         "title": "run_study_input",
         "type": "object"
@@ -853,6 +892,10 @@
             "title": "Metrics",
             "type": "array"
           },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
           "samples": {
             "title": "Samples",
             "type": "integer"
@@ -866,7 +909,8 @@
           "design",
           "metrics",
           "samples",
-          "seed"
+          "seed",
+          "name"
         ],
         "title": "sample_uncertainty_input",
         "type": "object"
@@ -966,11 +1010,16 @@
             },
             "title": "Metrics",
             "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
           }
         },
         "required": [
           "design",
-          "metrics"
+          "metrics",
+          "name"
         ],
         "title": "sensitivity_input",
         "type": "object"
@@ -1171,7 +1220,7 @@
       "name": "simulate"
     },
     "size_plant": {
-      "description": "Size a stored design for the state's case and store the sized plant as design ``name``.",
+      "description": "Size a stored design for the state's case; store the sized plant as design ``name``.",
       "effect": "compute",
       "idempotent": true,
       "input_schema": {
