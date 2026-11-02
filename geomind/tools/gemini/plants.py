@@ -126,14 +126,7 @@ def plant_issues(context, plant):
 
     if context.problem.case is None:
         return {"checked_against": "plant", "issues": [issue_dict(i) for i in plant.check()]}
-    try:
-        issues = gm.check(plant, case_of(context))
-    except gm.errors.ValidationError as error:
-        return {
-            "checked_against": "plant",
-            "issues": [issue_dict(i) for i in plant.check()],
-            "gemini_error": error.to_dict(),
-        }
+    issues = gm.check(plant, case_of(context))
     return {"checked_against": "case", "issues": [issue_dict(i) for i in issues]}
 
 
@@ -190,9 +183,7 @@ def read_plant(
     ``options`` and ``issues`` (what is wrong or missing, with path, kind, quantity and accepted
     units). With a case in the state the issues come from ``gm.check(plant, case)`` and
     ``checked_against`` is ``case``; without one they come from the plant alone (``plant``),
-    which lists as missing what the case would fill. When gemini cannot check the plant against
-    the case (a class has no values), the issues are the plant's own, ``checked_against`` is
-    ``plant`` and ``gemini_error`` holds gemini's message. A class is read without values: every
+    which lists as missing what the case would fill. A class is read without values: every
     parameter it needs is missing until you fill it in a plant file.
     """
     import gemini as gm

@@ -164,8 +164,8 @@ async def test_a_class_name_reads_as_a_plant_with_its_missing_values(gm):
 
 
 @pytest.mark.parametrize("example", ["hackathon_2026", "shallow_district"])
-async def test_a_class_read_with_a_case_reports_the_plant_issues_and_gemini_s_error(example):
-    """Gemini's check raises for a class with a case: the plant's own issues come back instead."""
+async def test_a_class_read_with_a_case_lists_what_it_lacks_against_the_case(example):
+    """A class has no values: gemini's check against the case lists them, and does not raise."""
     session = StubSession()
     context = await case_context(example, session)
     result = await call(
@@ -175,10 +175,10 @@ async def test_a_class_read_with_a_case_reports_the_plant_issues_and_gemini_s_er
         problem=context.problem,
     )
     assert not result.is_error
-    output = session.artifacts[result.output["reference"]]
-    assert output["checked_against"] == "plant"
-    assert output["issues"]
-    assert output["gemini_error"]["message"]
+    output = result.output
+    assert output["checked_against"] == "case"
+    paths = {issue["path"] for issue in output["issues"]}
+    assert "params.heat_pump.mode" in paths
 
 
 async def test_an_unknown_class_name_is_gemini_s_problem_with_suggestions():
