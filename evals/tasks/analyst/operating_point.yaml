@@ -1,13 +1,15 @@
-message: At its setting of 60 Hz, with 42.92 kg/s of brine at 80 degC and 20 bar at the suction, what
-  discharge pressure does the doublet's ESP give?
-plant: evals/projects/doublet
+# Hand-written recording (decisions by hand, every reference and number from the real tools); the live run replaces it.
+message: An ESP has 15 stages, head coefficients per stage [125.518426, -0.0020852856, 2.28955651e-07,
+  -1.45640214e-11, 2.37859645e-16, -1.18258356e-21], power coefficients all zero, pump type DEFAULT-PUMP,
+  setting depth 600 m, motor efficiency 1, minimum flow 82 m3/h, maximum flow 178 m3/h, best efficiency
+  flow 130 m3/h, correction factors [1, 0], tubing 0.1778 m and drift threshold 0.1. At its setting of
+  60 Hz, with 42.92 kg/s of brine at 80 degC and 20 bar at the suction, what discharge pressure does it
+  give?
 criteria:
 - kind: number
-  value: 5535247
+  value: 5535247.0
   tolerance: 1000
   unit: Pa
-- kind: tool
-  tool: read_plant
 - kind: tool
   tool: evaluate_module
 - kind: state

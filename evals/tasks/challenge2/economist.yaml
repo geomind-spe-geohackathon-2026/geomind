@@ -1,0 +1,21 @@
+# Hand-written recording (decisions by hand, every reference and number from the real tools); the live run replaces it.
+message: 'Design a deep-geothermal heating and cooling plant for the project''s case: its 2027 daily heating
+  and cooling demand, its reservoir and brine, and its requirements. Start from the plant class HeatingHeatPumpCoolingPlant.
+  Size the plant with the peak backup policy (a boiler that covers the whole heating peak), then optimise
+  the levelised cost of thermal service (objective lcts) over the plant''s own ranges with 30 evaluations
+  and seed 0. The case''s gas price is its own; give the levelised cost of thermal service with its uncertainty.'
+answers:
+- Use the project's case.
+plant: evals/projects/higher_gas
+criteria:
+- kind: tool
+  tool: estimate_costs
+- kind: tool
+  tool: sample_uncertainty
+- kind: state
+  path: /results/costs
+- kind: number
+  value: 42.113295410161946
+  tolerance: 0.1
+  unit: EUR/MWh
+- kind: verified

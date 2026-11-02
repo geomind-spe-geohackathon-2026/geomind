@@ -1,0 +1,14 @@
+# Hand-written recording (decisions by hand, every reference and number from the real tools); the live run replaces it.
+message: Design a district heating and cooling plant for the project's case, starting from the plant class
+  HeatingHeatPumpCoolingPlant. Size the plant with the peak backup policy (a boiler that covers the whole
+  heating peak), then optimise the levelised cost of thermal service (objective lcts) over the plant's
+  own ranges with 30 evaluations and seed 0.
+answers:
+- Use the project's case.
+plant: evals/projects/shallow_district
+criteria:
+- kind: tool
+  tool: check_results
+- kind: state
+  path: /verification/result
+- kind: verified

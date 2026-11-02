@@ -110,14 +110,16 @@ Criterion = Annotated[
 class Task(Record):
     """One task file; ``plant`` is a project folder and ``answers`` reply to questions in order.
 
-    The folder holds ``case.json`` with its demand file, and ``plant.json`` when the task starts
-    from a plant.
+    The folder is gemini's project layout: ``case.json``, ``economics.json``, ``data/`` and, when
+    the task starts from a plant, one file in ``plants/``. ``max_steps`` caps the steps of every
+    agent of the run, for a task about a tight budget.
     """
 
     message: str
     plant: str | None = None
     history: tuple[gd.Message, ...] = ()
     answers: tuple[str, ...] = ()
+    max_steps: int | None = None
     criteria: tuple[Criterion, ...]
 
 

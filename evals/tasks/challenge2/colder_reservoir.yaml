@@ -1,24 +1,24 @@
 # Hand-written recording (decisions by hand, every reference and number from the real tools); the live run replaces it.
 message: 'Design a deep-geothermal heating and cooling plant for the project''s case: its 2027 daily heating
-  and cooling demand, its reservoir and brine, and its constraints. Change one thing: the geothermal gradient
-  is 25 K/km, not 30 K/km. Size the plant with the peak backup policy (a boiler that covers the whole
-  heating peak), then optimise the levelised cost of thermal service (objective lcts) over the case''s
-  choices (no other variables) with 12 evaluations. Give the levelised cost of thermal service of your
-  design.'
+  and cooling demand, its reservoir and brine, and its requirements. Start from the plant class HeatingHeatPumpCoolingPlant.
+  Change one thing: the geothermal gradient is 25 K/km, not 30 K/km. Size the plant with the peak backup
+  policy (a boiler that covers the whole heating peak), then optimise the levelised cost of thermal service
+  (objective lcts) over the plant''s own ranges with 30 evaluations and seed 0. Give the levelised cost
+  of thermal service of your design.'
 answers:
 - Use the project's case.
 - approve
 plant: evals/projects/hackathon
 criteria:
 - kind: state
-  path: /case/environment/ground/gradient/value
+  path: /case/site/ground/gradient/value
   equals: 25
 - kind: number
-  value: 46.82
+  value: 50.900350048857746
   tolerance: 0.1
   unit: EUR/MWh
 - kind: verified
   checks:
-  - heat_users.unmet_demand
-  - cool_users.unmet_sensible
-  - d0.brine_cooling
+  - heat_delivered
+  - cold_delivered
+  - brine_cooling_limit

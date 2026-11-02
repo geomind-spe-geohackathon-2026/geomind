@@ -205,22 +205,22 @@ def test_run_writes_a_manifest_beside_its_log(service, gm, capsys):
 
 @example_names
 def test_the_manifest_hashes_the_project_s_case_files(service, name, capsys):
-    """The case, its demand file and the plant are hashed, so a run names the data it read."""
+    """The case, the files it names and the plants are hashed, so a run names the data it read."""
     import hashlib
     import shutil
 
     folder = example_folder(name)
     project = Path("site") / name
-    project.mkdir(parents=True)
-    for file in ("case.json", "demand.csv"):
-        shutil.copy(folder / file, project / file)
+    shutil.copytree(folder, project, ignore=shutil.ignore_patterns("*.pdf", "*.md", "study*"))
     service += [routed_answer(), answer("Hello")]
     cli.main(["run", "Say hello", "--project", str(project)])
     manifest = json.loads((Path(run_folder()) / "run_manifest.json").read_text())
-    for file in ("case.json", "demand.csv"):
+    plants = sorted(f"plants/{path.name}" for path in (folder / "plants").glob("*.json"))
+    files = ["case.json", "economics.json", "data/demand.csv", *plants]
+    for file in files:
         expected = hashlib.sha256((project / file).read_bytes()).hexdigest()
         assert manifest["inputs"][f"project/{file}"]["sha256"] == expected
-    assert set(manifest["inputs"]) == {"project/case.json", "project/demand.csv"}
+    assert set(manifest["inputs"]) == {f"project/{file}" for file in files}
 
 
 def test_a_design_run_needs_a_project_with_a_case(service, capsys):
