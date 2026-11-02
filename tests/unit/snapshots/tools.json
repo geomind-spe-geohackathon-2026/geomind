@@ -402,7 +402,7 @@
       "name": "list_modules"
     },
     "list_plants": {
-      "description": "List the plant classes with their summary, capabilities (with ranges) and roles.",
+      "description": "List the plant classes and the project's plant files, with capabilities and roles.",
       "effect": "read",
       "idempotent": true,
       "input_schema": {
@@ -516,7 +516,7 @@
       "name": "read_file"
     },
     "read_plant": {
-      "description": "Read the project's plant, a stored design or a plant class: file, ranges, issues.",
+      "description": "Read a project plant file, a stored design or a plant class: file, ranges, issues.",
       "effect": "read",
       "idempotent": true,
       "input_schema": {
@@ -545,6 +545,18 @@
             ],
             "default": null,
             "title": "Plant Class"
+          },
+          "project_plant": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Project Plant"
           }
         },
         "title": "read_plant_input",
@@ -1296,5 +1308,5 @@
       "name": "write_module"
     }
   },
-  "version": "0.2.0"
+  "version": "0.3.0"
 }

@@ -44,8 +44,9 @@ the problem state as `update_state` does.
 
 ### gemini mapping
 
-Every name is public in `gemini/.claude/docs/api.md` at `gm.__version__ = "0.2.0"`. Check again before
-filling a stub, because gemini's names change.
+Every name is public in `gemini/.claude/docs/api.md`. geomind 0.3.0 supports gemini `>=0.5,<0.6`
+(the pin in `pyproject.toml`; `tests/unit/test_gemini_names.py` fails on another installed version).
+gemini's API is frozen from 0.5.0; a breaking gemini release needs a new geomind minor version.
 
 | Tool | gemini public names | Status |
 |---|---|---|
