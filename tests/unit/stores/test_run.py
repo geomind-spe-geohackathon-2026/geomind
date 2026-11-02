@@ -62,7 +62,7 @@ def test_file_store_refuses_unsafe_names(tmp_path, name):
 
 
 @pytest.mark.parametrize("data", [b"x", {"a": 1}])
-@pytest.mark.parametrize("key", ["design/doublet", "result/r1"])
+@pytest.mark.parametrize("key", ["design/doublet", "result/r1", "module/heat_store.py"])
 def test_file_store_keeps_the_frozen_references(tmp_path, key, data):
     """The two reference formats of ``tools.md`` are keys."""
     store = FileRunStore(tmp_path)
