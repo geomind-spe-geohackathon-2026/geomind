@@ -8,36 +8,69 @@ from geomind.tools.base import tool
 from geomind.tools.gemini.case import case_of
 from geomind.tools.gemini.references import reference_schema
 from geomind.tools.gemini.stored import load_design, save_design
+from geomind.utils.strings import did_you_mean, join_names
 
 
 def plant_schema():
-    """Return gemini's plant schema, which ``build_plant`` offers as the input ``plant``."""
-    import gemini as gm
+    """Return the short schema ``build_plant`` offers as the input ``plant``.
 
-    return gm.plants.schema()
+    The full schema is large and is sent with every call, so the tool offers an object and the
+    two ways a plant file is given; ``list_plants`` ``schema`` returns gemini's whole schema and
+    ``read_plant`` a class's file. Validation is gemini's, when the plant is built.
+    """
+    return {
+        "type": "object",
+        "description": (
+            "The plant file: a class file has type, a module file has modules and connections. "
+            "Read one with read_plant; list_plants(with_schema=true) gives the full schema."
+        ),
+        "anyOf": [{"required": ["type"]}, {"required": ["modules", "connections"]}],
+    }
 
 
 @tool(effect="read")
-def list_plants(context):
-    """List the plant classes and the project's plant files, with capabilities and roles.
+def list_plants(context, plant_class: str | None = None, with_schema: bool = False):
+    """List the plant classes and the project's plant files; one class in full on request.
 
-    ``project_plants`` are the names of the project's plant files (``read_plant``
-    ``project_plant`` reads one); it is empty without a project or plants.
-
-    ``capabilities`` maps a class to its ``roles``, whether it is ``schedulable`` and its
-    ``ranges``, the leaves of the plant file that may state a search range (``set_ranges`` sets
-    them). ``roles`` maps each role to the quantities a module of that role reports.
+    Without arguments: ``project_plants``, the names of the project's plant files (``read_plant``
+    ``project_plant`` reads one; empty without a project or plants), and ``plants``, each class
+    with its summary. With ``plant_class``: its ``capabilities`` (``roles``, whether it is
+    ``schedulable`` and ``ranges``, the leaves of the plant file that may state a search range,
+    which ``set_ranges`` sets) and ``roles``, the quantities a module of each of its roles reports.
+    With ``with_schema`` true: ``schema``, gemini's schema of the plant file ``build_plant`` takes.
     """
     import gemini as gm
 
-    return {
+    shown = {
         "project_plants": project_plant_names(context),
         "plants": [
             {"name": name, "summary": gm.plants.get(name).describe()["summary"]}
             for name in gm.plants.names()
         ],
-        "capabilities": gm.plants.capabilities(),
-        "roles": gm.plants.roles(),
+    }
+    if plant_class is not None:
+        shown.update(class_capabilities(gm, plant_class))
+    if with_schema:
+        shown["schema"] = gm.plants.schema()
+    return shown
+
+
+def class_capabilities(gm, plant_class):
+    """Return the capabilities of one class and the roles it uses; an unknown name is an error."""
+    capabilities = gm.plants.capabilities()
+    if plant_class not in capabilities:
+        raise ToolError(
+            f"list_plants: plant_class = {plant_class!r}; expected a name from "
+            f"{join_names(capabilities)}{did_you_mean(plant_class, capabilities)}",
+            code="unknown_name",
+            path="plant_class",
+        )
+    roles = gm.plants.roles()
+    used = capabilities[plant_class]["roles"]
+    return {
+        "plant_class": plant_class,
+        "capabilities": capabilities[plant_class],
+        "roles": {role: roles[role] for role in used if role in roles},
     }
 
 

@@ -16,9 +16,9 @@ the problem state as `update_state` does.
 | `list_modules` | `catalogue.py` | `read` | `category=None` | `[{name, category, summary}]` | built |
 | `describe_module` | `catalogue.py` | `read` | `name` | gemini's module description | built |
 | `evaluate_module` | `catalogue.py` | `compute` | `name, parameters, inlets=None, controls=None, state=None, dt=None` | `gm.call(..., units="display")` result (`outlets`, `outputs`, `state`, `errors`) as `{value, unit}` in gemini's display units (MW, degC, m3/h; no geomind unit map); values with a dimension go in as `{value, unit}`, never text; every inlet needs `fluid` (gemini's error otherwise); a module with state needs `state` and `dt` | built |
-| `list_plants` | `plants.py` | `read` | none | `{project_plants, plants: [{name, summary}], capabilities, roles}`; `project_plants` are the sorted file names of the run's project (`Workspace.plants`), `[]` without a project; `capabilities` is `gm.plants.capabilities()` (roles, schedulable and `ranges`, the leaves that may state a search range of each class), `roles` is `gm.plants.roles()` | built |
+| `list_plants` | `plants.py` | `read` | `plant_class` (optional), `with_schema` (optional) | `{project_plants, plants: [{name, summary}]}`; `project_plants` are the sorted file names of the run's project (`Workspace.plants`), `[]` without a project. With `plant_class`: also `plant_class`, `capabilities` (`gm.plants.capabilities()[class]`: roles, schedulable and `ranges`, the leaves that may state a search range) and `roles` (`gm.plants.roles()` of the class's roles); an unknown class is an `unknown_name` error with the close match. With `with_schema`: also `schema`, `gm.plants.schema()`. Before this change it returned every class's `capabilities` and all `roles`, over the result limit | built |
 | `read_plant` | `plants.py` | `read` | `design=None, plant_class=None, project_plant=None`: none is the project's plant when `Workspace.plants` holds exactly one file (several: a `ToolError` `unknown_name`, path `project_plant`, naming the files and the other two ways); `project_plant` a plant file of the project by name (its file stem); `design/<name>` a stored design, `plant_class` a class name (`gm.plants.get`); two of them is refused | `{plant, ranges, options, issues, checked_against}`: `plant.to_dict(structure=True)`, `ranges` as `{path: {min, max}}` with `{value, unit}` in display units (plain numbers for a count), `options`, and `issues` (`path, code, message, suggestions, kind, quantity, accepted`) from `gm.check(plant, case)` when the state has a case (`checked_against` `case`) else from `plant.check()` (`plant`), which lists as missing what the case fills (`d0.gradient`); a class lists everything it needs as missing | built |
-| `build_plant` | `plants.py` | `write` | `plant` (input schema: `gm.plants.schema()`), `name` | `{design, checked_against, issues}` as `read_plant`; `gm.Plant.from_dict` is stored by `stored.save_design`; a file gemini cannot read raises gemini's `ValidationError` (path, code, message, suggestions) and stores nothing, a file with missing values is stored with its issues | built |
+| `build_plant` | `plants.py` | `write` | `plant` (offered as a short object schema with gemini's two shapes; the full `gm.plants.schema()` is `list_plants` `with_schema`; validation is gemini's, so every earlier input is still valid), `name` | `{design, checked_against, issues}` as `read_plant`; `gm.Plant.from_dict` is stored by `stored.save_design`; a file gemini cannot read raises gemini's `ValidationError` (path, code, message, suggestions) and stores nothing, a file with missing values is stored with its issues | built |
 | `set_ranges` | `plants.py` | `write` | `design, ranges, name, options=None`: `ranges` is `{path: {min, max}}` with `{value, unit}` bounds (plain numbers for a count such as `size.doublets`); a path is the plant-file leaf without `params.` (`depth`, `heat_pump.capacity`, `d0.nominal_flow`) | `{design, plant, ranges, options}` as `read_plant`; `plant.set_range` and `plant.set_options` on a copy of the design, stored as `design/<name>`; an unknown path or a refused bound is gemini's error with its path | built (to be registered) |
 | `set_case` | `case.py` | `write` | `source=None, changes=None, requirements=None, economics=None`: `source` is `project`, `origin` (the case the user gave, with its files) or none (the state's case); `changes` an RFC 7386 merge patch on the case, without `requirements` and `economics`; `requirements` `{name: requirement or null}` (add, replace or remove by name); `economics` a merge patch on the content of the economics file | `{case, version}`; the state's `case` replaced and its files kept as `case/<file name>`; the project's case or the first case of a chat also becomes `case_origin`; a case `gm.Case.from_dict` or `Case.check` rejects is an error with gemini's `path`, `code` and message and nothing is stored | built |
 | `case_changes` | `origin.py` | `read` | none | `[{path, change, given, now}]`: every difference of the state's case from `case_origin` (`changed`, `removed`, `added`; a section key, `requirements.<name>`, `file <name>` for a file's content, the economics file included); `[]` when it is the case the user gave | built |
@@ -252,7 +252,7 @@ again in a replay too, because all it changes is the run's own log. `Tool` is sh
 other sources (MCP later) fit: without `input_model`, only the required and known names of
 `input_schema` are checked. An agent names a tool by its attribute, on its own copy.
 `late_schemas` maps an input to a function that returns its schema when the tool is offered:
-`build_plant` gets `gm.plants.schema()` that way, so `import geomind` stays free of gemini.
+`build_plant` gets a short schema that way (the full one is `list_plants` `with_schema`), so `import geomind` stays free of gemini.
 
 ## Dispatch
 
@@ -271,8 +271,16 @@ functions.
   `stop_reason="error"`.
 - Any other exception is a bug: it is reported through `on_error`, and the model reads only
   `internal error`, with `code: "internal"`.
-- A result over `tool_result_limit` is saved with `store.save_artifact` and returned as
-  `{reference, summary}`. The key is a hash, so a call id from a model never becomes a path.
+- A result over 2000 characters is saved as the chat artifact `result-<hash of the call id>` and its
+  `tool.result` carries the `reference`; the key is a hash, so a call id never becomes a path
+  (`geomind/tools/stored.py`). Up to `tool_result_limit` the model reads it whole in the step after
+  the call; from the next step on, `Context` shows `stored_form` instead (the reference, the small
+  top-level values, an outline of the rest, see [context.md](context.md#long-conversations)). Over
+  the limit it gets `stored_form` at once. `read_stored(reference, path=None)` returns the whole or
+  one part (dotted keys and indexes); agents that read gemini results have it. Logs of 0.4.x hold
+  `{reference, summary}` only above the limit and no reference below it, so they replay as before.
+- `Tool.schema()` leaves out the `title` and `default` annotations of the input schema, late
+  schemas included.
 - A sync tool that times out keeps running in its thread until it returns; a thread cannot be
   stopped from outside.
 
@@ -313,8 +321,8 @@ Both have effect `read`, so `ask` mode lets them through; `plan` mode runs neith
 and emits `state.changed`; see [context.md](context.md#problem-state). An invalid patch is an error result that
 says how to fix it. A path under `/case` or `/case_origin` is `not_allowed`: only `set_case`
 writes the case, after gemini validates it. The offered schema types `changes`: `op` an enum, `path` a pattern over the allowed roots and
-`value` any of the `Requirement`, `Assumption`, `Result` and `Question` models (`anyOf`, since a
-requirement and an assumption of the same keys both fit) or plain data. The input model is still
+`value` described in words with the item shape of each list (no `$defs`, no `anyOf`: that cost
+twice the tokens; the error of a wrong value repeats the shape expected). The input model is still
 `list[dict]`, so what was valid stays valid; before the patch is applied the tool checks the path
 form and the value against the model of the list (`/results/-` for an add, `/results/<id>` for a
 replace or remove, `/results/<id>/<field>` for a field, `/results` with a list, never a position),

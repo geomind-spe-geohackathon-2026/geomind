@@ -5,6 +5,8 @@ from uuid import uuid4
 from geomind.context import ProblemState, render
 from geomind.context.skills import skill_listing
 from geomind.errors import RunError
+from geomind.prompts.prompt import STORED_RESULTS
+from geomind.tools.stored import is_long, shortened
 from geomind.types import Message
 
 
@@ -38,6 +40,7 @@ class Context:
         problem=None,
         session=None,
         call_id=None,
+        stored=None,
     ):
         """Hold the messages of a run; a new run gets a fresh id."""
         self.run_id = run_id or new_run_id()
@@ -48,6 +51,7 @@ class Context:
         self.problem = problem if problem is not None else ProblemState()
         self._session = session
         self.call_id = call_id
+        self.stored = stored if stored is not None else {}
 
     def for_call(self, call_id):
         """Return this context as one tool call sees it: the same run, with the id of the call."""
@@ -60,6 +64,7 @@ class Context:
             problem=self.problem,
             session=self._session,
             call_id=call_id,
+            stored=self.stored,
         )
 
     @property
@@ -78,6 +83,7 @@ class Context:
         """Return the system message, or nothing for an agent without a prompt."""
         parts = [agent.prompt.render() if agent.prompt else "", agent.output.instructions()]
         parts.append(skill_listing() if "read_skill" in agent.tools() else "")
+        parts.append(STORED_RESULTS if "read_stored" in agent.tools() else "")
         text = "\n\n".join(part for part in parts if part)
         return (Message(role="system", content=text),) if text else ()
 
@@ -88,6 +94,30 @@ class Context:
         parts += (state,) if state else ()
         return tuple(Message(role="system", content=part) for part in parts)
 
+    def _history(self):
+        """Return the messages, with the results the model has already read in their short form.
+
+        A result stored whole is shown whole in the step after its call. From the next step on its
+        message is the reference and an outline (``self.stored``), so the history stops carrying
+        what the model has used; ``read_stored`` or the tool itself gives it again. A message
+        changes once, when its result becomes old, and never again, so the prefix before it stays
+        the same for the provider's cache.
+        """
+        last = max(
+            (n for n, item in enumerate(self.messages) if item.role == "assistant"), default=-1
+        )
+        return [self._aged(item) if n < last else item for n, item in enumerate(self.messages)]
+
+    def _aged(self, message):
+        """Return an older message, its stored result or its long call inputs in short form."""
+        if message.role == "tool" and message.tool_call_id in self.stored:
+            return message.model_copy(update={"content": self.stored[message.tool_call_id]})
+        if message.role == "assistant" and any(is_long(call.input) for call in message.tool_calls):
+            return message.model_copy(
+                update={"tool_calls": tuple(map(shortened, message.tool_calls))}
+            )
+        return message
+
     def messages_for(self, agent):
         """Return the messages of one LLM call."""
-        return (*self._prefix(agent), *self.messages, *self._dynamic())
+        return (*self._prefix(agent), *self._history(), *self._dynamic())

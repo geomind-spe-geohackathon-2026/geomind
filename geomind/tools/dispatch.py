@@ -1,7 +1,6 @@
 """Run one tool call: one of the two places with side effects."""
 
 import asyncio
-import hashlib
 import inspect
 import json
 from time import perf_counter
@@ -16,10 +15,10 @@ from geomind.errors import (
     ToolError,
     UnknownNameError,
 )
+from geomind.tools.stored import STORE_CHARACTERS, reference_of, stored_form
 from geomind.types import Finish, Problem, Request, ToolResult
 from geomind.utils.json import to_jsonable
 
-SUMMARY_CHARACTERS = 500
 CODE_OF_ERROR = {
     NotImplementedYet: "not_implemented",
     SandboxError: "not_allowed",
@@ -77,13 +76,20 @@ async def _call(tool, arguments, context):
 
 
 async def _bounded(context, call, output):
-    """Return the output for the model, saving a large one as an artifact."""
+    """Return the output for the model, saving a long one as an artifact.
+
+    A result over ``STORE_CHARACTERS`` is stored and carries its reference, whole while it is fresh;
+    one over ``tool_result_limit`` reaches the model only as ``stored_form``.
+    """
     text = json.dumps(output)
-    if len(text) <= runtime.get("tool_result_limit"):
+    limit = runtime.get("tool_result_limit")
+    if len(text) <= min(STORE_CHARACTERS, limit):
         return output, None
-    key = f"result-{hashlib.sha256(call.id.encode()).hexdigest()[:16]}"
+    key = reference_of(call.id)
     await context.session.save_artifact(key, output)
-    return {"reference": key, "summary": text[:SUMMARY_CHARACTERS]}, key
+    if len(text) <= limit:
+        return output, key
+    return stored_form(output, key), key
 
 
 def _result(tool, call, started, output, **fields):

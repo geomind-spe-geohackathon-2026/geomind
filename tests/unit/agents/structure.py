@@ -3,7 +3,7 @@
 import inspect
 import re
 
-from geomind.prompts.prompt import role_files
+from geomind.prompts.prompt import SHARED_TOOLS, role_files
 
 HEADINGS = ["Role", "Inputs", "Tools", "Rules", "Output", "Examples"]
 SECTIONS = ["Agents", "Prompt", "Tools", "Output", "Model"]
@@ -47,5 +47,5 @@ def check_complete(agent_class, role, tools):
     sections = re.split(r"^## .*$", text, flags=re.MULTILINE)[1:]
     assert all(section.strip() for section in sections)
     assert len(text.splitlines()) > 25
-    assert sorted(named_tools(text)) == sorted(tools)
+    assert sorted(named_tools(text)) == sorted(set(tools) - set(SHARED_TOOLS))
     assert "NOTE: the structure is fixed now" not in " ".join(agent_class.__doc__.split())

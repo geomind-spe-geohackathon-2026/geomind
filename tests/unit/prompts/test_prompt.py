@@ -20,3 +20,10 @@ def test_unknown_role_suggests_a_name():
     """A typo gets a close match."""
     with pytest.raises(UnknownNameError, match="did you mean 'assistant'"):
         Prompt("asistant")
+
+
+def test_the_shared_text_names_the_tool_it_is_given_with():
+    """The text added for ``read_stored`` names that tool and the shared set holds it."""
+    from geomind.prompts.prompt import SHARED_TOOLS, STORED_RESULTS
+
+    assert all(f"`{name}(" in STORED_RESULTS for name in SHARED_TOOLS)

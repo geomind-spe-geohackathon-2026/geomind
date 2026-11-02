@@ -6,6 +6,12 @@ from geomind.errors import UnknownNameError
 from geomind.utils.strings import did_you_mean
 
 FOLDER = Path(__file__).parent
+SHARED_TOOLS = ("read_stored",)
+STORED_RESULTS = (
+    "## Stored results\n\n"
+    "A long result is whole for one step, then only its `reference`, small values and an outline. "
+    "Get the rest with `read_stored(reference, path)` (dotted keys and indexes) or the tool again."
+)
 
 
 def role_files():

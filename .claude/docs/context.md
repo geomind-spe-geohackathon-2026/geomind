@@ -112,6 +112,17 @@ because `load_history` always returns every message and the contract has no othe
 once and not on every message. That key is outside the patchable document: a patch cannot reach it and
 `render` does not show it.
 
+## Old results in the history
+
+`Context._history()` renders the messages. A tool result stored by reference (see
+[tools.md](tools.md#dispatch)) is whole in the step after its call; once a later assistant message
+exists, its message is `stored_form` (kept in `RunState.stored`, built by `apply` from the
+`tool.result` event, so a replay or a recovery gives the same text). A call input over 800
+characters in an older assistant message becomes `{"shortened": outline}`. A message changes once, so
+the prefix before it stays the same for the provider's cache, and the dynamic part stays last. The
+log and the store keep everything; compaction sees the shortened text. An event without a reference
+(0.4.x, or a short result) is never shortened.
+
 ## Skills
 
 `prompts/skills/*.md` hold instructions a model loads on demand. The first paragraph of a file is its

@@ -50,6 +50,25 @@ reference forms, sizing ranges, units and state shapes from failures.
   The `DesignLoop`'s first task names the project's plants (none when there are none). The prompt
   shows the size-then-optimise sequence. New offline recording `designer/project_plant`.
 
+Additive; nothing renamed or removed. Cuts the input tokens of long tool loops.
+
+- Tool results over 2000 characters are stored as `result-...` (their `tool.result` has the
+  `reference`); the history shows them whole for one step, then as the reference, the small values and
+  an outline. New tool `read_stored(reference, path)` reads them again, whole or in part. Results over
+  `tool_result_limit` now keep their small top-level values and a structural outline (names of
+  list items, keys) instead of the first 500 characters.
+- Call inputs over 800 characters in older assistant messages are shortened to an outline.
+- Agents with `read_stored` get a shared "Stored results" text after their prompt (`STORED_RESULTS`,
+  `geomind/prompts/prompt.py`); `tests/unit/snapshots/tools.json` gains `read_stored` (additive).
+- `list_plants` takes `plant_class` and `with_schema`; without them it returns `project_plants` and the class
+  names with summaries only (its former `capabilities` and `roles` for all classes passed the result
+  limit). `plant_class` returns that class's `capabilities` and `roles`; `with_schema` gemini's plant
+  schema. `build_plant` offers a short `plant` schema (validation unchanged).
+- `update_state` offers `changes` without `$defs` and `anyOf`: the shape of each list's item is in
+  the description of `value` (half the tokens); the tool still checks the value and returns the shape
+  expected for a path. Every input valid before stays valid.
+- `Tool.schema()` drops `title` and `default` annotations and the long text of definitions. 0.4.x logs replay and export unchanged.
+
 ## [0.4.1] - 2026-11-02
 
 Additive: models and OpenRouter providers can be chosen by deployment configuration.

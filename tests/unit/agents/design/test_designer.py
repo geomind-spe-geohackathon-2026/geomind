@@ -35,6 +35,7 @@ def test_it_is_complete():
             "search_documents",
             "update_state",
             "read_skill",
+            "read_stored",
             "ask_user",
             "finish",
         ],

@@ -70,3 +70,44 @@ def test_typed_output_extends_the_prefix():
 def test_a_new_context_gets_a_run_id():
     """Two contexts are two runs."""
     assert Context().run_id != Context().run_id
+
+
+def test_old_results_and_long_inputs_become_short_forms_and_the_prefix_holds():
+    """A designer run of eight calls with 35k-character results: call 8 is at most 1.5x call 1."""
+    from geomind.context.compaction import estimate_tokens
+    from geomind.tools.stored import outline, stored_form
+    from geomind.types import ToolCall
+
+    big = {"plant": {"modules": [{"name": f"m{n}", "text": "t" * 300} for n in range(110)]}}
+    messages = [Message(role="user", content="design")]
+    stored = {}
+    sizes = []
+    for step in range(8):
+        call = ToolCall(id=f"c{step}", name="read_plant", input={"design": "x" * 3000})
+        messages.append(Message(role="assistant", tool_calls=(call,)))
+        messages.append(Message(role="tool", content=str(big), tool_call_id=call.id))
+        stored[call.id] = str(stored_form(big, f"result-{step}"))
+        rendered = Context("r", messages, steps_left=1, stored=stored).messages_for(Plain())
+        sizes.append(estimate_tokens(rendered))
+    base = estimate_tokens(Context("r", messages[:1]).messages_for(Plain()))
+    assert sizes[0] > 8000 and sizes[7] <= 1.5 * sizes[0]
+    assert base < 100 and "result-0" in str(
+        Context("r", messages, stored=stored)._history()[2].content
+    )
+    assert len(outline(big)) <= 601
+
+
+def test_a_result_is_whole_in_the_step_after_its_call():
+    """Only results before the last assistant message are replaced."""
+    from geomind.types import ToolCall
+
+    call = ToolCall(id="c", name="t", input={})
+    messages = [
+        Message(role="user", content="q"),
+        Message(role="assistant", tool_calls=(call,)),
+        Message(role="tool", content="WHOLE", tool_call_id="c"),
+    ]
+    history = Context("r", messages, stored={"c": "SHORT"})._history()
+    assert history[2].content == "WHOLE"
+    messages.append(Message(role="assistant", content="next"))
+    assert Context("r", messages, stored={"c": "SHORT"})._history()[2].content == "SHORT"

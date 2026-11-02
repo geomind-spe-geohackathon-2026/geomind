@@ -83,12 +83,13 @@ class Tool:
 
     def _offered_schema(self):
         """Return ``input_schema`` with the late schemas in place, their definitions at the top."""
-        schema = copy.deepcopy(self.input_schema)
+        schema = without_titles(self.input_schema)
         for name, function in self.late_schemas.items():
-            late = dict(function())
+            late = dict(without_titles(function()))
             definitions = late.pop("$defs", {})
             schema["properties"][name] = late
-            schema.setdefault("$defs", {}).update(definitions)
+            if definitions:
+                schema.setdefault("$defs", {}).update(definitions)
         return schema
 
     def schema(self):
@@ -119,6 +120,36 @@ class Tool:
                 f"expected the names {join_names(properties)}"
             )
         return dict(tool_input)
+
+
+def _first_line(definition):
+    """Return a definition with the first line of its description, the rest being detail."""
+    text = definition.get("description")
+    if not isinstance(text, str):
+        return definition
+    return {**definition, "description": text.split("\n")[0]}
+
+
+def without_titles(schema):
+    """Return a copy of a JSON schema without its ``title`` and ``default`` annotations.
+
+    ``required`` already says what may be left out. A property named ``title`` or ``default`` stays:
+    its value is a schema, while an annotation is not a mapping.
+    """
+    if isinstance(schema, list):
+        return [without_titles(item) for item in schema]
+    if not isinstance(schema, dict):
+        return schema
+    if "$defs" in schema:
+        schema = {
+            **schema,
+            "$defs": {name: _first_line(item) for name, item in schema["$defs"].items()},
+        }
+    return {
+        key: without_titles(value)
+        for key, value in schema.items()
+        if not (key in ("title", "default") and not isinstance(value, dict))
+    }
 
 
 def _input_model(function):
