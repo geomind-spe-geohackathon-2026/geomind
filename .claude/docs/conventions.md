@@ -10,7 +10,7 @@ A package may import only the packages to its left:
 
 `geomind.utils`, `geomind.errors` ← `types` ← `stores` ← `runtime` ← `prompts` ← `context`
 ← `providers` ← `sandbox` ← `tools` ← `verify` ← `agents` ← `engine` ← `loops` ← `run` ← `testing`
-← `cli` ← `geomind/__init__`.
+← `live` ← `cli` ← `geomind/__init__`.
 
 `tests/unit/test_package_boundaries.py` enforces this order.
 
