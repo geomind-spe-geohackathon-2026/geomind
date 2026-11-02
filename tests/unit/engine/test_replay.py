@@ -649,3 +649,24 @@ async def test_a_reused_pure_tool_still_applies_the_state_it_wrote():
     await Engine.replay(engine.store, result.run_id, replayed=replayed)
     changes = [e for e in replayed if isinstance(e, StateChanged)]
     assert [c.changes[0]["value"] for c in changes] == ["cover the peak"]
+
+
+async def test_a_reused_call_is_not_validated_against_the_schema_of_today():
+    """An old input that fails the schema of the tool now is not a validation failure here."""
+    result, engine, events = await run(
+        [uses(call("add", left=1, right=2)), says("end")], store=MemoryRunStore()
+    )
+    engine.store.events[result.run_id] = [
+        (
+            e.model_copy(update={"versions": {}})
+            if isinstance(e, RunStarted)
+            else e.model_copy(update={"input": {"left": 1}}) if isinstance(e, ToolRecorded) else e
+        )
+        for e in events
+    ]
+    replayed = []
+    await Engine.replay(engine.store, result.run_id, replayed=replayed)
+    recorded = [e for e in replayed if isinstance(e, ToolRecorded) and e.tool == "add"]
+    assert [(e.input, e.output, e.is_error, e.is_validation) for e in recorded] == [
+        ({"left": 1}, 3, False, False)
+    ]

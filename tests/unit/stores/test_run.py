@@ -136,3 +136,12 @@ def test_a_study_is_an_artifact_key_of_the_file_store(tmp_path):
     store = FileRunStore(tmp_path)
     store.save_chat_artifact("c", "study/s", {"a": 1})
     assert store.load_chat_artifact("c", "study/s") == {"a": 1}
+
+
+@pytest.mark.parametrize("make", [MemoryRunStore, lambda: FileRunStore("unused")])
+def test_the_study_index_is_a_plain_chat_artifact_key(make, tmp_path):
+    """``studies.index`` has no ``/``: it is a safe name in both stores, apart from any study."""
+    store = FileRunStore(tmp_path) if make is not MemoryRunStore else make()
+    store.save_chat_artifact("c", "studies.index", {"studies": []})
+    assert store.load_chat_artifact("c", "studies.index") == {"studies": []}
+    assert store.load_chat_artifact("c", "study/studies.index") is None
