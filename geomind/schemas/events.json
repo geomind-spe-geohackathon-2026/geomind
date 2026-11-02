@@ -412,6 +412,90 @@
       ],
       "type": "object"
     },
+    "study.recorded": {
+      "additionalProperties": false,
+      "properties": {
+        "agent": {
+          "default": "",
+          "title": "Agent",
+          "type": "string"
+        },
+        "best": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Best"
+        },
+        "call_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Call Id"
+        },
+        "designs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Designs",
+          "type": "array"
+        },
+        "index": {
+          "title": "Index",
+          "type": "integer"
+        },
+        "method": {
+          "title": "Method",
+          "type": "string"
+        },
+        "parent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent"
+        },
+        "run": {
+          "title": "Run",
+          "type": "string"
+        },
+        "study": {
+          "title": "Study",
+          "type": "string"
+        },
+        "tool": {
+          "title": "Tool",
+          "type": "string"
+        }
+      },
+      "required": [
+        "run",
+        "index",
+        "study",
+        "tool",
+        "method",
+        "designs",
+        "agent",
+        "parent"
+      ],
+      "type": "object"
+    },
     "text.delta": {
       "additionalProperties": false,
       "properties": {

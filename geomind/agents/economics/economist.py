@@ -23,6 +23,8 @@ class Economist(Agent):
         self.sample_uncertainty = tools.gemini.sample_uncertainty
         self.sensitivity = tools.gemini.sensitivity
         self.read_result = tools.read_result
+        self.list_studies = tools.gemini.list_studies
+        self.read_study = tools.gemini.read_study
         self.update_state = tools.update_state
         self.read_skill = tools.read_skill
         self.finish = tools.finish

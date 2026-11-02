@@ -299,6 +299,17 @@ def version_differences(events):
     }
 
 
+def reuses_tool_results(started):
+    """Tell whether a replay keeps the recorded tool results of a log, root ``run.started`` given.
+
+    A log of another geomind version, or of one that recorded none (0.3.0), checks the agents'
+    decisions, not the tools' outputs: a tool may have changed its input or its output since, and
+    the log cannot tell a change of the tool from a change of the agent. NOTE: a difference in
+    gemini alone still runs the tools, as it reports a difference in ``version_differences``.
+    """
+    return started.versions.get("geomind") != current_versions()["geomind"]
+
+
 def nested_runs_reused(events, workspace):
     """Tell whether a replay with this ``workspace`` reuses the nested runs of the root run.
 
@@ -315,7 +326,9 @@ async def replay_run(engine_class, store, run_id, *, replayed=None, workspace=No
     """Rerun a stored run and every nested run of its tree with their recorded completions.
 
     ``read`` and ``compute`` tools run again, in every run; others reuse their recorded results, as
-    do calls that were denied or answered by the user. A nested run that ended with an answer runs
+    do calls that were denied or answered by the user. A log of another geomind version (or with
+    none recorded) reuses the result of every pure tool (``reuses_tool_results``); tools that
+    write the problem state still run. A nested run that ended with an answer runs
     again as a nested run, matched to its call by the step and task, with the completions of its
     own events. A difference in any run raises ``ReplayError`` naming the run, its agent and the
     first differing step. ``replayed``, when a list, receives the events of the replayed tree;
@@ -338,6 +351,7 @@ async def replay_run(engine_class, store, run_id, *, replayed=None, workspace=No
         store=_ReplayStore(store, run_id, started.chat or started.root),
     )
     _arm(engine, tree, scripts)
+    engine.reuses_tools = reuses_tool_results(started)
     context = Context(
         messages=list(started.messages),
         run_id=run_id,

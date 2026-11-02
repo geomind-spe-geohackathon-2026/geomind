@@ -37,6 +37,8 @@ class Designer(Agent):
         self.read_profile = tools.gemini.read_profile
         self.simulate = tools.gemini.simulate
         self.read_result = tools.read_result
+        self.list_studies = tools.gemini.list_studies
+        self.read_study = tools.gemini.read_study
         self.check_results = tools.gemini.check_results
         self.optimize = tools.gemini.optimize
         self.run_study = tools.gemini.run_study

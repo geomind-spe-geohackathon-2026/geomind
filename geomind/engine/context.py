@@ -22,6 +22,7 @@ class Context:
     last part of every call. Large tool outputs are summaries with references already, as dispatch
     returned them.
 
+    ``call_id`` is the id of the tool call the context was made for, ``None`` outside a call.
     ``session`` is the run this context belongs to. Agents, tools and hooks receive the context, so
     they reach the provider, the store and the sandbox through it.
     """
@@ -36,6 +37,7 @@ class Context:
         steps_left=None,
         problem=None,
         session=None,
+        call_id=None,
     ):
         """Hold the messages of a run; a new run gets a fresh id."""
         self.run_id = run_id or new_run_id()
@@ -45,6 +47,20 @@ class Context:
         self.steps_left = steps_left
         self.problem = problem if problem is not None else ProblemState()
         self._session = session
+        self.call_id = call_id
+
+    def for_call(self, call_id):
+        """Return this context as one tool call sees it: the same run, with the id of the call."""
+        return Context(
+            self.run_id,
+            self.messages,
+            chat=self.chat,
+            project=self.project,
+            steps_left=self.steps_left,
+            problem=self.problem,
+            session=self._session,
+            call_id=call_id,
+        )
 
     @property
     def session(self):

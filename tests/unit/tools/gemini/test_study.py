@@ -1,14 +1,16 @@
 """The study tools over gemini's example cases: size, search, sample, run and compare."""
 
 import asyncio
+import copy
 import functools
 import json
 
 import pytest
 
-from geomind.tools.gemini import study
-from geomind.tools.gemini.stored import ran_case, save_design, save_run
-from tests.fixtures.cases import case_context, example_names, example_plant
+from geomind.tools.gemini import studies, study
+from geomind.tools.gemini.case import case_of
+from geomind.tools.gemini.stored import ran_case, save_design, save_run, save_study
+from tests.fixtures.cases import engine_context, example_names, example_plant
 
 SHALLOW = "shallow_district"
 HEAT_PUMP = "HeatingHeatPumpCoolingPlant"
@@ -16,7 +18,7 @@ HEAT_PUMP = "HeatingHeatPumpCoolingPlant"
 
 async def started(name, plant=None, reference="start"):
     """Return ``(context, design reference)``: the example's case and its plant stored."""
-    context = await case_context(name)
+    context, _ = await engine_context(name)
     return context, await save_design(context, reference, example_plant(name, plant))
 
 
@@ -51,7 +53,7 @@ async def compare_two_runs():
     import gemini as gm
 
     context, _ = await started(SHALLOW)
-    case = study.case_of(context)
+    case = case_of(context)
     plant = example_plant(SHALLOW)
     cheaper = study.size_design(plant, case)
     references = []
@@ -72,14 +74,23 @@ async def shallow_calls():
     sized = await run(study.size_plant, context, {"design": reference, "name": "sized"})
     designs = [reference, sized.output["design"]]
     ranked = await run(
-        study.run_study, context, {"designs": designs, "method": "run", "metrics": ["lcts"]}
+        study.run_study,
+        context,
+        {"designs": designs, "method": "run", "metrics": ["lcts"], "name": "pair"},
     )
-    return {"search": search, "sized": sized, "shallow": ranked}
+    again = {"designs": [reference], "method": "run", "prepare": ["size"], "name": "sizedrun"}
+    return {
+        "search": search,
+        "sized": sized,
+        "shallow": ranked,
+        "again": await run(study.run_study, context, again),
+        "shallow_context": context,
+    }
 
 
 async def hackathon_calls():
     """Return the sized and searched pair of topologies and the draws of the uncertain case."""
-    context, _ = await started("hackathon_2026", "HeatingPlant", "heating")
+    context, _ = await started("hackathon_2026", "HeatingPlant", "plain")
     heating = await save_design(
         context, "heating", depth_only(example_plant("hackathon_2026", "HeatingPlant"))
     )
@@ -90,11 +101,12 @@ async def hackathon_calls():
     smoke = await run(
         study.run_study,
         context,
-        {"designs": [heating, pump], "method": "minimize", **search},
+        {"designs": [heating, pump], "method": "minimize", "name": "families", **search},
     )
     arguments = {"design": heating, "metrics": ["lcts"]}
-    drawn = await run(study.sample_uncertainty, context, {**arguments, "samples": 3, "seed": 1})
-    tornado = await run(study.sensitivity, context, arguments)
+    draws = {**arguments, "samples": 3, "seed": 1, "name": "draws"}
+    drawn = await run(study.sample_uncertainty, context, draws)
+    tornado = await run(study.sensitivity, context, {**arguments, "name": "tornado"})
     return {"smoke": smoke, "drawn": drawn, "tornado": tornado, "context": context}
 
 
@@ -195,7 +207,7 @@ async def test_sample_uncertainty_needs_an_uncertainty_in_the_case():
     result = await run(
         study.sample_uncertainty,
         context,
-        {"design": reference, "metrics": ["lcts"], "samples": 3, "seed": 1},
+        {"design": reference, "metrics": ["lcts"], "samples": 3, "seed": 1, "name": "d"},
     )
     assert result.is_error
     assert "missing_value" in json.dumps(result.output)
@@ -219,7 +231,7 @@ def test_run_study_ranks_the_designs_in_display_units():
     assert [item["plant_name"] for item in output["runs"]] == ["start", "sized"]
     assert output["runs"][0]["metrics"]["lcts"]["unit"] == "EUR/MWh"
     assert {item["ranks"]["lcts"] for item in output["runs"]} <= {1, 2}
-    assert output["runs"][0]["design"] == "design/start_best"
+    assert output["runs"][0]["design"] == "design/pair_start"
 
 
 def test_run_study_searches_two_topologies_of_the_hackathon():
@@ -238,7 +250,13 @@ async def test_run_study_without_the_settings_the_method_needs_is_gemini_error()
     result = await run(
         study.run_study,
         context,
-        {"designs": [reference], "method": "minimize", "objective": "lcts", "evaluations": 5},
+        {
+            "designs": [reference],
+            "method": "minimize",
+            "objective": "lcts",
+            "evaluations": 5,
+            "name": "m",
+        },
     )
     assert result.is_error
     assert "seed" in json.dumps(result.output)
@@ -247,7 +265,9 @@ async def test_run_study_without_the_settings_the_method_needs_is_gemini_error()
 async def test_run_study_an_unknown_design_is_unknown_name():
     """A design no tool returned says so."""
     context, _ = await started(SHALLOW)
-    result = await run(study.run_study, context, {"designs": ["design/none"], "method": "run"})
+    result = await run(
+        study.run_study, context, {"designs": ["design/none"], "method": "run", "name": "n"}
+    )
     assert result.is_error
 
 
@@ -278,3 +298,155 @@ async def test_size_plant_on_each_example(name):
     context, reference = await started(name)
     result = await run(study.size_plant, context, {"design": reference, "name": "s"})
     assert result.output["sizing"]["sized"]
+
+
+def test_a_second_study_over_the_same_design_is_stored():
+    """Each study stores its own designs, ``design/<study>_<plant>``, so a second is not refused.
+
+    NOTE: before 0.4.0 both stored ``design/<plant>_best`` and the second call failed.
+    """
+    studies = slow_calls()["studies"]
+    first, second = studies["shallow"].output, studies["again"].output
+    assert not studies["again"].is_error
+    assert first["runs"][0]["design"] == "design/pair_start"
+    assert second["runs"][0]["design"] == "design/sizedrun_start"
+
+
+STORED = {
+    "sized": ("size_plant", "run", ["start"]),
+    "search": ("optimize", "minimize", ["capacity"]),
+    "drawn": ("sample_uncertainty", "sample", ["heating"]),
+    "tornado": ("sensitivity", "sensitivity", ["heating"]),
+    "shallow": ("run_study", "run", ["start", "sized"]),
+    "smoke": ("run_study", "minimize", ["heating", "pump"]),
+}
+CONTEXT_OF = {"sized": "shallow_context", "search": "shallow_context", "shallow": "shallow_context"}
+
+
+@pytest.mark.parametrize("call", STORED)
+def test_every_study_tool_stores_its_study(call):
+    """The result names ``study/<name>``, whose artifact is gemini's study file and its result."""
+    studies = slow_calls()["studies"]
+    tool_name, method, plants = STORED[call]
+    key = studies[call].output["study"]
+    context = studies[CONTEXT_OF.get(call, "context")]
+    record = context.session.load_artifact(key)
+    assert set(record) == {"study", "result", "designs", "case", "tool", "versions"}
+    assert (record["tool"], record["study"]["method"]) == (tool_name, method)
+    assert record["study"]["kind"] == "study" and record["study"]["name"] == key.split("/")[1]
+    assert [design.split("/")[1] for design in record["study"]["plants"]] == plants
+    assert record["designs"]["read"] == record["study"]["plants"]
+    assert set(record["versions"]) == {"geomind", "gemini", "python"}
+
+
+def test_a_run_study_keeps_gemini_result_and_the_designs_it_wrote():
+    """The result is ``StudyResult.to_dict()`` and the wrote list names the stored designs."""
+    studies = slow_calls()["studies"]
+    record = studies["shallow_context"].session.load_artifact("study/pair")
+    assert {"study", "runs", "comparison", "best"} <= set(record["result"])
+    assert record["designs"]["wrote"] == ["design/pair_start", "design/pair_sized"]
+
+
+def test_an_optimize_keeps_its_best_without_the_plant_and_recommends_it():
+    """The design is stored apart; the study keeps gemini's best with ``plant`` left empty."""
+    context = slow_calls()["studies"]["shallow_context"]
+    record = context.session.load_artifact("study/best")
+    assert record["result"]["best"]["plant"] is None
+    assert record["designs"]["wrote"] == ["design/best"]
+
+
+async def test_a_taken_design_name_is_refused_with_its_name_before_the_study_runs():
+    """``optimize`` and ``size_plant`` name the design that is taken, and nothing runs."""
+    context, reference = await started(SHALLOW)
+    result = await run(study.size_plant, context, {"design": reference, "name": "start"})
+    assert result.is_error
+    message = result.output["error"]["message"]
+    assert "design/start" in message and "taken" in message
+    assert result.output["error"]["path"] == "name"
+    search = {"design": reference, "objective": "lcts", "evaluations": 20, "seed": 1}
+    refused = await run(study.optimize, context, {**search, "name": "start"})
+    assert "design/start" in refused.output["error"]["message"]
+    assert context.session.load_artifact("studies.index") is None
+
+
+def test_a_taken_study_name_is_refused():
+    """Another study under the name of a stored one is refused; nothing is overwritten."""
+    context = slow_calls()["studies"]["shallow_context"]
+    reference = "design/start"
+    refused = asyncio.run(run(study.size_plant, context, {"design": reference, "name": "pair"}))
+    assert "study/pair" in refused.output["error"]["message"]
+
+
+async def test_a_study_name_is_a_valid_design_name():
+    """The name becomes part of design names, so it is checked first."""
+    context, reference = await started(SHALLOW)
+    result = await run(study.size_plant, context, {"design": reference, "name": "a b"})
+    assert result.is_error and "name" in result.output["error"]["message"]
+
+
+def test_list_studies_shows_each_study_and_whether_its_case_is_current():
+    """The list has the key, tool, method, plants and best; a changed case makes it not current."""
+    from geomind.context import ProblemState
+    from geomind.engine import Context
+
+    context = slow_calls()["studies"]["shallow_context"]
+    listed = asyncio.run(run(studies.list_studies, context, {})).output
+    pair = next(item for item in listed if item["study"] == "study/pair")
+    assert pair == {
+        "study": "study/pair",
+        "tool": "run_study",
+        "method": "run",
+        "designs": ["start", "sized"],
+        "best": pair["best"],
+        "current": True,
+    }
+    assert all(item["current"] for item in listed)
+    changed = copy.deepcopy(context.problem.case)
+    changed["name"] = "another case"
+    later = Context(session=context.session, problem=ProblemState(case=changed))
+    assert not any(
+        item["current"] for item in asyncio.run(run(studies.list_studies, later, {})).output
+    )
+
+
+def test_read_study_returns_the_stored_artifact_and_refuses_an_unknown_key():
+    """The artifact comes back whole; a key no tool returned is ``unknown_name``."""
+    context = slow_calls()["studies"]["shallow_context"]
+    stored = asyncio.run(run(studies.read_study, context, {"study": "study/pair"})).output
+    assert stored == context.session.load_artifact("study/pair")
+    unknown = asyncio.run(run(studies.read_study, context, {"study": "study/none"}))
+    assert unknown.output["error"]["code"] == "unknown_name"
+
+
+async def test_study_recorded_is_sent_once_after_the_artifact_is_saved():
+    """The event carries the fields of the contract and the artifact and index are saved first."""
+    context, _ = await started(SHALLOW)
+    session = context.session
+    seen = []
+    emit = session.emit
+
+    async def checked(kind, **fields):
+        seen.append((session.load_artifact("study/s"), session.load_artifact("studies.index")))
+        return await emit(kind, **fields)
+
+    session.emit = checked
+    study_data = {"format": 1, "kind": "study", "name": "s", "method": "run"}
+    context = context.for_call("c9")
+    found = (study_data, {})
+    key = await save_study(
+        context, "s", "run_study", found, (["design/a"], ["design/s_a"]), None, "k"
+    )
+    events = [e for e in session.engine.store.events["r1"] if e.type == "study.recorded"]
+    assert key == "study/s" and len(events) == 1 and len(seen) == 1
+    assert seen[0][0] is not None and seen[0][1]["studies"][0]["study"] == "study/s"
+    assert events[0].data() == {
+        "run": "r1",
+        "index": 0,
+        "call_id": "c9",
+        "study": "study/s",
+        "tool": "run_study",
+        "method": "run",
+        "designs": ["a"],
+        "agent": "worker",
+        "parent": None,
+    }

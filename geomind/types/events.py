@@ -182,6 +182,38 @@ class StateChanged(Event):
         return changes
 
 
+class StudyRecorded(Event):
+    """A study tool stored its chat artifact ``study/<name>``; sent once, after it is saved.
+
+    ``run`` is the run that called the tool, ``index`` its step and ``call_id`` the call. ``study``
+    is the artifact key, ``tool`` the study tool, ``method`` the gemini study method the tool ran,
+    ``designs`` the names of the plants the study ran over and ``best`` the reference of the design
+    it recommends, left out of ``data()`` when there is none.
+    """
+
+    type: ClassVar[str] = "study.recorded"
+    is_public: ClassVar[bool] = True
+    public_fields: ClassVar[tuple[str, ...]] = (
+        "run",
+        "index",
+        "call_id",
+        "study",
+        "tool",
+        "method",
+        "designs",
+        "best",
+    )
+
+    run: str
+    index: int
+    call_id: str | None = None
+    study: str
+    tool: str
+    method: str
+    designs: tuple[str, ...]
+    best: str | None = None
+
+
 class RequestMade(Event):
     """The run waits for the user; ``point`` and ``call`` are the pending action."""
 
@@ -352,6 +384,7 @@ EVENT_CLASSES = {
         ToolFinished,
         StepFinished,
         StateChanged,
+        StudyRecorded,
         RequestMade,
         UsageUpdated,
         RunFinished,
@@ -374,3 +407,13 @@ def event_from_dict(data):
     if kind not in EVENT_CLASSES:
         raise RunError(f"event type = {kind!r}; expected one of the types in events.md")
     return EVENT_CLASSES[kind].model_validate(values)
+
+
+def events_from_dicts(lines):
+    """Rebuild the events of a stored log, leaving out the ones of a type this version lacks.
+
+    NOTE: a log written by a newer version may hold event types this one does not know. Skipping
+    them is the forward compatibility rule: every reader of a log ignores unknown event types. A
+    line with a known type that does not fit its class still raises.
+    """
+    return [event_from_dict(line) for line in lines if line.get("type") in EVENT_CLASSES]

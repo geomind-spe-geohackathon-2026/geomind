@@ -107,6 +107,25 @@
     "time": "2026-10-31T12:00:00+00:00",
     "type": "step.started"
   },
+  "study.recorded": {
+    "agent": "designer",
+    "best": "design/families_ra",
+    "call_id": "c3",
+    "designs": [
+      "ra",
+      "rb"
+    ],
+    "index": 2,
+    "method": "minimize",
+    "parent": null,
+    "run": "run-1",
+    "run_id": "run-1",
+    "sequence": 1,
+    "study": "study/families",
+    "time": "2026-10-31T12:00:00+00:00",
+    "tool": "run_study",
+    "type": "study.recorded"
+  },
   "text.delta": {
     "agent": "analyst",
     "index": 1,

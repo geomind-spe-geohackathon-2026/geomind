@@ -20,6 +20,8 @@ class Explainer(Agent):
         self.case_changes = tools.gemini.case_changes
         self.read_plant = tools.gemini.read_plant
         self.read_result = tools.read_result
+        self.list_studies = tools.gemini.list_studies
+        self.read_study = tools.gemini.read_study
         self.compute_kpis = tools.gemini.compute_kpis
         self.estimate_costs = tools.gemini.estimate_costs
         self.search_documents = tools.search_documents

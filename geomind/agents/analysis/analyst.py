@@ -27,6 +27,8 @@ class Analyst(Agent):
         self.save_profile = tools.gemini.save_profile
         self.simulate = tools.gemini.simulate
         self.read_result = tools.read_result
+        self.list_studies = tools.gemini.list_studies
+        self.read_study = tools.gemini.read_study
         self.compute_kpis = tools.gemini.compute_kpis
         self.write_module = tools.gemini.write_module
         self.test_module = tools.gemini.test_module

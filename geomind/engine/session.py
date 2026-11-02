@@ -31,7 +31,7 @@ from geomind.types.events import (
 from geomind.types.redaction import redact
 from geomind.utils.imports import class_path
 
-FROZEN = "design/"
+FROZEN = ("design/", "study/")
 
 
 def current_versions():
@@ -66,6 +66,10 @@ class RunSession:
         self.child_usage = None
         self._sandbox = None
         self._held_text = ""
+
+    def versions(self):
+        """Return the versions of this process, for what a tool stores beside its result."""
+        return current_versions()
 
     @property
     def store(self):
@@ -309,8 +313,8 @@ class RunSession:
 
         The problem state can name every artifact a tool saves, so the next run of the chat must
         read it; the run's own space (``store.save_artifact``) is for what no state names. A
-        ``design/<name>`` is written once: the same content again is fine, other content raises
-        ``ToolError``, so a result never points at a design that changed.
+        ``design/<name>`` and a ``study/<name>`` are written once: the same content again is fine,
+        other content raises ``ToolError``, so a result never points at a design that changed.
         """
         clean = redact(data, self.log.secrets)
         if key.startswith(FROZEN):
@@ -321,9 +325,10 @@ class RunSession:
         """Raise ``ToolError`` when ``key`` already holds other content."""
         kept = self.load_artifact(key)
         if kept is not None and json.loads(json.dumps(kept)) != json.loads(json.dumps(data)):
+            kind, _, name = key.partition("/")
             raise ToolError(
-                f"design: name = {key.removeprefix(FROZEN)!r}; a design with this name is stored"
-                " with other content; use a new name",
+                f"{kind}: name = {name!r}; a {kind} with this name is stored with other content;"
+                " use a new name",
                 path="name",
             )
 

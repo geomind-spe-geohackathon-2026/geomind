@@ -16,6 +16,7 @@ from geomind.tools.gemini.origin import accept_case, case_changes
 from geomind.tools.gemini.plants import build_plant, list_plants, read_plant, set_ranges
 from geomind.tools.gemini.results import read_result, search_documents
 from geomind.tools.gemini.runs import list_profiles, read_profile, simulate
+from geomind.tools.gemini.studies import list_studies, read_study
 from geomind.tools.gemini.study import (
     compare,
     optimize,
@@ -38,11 +39,13 @@ __all__ = [
     "list_modules",
     "list_plants",
     "list_profiles",
+    "list_studies",
     "optimize",
     "read_case",
     "read_plant",
     "read_profile",
     "read_result",
+    "read_study",
     "run_study",
     "sample_uncertainty",
     "save_profile",

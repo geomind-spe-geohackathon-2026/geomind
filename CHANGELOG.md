@@ -6,6 +6,33 @@ the list of frozen interfaces are in [.claude/docs/api.md](.claude/docs/api.md#f
 
 ## [Unreleased]
 
+Studies the app can list. A new required tool argument; the coordinator sets the version.
+
+- Every study tool (`size_plant`, `optimize`, `sample_uncertainty`, `sensitivity`, `run_study`)
+  stores the chat artifact `study/<name>`, written once like `design/`: gemini's `study.json` that
+  ran, its result, the designs read and written, the case id, the tool and the versions. `name` is
+  now required on `run_study`, `sample_uncertainty` and `sensitivity`, and every study tool returns
+  `study: "study/<name>"`. `studies.index` lists the chat's studies without listing artifacts by
+  prefix, so `RunStore` is unchanged; `study` is a reference kind of `FileRunStore`.
+- Fix: `run_study` stored every run as `design/<plant>_best`, so a second study over a design was
+  refused as a changed design. A run is now stored as `design/<study name>_<plant name>`. A taken
+  `name` of `optimize`, `size_plant` or a study is refused before the study runs, naming the taken
+  design or study.
+- New public event `study.recorded` `{run, index, call_id, study, tool, method, designs, best?}`,
+  sent once after the artifact is saved; callbacks get `on_study_recorded`.
+- New read tools `list_studies` (with `current`: the state's case is still the one the study ran
+  on) and `read_study`, given to the Designer, Economist, Analyst and Explainer.
+- Unknown event types: `events_from_dicts` skips a type this version lacks and
+  `FileRunStore.load_events` uses it, so a newer log opens in an older reader. Every consumer,
+  the backend included, must ignore unknown event types. `event_from_dict` still raises.
+- `Context.call_id` and `Context.for_call`: a tool knows the call it serves.
+- Replay of a log of another geomind version (or with none recorded) keeps the recorded results
+  of pure tools and the state changes they made, and still compares completions, calls, steps and
+  answers: a 0.3.1 log with study calls (no `name`, other outputs) replays. Tools that write the
+  state still run.
+- A log of 0.3.1 without `study.recorded` loads, replays and exports. Recorded model calls of
+  `run_study`, `sample_uncertainty` and `sensitivity` from 0.3.1 lack the new `name`, so the
+  recordings of this repository carry one (`families`, `draws`).
 - Fix: `Engine.replay` matches a run's recorded results by step and call id, not by call id alone.
   A model that reuses an id in a later step (`explainer/unverified`, `analyst/module_lookup`) no
   longer gets the input of the later call at the earlier step. New test replaying every eval

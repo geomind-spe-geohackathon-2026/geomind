@@ -35,12 +35,15 @@ the problem state as `update_state` does.
 | `estimate_costs` | `assessment.py` | `compute` | `reference` | `{capex, opex, annualised_cost, lcoh, lcoc, lcts, npv, payback, co2}` as Values in display units, from the case's `economics.json`; a cost whose figure is missing is `{error}` with gemini's `missing_assumption` and its path | built |
 | `write_module` | `modules.py` | `write` | `name, code` | `{module: "module/<name>.py", name}`; stores the code as that artifact; `name` must be a Python identifier (`invalid_input`, path `name`) | built |
 | `test_module` | `modules.py` | `execute` | `name, example=None` | `{name, passed, modules, problems, undecided}` from `gm.modules.check` on every module class of the stored file, run in a Docker container on `gemini-sandbox:<gm.__version__>` (no network, no package mounted, the sandbox limits); a problem is `{path: "<Class>.<check>" or "import", message}`, `undecided` the checks that need an `example` (the `gm.call` arguments); the local sandbox is `not_allowed`, an unstored name `unknown_name` | built |
-| `size_plant` | `study.py` | `compute` | `design, name`: the backup policy is the plant's `params.backup` (the Designer sets it and records the assumption) | `{design, sizing}`; `gm.study.size` on the state's case, the sized plant stored as `design/<name>`, `sizing` gemini's notes (`sized`, `unchanged`, `broken`, `simulation`) with quantities as `{value, unit}` | built |
-| `optimize` | `study.py` | `compute` | `design, objective, evaluations, seed, name`, all required: the variables are the design's ranges and options (`set_ranges`), the constraints the case's requirements; a design with none is gemini's error | `{best, feasible, trials, design}`; `best` is `Best.to_dict()` (display units, the plant inside), the best plant stored as `design/<name>`; with no trial that ran there is no `design`; gemini's errors pass through | built |
-| `sample_uncertainty` | `study.py` | `compute` | `design, metrics, samples, seed`, all required | `Sample.to_dict()`: `samples` and `summary` per metric (`mean`, `p5`, `p50`, `p95`, `failed`); distributions only from the case's `uncertainty` (none is `missing_value`) | built |
-| `sensitivity` | `study.py` | `compute` | `design, metrics` | `Tornado.to_dict()`: `rows` sorted by effect, bounds from the case's `uncertainty` | built |
+| `size_plant` | `study.py` | `compute` | `design, name`: the backup policy is the plant's `params.backup` (the Designer sets it and records the assumption); `name` names the design and `study/<name>` | `{design, study, sizing}`; `gm.study.size` on the state's case, the sized plant stored as `design/<name>`, `sizing` gemini's notes (`sized`, `unchanged`, `broken`, `simulation`) with quantities as `{value, unit}` | built |
+| `optimize` | `study.py` | `compute` | `design, objective, evaluations, seed, name`, all required: the variables are the design's ranges and options (`set_ranges`), the constraints the case's requirements; a design with none is gemini's error | `{best, feasible, trials, design, study}`; `best` is `Best.to_dict()` (display units, the plant inside), the best plant stored as `design/<name>` (the study is `study/<name>`); with no trial that ran there is no `design`; gemini's errors pass through | built |
+| `sample_uncertainty` | `study.py` | `compute` | `design, metrics, samples, seed, name`, all required | `{study}` and `Sample.to_dict()`: `samples` and `summary` per metric (`mean`, `p5`, `p50`, `p95`, `failed`); distributions only from the case's `uncertainty` (none is `missing_value`) | built |
+| `sensitivity` | `study.py` | `compute` | `design, metrics, name` | `{study}` and `Tornado.to_dict()`: `rows` sorted by effect, bounds from the case's `uncertainty` | built |
 | `compare` | `study.py` | `compute` | `references, by`: references of runs `simulate` returned | one entry per reference: `reference`, `values` in display units (read from each run's `Report.to_dict()`, since `Comparison.to_dict()` is SI), `ranks`, `pareto`, `feasible`, `reasons` | built |
-| `run_study` | `study.py` | `compute` | `designs, method, objective=None, metrics=None, evaluations=None, seed=None, samples=None, prepare=None`: a `gm.Study` over the state's case and the stored designs; a setting the method needs and the call leaves out is gemini's error | `{runs, best}`: per design `plant_name`, `feasible`, `verdict`, `metrics` (display units), `ranks`, `pareto`, `note`, `found`, and the `design` the run ended with (sized or best plant) stored as `design/<plant>_best`; `best` the feasible design ranked first by the objective | built |
+| `run_study` | `study.py` | `compute` | `designs, method, name, objective=None, metrics=None, evaluations=None, seed=None, samples=None, prepare=None`: a `gm.Study` over the state's case and the stored designs; a setting the method needs and the call leaves out is gemini's error | `{study, runs, best}`: per design `plant_name`, `feasible`, `verdict`, `metrics` (display units), `ranks`, `pareto`, `note`, `found`, and the `design` the run ended with (sized or best plant) stored as `design/<name>_<plant>` (the study's `name` first, so two studies over one design never clash); `best` the feasible design ranked first by the objective | built |
+
+| `list_studies` | `studies.py` | `read` | none | one item per stored study of the chat: `study` (`study/<name>`), `tool`, `method`, `designs` (plant names), `best` (design reference or `null`) and `current` (the state's case is still the one it ran on) | built |
+| `read_study` | `studies.py` | `read` | `study` | the stored artifact `study/<name>` (see [Stored studies](#stored-studies)); an unknown key is `unknown_name` | built |
 
 ### gemini mapping
 
@@ -77,6 +80,39 @@ gemini's API is frozen from 0.5.0; a breaking gemini release needs a new geomind
 | `compare` | `gm.evaluate.report`, `gm.evaluate.compare`, `Report.to_dict` (display units) | real |
 | `run_study` | `gm.Study.from_dict`, `Study.run`, `StudyResult.to_dict`, `Run.report` | real |
 
+### Stored studies
+
+Every study tool (`size_plant`, `optimize`, `sample_uncertainty`, `sensitivity`, `run_study`) takes a
+required `name` and stores the chat artifact `study/<name>`, written once like `design/` (the same
+study on the same case again is accepted, any other content under a taken name is a `ToolError`
+with path `name`, refused before the study runs). The artifact holds:
+
+- `study`: gemini's `study.json` (`gm.Study.to_dict()`, format 1, kind `study`) that ran: `name`,
+  `cases` (`["case/case.json"]`, standing for the state's case), `plants` (the references of the
+  stored designs it read, `design/<name>`), `method` and the settings.
+- `result`: gemini's plain form of what came back: `StudyResult.to_dict()` for `run_study`;
+  for `optimize` the search as `Study` runs keep it (`best` with `plant` left `null`, `feasible`,
+  `evaluations`; the history is not kept); `Sample.to_dict()` and `Tornado.to_dict()` (display
+  units) for the other two; `{sizing}` for `size_plant`.
+- `designs`: `{read: [design references], wrote: [design references]}`.
+- `case`: the id of the case it ran on, a hash of the case dict and of its files' digests;
+  `list_studies` compares it with the state's case to give `current`.
+- `tool` and `versions` (`geomind`, `gemini`, `python` of the process).
+
+Forms: `optimize` is method `minimize`, `sample_uncertainty` is `sample` and `sensitivity` is
+`sensitivity`, each over one plant. `size_plant` is method `run` with `prepare: ["size"]`, the
+closest form gemini has: its method list has no sizing alone, so a reader must not take the study
+for a simulation; the request is in the gemini requests. The recommended `best` of a study is the
+feasible design ranked first for `run_study`, the feasible best for `optimize`, the sized design for
+`size_plant` and `null` for sampling and sensitivity.
+
+Each save adds the study to `studies.index` (a chat artifact without a `/`:
+`{studies: [{study, tool, method, designs, best, case}]}`), which is how `list_studies` finds the
+chat's studies: `RunStore` cannot list artifacts by prefix and its protocol is the backend's, so
+geomind keeps the list itself. The study tools declare `runs_alone`, so two saves never race on the
+index. After the artifact and the index are saved, the tool sends the public event `study.recorded`
+([events.md](events.md)). `run_study` stores each run's plant as `design/<name>_<plant name>`.
+
 `size_plant`, `optimize`, `sample_uncertainty`, `sensitivity` and `run_study` have a time limit of
 `STUDY_TIMEOUT_S` (900 s): past it the model reads a `timeout` error and asks for fewer
 evaluations or draws. The gemini call runs in a worker thread, which Python cannot stop, so it
@@ -107,7 +143,7 @@ message of the same chat reads it; a run without a chat uses its root run id as 
   `case_of` reads them; `list_profiles`, `read_profile` and `simulate` read the case.
 
 `geomind/tools/gemini/stored.py` is the one contract of both: `save_design(context, name, plant)
--> "design/<name>"`, `load_design(context, design, where) -> gm.Plant`, `save_run(context, plant,
+-> "design/<name>"`, `save_study(...) -> "study/<name>"`, `load_study`, `load_design(context, design, where) -> gm.Plant`, `save_run(context, plant,
 results, summary, options, ran) -> "result/<id>"` and `load_run(context, reference, where) -> (plant,
 case, results)`. `<id>` also covers the contents of the case's files, so a changed file is a new
 run. A reference no run made is `unknown_name` with `path` `reference`.

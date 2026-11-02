@@ -7,11 +7,11 @@ from typing import Protocol
 
 from geomind.errors import RunError
 from geomind.types import Message
-from geomind.types.events import event_from_dict
+from geomind.types.events import events_from_dicts
 from geomind.utils.json import append_line, read_json, read_lines, write_json
 
 _SAFE_NAME = re.compile(r"^[\w.-]+$")
-REFERENCE_KINDS = ("design", "result", "case", "module")
+REFERENCE_KINDS = ("design", "result", "case", "module", "study")
 
 
 class RunStore(Protocol):
@@ -144,7 +144,8 @@ class FileRunStore:
     name, so the next run of the chat reads it. Ids become path parts, so unsafe ones raise.
 
     An artifact key is one such part, or the frozen ``design/<name>``,
-    ``result/<id>``, ``module/<file name>`` (an agent-written module) or ``case/<file name>``, a
+    ``study/<name>``, ``result/<id>``, ``module/<file name>`` (an agent-written module) or
+    ``case/<file name>``, a
     file of the run's case (its name may be a path).
     """
 
@@ -166,7 +167,7 @@ class FileRunStore:
 
     def load_events(self, run_id):
         """Return a run's events in sequence order."""
-        return [event_from_dict(line) for line in read_lines(self._run(run_id) / "events.jsonl")]
+        return events_from_dicts(read_lines(self._run(run_id) / "events.jsonl"))
 
     def add_message(self, chat_id, message):
         """Append one message to a chat; the backend's own store fills history itself."""

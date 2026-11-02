@@ -18,6 +18,7 @@ path below exists.
 | `options` as `[{value, label}]` | `geomind/types/decisions.py` | `tests/unit/types/test_decisions.py` |
 | `ask_user` normalises `options` | `geomind/tools/builtins.py` | `tests/unit/tools/test_builtins.py` |
 | Answers to options | `geomind/types/decisions.py` | `tests/unit/types/test_decisions.py` |
+| `study.recorded` as `{run, index, call_id, study, tool, method, designs, best?}` (beyond the shared contract) | `geomind/types/events.py` | `tests/unit/types/test_events.py` |
 | `state.changed` as `{version, changes}` | `geomind/types/events.py` | `tests/unit/types/test_events.py` |
 | The JSON Patch subset | `geomind/types/patch.py` | `tests/unit/types/test_patch.py` |
 | Patches applied, addressed by id, `version` + 1 | `geomind/context/state.py` | `tests/unit/context/test_state.py` |
@@ -26,6 +27,14 @@ path below exists.
 | `Callback.on_event`, the one method of a publisher | `geomind/engine/callbacks.py` | `tests/unit/engine/test_callbacks.py` |
 | Every event but `text.delta` through `RunStore.save_event` | `geomind/engine/session.py` | `tests/unit/engine/test_log.py` |
 | Public events reach a publisher | `geomind/engine/callbacks.py` | `tests/integration/test_delegate.py` |
+
+**Every consumer ignores unknown event types.** A newer geomind adds event types (0.4.0:
+`study.recorded`), so a publisher, a stream client, a store reader or any code that reads a log
+skips a `type` it does not know instead of failing. `event_from_dict` itself still raises
+`RunError` on an unknown type, because a caller that asks for one expects a known event;
+`events_from_dicts` (`geomind/types/events.py`) is the reader of a stored log and skips them, and
+`FileRunStore.load_events` uses it. The backend's own `RunStore.load_events` and its stream must
+do the same.
 
 Events that S1 stored have no `model` on `step.started`; that key is left out of their JSON. A backend publisher overrides
 `Callback.on_event` and forwards `event.type` and `event.data()` when `event.is_public`.
@@ -84,7 +93,7 @@ and to read one back `event_from_dict`.
   writes `<root>/chats/<chat id>/artifacts/...`. Geomind saves every artifact below in the chat's
   space; the run's methods remain for what is per run. A run without a chat uses its root run id
   as its chat id.
-- Artifact keys (the rule applies to both spaces) may hold a `/`: `design/<name>`, `result/<id>` and `case/<file name>`
+- Artifact keys (the rule applies to both spaces) may hold a `/`: `design/<name>`, `study/<name>`, `result/<id>` and `case/<file name>`
   (bytes: the series and economics files of the run's case; the file name is a relative path such
   as `data/demand.csv`, each part safe). A user's demand profile is a file of the case,
   `case/<file name>`. `check_run_store` tests them. A run also keeps keys

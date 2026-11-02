@@ -44,6 +44,7 @@ class Engine:
     arguments of ``run``. The ``recorded*`` attributes are used by replay, each keyed by run id:
     ``recorded`` and ``recorded_changes`` by run, then (step, call id), ``recorded_llms`` by run id,
     and ``recorded_children`` by the parent run id, step and task of a nested run, to its run id.
+    ``reuses_tools`` makes a replay keep the result of every pure tool.
     """
 
     def __init__(
@@ -71,6 +72,7 @@ class Engine:
         self.recorded_changes = {}
         self.recorded_children = {}
         self.recorded_llms = {}
+        self.reuses_tools = False
         self._sequences = {}
         self._usages = {}
 

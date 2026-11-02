@@ -168,6 +168,16 @@ the end of every finished nested run too. A difference raises `ReplayError` nami
 its agent, the step and the tool. `replayed`, a list, receives the events of the replayed tree,
 and the root log names the loop of the recording, so exports of a run and its replay compare.
 
+**A log of another geomind version checks the agents' decisions, not the tools' outputs.** When
+the root `run.started` records a geomind version other than the current one, or none (0.3.0), the
+replay does not run pure tools (`read`, `compute`): each keeps its recorded result and the problem
+state changes of the nested runs it started (`_nested_changes`), because a tool
+may have changed its input or output since (0.4.0 added `name` to the study tools). Tools that
+write the problem state (`reruns_in_replay`) and the call that ends a run still run. The
+completions, the calls, the step order and the answers are still compared. A difference in gemini
+alone only reports (`versions differ`) and runs the tools. `Engine.reuses_tools` carries this and
+`reuses_tool_results` decides it.
+
 ## Stores and workspaces
 
 `RunStore` is the nine-method protocol of the contract, `load_events` and the two chat-artifact
@@ -179,16 +189,16 @@ and `FileRunStore(root=".runs")` add `add_message(chat_id, message)`.
 
 **Where an artifact lives.** The problem state is per chat, so every artifact it can name is in the
 chat's space (`save_chat_artifact(chat_id, key)`): `case/<file name>`, `<sha256>.file`,
-`design/<name>`, `result/<id>` and `<id>.results`/`.plant`/`.case`/`.files`, `module/<name>.py`,
+`design/<name>`, `study/<name>` and `studies.index`, `result/<id>` and `<id>.results`/`.plant`/`.case`/`.files`, `module/<name>.py`,
 and a cut tool output. `RunSession.save_artifact`/`load_artifact` use it, with the chat id of the
 run, or its root run id for a run without a chat (a CLI `run`), so nothing changes for that run. The
 run's own space (`save_artifact(run_id, key)`) is for what no state names and is not used by the
-engine today. `design/<name>` is written once: the same content again is fine, other content is a
+engine today. `design/<name>` and `study/<name>` are written once: the same content again is fine, other content is a
 `ToolError` (path `name`) that asks for a new name, so a result never points at a changed design;
 `RunSession` checks it for every caller, so the rule holds for any store.
 
 An artifact key of `FileRunStore` is one safe name, or a [reference](tools.md#references) of the
-form `design/<name>`, `result/<id>` or `case/<file name>`; any other `/` raises `RunError`.
+form `design/<name>`, `study/<name>`, `result/<id>` or `case/<file name>`; any other `/` raises `RunError`.
 
 `Workspace` has `plants(project_id)`, `case(project_id)` and `documents(project_id, query)`.
 `MemoryWorkspace(plants, documents, cases)` holds values; `FileWorkspace(root)` reads gemini's

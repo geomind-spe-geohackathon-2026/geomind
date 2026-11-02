@@ -13,7 +13,7 @@ from geomind.errors import ReplayError
 from geomind.stores.run import MemoryRunStore
 from geomind.tools import Delegate, tool, update_state
 from geomind.types import Action, Deny, Message, ToolCall
-from geomind.types.events import RunStarted, StateChanged, ToolRecorded, ToolStarted
+from geomind.types.events import RunFinished, RunStarted, StateChanged, ToolRecorded, ToolStarted
 from tests.fixtures.runs import (
     EXECUTED,
     Helper,
@@ -573,3 +573,97 @@ async def test_nested_runs_reused_are_reported():
     assert not nested_runs_reused(events, MemoryWorkspace())
     plain, plain_engine, plain_events = await run([says("e")])
     assert not nested_runs_reused(plain_events, None)
+
+
+class OtherVersion(Rewriting):
+    """Change one recorded output and record the log as another geomind version wrote it."""
+
+    def __init__(self, versions):
+        """Keep the versions the run.started events will carry."""
+        super().__init__()
+        self.versions = versions
+
+    def load_events(self, run_id):
+        """Return the changed events with the versions of the old log."""
+        return [
+            e.model_copy(update={"versions": self.versions}) if isinstance(e, RunStarted) else e
+            for e in super().load_events(run_id)
+        ]
+
+
+@pytest.mark.parametrize("versions", [{}, {"geomind": "0.0.1", "gemini": "0.5.0"}])
+async def test_a_log_of_another_geomind_version_reuses_the_recorded_tool_results(versions):
+    """A log without versions or of another geomind checks the decisions, not the tools' outputs.
+
+    NOTE: the changed output stands for a tool whose result or input form changed between
+    versions; the replay does not run it and still compares the completions, calls and answer.
+    """
+    store = OtherVersion(versions)
+    result, engine, _ = await run([says("x")], store=store)
+    result, engine, _ = await run([uses(call("lookup", key="k")), says("end")], store=store)
+    EXECUTED.clear()
+    replayed = await Engine.replay(engine.store, result.run_id)
+    assert (replayed.answer, EXECUTED) == ("end", [])
+
+
+async def test_a_log_of_another_version_still_fails_on_a_changed_answer():
+    """The answers are still compared, so a different end is a mismatch."""
+    result, engine, events = await run([uses(call("lookup", key="k")), says("end")])
+    engine.store.events[result.run_id] = [
+        (
+            e.model_copy(update={"versions": {}})
+            if isinstance(e, RunStarted)
+            else e.model_copy(update={"answer": "other"}) if isinstance(e, RunFinished) else e
+        )
+        for e in events
+    ]
+    with pytest.raises(ReplayError):
+        await Engine.replay(engine.store, result.run_id)
+
+
+async def test_a_reused_call_is_not_validated_against_the_schema_of_today():
+    """An old input that fails the schema of the tool now is not a validation failure here."""
+    result, engine, events = await run(
+        [uses(call("add", left=1, right=2)), says("end")], store=MemoryRunStore()
+    )
+    engine.store.events[result.run_id] = [
+        (
+            e.model_copy(update={"versions": {}})
+            if isinstance(e, RunStarted)
+            else e.model_copy(update={"input": {"left": 1}}) if isinstance(e, ToolRecorded) else e
+        )
+        for e in events
+    ]
+    replayed = []
+    await Engine.replay(engine.store, result.run_id, replayed=replayed)
+    recorded = [e for e in replayed if isinstance(e, ToolRecorded) and e.tool == "add"]
+    assert [(e.input, e.output, e.is_error, e.is_validation) for e in recorded] == [
+        ({"left": 1}, 3, False, False)
+    ]
+
+
+class Stater(Worker):
+    """Has ``update_state`` beside the pure tools."""
+
+    def __init__(self):
+        """Add the tool."""
+        super().__init__()
+        self.update_state = update_state
+
+
+async def test_a_state_change_beside_a_reused_call_is_applied_once():
+    """A pure call beside ``update_state`` in one step does not get its change applied twice."""
+    change = {"op": "replace", "path": "/goal", "value": "cover the peak"}
+    result, engine, events = await run(
+        [
+            uses(call("add", "a", left=1, right=2), call("update_state", "b", changes=[change])),
+            says("end"),
+        ],
+        agent=Stater(),
+    )
+    engine.store.events[result.run_id] = [
+        e.model_copy(update={"versions": {}}) if isinstance(e, RunStarted) else e for e in events
+    ]
+    replayed = []
+    await Engine.replay(engine.store, result.run_id, replayed=replayed)
+    assert len([e for e in replayed if isinstance(e, StateChanged)]) == 1

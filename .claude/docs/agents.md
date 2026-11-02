@@ -96,12 +96,12 @@ frozen; the tools themselves are in [tools.md](tools.md#catalogue). Every agent 
 
 | Agent | Tools |
 |---|---|
-| `Analyst` | `read_case`, `list_modules`, `describe_module`, `evaluate_module`, `list_plants`, `read_plant`, `list_profiles`, `read_profile`, `save_profile`, `simulate`, `read_result`, `compute_kpis`, `write_module`, `test_module`, `search_documents`, `update_state`, `read_skill`, `ask_user`, `finish` |
+| `Analyst` | `read_case`, `list_modules`, `describe_module`, `evaluate_module`, `list_plants`, `read_plant`, `list_profiles`, `read_profile`, `save_profile`, `simulate`, `read_result`, `list_studies`, `read_study`, `compute_kpis`, `write_module`, `test_module`, `search_documents`, `update_state`, `read_skill`, `ask_user`, `finish` |
 | `Coordinator` | none: it answers with a `Route` |
-| `Designer` | `read_case`, `set_case`, `save_profile`, `list_plants`, `read_plant`, `list_modules`, `describe_module`, `evaluate_module`, `build_plant`, `set_ranges`, `size_plant`, `list_profiles`, `read_profile`, `simulate`, `read_result`, `check_results`, `optimize`, `run_study`, `write_module`, `test_module`, `search_documents`, `update_state`, `read_skill`, `ask_user`, `finish` |
+| `Designer` | `read_case`, `set_case`, `save_profile`, `list_plants`, `read_plant`, `list_modules`, `describe_module`, `evaluate_module`, `build_plant`, `set_ranges`, `size_plant`, `list_profiles`, `read_profile`, `simulate`, `read_result`, `list_studies`, `read_study`, `check_results`, `optimize`, `run_study`, `write_module`, `test_module`, `search_documents`, `update_state`, `read_skill`, `ask_user`, `finish` |
 | `Verifier` | `check_results`, `case_changes`, `read_case`, `compute_kpis`, `read_result`, `update_state`, `read_skill`, `finish` |
-| `Economist` | `compute_kpis`, `estimate_costs`, `compare`, `run_study`, `sample_uncertainty`, `sensitivity`, `read_result`, `update_state`, `read_skill`, `finish` |
-| `Explainer` | `read_case`, `case_changes`, `read_plant`, `read_result`, `compute_kpis`, `estimate_costs`, `search_documents`, `finish` |
+| `Economist` | `compute_kpis`, `estimate_costs`, `compare`, `run_study`, `sample_uncertainty`, `sensitivity`, `read_result`, `list_studies`, `read_study`, `update_state`, `read_skill`, `finish` |
+| `Explainer` | `read_case`, `case_changes`, `read_plant`, `read_result`, `list_studies`, `read_study`, `compute_kpis`, `estimate_costs`, `search_documents`, `finish` |
 | `CodeAssistant` | `ask_user`, `finish`, `run_python`, `read_file`, `write_file` |
 | `Assistant` | `ask_user`, `finish` |
 | `Summarizer` | none |
@@ -113,7 +113,10 @@ agent`, `confirmed: false` and a one-line reason, which the Verifier and the Exp
 Designer records the sized start's whole-year run as `design.start_result` and any other family it
 simulated as `design.alternatives` (`[{family, design, result}]`). With two or more buildable
 families it compares them in one `run_study` (`minimize`, `prepare: ["size"]`) and records it as
-`design.study` (`{designs, method, objective, evaluations, seed, best, runs}`). The driver names
+`design.study` (`{key, designs, method, objective, evaluations, seed, best, runs}`; `key` is the
+`study/<name>` the tool stored). Every study gets a name of its own and an answer cites the study key
+it relies on; `list_studies` and `read_study` (Designer, Economist, Analyst, Explainer) read the
+chat's stored studies. The driver names
 those results and the study in the Economist's task, which compares only them, and puts the study's
 ranked table in the Explainer's task.
 

@@ -17,6 +17,8 @@ def test_it_is_complete():
             "sample_uncertainty",
             "sensitivity",
             "read_result",
+            "list_studies",
+            "read_study",
             "update_state",
             "read_skill",
             "finish",

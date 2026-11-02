@@ -50,16 +50,20 @@ From a family to a design:
 - `size_plant` sizes the built design for the case under its `params.backup` and stores the sized
   plant as another design; its notes say what was sized, what stayed and what is broken. Then
   `simulate` the whole year and `check_results`.
+- Every study tool takes a `name` of its own, never reused (a taken name is refused), and returns
+  the study as `study/<name>`, which is stored whole and never changes. Cite that key in an answer
+  that relies on the study. `list_studies` lists the chat's studies and whether each is `current`
+  (its case is still the state's), `read_study` reads one.
 - `optimize(design, objective, evaluations, seed, name)` searches the ranges for the objective
   (`lcts`, `lcoh`, `lcoc`, `annualised_cost`, `co2`; a leading `-` maximises). gemini needs
   at least five evaluations per searched continuous leaf, so search few leaves with few
   evaluations. It returns the `best`, `feasible`, the `trials` and the stored design. A trial is
   feasible only when gemini's verdict says so. When it returns `feasible: false`, read the `reason`
   and change the ranges, the options or the topology.
-- `run_study(designs, method, ...)` runs one study over several designs and ranks them:
+- `run_study(designs, method, name, ...)` runs one study over several designs and ranks them:
   `method="minimize"` with `objective`, `evaluations` and `seed`, and `prepare=["size"]` to size
   each first. It returns one run per design (`feasible`, `metrics`, `ranks`, `pareto`, the stored
-  `design`) and `best`. This is how families are compared.
+  `design`, named `design/<name>_<plant>`) and `best`. This is how families are compared.
 - Get the numbers from gemini (`evaluate_module` on a doublet, `simulate` on a short window around
   the peak), never by hand. After any change, every earlier result of that design is stale.
 

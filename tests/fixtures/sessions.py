@@ -13,6 +13,7 @@ class StubState:
         self.step_usage = Usage()
         self.usage = Usage()
         self.step = 1
+        self.run_id = "r1"
         self.parent = None
 
 
@@ -32,6 +33,7 @@ class StubSession:
         self.decision = None
         self.completion = None
         self.result = None
+        self.events = []
 
     async def save_artifact(self, key, data):
         """Keep an artifact."""
@@ -40,6 +42,14 @@ class StubSession:
     def load_artifact(self, key):
         """Return a kept artifact, or ``None``."""
         return self.artifacts.get(key)
+
+    async def emit(self, kind, **fields):
+        """Keep an event as ``(class, fields)``."""
+        self.events.append((kind, fields))
+
+    def versions(self):
+        """Return fixed versions."""
+        return {"geomind": "test"}
 
     async def change_state(self, changes):
         """Keep a change of the problem state; return the version it gives."""

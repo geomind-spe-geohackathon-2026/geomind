@@ -119,6 +119,19 @@ async def _reuse(session, call, recorded):
     await record_result(session, call, result, source=recorded.source)
 
 
+def _runs_again(session, tool, recorded):
+    """Tell whether a replay runs this tool instead of reusing its recorded result.
+
+    NOTE: a tool that is only pure reuses its result when the replay ``reuses_tools``; a tool
+    that writes the problem state (``reruns_in_replay``) still runs, since the state must follow,
+    and so does the call that ended the run, which only running it can end again.
+    """
+    if recorded.source != "tool":
+        return False
+    reuses = session.engine.reuses_tools and not recorded.is_finish
+    return tool.reruns_in_replay or (tool.is_pure and not reuses)
+
+
 async def _execute(session, agent, tool, call):
     """Run one admitted call and handle what it returned."""
     if call.id not in session.state.started:
@@ -127,7 +140,7 @@ async def _execute(session, agent, tool, call):
         )
     results = session.engine.recorded.get(session.state.run_id, {})
     recorded = results.get((session.state.step, call.id))
-    if recorded is not None and not (tool.replays and recorded.source == "tool"):
+    if recorded is not None and not _runs_again(session, tool, recorded):
         await _reuse(session, call, recorded)
         return _over_retries(session, tool)
     outcome = await dispatch(tool, call, session.context())

@@ -124,7 +124,15 @@ def designer_script():
         step("size_plant", "sized", design="design/ra", name="sized"),
         step("simulate", "start", design="design/sized"),
         step("update_state", "notes", changes=assumptions()),
-        step("run_study", "study", designs=both, method="minimize", prepare=["size"], **SEARCH),
+        step(
+            "run_study",
+            "study",
+            designs=both,
+            method="minimize",
+            prepare=["size"],
+            name="families",
+            **SEARCH,
+        ),
         lambda messages: step("simulate", "year", design=best_of(output_of(messages, "study"))),
         lambda messages: step(
             "check_results", "own", reference=output_of(messages, "year")["reference"]
