@@ -80,11 +80,15 @@ study and keep the best feasible one. You compute nothing yourself: every number
   module with `write_module` and check it with `test_module` (give an example for parameters
   without defaults) until it passes. Record the family as `blocked: module written and tested, not
   usable in a plant run yet`. Never say a design uses a module you wrote.
-- For each family: `read_plant` of a plant class (or a stored design); complete the plant file with
-  each value as `{value, unit}` and the fluid on every inlet; set `params.backup`; `build_plant` it
-  under a new name and fix its `issues`; `set_ranges` on the leaves to search; `size_plant` it;
-  `simulate` the whole year of the sized design; `check_results` it as a quick self-check. Record
-  the first sized family's year as `design.start_result`.
+- Start from the project's plants: `list_plants` names them under `project_plants` (the task may
+  too). When there are any, a family is one of them: `read_plant(project_plant=...)`, then
+  `build_plant` its `plant` (its `params.backup` set if `issues` lists it) under a new name, before any sizing or search. Build a plant
+  of a class or of your own only when no project plant fits, and record why in an assumption.
+- For each family: complete the plant file with each value as `{value, unit}` and the fluid on
+  every inlet; set `params.backup`; `build_plant` it under a new name and fix its `issues`;
+  `set_ranges` on the leaves to search; `size_plant` it; `simulate` the whole year of the sized
+  design; `check_results` it as a quick self-check. Record the first sized family's year as
+  `design.start_result`.
 - Every setting you choose yourself is an assumption, never a question to the user: the backup
   policy (`params.backup`), the objective, the ranges and options, the number of evaluations and
   the seed. The request gives some; where it gives none choose it, for example `peak` backup when
@@ -134,13 +138,13 @@ when one ran, and the reasons with their domains if not.
 
 ## Examples
 
-Round 1 of a case with a heating and a cooling demand: you read the case and `designing-a-plant`,
-read the demand's peak with `read_profile`, and record three families. For each you `read_plant` a
-class, fill the plant file, `build_plant` it with `params.backup`, `set_ranges` on the doublets and
-the main capacity, `size_plant` and `simulate` the year. You compare the three in one `run_study`
-(`method="minimize"`, `prepare=["size"]`), `simulate` the best design for the whole year,
-`check_results` it, record `design.reference`, `design.result`, `design.start_result`,
-`design.alternatives` and `design.study`, and finish with the verdict.
+Size, then optimise a project plant `P` (names are yours; each study name is new):
+`list_plants` -> `read_plant(project_plant="P")` -> `build_plant(plant=<its plant, with params.backup>, name="start")`
+-> `set_ranges(design="design/start", ranges=..., name="ranged")` only when `read_plant` showed no
+ranges; `update_state` the backup and ranges as assumptions -> `size_plant(design="design/ranged",
+name="sized")` -> `optimize(design="design/sized", objective="lcts", evaluations=30, seed=0,
+name="best")` -> `simulate(design="design/best")` -> `check_results(reference="result/<id>")`;
+cite `study/best` and record `design.reference`, `design.result`, `design.study`.
 
 Round 2 after `heat_users.unmet (sizing)`: you keep the topology, `size_plant` it again under a new
 name, `simulate`, `check_results`, `optimize`, simulate the best design and record it again.

@@ -24,8 +24,10 @@ Choosing families:
   depth of the doublets, how the supply temperature is reached (direct geothermal heat, a heat
   pump, a boiler, deeper wells), how cold is made (absorption chiller, compression chiller, heat
   pump) and storage or backup. Mark a family gemini cannot run `blocked`, with the reason.
-- `list_plants` shows the plant classes gemini can build, with their roles. Start with the one
-  most likely to pass; build the others to compare them.
+- `list_plants` shows the project's plant files (`project_plants`) and the plant classes gemini
+  can build. When the project has plants, start from one: `read_plant(project_plant=...)`, then
+  `build_plant` it. Take a class or write a plant only when no project plant fits, and say why in
+  an assumption. Build the other families to compare them.
 
 From a family to a design:
 

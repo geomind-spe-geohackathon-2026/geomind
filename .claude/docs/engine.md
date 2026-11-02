@@ -103,7 +103,10 @@ Loops are written as resumable steps, never with state held only in local variab
 `DesignLoop(designer, verifier, max_rounds=5)` (`loops/design.py`) runs one root run whose agent is
 a rule-based `DesignDriver`. The order is: the designer (size, simulate, self-check, optimise, and
 record `design.reference` and `design.result`), the verifier on that final design once, the
-`Economist`, the `Explainer`, which finishes the run. Before designing, a state with no case or a
+`Economist`, the `Explainer`, which finishes the run. The designer's first task names the project's
+plant files (`project_plant_names`, read from the workspace without an LLM call; nothing is said
+when there are none), so it stores one with `read_plant(project_plant=...)` and `build_plant`
+before it sizes or searches. Before designing, a state with no case or a
 case without demand makes the driver ask the user (`ask_user`); it stops with `no_case` at
 `max_rounds` when the designer still leaves none. After the verifier the driver checks the design
 again with gemini (`gd.verify` over the stored run, `verify/design.py`). Pass or fail is `gm.evaluate.verdict` alone. Only a failure sends the

@@ -9,6 +9,7 @@ from geomind.agents.agent import Agent, Model
 from geomind.engine.hooks import Verified
 from geomind.loops.loop import Loop
 from geomind.tools import Delegate
+from geomind.tools.gemini.plants import project_plant_names
 from geomind.types import Action, ToolCall
 from geomind.verify.design import verify_design
 
@@ -143,12 +144,12 @@ class DesignDriver(Agent):
         return act(note, index, "designer", task=self.first_task(context))
 
     def first_task(self, context):
-        """Return the designer's first task: the user's request and the rules of the rounds."""
+        """Return the designer's first task: the request, the project's plants and the rounds."""
         request = request_of(context)
         return (
-            f"{request}\n\nRound 1 of at most {self._max_rounds}. Read the case, then size a "
-            "plant, simulate the whole year, check it, optimize it, simulate the optimised design "
-            "and record design.reference and design.result."
+            f"{request}{project_plants_text(context)}\n\nRound 1 of at most {self._max_rounds}. "
+            "Read the case, then size a plant, simulate the whole year, check it, optimize it, "
+            "simulate the optimised design and record design.reference and design.result."
         )
 
     def after_design(self, context, note, index):
@@ -202,6 +203,18 @@ class DesignDriver(Agent):
 def request_of(context):
     """Return the run's own request: the last user message, after the chat's earlier turns."""
     return next(item.content for item in reversed(context.messages) if item.role == "user")
+
+
+def project_plants_text(context):
+    """Return the sentence naming the project's plant files, or ``""`` when it has none."""
+    names = project_plant_names(context)
+    if not names:
+        return ""
+    return (
+        f"\n\nThe project's plants: {', '.join(names)}. Start from one that fits: read_plant "
+        "with project_plant, store it with build_plant, and build a new plant only when none "
+        "fits, saying why in an assumption."
+    )
 
 
 def missing_case(problem):

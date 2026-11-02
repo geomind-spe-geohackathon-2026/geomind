@@ -4,6 +4,13 @@
 interface raises the minor version, and an addition or a fix raises the patch version. The rule and
 the list of frozen interfaces are in [.claude/docs/api.md](.claude/docs/api.md#frozen-interfaces).
 
+## [Unreleased]
+
+- The Designer starts from the project's plants: `read_plant(project_plant=...)`, then `build_plant`
+  before sizing or searching; a new plant only when none fits, with the reason as an assumption.
+  The `DesignLoop`'s first task names the project's plants (none when there are none). The prompt
+  shows the size-then-optimise sequence. New offline recording `designer/project_plant`.
+
 ## [0.4.1] - 2026-11-02
 
 Additive: models and OpenRouter providers can be chosen by deployment configuration.
