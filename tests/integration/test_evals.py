@@ -4,6 +4,7 @@ NOTE: the sample task of the phase needs gemini's tools, so these tasks use the 
 has now, and they cover every kind of criterion, pass and fail.
 """
 
+import json
 import shutil
 
 import pytest
@@ -11,6 +12,7 @@ import yaml
 
 from evals import run as evals
 from evals.tasks_format import load_task
+from geomind.stores import FileWorkspace
 from geomind.utils.json import append_line
 from tests.fixtures import ROOT
 from tests.fixtures.cases import example_folder
@@ -169,41 +171,65 @@ def test_the_shipped_tasks_of_the_single_agents_pass_offline(gemini_loaded, agen
     assert [outcome.problems for outcome in outcomes] == [[]] * len(outcomes)
 
 
+NAMES = [
+    "colder_reservoir",
+    "economist",
+    "hackathon",
+    "more_cooling",
+    "tight_budget",
+    "user_profile",
+    "verifier",
+]
+
+
 @pytest.mark.slow
 def test_the_challenge2_cases_pass_offline_through_the_design_loop(gemini_loaded):
-    """The hackathon case and its three variants are verified against their own cases.
+    """The hackathon case, its variants and the roles' tasks are verified against their own cases.
 
     NOTE: slow, because each task runs the design loop, optimises and simulates a year, twice.
     """
     outcomes = evals.run_agent("challenge2")
-    assert [outcome.name for outcome in outcomes] == [
-        "colder_reservoir",
-        "hackathon",
-        "more_cooling",
-        "user_profile",
-    ]
-    assert [outcome.problems for outcome in outcomes] == [[]] * 4
-    assert all(outcome.verdict["passed"] for outcome in outcomes)
+    assert [outcome.name for outcome in outcomes] == NAMES
+    assert [outcome.problems for outcome in outcomes] == [[]] * len(NAMES)
+    verified = [outcome for outcome in outcomes if outcome.name != "tight_budget"]
+    assert all(outcome.verdict["passed"] for outcome in verified)
 
 
-def run_ignored(tmp_path, task):
-    """Run a challenge2 task on the recording of a design that ignored the variant."""
+def run_recorded(tmp_path, task, recording):
+    """Run one challenge2 task on a recording that is not its own."""
     folder = tmp_path / "tasks" / "challenge2"
     folder.mkdir(parents=True)
     shutil.copy(evals.ROOT / "tasks" / "challenge2" / f"{task}.yaml", folder)
     recordings = tmp_path / "recordings" / "challenge2"
     recordings.mkdir(parents=True)
-    shutil.copy(
-        ROOT / "tests" / "fixtures" / "recordings" / f"{task}_ignored.jsonl",
-        recordings / f"{task}.jsonl",
-    )
+    shutil.copy(recording, recordings / f"{task}.jsonl")
     [outcome] = evals.run_agent("challenge2", root=tmp_path)
     return outcome
 
 
+def run_ignored(tmp_path, task):
+    """Run a challenge2 task on the recording of a design that ignored the variant."""
+    return run_recorded(
+        tmp_path, task, ROOT / "tests" / "fixtures" / "recordings" / f"{task}_ignored.jsonl"
+    )
+
+
+@pytest.mark.slow
+def test_a_tight_step_budget_stops_the_loop_without_a_design(gemini_loaded, tmp_path):
+    """With 7 steps the designer cannot optimise: the loop says so and presents no design.
+
+    NOTE: slow, because the designer simulates and checks a year in each round.
+    """
+    recording = evals.ROOT / "recordings" / "challenge2" / "tight_budget.jsonl"
+    outcome = run_recorded(tmp_path, "tight_budget", recording)
+    assert outcome.problems == []
+    assert "No design passed" in outcome.answer
+    assert "optimize" not in outcome.tools
+
+
 @pytest.mark.slow
 def test_a_design_that_ignores_the_cooling_peak_fails_its_checks(gemini_loaded, tmp_path):
-    """The hackathon design on the 15 MW case, unsized, fails gemini's checks and is rejected.
+    """The unsized plant on the 15 MW case fails gemini's checks and is rejected.
 
     NOTE: slow, because the design is simulated over the year.
     """
@@ -211,7 +237,7 @@ def test_a_design_that_ignores_the_cooling_peak_fails_its_checks(gemini_loaded, 
     assert outcome.verdict["passed"] is False
     assert any(problem.startswith("verified") for problem in outcome.problems)
     assert "stop: repeated_failure" in outcome.answer
-    assert "cool_users.unmet_sensible" in outcome.answer
+    assert "cold_delivered" in outcome.answer
     assert outcome.state["design"]["rejected"] == ["design/start"]
     assert "reference" not in outcome.state["design"]
 
@@ -230,44 +256,102 @@ def test_a_design_that_ignores_the_colder_gradient_fails_by_its_numbers(gemini_l
 
 
 PROJECTS = ROOT / "evals" / "projects"
-UNMET = ("heating_supply", "cooling_supply")
+BASE = "hackathon"
+VARIANTS = ("more_cooling", "colder_reservoir", "higher_gas", "user_profile")
+LAYOUT = ("case.json", "economics.json", "data/demand.csv")
 
 
-@pytest.mark.parametrize("project", ["hackathon", "hackathon_plant", "more_cooling"])
-def test_the_eval_cases_load_and_hold_the_demand_met_constraints(gemini_loaded, project):
-    """Each case is gemini's hackathon case plus a limit of 1 W unmet on each grid."""
-    case = gemini_loaded.Case.from_json(PROJECTS / project / "case.json")
-    unmet = [item for item in case.to_dict()["constraints"] if item["quantity"] == "unmet"]
-    assert [item["on"] for item in unmet] == list(UNMET)
-    assert all(item["max"] == {"value": 1, "unit": "W"} for item in unmet)
+def read_json_file(folder, name):
+    """Return the parsed JSON file of a project."""
+    return json.loads((folder / name).read_text())
 
 
-def test_the_cases_differ_from_gemini_s_example_only_by_their_variant(gemini_loaded):
-    """The copy keeps gemini's demand, and the cooling variant is its cooling column x 1.5."""
+@pytest.mark.parametrize("project", [BASE, "hackathon_plant", "shallow_district", *VARIANTS])
+def test_each_eval_project_is_a_gemini_project_that_loads(gemini_loaded, project):
+    """The workspace reads the folder's case with the files it names, and gemini builds the case."""
+    data, files = FileWorkspace(PROJECTS).case(project)
+    assert set(files) == {"economics.json", "data/demand.csv"}
+    case = gemini_loaded.Case.from_dict(data, files=files)
+    assert case.check() == []
+
+
+@pytest.mark.parametrize(
+    ("example", "project", "plants"),
+    [
+        ("hackathon_2026", BASE, 6),
+        ("hackathon_2026", "hackathon_plant", 1),
+        ("shallow_district", "shallow_district", 1),
+    ],
+)
+def test_the_copies_of_gemini_s_examples_are_byte_equal(example, project, plants):
+    """The copies keep the example's case, economics, demand and plant files."""
+    source = example_folder(example)
+    for name in (
+        *LAYOUT,
+        *(f"plants/{path.name}" for path in (PROJECTS / project / "plants").glob("*")),
+    ):
+        assert (PROJECTS / project / name).read_bytes() == (source / name).read_bytes()
+    assert len(list((PROJECTS / project / "plants").glob("*.json"))) == plants
+
+
+def test_the_variants_differ_from_gemini_s_example_only_by_their_variant(gemini_loaded):
+    """Each variant changes one thing of the example: cooling, a gradient, a gas price."""
     import pandas as pd
 
-    source = example_folder("hackathon_2026") / "demand.csv"
-    assert (PROJECTS / "hackathon" / "demand.csv").read_bytes() == source.read_bytes()
-    base = pd.read_csv(source)
-    peak = pd.read_csv(PROJECTS / "more_cooling" / "demand.csv")
+    source = example_folder("hackathon_2026")
+    base = pd.read_csv(source / "data" / "demand.csv")
+    peak = pd.read_csv(PROJECTS / "more_cooling" / "data" / "demand.csv")
     assert peak["heating_demand_MWth"].equals(base["heating_demand_MWth"])
     assert (peak["cooling_demand_MWcool"] - 1.5 * base["cooling_demand_MWcool"]).abs().max() < 1e-3
     assert round(peak["cooling_demand_MWcool"].max(), 6) == 15.0
+    assert not list((PROJECTS / "more_cooling").glob("plants"))
+
+    colder = read_json_file(PROJECTS / "colder_reservoir", "case.json")
+    expected = read_json_file(source, "case.json")
+    expected["site"]["ground"]["gradient"]["value"] = 25
+    assert colder == expected
+    gas = read_json_file(PROJECTS / "higher_gas", "economics.json")
+    expected = read_json_file(source, "economics.json")
+    expected["energy"]["gas"]["value"] = gas["energy"]["gas"]["value"]
+    assert gas == expected
+    assert (
+        gas["energy"]["gas"]["value"]
+        > read_json_file(source, "economics.json")["energy"]["gas"]["value"]
+    )
 
 
-@pytest.mark.slow
-@pytest.mark.parametrize(
-    ("project", "passes"), [("hackathon_plant", True), ("more_cooling", False)]
-)
-def test_the_hackathon_plant_passes_its_case_and_fails_the_cooling_peak(
-    gemini_loaded, project, passes
-):
-    """The hand-found design is verified on the base case and fails the 15 MW cooling peak."""
+def test_the_user_profile_project_is_30_days_of_the_users_demand(gemini_loaded):
+    """The January project ends on 2027-01-31, has 30 daily rows and no days-of-operation limit."""
+    import pandas as pd
+
+    data, files = FileWorkspace(PROJECTS).case("user_profile")
+    assert data["time"]["end"] == "2027-01-31"
+    assert "running_time_limit" not in {item["name"] for item in data["requirements"]}
+    frame = pd.read_csv(PROJECTS / "user_profile" / "data" / "demand.csv")
+    assert len(frame) == 30
+    assert frame["cooling_demand_MWcool"].eq(5.0).all()
+    assert gemini_loaded.Case.from_dict(data, files=files).check() == []
+
+
+@pytest.fixture(scope="module")
+def raw_plant_verdicts(gemini_loaded):
+    """Return the verdict of gemini's heat pump plant, unsized, on the base and the 15 MW case."""
     import geomind as gd
 
-    plant = gemini_loaded.Plant.from_json(PROJECTS / "hackathon_plant" / "plant.json")
-    case = gemini_loaded.Case.from_json(PROJECTS / project / "case.json")
-    verdict = gd.verify.verify(plant, gemini_loaded.simulate(plant, case), case)
-    assert verdict["passed"] is passes
-    failed = {item["name"] for item in verdict["failures"]}
-    assert (failed >= {"cool_users.supply_in.temperature"}) is (not passes)
+    plant = gemini_loaded.Plant.from_dict(
+        read_json_file(PROJECTS / BASE / "plants", "HeatingHeatPumpCoolingPlant.json")
+    )
+    verdicts = {}
+    for project in (BASE, "more_cooling"):
+        data, files = FileWorkspace(PROJECTS).case(project)
+        case = gemini_loaded.Case.from_dict(data, files=files)
+        verdicts[project] = gd.verify.verify(plant, gemini_loaded.simulate(plant, case), case)
+    return verdicts
+
+
+def test_the_plant_passes_its_case_and_fails_the_cooling_peak(raw_plant_verdicts):
+    """The eval plant is verified on the base case and fails the 15 MW cooling peak."""
+    assert raw_plant_verdicts[BASE]["passed"] is True
+    peak = raw_plant_verdicts["more_cooling"]
+    assert peak["passed"] is False
+    assert {item["name"] for item in peak["failures"]} >= {"cold_delivered"}

@@ -20,7 +20,9 @@ from geomind.providers import FakeLLM, OpenRouter, Recorder
 from geomind.run import LOOPS, Run, loop_of
 from geomind.sandbox import DockerSandbox, LocalSandbox
 from geomind.stores import FileWorkspace
+from geomind.stores.casefiles import named_files
 from geomind.stores.run import FileRunStore
+from geomind.stores.workspace import read_bytes
 from geomind.types import RULE_MODEL, Message
 from geomind.types.runlog import runlog
 from geomind.utils.json import read_json, write_json
@@ -101,14 +103,12 @@ def _sha256(data):
 
 
 def _project_files(folder):
-    """Return the files of a project a run reads: its case, the demand files and its plant."""
+    """Return the files of a project a run reads: its case, the files it names and its plants."""
     names = []
     if (folder / "case.json").exists():
-        demand = read_json(folder / "case.json").get("demand") or {}
-        names = ["case.json", *(demand.get("file") or "").split()]
-    if (folder / "plant.json").exists():
-        names.append("plant.json")
-    return names
+        data = read_json(folder / "case.json")
+        names = ["case.json", *named_files(data, lambda name: read_bytes(folder / name))]
+    return [*names, *(f"plants/{path.name}" for path in sorted((folder / "plants").glob("*.json")))]
 
 
 def _inputs(args):

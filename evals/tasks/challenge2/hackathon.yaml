@@ -1,14 +1,17 @@
 # Hand-written recording (decisions by hand, every reference and number from the real tools); the live run replaces it.
 message: 'Design a deep-geothermal heating and cooling plant for the project''s case: its 2027 daily heating
-  and cooling demand, its reservoir and brine, and its constraints. Size the plant with the peak backup
-  policy (a boiler that covers the whole heating peak), then optimise the levelised cost of thermal service
-  (objective lcts) over the case''s choices (no other variables) with 12 evaluations.'
+  and cooling demand, its reservoir and brine, and its requirements. Start from the plant class HeatingHeatPumpCoolingPlant.
+  Size the plant with the peak backup policy (a boiler that covers the whole heating peak), then optimise
+  the levelised cost of thermal service (objective lcts) over the plant''s own ranges with 30 evaluations
+  and seed 0.'
 answers:
 - Use the project's case.
 plant: evals/projects/hackathon
 criteria:
 - kind: tool
   tool: set_case
+- kind: tool
+  tool: read_plant
 - kind: tool
   tool: check_results
 - kind: tool
@@ -17,15 +20,12 @@ criteria:
   path: /case/demand/heating/supply_temperature/value
   equals: 100
 - kind: number
-  value: 35.93
+  value: 40.34228109370859
   tolerance: 0.1
   unit: EUR/MWh
 - kind: verified
   checks:
-  - heat_users.unmet_demand
-  - cool_users.unmet_sensible
-  - d0.brine_cooling
-  - d0.pump_efficiency
-  - d0.volume_imbalance
-  - heat_users.supply_in.temperature
-  - cool_users.supply_in.temperature
+  - heat_delivered
+  - cold_delivered
+  - brine_cooling_limit
+  - production_flow_range

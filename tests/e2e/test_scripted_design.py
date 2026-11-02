@@ -1,9 +1,10 @@
 """A case through ``geomind run --loop design``, offline from a scripted recording.
 
 NOTE: the recordings are hand-written decisions in the order the design loop asks its agents (read
-the case, build, size, simulate, check, optimise, simulate again, record; check once; cost;
-explain); every reference and number in them comes from the real gemini tools. They check the path
-from the command line to a verified, costed and explained design, not a model.
+the plant class and the case, build, size, simulate, check, optimise, simulate and check again,
+record; check once; cost; explain); every reference and number in them comes from the real gemini
+tools. They check the path from the command line to a verified, costed and explained design, not a
+model.
 """
 
 from pathlib import Path
@@ -15,10 +16,10 @@ from tests.fixtures import ROOT
 from tests.fixtures.cases import example_folder
 
 REQUEST = (
-    "Design a deep-geothermal plant for the project's case. Size the plant with the peak backup "
-    "policy (a boiler that covers the whole heating peak), then optimise the levelised cost of "
-    "thermal service (objective lcts) over the case's choices (no other variables) with 12 "
-    "evaluations."
+    "Design a deep-geothermal plant for the project's case, starting from the plant class "
+    "HeatingHeatPumpCoolingPlant. Size the plant with the peak backup policy (a boiler that covers "
+    "the whole heating peak), then optimise the levelised cost of thermal service (objective lcts) "
+    "over the plant's own ranges with 30 evaluations and seed 0."
 )
 RECORDINGS = {
     "hackathon_2026": ROOT / "evals" / "runs" / "hackathon_scripted.jsonl",

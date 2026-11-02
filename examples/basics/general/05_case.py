@@ -47,9 +47,12 @@ def main():
     )
     run.start()
     events = store.load_events(run.id)
-    summary = next(e.output for e in events if e.type == "tool.result" and e.tool == "simulate")
-    print(f"steps: {summary['summary']['steps']}")
-    print(f"violated constraints: {len(summary['summary']['violated'])}")
+    summary = next(e.output for e in events if e.type == "tool.result" and e.tool == "simulate")[
+        "summary"
+    ]
+    print(f"steps: {summary['steps']}")
+    print(f"feasible: {summary['verdict']['feasible']}")
+    print(f"unmet requirements: {len(summary['unmet'])}")
 
 
 if __name__ == "__main__":

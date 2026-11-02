@@ -1,0 +1,17 @@
+# Hand-written recording (decisions by hand, every reference and number from the real tools); the live run replaces it.
+message: 'Design a deep-geothermal heating and cooling plant for the project''s case: its 2027 daily heating
+  and cooling demand, its reservoir and brine, and its requirements. Start from the plant class HeatingHeatPumpCoolingPlant.
+  Size the plant with the peak backup policy (a boiler that covers the whole heating peak), then optimise
+  the levelised cost of thermal service (objective lcts) over the plant''s own ranges with 30 evaluations
+  and seed 0.'
+answers:
+- Use the project's case.
+plant: evals/projects/hackathon
+max_steps: 7
+criteria:
+- kind: tool
+  tool: optimize
+  called: false
+- kind: tool
+  tool: estimate_costs
+  called: false

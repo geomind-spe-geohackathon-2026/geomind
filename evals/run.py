@@ -14,6 +14,7 @@ from time import perf_counter
 
 import geomind as gd
 from evals.tasks_format import VerifiedCriterion, load_task
+from geomind import runtime
 from geomind.agents import Route
 from geomind.context import ProblemState
 from geomind.engine import Context
@@ -113,7 +114,8 @@ def run_task(name, task, agent_name, llm):
     store = MemoryRunStore()
     run = new_run(task, agent_name, llm, store)
     started = perf_counter()
-    result = _drive(run, task.answers)
+    with runtime.settings(**({"max_steps": task.max_steps} if task.max_steps else {})):
+        result = _drive(run, task.answers)
     events = store.load_events(result.run_id)
     outcome = Outcome(
         name=name,

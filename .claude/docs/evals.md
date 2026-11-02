@@ -25,9 +25,10 @@ passed, 1 a task failed, 2 nothing could run (no tasks, an unknown agent, no key
 | Field | Required | Meaning |
 |---|---|---|
 | `message` | yes | what the user says |
-| `plant` | no | a project folder, opened with `FileWorkspace`: `case.json`, its demand file and, when the task starts from a plant, `plant.json` |
+| `plant` | no | a project folder, opened with `FileWorkspace` (gemini's layout: `case.json`, `economics.json`, `data/`, `plants/`); a task about "the project's plant" needs exactly one file in `plants/` |
 | `history` | no | earlier messages, each `{role, content}` |
 | `answers` | no | replies to the agent's questions, in order; a question with no reply left ends the run |
+| `max_steps` | no | caps the steps of every agent of the run (`runtime` setting `max_steps`), for a task about a tight budget |
 | `criteria` | yes | what must hold, checked by code, never by an LLM |
 
 ```yaml
@@ -61,57 +62,66 @@ tokens, cost and time, then every failure with its reason.
 
 ## Projects
 
-The eval cases are data in `evals/projects/<project>/`: `case.json`, its demand CSV and, for some,
-`plant.json`. They are **copies** of gemini's examples (gemini `dev` at `cca153b8`, folders
-`inputs/examples/hackathon_2026`, `inputs/doublet_heat`), not paths into `../gemini`: a copy keeps
-the recorded numbers and criteria stable when gemini's examples change, and a clone of this
-repository needs no sibling checkout. When gemini's examples change, copy them again, rerun
-`python -m evals.run --agent challenge2` and update the numbers of the criteria.
+The eval cases are gemini's project folders in `evals/projects/<project>/`: `case.json`,
+`economics.json`, `data/demand.csv` and, for some, `plants/`. They are **copies** of gemini's
+examples (`../gemini/examples/hackathon_2026` and `shallow_district`, gemini 0.5.0), not paths into
+`../gemini`: a copy keeps the recorded numbers and criteria stable when gemini's examples change,
+and a clone of this repository needs no sibling checkout. When gemini's examples change, copy them
+again, rerun `python -m evals.run --agent challenge2` and update the numbers of the criteria.
+`tests/integration/test_evals.py` checks the copies are byte-equal to the examples, and that each
+variant differs from its example in one thing.
 
 | Project | Holds | Used by |
 |---|---|---|
-| `hackathon` | the hackathon case, no plant | designer, coordinator and the `challenge2` tasks |
-| `hackathon_plant` | the same case and `plants/HackathonPlant.json` | explainer; the plant dict the recordings build |
-| `more_cooling` | the case with the demand CSV's cooling column x 1.5 (15 MW peak), no plant | `challenge2/more_cooling` |
-| `doublet` | gemini's `doublet_heat/plant.json`, no case | analyst tasks |
+| `hackathon` | the hackathon example with its six plant files | the `challenge2` tasks `hackathon`, `colder_reservoir`, `user_profile`, `tight_budget`; designer, coordinator |
+| `hackathon_plant` | the same, with the one plant file `HackathonPlant` | explainer; `examples/basics/general/05_case.py` |
+| `shallow_district` | the shallow-district example | `challenge2/verifier` |
+| `more_cooling` | the case with the demand CSV's cooling column x 1.5 (15 MW peak), no plants | `challenge2/more_cooling` |
+| `colder_reservoir` | the case with `site.ground.gradient` 25 K/km, no plants | the variant as a project, for runs and tests |
+| `higher_gas` | the economics with `energy.gas` 70 EUR/MWh (the example's 39.92), no plants | `challenge2/economist` |
+| `user_profile` | 30 January days of the user's heating and cooling (`data/demand.csv` of 30 rows, `time.end` 2027-01-31, no `running_time_limit`), no plants | the variant as a project, for runs and tests |
 
-The hackathon case is gemini's as it is, plus the constraints "demand is met" that the example case
-lacks: for `heating_supply` and for `cooling_supply`,
-`{"on": ..., "quantity": "unmet", "max": {"value": 1, "unit": "W"}, "over": "each", "when": "always"}`.
-It is 1 W, not 0, because the roundoff of a met demand is 1e-15 MW. No other constraint is invented.
-The projects are built by a script from the gemini folders (see `.tmp/adapt/G.md` of the adaptation);
-`tests/integration/test_evals.py` checks they load, keep gemini's demand and hold the constraints.
+A variant is a new case or economics file; a variant has no `plants/`, because the model starts
+from a plant class (`read_plant(plant_class=...)`) and builds the plant file itself. Gemini's cases
+carry their own requirements (delivered share, supply temperature, flow range, brine cooling), and
+none is added here.
 
 ## Suites
 
 A folder of `SUITES` in `evals/run.py` runs its tasks through a loop instead of one agent:
 `python -m evals.run --agent challenge2` runs `evals/tasks/challenge2/` through the `DesignLoop`.
-Its four tasks are the hackathon case and three variants, each a case change:
+Its tasks:
 
-| Task | Variant | What fails when it is ignored |
+| Task | Project | What it checks, and what fails when it is ignored |
 |---|---|---|
-| `hackathon` | the case as it is | an unmet demand or a violated limit (`verified`) |
-| `more_cooling` | the `more_cooling` project, a 15 MW cooling peak | the hand-found design fails `cool_users.supply_in.temperature` (21.67 degC against 20 degC) and `cool_users.unmet_sensible` (`verified`) |
-| `colder_reservoir` | `set_case` changes `environment.ground.gradient` to 25 K/km | nothing physical: the design still passes, and no case constraint limits the boiler (for gemini's hand-found HackathonPlant its heat goes from 254 to 29 705 MWh and the LCTS from 48.5 to 53.6 EUR/MWh), and we do not invent one. The task checks `/case/environment/ground/gradient/value` is 25 and that the answer's LCTS is the 25 K/km value of the recorded design, 46.82 EUR/MWh (`number`), not the 35.93 of the same design at 30 K/km |
-| `user_profile` | 30 January days of the user's heating and cooling (30 values given in the message): `set_case` cuts `time`, drops the duration constraint and the demand, `save_profile` twice, `set_case` restores the temperatures | `/case/time/end` or `/case/demand/file` is not the user's, or the heating demand is unmet |
+| `hackathon` | `hackathon` | the case as it is: an unmet requirement (`verified`), the LCTS of the design (`number`) |
+| `more_cooling` | `more_cooling` | a 15 MW cooling peak: the unsized plant fails `cold_delivered` and `cooling_supply_temperature` (`verified`) |
+| `colder_reservoir` | `hackathon` | `set_case` changes `site.ground.gradient` to 25 K/km: the case state (`/case/site/ground/gradient/value`) and the LCTS of the 25 K/km design (`number`), not the 30 K/km one |
+| `user_profile` | `hackathon` | 30 January days of the user's demand: `set_case` cuts `time` and drops `running_time_limit`, `save_profile` twice (heating, cooling), the `/case` paths are the user's and the requirements hold |
+| `verifier` | `shallow_district` | the Verifier's part on a second example: `check_results` is called, `/verification/result` is set, the design is verified |
+| `economist` | `higher_gas` | the Economist's part: `estimate_costs` and `sample_uncertainty` are called, the LCTS in the answer is the one on the higher gas price (`number`), `/results/costs` is recorded |
+| `tight_budget` | `hackathon` | `max_steps: 7`: the Designer cannot reach `optimize`, so the loop ends without a design and says so; `optimize` and `estimate_costs` are not called |
 
 A variant fails when the agents ignore its change: `tests/integration/test_evals.py` runs
-`tests/fixtures/recordings/*_ignored.jsonl` on the variant's task. The unsized hackathon design on
-the 15 MW case fails gemini's checks, repeats its failure and is rejected (`stop: repeated_failure`);
-the design that ignores 25 K/km passes the checks but fails the `/case` state and the LCTS number.
+`tests/fixtures/recordings/*_ignored.jsonl` on the variant's task. The unsized plant on the 15 MW
+case fails gemini's checks, repeats its failure and is rejected (`stop: repeated_failure`); the
+design that ignores 25 K/km passes the checks but fails the `/case` state and the LCTS number.
 
-The user's message of every `challenge2` task states what the Designer needs for `size_plant` and
-`optimize`: the backup policy (`peak`), the objective (`lcts`), the variables (none: the case's
-choices) and the evaluations (12). `answers` replies to the loop's first question (the run holds no
-case yet; the reply tells the Designer to use the project's case). A variant that changes the
-project's case (`colder_reservoir`, `user_profile`) has a second answer, `approve`: verification
-fails with `case_changed` until the user approves a case that differs from the one they gave, so
-the loop asks once. Tasks state their criteria on
-`/case` paths. The recordings are hand-written decisions (`model: hand-written`): the Designer
-builds gemini's `HackathonPlant` dict, sizes it, simulates, checks, optimises and simulates the best
-design; every reference and number in the tool results is from a real gemini run, because they were
-written by answering each model call from the results the run already held (the script is in the
-adaptation notes). The live run replaces them.
+The user's message of every `challenge2` task states what the Designer needs: the plant class
+(`HeatingHeatPumpCoolingPlant`), the backup policy (`peak`, which the plant file already holds),
+the objective (`lcts`), the ranges (the plant's own) and the evaluations (30, `seed 0`; gemini wants
+5 per variable). `answers` replies to the loop's first question (the run holds no case yet; the
+reply tells the Designer to use the project's case). A task that changes the project's case
+(`colder_reservoir`, `user_profile`) has a second answer, `approve`: verification fails with
+`case_changed` until the user approves a case that differs from the one they gave, so the loop asks
+once. Tasks state their criteria on `/case` paths.
+
+The recordings are hand-written decisions (`model: hand-written`): the Designer reads the plant
+class, sets the case, builds the plant file, sizes it, simulates, checks, optimises, simulates and
+checks the best design, and records it. When the search finds no feasible design (the 15 MW case in
+30 evaluations) the Designer records the sized design instead, which passes. Every reference and
+number in the tool results is from a real gemini run, because the recordings were written by
+answering each model call from the results the run already held. The live run replaces them.
 
 ## Recordings
 
@@ -121,32 +131,32 @@ the task with `run: error`.
 
 ## Status
 
-`tasks/analyst/` holds five tasks on gemini's example doublet (`evals/projects/doublet/plant.json`):
-the ESP operating point, the heat the exchanger delivers at 150 m3/h, a missing pipe diameter that
-needs `ask_user`, a module lookup, and the ESP at 45 Hz. Each number in a criterion is gemini's,
-from the same inputs as the recorded tool call. `tests/integration/test_evals.py` runs them offline.
+`tasks/analyst/` holds five tasks on gemini's modules, with no project: the ESP discharge pressure at
+60 Hz, its head at 45 Hz and 30 kg/s, the heat of an exchanger at 150 m3/h, a missing pipe diameter
+that needs `ask_user`, and a module lookup. The messages carry the module parameters, because a
+module takes every value of its own. Each number in a criterion is gemini's, from the same
+`evaluate_module` call as the recording, in display units (MW, Pa).
+`tests/integration/test_evals.py` runs them offline.
 
 `tasks/designer/`, `explainer/` and `coordinator/` hold one task each. The Verifier and the
-Economist no longer have a task of their own: they cannot simulate or set a case, so they are
-evaluated inside `challenge2` (the criteria `check_results`, `estimate_costs` and the LCTS number of
-`hackathon`). Their recordings are hand-written (`model: hand-written`, no usage) until the first
-live run writes them anew. The tasks give mass flows in kg/s beside m3/h, because a
-module inlet takes a mass flow and the agent converts nothing itself.
+Economist have tasks of their own in `challenge2` (`verifier`, `economist`), because they cannot
+simulate or set a case and so run inside the design loop. Their recordings are hand-written
+(`model: hand-written`, no usage) until the first live run writes them anew.
 
 ## The scripted runs
 
 `evals/runs/hackathon_scripted.jsonl` and `tests/fixtures/recordings/shallow_district_scripted.jsonl`
-are scripted recordings of the design loop on the hackathon case and on gemini's shallow-district
-example: hand-written decisions in the order the loop asks its agents (Designer: set the case, read
-it, build, size, simulate, check, optimise, simulate the best, record; Verifier: check once;
-Economist; Explainer), with every reference and number from the real tools.
-`tests/e2e/test_scripted_design.py` runs `geomind run --loop design --project <case folder>
+are scripted recordings of the design loop on the hackathon project and on gemini's shallow-district
+example: hand-written decisions in the order the loop asks its agents (Designer: read the plant
+class and the case, build, size, simulate, check, optimise, simulate and check the best, record;
+Verifier: check once; Economist; Explainer), with every reference and number from the real tools.
+`tests/e2e/test_scripted_design.py` runs `geomind run --loop design --project <project folder>
 --recording ...` on each, answers the loop's question, and replays the run. It checks the path to a
 verified design, not a model; the live run replaces it. A design run needs a project with a
 `case.json`: the command stops without one.
 
-**The plant of these recordings was found by hand** (gemini's `HackathonPlant`, and the shallow
-example's `plant.json`), not by an agent. A live run shows what the agents find on their own; the
+**The plant file of these recordings is gemini's example file** (`HeatingHeatPumpCoolingPlant.json`
+of each example), not one an agent wrote. A live run shows what the agents find on their own; the
 scripted runs show only that the harness carries a verified design from the command line to the
 report.
 

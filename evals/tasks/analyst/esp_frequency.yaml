@@ -1,9 +1,12 @@
-message: What head does the doublet's ESP give at 45 Hz instead of 60 Hz, with 42.92 kg/s of brine at
-  80 degC and 20 bar at the suction?
-plant: evals/projects/doublet
+# Hand-written recording (decisions by hand, every reference and number from the real tools); the live run replaces it.
+message: An ESP has 15 stages, head coefficients per stage [125.518426, -0.0020852856, 2.28955651e-07,
+  -1.45640214e-11, 2.37859645e-16, -1.18258356e-21], power coefficients all zero, pump type DEFAULT-PUMP,
+  setting depth 600 m, motor efficiency 1, minimum flow 82 m3/h, maximum flow 178 m3/h, best efficiency
+  flow 130 m3/h, correction factors [1, 0], tubing 0.1778 m and drift threshold 0.1. What head does it
+  give at 45 Hz, with 30 kg/s of brine at 80 degC and 20 bar at the suction?
 criteria:
 - kind: number
-  value: 1988577
+  value: 2640097.0
   tolerance: 1000
   unit: Pa
 - kind: tool

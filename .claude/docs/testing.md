@@ -105,8 +105,8 @@ an editable path dependency.
 
 `tests/fixtures/cases.py` loads gemini's two example cases (`hackathon_2026`, `shallow_district`)
 and their plants: `example_names` parametrizes a test over both, `example_case(name)` returns the
-case dict and its folder, `example_plant(name, plant=None)` a new passing plant, and
-`case_context(name)` a tool context holding the case and its files. `tests/fixtures/stored_runs.py`
+case dict and `{file name: bytes}` of the files it names (its series and `economics.json`),
+`example_plant(name, plant=None)` a new passing plant, and `case_context(name)` a tool context holding the case and its files. `tests/fixtures/stored_runs.py`
 simulates the passing design on a case variant (`base`, `colder` 25 K/km, `cooling_peak` 15 MW) and
 stores design and run, for tests of assessment and verification; `variant_run` caches one per
 process and `warm_runs()` fills the cache from a synchronous fixture. `simulated(name)` caches one

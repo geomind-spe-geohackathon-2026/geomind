@@ -1,12 +1,13 @@
-message: Brine enters the plant's heat exchanger at 150 m3/h, which is 42.92 kg/s for this brine, at 80
-  degC and 10 bar. The secondary side enters at 40 kg/s, 40 degC and 5 bar. What heat does the exchanger
-  deliver?
-plant: evals/projects/doublet
+# Hand-written recording (decisions by hand, every reference and number from the real tools); the live run replaces it.
+message: A counterflow heat exchanger has a thermal conductance of 100000 W/K, no nominal pressure drops,
+  nominal mass flows of 1 kg/s on both sides and a fouling threshold of 0.15. Brine enters it at 150 m3/h,
+  which is 42.92 kg/s for this brine, at 80 degC and 10 bar. The secondary side enters at 40 kg/s of water,
+  40 degC and 5 bar. What heat does the exchanger deliver?
 criteria:
 - kind: number
-  value: 2543311
-  tolerance: 1000
-  unit: W
+  value: 2.5433
+  tolerance: 0.001
+  unit: MW
 - kind: tool
   tool: evaluate_module
 - kind: state
