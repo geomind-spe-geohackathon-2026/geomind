@@ -26,6 +26,20 @@ so they are passed again when a run resumes in another process.
   delegate's calls count against the whole run's budget. A nested run's usage joins its parent's
   when it ends, and a sibling still running is not counted yet. `geomind run --max-tokens` and
   `--max-cost` set them.
+- `ProjectBudget(ledger, project_id, max_tokens=None, max_cost=None)` denies the next LLM call once
+  `ledger.spent(project_id)` plus this run's `total_usage` reaches a cap. At least one cap is
+  required (`BudgetError` otherwise) and there is no default. The reason reads `project token
+  budget: <project> used N of CAP` (or `cost`). The ledger is a `UsageLedger` (see
+  [engine](engine.md)): `spent(project_id)` returns the `Usage` of every finished run of the
+  project, as the backend stores it; `MemoryUsageLedger` is for tests and `FileUsageLedger(root)`
+  sums the root runs under a `FileRunStore` root whose `run.started.project` is the project and
+  that have a `run.finished`, with their nested runs, once. A paused or running run is not
+  finished, so a resumed run is not in the ledger and its earlier steps count once, through the
+  session. The ledger is read once per root run, at its first LLM call; this run's usage is added live.
+  Runs of one project running at the same time are not counted against each other, because the
+  ledger holds finished runs only. A project cap does not replace a run cap. Pass it in `gd.Run(hooks=[...])`;
+  `geomind run --project P --project-max-cost USD --project-max-tokens N` sets it with
+  `FileUsageLedger(".runs")`.
 - `RequireApproval(tools)` is a shortcut for ask rules, in their place in the
   [permission order](permissions.md).
 - `Cancellation(is_cancelled)` calls the function the caller gives before every LLM and tool call

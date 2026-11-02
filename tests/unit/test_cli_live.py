@@ -40,3 +40,12 @@ def test_auto_run_without_a_cap_is_refused(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(cli, "OpenRouter", lambda: pytest.fail("provider was built"))
     assert cli.main(["run", "x", "--mode", "auto"]) == 1
     assert "--max-cost or --max-tokens" in capsys.readouterr().err
+
+
+def test_a_project_cap_does_not_satisfy_the_auto_run_rule(monkeypatch, tmp_path, capsys):
+    """A live auto run still needs its own cap."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "OpenRouter", lambda: pytest.fail("provider was built"))
+    args = ["run", "x", "--mode", "auto", "--project", "p", "--project-max-cost", "5"]
+    assert cli.main(args) == 1
+    assert "--max-cost or --max-tokens" in capsys.readouterr().err

@@ -21,3 +21,7 @@ class ReplayError(GeomindError, RuntimeError):
 
 class LoopError(GeomindError, RuntimeError):
     """A loop state does not fit the loop."""
+
+
+class BudgetError(GeomindError, ValueError):
+    """A budget is set up wrongly, for example a project budget with no cap."""

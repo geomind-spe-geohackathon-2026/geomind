@@ -4,9 +4,11 @@
 interface raises the minor version, and an addition or a fix raises the patch version. The rule and
 the list of frozen interfaces are in [.claude/docs/api.md](.claude/docs/api.md#frozen-interfaces).
 
-## [Unreleased]
+## [0.4.0] - 2026-11-02
 
-Studies the app can list. A new required tool argument; the coordinator sets the version.
+Breaking (minor): `name` is now required on `run_study`, `sample_uncertainty` and `sensitivity`.
+Additive otherwise: new tools, a new public event, a new hook and protocol; nothing renamed or
+removed. Supports gemini `>=0.5,<0.6` (tested on 0.5.1).
 
 - Every study tool (`size_plant`, `optimize`, `sample_uncertainty`, `sensitivity`, `run_study`)
   stores the chat artifact `study/<name>`, written once like `design/`: gemini's `study.json` that
@@ -27,7 +29,7 @@ Studies the app can list. A new required tool argument; the coordinator sets the
   the backend included, must ignore unknown event types. `event_from_dict` still raises.
 - `Context.call_id` and `Context.for_call`: a tool knows the call it serves.
 - Replay of a log of another geomind version (or with none recorded) keeps the recorded results
-  of pure tools and the state changes they made, and still compares completions, calls, steps and
+  of pure tools, and still compares completions, calls, steps and
   answers: a 0.3.1 log with study calls (no `name`, other outputs) replays. Tools that write the
   state still run.
 - A log of 0.3.1 without `study.recorded` loads, replays and exports. Recorded model calls of
@@ -37,6 +39,12 @@ Studies the app can list. A new required tool argument; the coordinator sets the
   A model that reuses an id in a later step (`explainer/unverified`, `analyst/module_lookup`) no
   longer gets the input of the later call at the earlier step. New test replaying every eval
   recording.
+- `UsageLedger` (`spent(project_id) -> Usage`), `MemoryUsageLedger` and `FileUsageLedger` in
+  `gd.stores`; `gd.hooks.ProjectBudget(ledger, project_id, max_tokens=None, max_cost=None)` denies
+  an LLM call once the project's finished runs plus this run reach a cap. No cap is
+  `gd.errors.BudgetError`. Pass it in `gd.Run(hooks=[...])`.
+- `geomind run --project-max-tokens` and `--project-max-cost`, valid with `--project`; a live
+  `--mode auto` run still needs `--max-cost` or `--max-tokens`.
 
 ## [0.3.1] - 2026-11-02
 

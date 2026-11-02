@@ -40,6 +40,7 @@ A permission denial is a tool result, not an exception.
 - `ReplayError(RuntimeError)`: a replay differs from its recording; the message names the first
   differing step.
 - `LoopError(RuntimeError)`: a loop state that does not fit the loop.
+- `BudgetError(ValueError)`: a budget set up wrongly, such as a `ProjectBudget` with no cap.
 
 `services.py`, what the harness calls:
 
