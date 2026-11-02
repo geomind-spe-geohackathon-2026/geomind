@@ -893,7 +893,7 @@
       "name": "run_study"
     },
     "sample_uncertainty": {
-      "description": "Sample a stored design over the uncertainty the case declares; return a summary per metric.",
+      "description": "Sample a design over the case's uncertainty (from the user or the case, never made up).",
       "effect": "compute",
       "idempotent": true,
       "input_schema": {
@@ -1014,7 +1014,7 @@
       "name": "search_documents"
     },
     "sensitivity": {
-      "description": "Rank the case's uncertain values by their effect on the metrics of a stored design.",
+      "description": "Rank the case's uncertain values (from the user or the case, never made up) by effect.",
       "effect": "compute",
       "idempotent": true,
       "input_schema": {
@@ -1125,7 +1125,7 @@
       "name": "set_case"
     },
     "set_ranges": {
-      "description": "Put search ranges and options on the leaves of a design; store it as design/<name>.",
+      "description": "Set search ranges on a design: they come from the user or the case, so ask_user first.",
       "effect": "write",
       "idempotent": true,
       "input_schema": {
