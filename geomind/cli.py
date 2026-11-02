@@ -15,7 +15,7 @@ from geomind.agents import Route
 from geomind.context import ProblemState, render
 from geomind.engine import Engine, Permissions, callbacks
 from geomind.engine.hooks import CostBudget, TokenBudget
-from geomind.engine.replay import version_differences
+from geomind.engine.replay import nested_runs_reused, version_differences
 from geomind.errors import GeomindError, RunError
 from geomind.export import models_by_agent, render_export
 from geomind.providers import FakeLLM, OpenRouter, Recorder
@@ -339,9 +339,13 @@ def _difference_text(differences):
 def _command_replay(args):
     """Rerun a stored run offline and print pass or the first mismatch."""
     store, run_id = _split_run_folder(args.run)
-    result = asyncio.run(Engine.replay(store, run_id))
+    workspace, _ = _project(args.project)
+    result = asyncio.run(Engine.replay(store, run_id, workspace=workspace))
     print(f"pass: {result.steps} steps, stop reason {result.stop_reason}")
-    differences = version_differences(store.load_events(run_id))
+    events = store.load_events(run_id)
+    if nested_runs_reused(events, workspace):
+        print("nested runs reused: the run has a project; pass --project to replay them")
+    differences = version_differences(events)
     if differences:
         print(f"versions differ: {_difference_text(differences)}")
     return 0
@@ -441,6 +445,7 @@ def _parser():
     chat.set_defaults(function=_command_chat)
     replay = commands.add_parser("replay", help="rerun a stored run offline")
     replay.add_argument("run")
+    replay.add_argument("--project", help="the project folder, to replay nested runs that read it")
     replay.set_defaults(function=_command_replay)
     show = commands.add_parser("show", help="print the log of a stored run")
     show.add_argument("run")

@@ -41,7 +41,9 @@ class Engine:
 
     ``callbacks``, ``hooks``, ``permissions`` and ``sandbox`` are as agreed. NOTE: ``llm``,
     ``store`` and ``workspace`` are added keywords, since a run needs them and they are not
-    arguments of ``run``. ``recorded`` and ``recorded_changes`` are used by replay.
+    arguments of ``run``. The ``recorded*`` attributes are used by replay, each keyed by run id:
+    ``recorded`` and ``recorded_changes`` by run and call id, ``recorded_llms`` by run id, and
+    ``recorded_children`` by the parent run id, step and task of a nested run, to its run id.
     """
 
     def __init__(
@@ -67,6 +69,8 @@ class Engine:
         self.workspace = workspace
         self.recorded = {}
         self.recorded_changes = {}
+        self.recorded_children = {}
+        self.recorded_llms = {}
         self._sequences = {}
         self._usages = {}
 
@@ -107,9 +111,9 @@ class Engine:
         return await self.drive(session)
 
     @classmethod
-    async def replay(cls, store, run_id):
-        """Rerun a stored run offline; a difference raises ``ReplayError``."""
-        return await replay_run(cls, store, run_id)
+    async def replay(cls, store, run_id, *, replayed=None, workspace=None):
+        """Rerun a stored run and its nested runs offline; a difference raises ``ReplayError``."""
+        return await replay_run(cls, store, run_id, replayed=replayed, workspace=workspace)
 
     async def drive(self, session):
         """Run steps until one reason stops the run, then end it.

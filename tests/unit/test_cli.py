@@ -383,3 +383,14 @@ def test_run_stops_at_the_spending_cap(service, capsys):
     assert "(denied)" in output and "Hello" not in output
     service += [routed_answer(), answer("Hello")]
     assert cli.main(["run", "Say hello", "--max-cost", "0.001"]) == 1
+
+
+def test_replay_says_when_nested_runs_were_reused(service, capsys, monkeypatch):
+    """A run with a project replayed without --project prints one line about it."""
+    service += [routed_answer(), answer("Hello")]
+    cli.main(["run", "x"])
+    capsys.readouterr()
+    monkeypatch.setattr(cli, "nested_runs_reused", lambda events, workspace: True)
+    assert cli.main(["replay", run_folder()]) == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[1] == "nested runs reused: the run has a project; pass --project to replay them"

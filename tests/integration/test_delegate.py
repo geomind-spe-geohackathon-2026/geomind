@@ -151,13 +151,13 @@ async def test_recovery_finds_a_nested_pause():
     assert recover(events, result.run_id).pending.child is not None
 
 
-async def test_replay_reuses_the_nested_result():
-    """A nested run is not run again in a replay."""
+async def test_replay_runs_the_nested_run_again():
+    """A nested run runs again in a replay, with its own completions."""
     script = [uses(HELP), uses(call("lookup", "n1", key="k")), says("found"), says("end")]
     result, engine, _ = await nested(script)
     EXECUTED.clear()
     replayed = await Engine.replay(engine.store, result.run_id)
-    assert replayed.answer == "end" and EXECUTED == []
+    assert replayed.answer == "end" and EXECUTED == ["lookup"]
 
 
 async def test_public_events_of_a_nested_run_are_forwarded():

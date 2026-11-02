@@ -163,7 +163,8 @@ class RunSession:
         """Call the provider for an agent."""
         if self.engine.llm is None:
             raise RunError("engine: llm = None; expected a provider")
-        return await self.engine.llm.complete(
+        llm = self.engine.recorded_llms.get(self.state.run_id, self.engine.llm)
+        return await llm.complete(
             list(messages),
             agent.tool_schemas(),
             model=agent.model.resolved_name(),

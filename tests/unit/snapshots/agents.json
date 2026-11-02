@@ -182,6 +182,10 @@
           }
         },
         "replay": {
+          "--project": {
+            "choices": null,
+            "default": null
+          },
           "run": {
             "choices": null,
             "default": null
