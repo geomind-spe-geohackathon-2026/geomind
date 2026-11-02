@@ -155,6 +155,7 @@ check it before writing a tool, because gemini's names change.
 | Spending cap | `geomind run --max-tokens/--max-cost`; budgets count the whole run, nested runs included | `65c576a` | done |
 | Terminal | `geomind run` no longer prints the coordinator's route JSON; plan corrections from the audit | this commit | done |
 | gemini 0.5 | geomind 0.3.0 on gemini `>=0.5,<0.6`: project folder case with `economics.json`, verdict, ranges and `run_study`, `Workspace.plants`, chat-scoped artifacts, `write_module`/`test_module` in the gemini sandbox, `CompareLoop`, the competition export, `check-live`, the loop report ([CHANGELOG.md](../../CHANGELOG.md)) | merged sections A to P | done |
+| Log and replay | geomind 0.3.1: `run.started` records the geomind, gemini and python versions and the export reads them; the export header shows the run's own request; a replay runs every nested run again with its own completions and compares every run | merged sections V and R | done |
 
 No live OpenRouter run has been made yet. It needs `OPENROUTER_API_KEY` in geomind's own
 environment, never the backend's key.
@@ -193,7 +194,9 @@ Open geomind items:
 - **Replay of a run with a project, without `--project`** reuses its nested runs (their answer
   and state changes), as the log holds no workspace; with the folder every nested run runs again.
 - **Versions of a 0.3.0 log are not in the event log**; the export reads them from
-  `run_manifest.json` (newer runs record them on `run.started`).
+  `run_manifest.json` (runs from 0.3.1 record them on `run.started`).
+- **Two single-agent eval recordings do not replay** (`explainer/unverified` on `read_plant`,
+  `analyst/module_lookup` on `update_state`); they failed the same way before 0.3.1.
 - The Docker tests of the module sandbox need the `gemini-sandbox:<gemini version>` image
   (`make sandbox-image` in gemini); they passed on 2026-11-02 with `gemini-sandbox:0.5.0`.
 

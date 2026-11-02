@@ -4,7 +4,9 @@
 interface raises the minor version, and an addition or a fix raises the patch version. The rule and
 the list of frozen interfaces are in [.claude/docs/api.md](.claude/docs/api.md#frozen-interfaces).
 
-## [Unreleased]
+## [0.3.1] - 2026-11-02
+
+Additive: a new optional event field and a stronger replay; nothing renamed or removed.
 
 - `Engine.replay` replays every nested run of a loop run, not only the root: each nested run runs
   again with a `FakeLLM` of its own recorded completions, and its calls and answer are compared,
@@ -19,6 +21,8 @@ the list of frozen interfaces are in [.claude/docs/api.md](.claude/docs/api.md#f
   evals no longer show "not recorded".
 - Fix: the export header showed the first user message of the run, a chat's oldest; it shows the
   last, the run's own request.
+- `geomind replay` prints `nested runs reused: ...` when a run with a project is replayed without
+  `--project`; a run that starts in a replay with no recorded run to follow raises `ReplayError`.
 - `geomind replay` prints one line `versions differ: ...` when a version differs from the recorded
   one; `version_differences(events)` in `geomind.engine.replay` returns the difference.
 
