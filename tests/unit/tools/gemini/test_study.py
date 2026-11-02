@@ -1,4 +1,4 @@
-"""The study tools over gemini's example cases: size, search, sample, sensitivity and compare."""
+"""The study tools over gemini's example cases: size, search, sample, run and compare."""
 
 import asyncio
 import functools
@@ -10,26 +10,22 @@ from geomind.tools.gemini import study
 from geomind.tools.gemini.stored import ran_case, save_design, save_run
 from tests.fixtures.cases import case_context, example_names, example_plant
 
-UNCERTAIN = {
-    "assumptions": {
-        "finance": {
-            "opex": {
-                "electricity": {
-                    "value": 120,
-                    "unit": "EUR/MWh",
-                    "uncertainty": {"kind": "uniform", "min": 90, "max": 150},
-                }
-            }
-        }
-    }
-}
+SHALLOW = "shallow_district"
+HEAT_PUMP = "HeatingHeatPumpCoolingPlant"
 
 
-async def started(name):
-    """Return ``(context, design reference)``: the example's case and its passing plant stored."""
+async def started(name, plant=None, reference="start"):
+    """Return ``(context, design reference)``: the example's case and its plant stored."""
     context = await case_context(name)
-    reference = await save_design(context, "start", example_plant(name))
-    return context, reference
+    return context, await save_design(context, reference, example_plant(name, plant))
+
+
+def depth_only(plant):
+    """Return the plant with only its depth and doublets left as ranges, for a tiny search."""
+    for path in list(plant.ranges):
+        if path not in ("depth", "size.doublets"):
+            plant.set_range(path, None, None)
+    return plant
 
 
 async def run(tool, context, tool_input):
@@ -42,168 +38,14 @@ async def run(tool, context, tool_input):
     return result
 
 
-def bounds(name, parameter, low, high, unit):
-    """Return one variable of a search."""
-    return {
-        "path": name,
-        "parameter": parameter,
-        "lower": {"value": low, "unit": unit},
-        "upper": {"value": high, "unit": unit},
-    }
-
-
-@example_names
-@pytest.mark.parametrize("backup", ["peak", "none"])
-async def test_size_plant_stores_the_sized_design(name, backup):
-    """A sized plant is a new design, with gemini's notes in readable quantities."""
-    context, reference = await started(name)
-    result = await run(
-        study.size_plant, context, {"design": reference, "backup": backup, "name": "s"}
-    )
-    assert result.output["design"] == "design/s"
-    assert result.output["sizing"]["sized"]
-    assert context.session.load_artifact("design/s") is not None
-
-
-async def test_size_plant_needs_the_policy():
-    """The backup policy has no default."""
-    context, reference = await started("shallow_district")
-    result = await run(study.size_plant, context, {"design": reference, "name": "s"})
-    assert result.is_error
-
-
-async def test_size_plant_without_a_case_asks_for_one():
-    """A state without a case is the case tools' message."""
-    from geomind.context import ProblemState
-    from geomind.engine import Context
-
-    context, reference = await started("shallow_district")
-    bare = Context(session=context.session, problem=ProblemState())
-    result = await run(study.size_plant, bare, {"design": reference, "backup": "peak", "name": "s"})
-    assert result.is_error
-    assert "set_case" in json.dumps(result.output)
-
-
-async def test_optimize_stores_a_feasible_best():
-    """A tiny search on the shallow case returns a feasible best and stores it."""
-    context, reference = await started("shallow_district")
-    result = await run(
-        study.optimize,
-        context,
-        {
-            "design": reference,
-            "objective": "lcts",
-            "variables": [bounds("", "depth", 1100, 1500, "m")],
-            "evaluations": 5,
-            "name": "best",
-        },
-    )
-    assert result.output["feasible"]
-    assert result.output["design"] == "design/best"
-    assert result.output["trials"] >= 5
-    assert context.session.load_artifact("design/best") is not None
-
-
-async def search_the_choices():
-    """Return ``optimize`` of the shallow design over the case's choices."""
-    context, reference = await started("shallow_district")
-    arguments = {"design": reference, "objective": "lcts", "variables": []}
-    arguments.update({"evaluations": 10, "name": "b"})
-    return await run(study.optimize, context, arguments)
-
-
-def test_optimize_with_no_variables_searches_the_choices_of_the_case():
-    """An empty list is the case's choices, which the shallow case declares."""
-    assert slow_calls()["search"].output["best"]["parameters"]
-
-
-async def test_optimize_an_unknown_objective_is_gemini_error():
-    """The objective is checked by gemini."""
-    context, reference = await started("shallow_district")
-    result = await run(
-        study.optimize,
-        context,
-        {
-            "design": reference,
-            "objective": "nonsense",
-            "variables": [bounds("", "depth", 1100, 1500, "m")],
-            "evaluations": 5,
-            "name": "b",
-        },
-    )
-    assert result.is_error
-    assert "nonsense" in json.dumps(result.output)
-
-
-async def test_optimize_a_wrong_variable_path_is_gemini_error():
-    """A variable on a path nobody has comes back as gemini's problem."""
-    context, reference = await started("shallow_district")
-    result = await run(
-        study.optimize,
-        context,
-        {
-            "design": reference,
-            "objective": "lcts",
-            "variables": [bounds("nowhere", "capacity", 1, 2, "MW")],
-            "evaluations": 5,
-            "name": "b",
-        },
-    )
-    assert result.is_error
-
-
-async def test_sample_uncertainty_needs_an_uncertainty_in_the_case():
-    """A case without uncertainty is gemini's missing_value."""
-    context, reference = await started("shallow_district")
-    result = await run(
-        study.sample_uncertainty,
-        context,
-        {"design": reference, "metrics": ["lcts"], "count": 3, "seed": 1},
-    )
-    assert result.is_error
-    assert "missing_value" in json.dumps(result.output)
-
-
-async def declared(name):
-    """Return ``(context, design)`` with an uncertain electricity price added through set_case."""
-    from geomind.context import ProblemState
-    from geomind.engine import Context
-    from geomind.tools.gemini import set_case
-
-    context, reference = await started(name)
-    await run(set_case, context, {"changes": UNCERTAIN})
-    case = context.session.changes[-1][0]["value"]
-    return Context(session=context.session, problem=ProblemState(case=case)), reference
-
-
-async def test_sample_uncertainty_summarises_the_draws():
-    """With an uncertain price the summary has the percentiles and the failed count."""
-    context, reference = await declared("shallow_district")
-    result = await run(
-        study.sample_uncertainty,
-        context,
-        {"design": reference, "metrics": ["lcts"], "count": 3, "seed": 1},
-    )
-    summary = result.output["summary"]["lcts"]
-    assert {"mean", "p5", "p50", "p95", "failed"} <= set(summary)
-
-
-async def test_sensitivity_ranks_the_uncertain_values():
-    """The tornado has an item for the uncertain price."""
-    context, reference = await declared("shallow_district")
-    result = await run(study.sensitivity, context, {"design": reference, "metrics": ["lcts"]})
-    assert result.output["rows"][0]["metric"] == "lcts"
-    assert "electricity" in result.output["rows"][0]["parameter"]
-
-
 async def compare_two_runs():
     """Return ``(references, result)`` of ``compare`` on the shallow plant, unsized and sized."""
     import gemini as gm
 
-    context, _ = await started("shallow_district")
+    context, _ = await started(SHALLOW)
     case = study.case_of(context)
-    plant = example_plant("shallow_district")
-    cheaper = study.size_design(plant, case, "peak")
+    plant = example_plant(SHALLOW)
+    cheaper = study.size_design(plant, case)
     references = []
     for design in (plant, cheaper):
         results = gm.simulate(design, case)
@@ -213,16 +55,191 @@ async def compare_two_runs():
     return references, result
 
 
+async def shallow_calls():
+    """Return the search, the sizing and the two-design study on the shallow case."""
+    context, reference = await started(SHALLOW)
+    arguments = {"objective": "lcts", "evaluations": 20, "seed": 1, "name": "best"}
+    search = await run(study.optimize, context, {"design": reference, **arguments})
+    sized = await run(study.size_plant, context, {"design": reference, "name": "sized"})
+    designs = [reference, sized.output["design"]]
+    ranked = await run(
+        study.run_study, context, {"designs": designs, "method": "run", "metrics": ["lcts"]}
+    )
+    return {"search": search, "sized": sized, "shallow": ranked}
+
+
+async def hackathon_calls():
+    """Return the sized and searched pair of topologies and the draws of the uncertain case."""
+    context, _ = await started("hackathon_2026", "HeatingPlant", "heating")
+    heating = await save_design(
+        context, "heating", depth_only(example_plant("hackathon_2026", "HeatingPlant"))
+    )
+    pump = await save_design(
+        context, "pump", depth_only(example_plant("hackathon_2026", HEAT_PUMP))
+    )
+    search = {"objective": "lcts", "evaluations": 5, "seed": 0, "prepare": ["size"]}
+    smoke = await run(
+        study.run_study,
+        context,
+        {"designs": [heating, pump], "method": "minimize", **search},
+    )
+    arguments = {"design": heating, "metrics": ["lcts"]}
+    drawn = await run(study.sample_uncertainty, context, {**arguments, "samples": 3, "seed": 1})
+    tornado = await run(study.sensitivity, context, arguments)
+    return {"smoke": smoke, "drawn": drawn, "tornado": tornado, "context": context}
+
+
+async def search_and_study():
+    """Return every call that simulates, by name."""
+    return {**await shallow_calls(), **await hackathon_calls()}
+
+
 @functools.cache
 def slow_calls():
-    """Return the search and the comparison, run once per process outside the timed calls."""
-    return {"search": asyncio.run(search_the_choices()), "compare": asyncio.run(compare_two_runs())}
+    """Return the calls that simulate, run once per process outside the timed calls."""
+    return {"studies": asyncio.run(search_and_study()), "compare": asyncio.run(compare_two_runs())}
 
 
 @pytest.fixture(scope="module", autouse=True)
 def warmed():
     """Run the slow study calls before the tests read them."""
     slow_calls()
+
+
+def test_size_plant_stores_the_sized_design():
+    """A sized plant is a new design, with gemini's notes in readable quantities."""
+    sized = slow_calls()["studies"]["sized"]
+    assert sized.output["design"] == "design/sized"
+    assert sized.output["sizing"]["sized"]
+
+
+async def test_size_plant_takes_no_backup_argument():
+    """The backup policy is the plant's, so the argument is not accepted."""
+    context, reference = await started(SHALLOW)
+    result = await run(
+        study.size_plant, context, {"design": reference, "backup": "peak", "name": "s"}
+    )
+    assert result.is_error
+
+
+async def test_size_plant_without_a_case_asks_for_one():
+    """A state without a case is the case tools' message."""
+    from geomind.context import ProblemState
+    from geomind.engine import Context
+
+    context, reference = await started(SHALLOW)
+    bare = Context(session=context.session, problem=ProblemState())
+    result = await run(study.size_plant, bare, {"design": reference, "name": "s"})
+    assert result.is_error
+    assert "set_case" in json.dumps(result.output)
+
+
+def test_optimize_returns_a_feasible_best_in_display_units():
+    """A tiny search over the design's ranges returns a feasible best and the trials."""
+    output = slow_calls()["studies"]["search"].output
+    assert output["feasible"]
+    assert output["design"] == "design/best"
+    assert output["trials"] >= 5
+    assert output["best"]["plant"] is not None
+
+
+async def test_optimize_without_ranges_is_gemini_error():
+    """A design with no range or option has nothing to search: gemini's error."""
+    from geomind.tools.gemini.stored import load_design
+
+    context, reference = await started(SHALLOW)
+    plant = load_design(context, reference, "test")
+    for path in list(plant.ranges):
+        plant.set_range(path, None, None)
+    bare = await save_design(context, "bare", plant)
+    result = await run(
+        study.optimize,
+        context,
+        {"design": bare, "objective": "lcts", "evaluations": 5, "seed": 1, "name": "b"},
+    )
+    assert result.is_error
+
+
+async def test_optimize_an_unknown_objective_is_gemini_error():
+    """The objective is checked by gemini."""
+    context, reference = await started(SHALLOW)
+    result = await run(
+        study.optimize,
+        context,
+        {"design": reference, "objective": "nonsense", "evaluations": 5, "seed": 1, "name": "b"},
+    )
+    assert result.is_error
+    assert "nonsense" in json.dumps(result.output)
+
+
+async def test_optimize_takes_no_variables():
+    """The ranges are the design's: a list of variables is not accepted."""
+    context, reference = await started(SHALLOW)
+    arguments = {"design": reference, "objective": "lcts", "evaluations": 5, "seed": 1}
+    result = await run(study.optimize, context, {**arguments, "name": "b", "variables": []})
+    assert result.is_error
+
+
+async def test_sample_uncertainty_needs_an_uncertainty_in_the_case():
+    """A case without uncertainty is gemini's missing_value."""
+    context, reference = await started(SHALLOW)
+    result = await run(
+        study.sample_uncertainty,
+        context,
+        {"design": reference, "metrics": ["lcts"], "samples": 3, "seed": 1},
+    )
+    assert result.is_error
+    assert "missing_value" in json.dumps(result.output)
+
+
+def test_sample_uncertainty_summarises_the_draws():
+    """With an uncertain price the summary has the percentiles and the failed count."""
+    summary = slow_calls()["studies"]["drawn"].output["summary"]["lcts"]
+    assert {"mean", "p5", "p50", "p95", "failed"} <= set(summary)
+
+
+def test_sensitivity_ranks_the_uncertain_values():
+    """The tornado has rows for the metric."""
+    rows = slow_calls()["studies"]["tornado"].output["rows"]
+    assert rows[0]["metric"] == "lcts"
+
+
+def test_run_study_ranks_the_designs_in_display_units():
+    """A study of method run over two designs ranks them and stores what each ended with."""
+    output = slow_calls()["studies"]["shallow"].output
+    assert [item["plant_name"] for item in output["runs"]] == ["start", "sized"]
+    assert output["runs"][0]["metrics"]["lcts"]["unit"] == "EUR/MWh"
+    assert {item["ranks"]["lcts"] for item in output["runs"]} <= {1, 2}
+    assert output["runs"][0]["design"] == "design/start_best"
+
+
+def test_run_study_searches_two_topologies_of_the_hackathon():
+    """The smoke test: two plant files, sized and searched on a tiny budget, each stored."""
+    studies = slow_calls()["studies"]
+    output = studies["smoke"].output
+    assert [item["plant_name"] for item in output["runs"]] == ["heating", "pump"]
+    assert all(item["found"]["evaluations"] for item in output["runs"])
+    for item in output["runs"]:
+        assert studies["context"].session.load_artifact(item["design"]) is not None
+
+
+async def test_run_study_without_the_settings_the_method_needs_is_gemini_error():
+    """A search with no seed has no default: gemini's missing issue."""
+    context, reference = await started(SHALLOW)
+    result = await run(
+        study.run_study,
+        context,
+        {"designs": [reference], "method": "minimize", "objective": "lcts", "evaluations": 5},
+    )
+    assert result.is_error
+    assert "seed" in json.dumps(result.output)
+
+
+async def test_run_study_an_unknown_design_is_unknown_name():
+    """A design no tool returned says so."""
+    context, _ = await started(SHALLOW)
+    result = await run(study.run_study, context, {"designs": ["design/none"], "method": "run"})
+    assert result.is_error
 
 
 def test_compare_ranks_two_runs():
@@ -235,53 +252,20 @@ def test_compare_ranks_two_runs():
 
 async def test_compare_an_unknown_run_is_unknown_name():
     """A reference no run returned says so."""
-    context, _ = await started("shallow_district")
+    context, _ = await started(SHALLOW)
     result = await run(study.compare, context, {"references": ["result/none"], "by": ["lcts"]})
     assert result.is_error
 
 
-@pytest.mark.slow
-async def test_hackathon_size_then_optimize():
-    """The hackathon case: size, then a tiny search on depth."""
-    context, reference = await started("hackathon_2026")
-    sized = await run(
-        study.size_plant, context, {"design": reference, "backup": "peak", "name": "s"}
-    )
-    searched = await run(
-        study.optimize,
-        context,
-        {
-            "design": sized.output["design"],
-            "objective": "lcts",
-            "variables": [bounds("", "depth", 2000, 3000, "m")],
-            "evaluations": 5,
-            "name": "b",
-        },
-    )
-    assert searched.output["design"] == "design/b"
-
-
-@pytest.mark.parametrize("path", ["case", "case.assumptions.finance"])
-async def test_optimize_refuses_a_value_of_the_case(path):
-    """The case is the user's: a search over it is refused before gemini runs."""
-    context, reference = await started("shallow_district")
-    arguments = {"design": reference, "objective": "lcts", "evaluations": 5, "name": "b"}
-    arguments["variables"] = [bounds(path, "discount_rate", 0.03, 0.08, "-")]
-    result = await run(study.optimize, context, arguments)
-    assert result.is_error and "the user's" in result.output["error"]["message"]
-
-
-def test_a_comparison_column_in_another_form_keeps_gemini_s_value():
-    """A label without ``name [unit]`` falls back to gemini's own value, never a crash."""
-    import gemini as gm
-    import pandas as pd
-
-    frame = pd.DataFrame({"other": [1.0]})
-    value = gm.units.Quantity(2.0, "EUR/J")
-    assert study.shown_value(frame, 0, "lcts", value) == value.to_dict()
-
-
 def test_the_study_tools_have_a_time_limit():
     """A long search gives a timeout result instead of holding the run."""
-    for name in ("size_plant", "optimize", "sample_uncertainty", "sensitivity"):
+    for name in ("size_plant", "optimize", "sample_uncertainty", "sensitivity", "run_study"):
         assert getattr(study, name).timeout == study.STUDY_TIMEOUT_S
+
+
+@example_names
+async def test_size_plant_on_each_example(name):
+    """Sizing works on both examples with the plant's own backup policy."""
+    context, reference = await started(name)
+    result = await run(study.size_plant, context, {"design": reference, "name": "s"})
+    assert result.output["sizing"]["sized"]

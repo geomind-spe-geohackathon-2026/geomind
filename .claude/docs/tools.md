@@ -33,11 +33,12 @@ the problem state as `update_state` does.
 | `compute_kpis` | `assessment.py` | `compute` | `reference, names=None` | `{name: Value}` in display units: `gm.evaluate.totals` and the metrics of `gm.evaluate.report`; an unknown name is `unknown_name` with a did-you-mean | built |
 | `estimate_costs` | `assessment.py` | `compute` | `reference` | `{capex, opex, annualised_cost, lcoh, lcoc, lcts, npv, payback, co2}` as Values in display units, from the case's `economics.json`; a cost whose figure is missing is `{error}` with gemini's `missing_assumption` and its path | built |
 | `test_module` | `assessment.py` | `execute` | `path` | gemini's `check_module` report, run in the sandbox | stub, S3 |
-| `size_plant` | `study.py` | `compute` | `design, backup, name`, all required: `backup` is `peak` or `none` | `{design, sizing}`; `gm.study.size` on the state's case, the sized plant stored as `design/<name>`, `sizing` gemini's notes (`sized`, `unchanged`, `broken`, `simulation`) with quantities as `{value, unit}` | built |
-| `optimize` | `study.py` | `compute` | `design, objective, variables, evaluations, name, constraints=None`: `variables` a list of `{path, parameter, lower, upper}` with `{value, unit}` bounds (counts for `size.doublets`); an empty list means the case's choices, there is no other default; a `case` or `case.<path>` variable is refused (the case is the user's) | `{best, feasible, fixed, trials, design}`; `best` is `Best.to_dict()` (SI values, the plant inside), the best plant stored as `design/<name>`; with no trial that ran there is no `design`; gemini's errors (`unknown_name`, `invalid_design`, `missing_value`) pass through | built |
-| `sample_uncertainty` | `study.py` | `compute` | `design, metrics, count, seed`, all required | `Sample.to_dict()`: `samples` and `summary` per metric (`mean`, `p5`, `p50`, `p95`, `failed`); distributions only from the case's `uncertainty` (none is `missing_value`) | built |
+| `size_plant` | `study.py` | `compute` | `design, name`: the backup policy is the plant's `params.backup` (the Designer sets it and records the assumption) | `{design, sizing}`; `gm.study.size` on the state's case, the sized plant stored as `design/<name>`, `sizing` gemini's notes (`sized`, `unchanged`, `broken`, `simulation`) with quantities as `{value, unit}` | built |
+| `optimize` | `study.py` | `compute` | `design, objective, evaluations, seed, name`, all required: the variables are the design's ranges and options (`set_ranges`), the constraints the case's requirements; a design with none is gemini's error | `{best, feasible, trials, design}`; `best` is `Best.to_dict()` (display units, the plant inside), the best plant stored as `design/<name>`; with no trial that ran there is no `design`; gemini's errors pass through | built |
+| `sample_uncertainty` | `study.py` | `compute` | `design, metrics, samples, seed`, all required | `Sample.to_dict()`: `samples` and `summary` per metric (`mean`, `p5`, `p50`, `p95`, `failed`); distributions only from the case's `uncertainty` (none is `missing_value`) | built |
 | `sensitivity` | `study.py` | `compute` | `design, metrics` | `Tornado.to_dict()`: `rows` sorted by effect, bounds from the case's `uncertainty` | built |
-| `compare` | `study.py` | `compute` | `references, by`: references of runs `simulate` returned | one entry per reference: `reference`, `values` as `{value, unit}` in display units (read from gemini's column labels `name [unit]`; a label in another form keeps gemini's own value), `ranks`, `pareto`, `feasible`, `reasons` | built |
+| `compare` | `study.py` | `compute` | `references, by`: references of runs `simulate` returned | one entry per reference: `reference`, `values` in display units (read from each run's `Report.to_dict()`, since `Comparison.to_dict()` is SI), `ranks`, `pareto`, `feasible`, `reasons` | built |
+| `run_study` | `study.py` | `compute` | `designs, method, objective=None, metrics=None, evaluations=None, seed=None, samples=None, prepare=None`: a `gm.Study` over the state's case and the stored designs; a setting the method needs and the call leaves out is gemini's error | `{runs, best}`: per design `plant_name`, `feasible`, `verdict`, `metrics` (display units), `ranks`, `pareto`, `note`, `found`, and the `design` the run ended with (sized or best plant) stored as `design/<plant>_best`; `best` the feasible design ranked first by the objective | built |
 
 ### gemini mapping
 
@@ -65,12 +66,13 @@ filling a stub, because gemini's names change.
 | `estimate_costs` | `gm.evaluate.capex`, `opex`, `annualised_cost`, `lcoh`, `lcoc`, `lcts`, `npv`, `payback`, `co2`, `report` | real |
 | `test_module` | `gm.modules.load_file`, `gm.modules.get`, `gm.testing.check_module` | real |
 | `size_plant` | `gm.study.size`, `Plant.sizing`, `Plant.to_dict` | real |
-| `optimize` | `gm.study.minimize`, `Best.to_dict`, `gm.units.Quantity` | real |
+| `optimize` | `gm.study.minimize`, `Best.to_dict` | real |
 | `sample_uncertainty` | `gm.study.sample`, `Sample.to_dict` | real |
 | `sensitivity` | `gm.study.sensitivity`, `Tornado.to_dict` | real |
-| `compare` | `gm.evaluate.report`, `gm.evaluate.compare`, `Comparison.to_frame` (for the display units) | real |
+| `compare` | `gm.evaluate.report`, `gm.evaluate.compare`, `Report.to_dict` (display units) | real |
+| `run_study` | `gm.Study.from_dict`, `Study.run`, `StudyResult.to_dict`, `Run.report` | real |
 
-`size_plant`, `optimize`, `sample_uncertainty` and `sensitivity` have a time limit of
+`size_plant`, `optimize`, `sample_uncertainty`, `sensitivity` and `run_study` have a time limit of
 `STUDY_TIMEOUT_S` (900 s): past it the model reads a `timeout` error and asks for fewer
 evaluations or draws. The gemini call runs in a worker thread, which Python cannot stop, so it
 finishes in the background and its result is dropped.
