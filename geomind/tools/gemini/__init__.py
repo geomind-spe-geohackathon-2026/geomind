@@ -19,6 +19,7 @@ from geomind.tools.gemini.runs import list_profiles, read_profile, simulate
 from geomind.tools.gemini.study import (
     compare,
     optimize,
+    run_study,
     sample_uncertainty,
     sensitivity,
     size_plant,
@@ -42,6 +43,7 @@ __all__ = [
     "read_plant",
     "read_profile",
     "read_result",
+    "run_study",
     "sample_uncertainty",
     "save_profile",
     "search_documents",
