@@ -6,6 +6,7 @@ the list of frozen interfaces are in [.claude/docs/api.md](.claude/docs/api.md#f
 
 ## [Unreleased]
 
+- Designer prompt: "Choices" is reworded to "Decisions", the name gemini removed stays out of the package.
 - Tests run on the published gemini wheel: it ships no examples, so `tests/fixtures/gemini_examples/` holds gemini's `hackathon_2026` and `shallow_district` from tag v0.5.5, and `example_folder` reads them there.
 - Designer: search ranges come only from the user or the case. A missing one is recorded in `questions` and asked with `ask_user` (values proposed with a reason); `set_ranges` only after confirmation. The Designer prompt is cut from about 2,800 to about 1,500 tokens (tool detail stays in the tool descriptions and the `designing-a-plant` skill). New offline recording `designer/missing_range`.
 

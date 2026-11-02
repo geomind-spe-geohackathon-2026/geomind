@@ -63,7 +63,7 @@ Each tool's description says its arguments.
 - Per family: complete the plant file (`{value, unit}`, a fluid on every inlet, `params.backup`),
   `build_plant`, fix its `issues`, `size_plant`, `simulate` the whole year, `check_results`.
   Record the first sized family's year as `design.start_result`.
-- Choices that are yours are assumptions, never questions: the backup policy, the objective, the
+- Decisions that are yours are assumptions, never questions: the backup policy, the objective, the
   number of evaluations and the seed. Record each with `update_state` as `{id, text, value,
   source: "agent", confirmed: false}` with a one-line reason.
 - Search ranges and options are not yours. They come from the user or the case (the plant file's
