@@ -157,7 +157,12 @@ run again; others reuse recorded results, as do calls that were denied or answer
 stops where its log ends, so it never runs its pending tool. Calls are compared by their place in
 the run (the step, then the position in the model's `tool_calls`), not by the order parallel calls
 finished in. A different tool, input, output, `is_error`, count or answer raises `ReplayError`
-naming the first differing step.
+naming the first differing step. A different geomind, gemini or python version from the recorded
+`run.started.versions` is no error: `version_differences(events)` (`replay.py`) returns `{name:
+(recorded, current)}` (`{}` for a log without versions, and for equal versions), and `geomind
+replay` prints it as one line, `versions differ: ...`, after the pass line. `Engine.replay` returns
+the plain `RunResult`, so a library caller asks `version_differences(store.load_events(run_id))`.
+`session.current_versions()` builds what a new run records.
 
 ## Stores and workspaces
 

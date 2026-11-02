@@ -30,7 +30,10 @@ the whole tree. `event.to_dict()` holds every field and `event_from_dict` rebuil
 | `usage` | `UsageUpdated` | `{input_tokens, output_tokens, cost}`, running totals |
 | `run.finished` | `RunFinished` | `{status, stop_reason, message?}` |
 
-`model` is the provider model id the step calls. A run stored by S1 has none, and its JSON leaves
+`run.started` also stores, not streamed, `versions`: `{geomind, gemini, python}` of the process that
+began the run, on every run, nested ones included; `gemini` is left out when it cannot be imported.
+A log of 0.3.0 has none (`{}`); the export then reads `run_manifest.json`. `model` is the
+provider model id the step calls. A run stored by S1 has none, and its JSON leaves
 the key out. `options` is `[{value, label}]`, for a question with fixed choices, and is absent for
 free text and for approvals.
 

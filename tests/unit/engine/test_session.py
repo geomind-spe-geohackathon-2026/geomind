@@ -1,11 +1,17 @@
 """The session of a run: sandbox lifecycle and artifacts."""
 
-from geomind.engine.session import RunSession
+import builtins
+import platform
+
+import gemini as gm
+
+import geomind
+from geomind.engine.session import RunSession, current_versions
 from geomind.engine.state import RunState, Stop, is_cancel
 from geomind.sandbox import LocalSandbox
 from geomind.stores import MemoryWorkspace
 from geomind.types import Cancel, Deny
-from tests.fixtures.runs import call, engine_for, of_type, run, says, types, uses
+from tests.fixtures.runs import Lead, call, engine_for, of_type, run, says, types, uses
 
 
 def test_is_cancel():
@@ -60,3 +66,36 @@ def test_a_session_keeps_artifacts_in_the_space_of_its_chat():
     chat = RunSession(None, None, RunState(chat="c", root="r1"), None)
     plain = RunSession(None, None, RunState(root="r2"), None)
     assert (chat.chat_id, plain.chat_id) == ("c", "r2")
+
+
+async def test_every_new_run_records_the_versions_it_ran_with():
+    """The root run and a nested run log geomind, gemini and python versions."""
+    completions = [
+        uses(call("helper", task="t")),
+        uses(call("lookup", key="x")),
+        says("x"),
+        says("y"),
+    ]
+    _, _, events = await run(completions, agent=Lead())
+    starts = of_type(events, "run.started")
+    assert len(starts) == 2
+    expected = {
+        "geomind": geomind.__version__,
+        "gemini": gm.__version__,
+        "python": platform.python_version(),
+    }
+    assert all(start.versions == expected for start in starts)
+
+
+def test_a_run_without_gemini_records_no_gemini_key(monkeypatch):
+    """No placeholder: an unimportable gemini leaves the key out."""
+    real = builtins.__import__
+
+    def refuse(name, *arguments, **options):
+        """Fail the import of gemini."""
+        if name == "gemini":
+            raise ImportError(name)
+        return real(name, *arguments, **options)
+
+    monkeypatch.setattr(builtins, "__import__", refuse)
+    assert set(current_versions()) == {"geomind", "python"}

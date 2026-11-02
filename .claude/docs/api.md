@@ -73,7 +73,8 @@ the routing, for testing one agent by hand, and so does a `run.loop` set before 
   the problem state. `/state`, `/log` (the run log of the last turn), `/reset` (a new chat) and `/quit`
   are commands. It needs `--live` for OpenRouter or `--recording` for `FakeLLM` from a recording. Runs
   are saved in `.runs/`, so `geomind show` works on them.
-- `geomind replay <run dir>` reruns offline and prints pass or the first mismatch.
+- `geomind replay <run dir>` reruns offline and prints pass or the first mismatch, then one line
+  `versions differ: ...` when the geomind, gemini or python version differs from the recorded one.
 - `geomind show <run dir> [--format md]` prints the log per step and the totals, built from
   `gd.runlog`. `--format md` is the agent log of the competition (`geomind/export.py`,
   `render_export`), read from the run's events, in this order: the header (the request, the loop,
@@ -82,8 +83,9 @@ the routing, for testing one agent by hand, and so does a `run.loop` set before 
   and out, and cost); each agent's system prompt once, in an appendix; the token tables by agent
   and by step; the totals. The routing call and nested runs are included, rule steps are not model
   calls. The text holds no run id, time or duration, so the same recording gives the same export.
-  The event log holds neither version, so they come from `run_manifest.json` beside the log
-  (written by `geomind run`) and read `not recorded` without it. `Engine.replay` of a loop run
+  The versions come from `run.started.versions` of the root run, which every run records; a log of
+  0.3.0 has none, so they come from `run_manifest.json` beside the log (written by `geomind run`)
+  and read `not recorded` without it. The request is the last user message of the root run. `Engine.replay` of a loop run
   replays only the root run (its nested runs are reused), so compare exports of two runs of the
   same recording, not of a run and its replay.
 

@@ -7,7 +7,8 @@ import pytest
 from geomind.agents import Agent, Model
 from geomind.engine import Engine, Permissions
 from geomind.engine.hooks import Hook, RequireApproval
-from geomind.engine.replay import _nested_changes
+from geomind.engine.replay import _nested_changes, version_differences
+from geomind.engine.session import current_versions
 from geomind.errors import ReplayError
 from geomind.stores.run import MemoryRunStore
 from geomind.tools import Delegate, tool, update_state
@@ -339,3 +340,31 @@ def test_parallel_delegates_keep_their_own_state_changes():
     changes = _nested_changes(delegated_log(), "root")
     assert [change[0]["value"]["by"] for change in changes["a"]] == ["from a"]
     assert [change[0]["value"]["by"] for change in changes["b"]] == ["from b"]
+
+
+async def test_a_replay_with_other_versions_reports_them_and_still_runs():
+    """A recorded gemini version that differs is a report, never an error."""
+    result, engine, _ = await run([says("end")])
+    store = engine.store
+    original = store.load_events(result.run_id)
+    store.events[result.run_id] = [
+        (
+            e.model_copy(update={"versions": {**e.versions, "gemini": "0.0.1"}})
+            if isinstance(e, RunStarted)
+            else e
+        )
+        for e in original
+    ]
+    replayed = await Engine.replay(store, result.run_id)
+    assert replayed.answer == "end"
+    differences = version_differences(store.load_events(result.run_id))
+    assert differences == {"gemini": ("0.0.1", current_versions()["gemini"])}
+
+
+async def test_a_replay_of_a_log_without_versions_reports_no_difference():
+    """A 0.3.0 log records no versions, so there is nothing to compare."""
+    result, engine, events = await run([says("end")])
+    stripped = [
+        e.model_copy(update={"versions": {}}) if isinstance(e, RunStarted) else e for e in events
+    ]
+    assert version_differences(stripped) == {}

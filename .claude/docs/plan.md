@@ -192,7 +192,8 @@ Open geomind items:
   The Designer records such a family as blocked.
 - **Replay of loop runs** replays only the root run (nested runs are reused), so a replayed log
   lacks the nested calls and the loop name.
-- **Versions are not in the event log**; the export reads them from `run_manifest.json`.
+- **Versions of a 0.3.0 log are not in the event log**; the export reads them from
+  `run_manifest.json` (newer runs record them on `run.started`).
 - The Docker tests of the module sandbox need the `gemini-sandbox:<gemini version>` image
   (`make sandbox-image` in gemini); they passed on 2026-11-02 with `gemini-sandbox:0.5.0`.
 
