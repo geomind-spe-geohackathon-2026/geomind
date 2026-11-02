@@ -115,6 +115,20 @@ def test_a_store_that_loses_case_files_fails():
         check_run_store(Lossy)
 
 
+def test_a_store_that_shares_chat_artifacts_with_runs_fails():
+    """A chat's space is its own, apart from every run's."""
+
+    class Shared(gd.stores.MemoryRunStore):
+        def save_chat_artifact(self, chat_id, key, data):
+            self.save_artifact(chat_id, key, data)
+
+        def load_chat_artifact(self, chat_id, key):
+            return self.load_artifact(chat_id, key)
+
+    with pytest.raises(AssertionError, match="chat's space"):
+        check_run_store(Shared)
+
+
 def test_a_workspace_that_forgets_a_case_file_fails():
     """Every file the case names, the economics too, comes with the case."""
 

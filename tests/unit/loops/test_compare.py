@@ -169,7 +169,7 @@ async def run_compare():
     engine = Engine(llm=Steps(script), permissions=Permissions(mode="auto"))
     start = context("Compare alternative plants for the case.", problem=ProblemState(case=data))
     for file, content in files.items():
-        engine.store.save_artifact(start.run_id, f"case/{file}", content)
+        engine.store.save_chat_artifact(start.run_id, f"case/{file}", content)
     result = await CompareLoop(Designer(), Verifier()).run(engine, start)
     return result, engine.store.load_events(start.run_id)
 

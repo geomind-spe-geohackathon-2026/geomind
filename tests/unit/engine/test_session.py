@@ -53,3 +53,10 @@ async def test_tools_reach_the_workspace_through_the_session():
     workspace = MemoryWorkspace()
     session = RunSession(engine_for([says()], workspace=workspace), None, RunState(), None)
     assert session.context().session.workspace is workspace
+
+
+def test_a_session_keeps_artifacts_in_the_space_of_its_chat():
+    """A run with a chat saves for the chat; a run without one is the chat of its root run."""
+    chat = RunSession(None, None, RunState(chat="c", root="r1"), None)
+    plain = RunSession(None, None, RunState(root="r2"), None)
+    assert (chat.chat_id, plain.chat_id) == ("c", "r2")

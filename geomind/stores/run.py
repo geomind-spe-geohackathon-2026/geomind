@@ -35,6 +35,12 @@ class RunStore(Protocol):
     def load_artifact(self, run_id, key):
         """Return an artifact, or ``None``."""
 
+    def save_chat_artifact(self, chat_id, key, data):
+        """Save bytes or a JSON value under a key, in the space of a chat."""
+
+    def load_chat_artifact(self, chat_id, key):
+        """Return an artifact of a chat, or ``None``."""
+
     def load_events(self, run_id):
         """Return a run's events in sequence order; recovery and replay read them."""
 
@@ -48,6 +54,7 @@ class MemoryRunStore:
         self.histories = {}
         self.states = {}
         self.artifacts = {}
+        self.chat_artifacts = {}
 
     def save_event(self, run_id, event):
         """Append one event to a run's log."""
@@ -81,6 +88,14 @@ class MemoryRunStore:
         """Return an artifact, or ``None``."""
         return copy.deepcopy(self.artifacts.get((run_id, key)))
 
+    def save_chat_artifact(self, chat_id, key, data):
+        """Save bytes or a JSON value under a key, in the space of a chat."""
+        self.chat_artifacts[(chat_id, key)] = copy.deepcopy(data)
+
+    def load_chat_artifact(self, chat_id, key):
+        """Return an artifact of a chat, or ``None``."""
+        return copy.deepcopy(self.chat_artifacts.get((chat_id, key)))
+
 
 def _safe(name):
     """Return an id that is safe as one path part."""
@@ -101,12 +116,34 @@ def _safe_key(key):
     return f"{kind}/" + "/".join(_safe(part) for part in parts)
 
 
+def _save(folder, key, data):
+    """Write bytes as ``.bin`` or a JSON value as ``.json`` under a safe key in ``folder``."""
+    stem = folder / _safe_key(key)
+    if isinstance(data, bytes):
+        stem.parent.mkdir(parents=True, exist_ok=True)
+        stem.with_name(f"{stem.name}.bin").write_bytes(data)
+        return
+    write_json(stem.with_name(f"{stem.name}.json"), data)
+
+
+def _load(folder, key):
+    """Return the artifact under a safe key in ``folder``, or ``None``."""
+    stem = folder / _safe_key(key)
+    if stem.with_name(f"{stem.name}.bin").exists():
+        return stem.with_name(f"{stem.name}.bin").read_bytes()
+    path = stem.with_name(f"{stem.name}.json")
+    return read_json(path) if path.exists() else None
+
+
 class FileRunStore:
     """Keep everything in files.
 
     A run has ``<root>/<run id>/events.jsonl`` and ``artifacts/``; a chat has
-    ``<root>/chats/<chat id>/history.jsonl`` and ``state.json``. Ids become path parts, so unsafe
-    ones raise. An artifact key is one such part, or the frozen ``design/<name>``,
+    ``<root>/chats/<chat id>/history.jsonl``, ``state.json`` and ``artifacts/``. The run's space
+    holds what belongs to one run; the chat's space holds every artifact the problem state can
+    name, so the next run of the chat reads it. Ids become path parts, so unsafe ones raise.
+
+    An artifact key is one such part, or the frozen ``design/<name>``,
     ``result/<id>``, ``module/<file name>`` (an agent-written module) or ``case/<file name>``, a
     file of the run's case (its name may be a path).
     """
@@ -150,18 +187,17 @@ class FileRunStore:
         return read_json(path) if path.exists() else None
 
     def save_artifact(self, run_id, key, data):
-        """Save bytes as ``.bin`` or a JSON value as ``.json`` under a key."""
-        stem = self._run(run_id) / "artifacts" / _safe_key(key)
-        if isinstance(data, bytes):
-            stem.parent.mkdir(parents=True, exist_ok=True)
-            stem.with_name(f"{stem.name}.bin").write_bytes(data)
-            return
-        write_json(stem.with_name(f"{stem.name}.json"), data)
+        """Save bytes as ``.bin`` or a JSON value as ``.json`` under a key, in the run's space."""
+        _save(self._run(run_id) / "artifacts", key, data)
 
     def load_artifact(self, run_id, key):
-        """Return an artifact, or ``None``."""
-        stem = self._run(run_id) / "artifacts" / _safe_key(key)
-        if stem.with_name(f"{stem.name}.bin").exists():
-            return stem.with_name(f"{stem.name}.bin").read_bytes()
-        path = stem.with_name(f"{stem.name}.json")
-        return read_json(path) if path.exists() else None
+        """Return an artifact of a run, or ``None``."""
+        return _load(self._run(run_id) / "artifacts", key)
+
+    def save_chat_artifact(self, chat_id, key, data):
+        """Save an artifact in the space of a chat, ``<root>/chats/<chat id>/artifacts``."""
+        _save(self._chat(chat_id) / "artifacts", key, data)
+
+    def load_chat_artifact(self, chat_id, key):
+        """Return an artifact of a chat, or ``None``."""
+        return _load(self._chat(chat_id) / "artifacts", key)

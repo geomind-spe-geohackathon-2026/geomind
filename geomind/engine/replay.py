@@ -61,16 +61,22 @@ class _ReplayStore(MemoryRunStore):
     is read from the original store; what the replay saves itself comes first.
     """
 
-    def __init__(self, original, run_id):
-        """Keep the store and the root run id of the recording."""
+    def __init__(self, original, run_id, chat_id):
+        """Keep the store, the root run id and the chat id of the recording."""
         super().__init__()
         self.original = original
         self.run_id = run_id
+        self.chat_id = chat_id
 
     def load_artifact(self, run_id, key):
         """Return the replay's own artifact, else the recorded run's."""
         found = super().load_artifact(run_id, key)
         return found if found is not None else self.original.load_artifact(self.run_id, key)
+
+    def load_chat_artifact(self, chat_id, key):
+        """Return the replay's own chat artifact, else the recorded chat's."""
+        found = super().load_chat_artifact(chat_id, key)
+        return found if found is not None else self.original.load_chat_artifact(self.chat_id, key)
 
 
 def _results(events):
@@ -178,7 +184,7 @@ async def replay_run(engine_class, store, run_id):
         hooks=[_Recording(events, llm)],
         permissions=Permissions(mode="auto"),
         llm=llm,
-        store=_ReplayStore(store, run_id),
+        store=_ReplayStore(store, run_id, started.chat or started.root),
     )
     engine.recorded = {event.call_id: event for event in _results(events)}
     engine.recorded_changes = _nested_changes(tree, run_id)
