@@ -195,8 +195,6 @@ Open geomind items:
   and state changes), as the log holds no workspace; with the folder every nested run runs again.
 - **Versions of a 0.3.0 log are not in the event log**; the export reads them from
   `run_manifest.json` (runs from 0.3.1 record them on `run.started`).
-- **Two single-agent eval recordings do not replay** (`explainer/unverified` on `read_plant`,
-  `analyst/module_lookup` on `update_state`); they failed the same way before 0.3.1.
 - The Docker tests of the module sandbox need the `gemini-sandbox:<gemini version>` image
   (`make sandbox-image` in gemini); they passed on 2026-11-02 with `gemini-sandbox:0.5.0`.
 

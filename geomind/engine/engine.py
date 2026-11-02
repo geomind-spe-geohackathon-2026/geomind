@@ -42,8 +42,8 @@ class Engine:
     ``callbacks``, ``hooks``, ``permissions`` and ``sandbox`` are as agreed. NOTE: ``llm``,
     ``store`` and ``workspace`` are added keywords, since a run needs them and they are not
     arguments of ``run``. The ``recorded*`` attributes are used by replay, each keyed by run id:
-    ``recorded`` and ``recorded_changes`` by run and call id, ``recorded_llms`` by run id, and
-    ``recorded_children`` by the parent run id, step and task of a nested run, to its run id.
+    ``recorded`` and ``recorded_changes`` by run, then (step, call id), ``recorded_llms`` by run id,
+    and ``recorded_children`` by the parent run id, step and task of a nested run, to its run id.
     """
 
     def __init__(
