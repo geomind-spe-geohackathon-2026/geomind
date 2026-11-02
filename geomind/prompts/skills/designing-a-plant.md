@@ -29,7 +29,8 @@ Choosing families:
 
 From a family to a design:
 
-- `read_plant(plant_class=...)` (or `design=...`) returns `plant`, the plant file; `ranges`, the
+- `read_plant(plant_class=...)` (or `project_plant=...` for a plant file of the project, which
+  `list_plants` names, or `design=...`) returns `plant`, the plant file; `ranges`, the
   leaves that can be searched with their bounds; `options`; and `issues`, each with a path and what
   is missing or wrong. `checked_against` is `case` when the state has a case, else `plant`.
 - Complete the plant file and pass it to `build_plant(plant=..., name=...)`. Every value with a
