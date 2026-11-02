@@ -230,9 +230,7 @@ def stored():
     warm_runs()
     base, design, passing = variant_run("hackathon_2026", "base")
     peak, _, failing = variant_run("hackathon_2026", "cooling_peak")
-    asyncio.run(
-        save_design(base, "other", example_plant("hackathon_2026", "plants/HeatingPlant.json"))
-    )
+    asyncio.run(save_design(base, "other", example_plant("hackathon_2026", "HeatingPlant")))
     return {"base": base, "peak": peak, "design": design, "passing": passing, "failing": failing}
 
 

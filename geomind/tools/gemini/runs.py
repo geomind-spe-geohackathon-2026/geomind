@@ -1,7 +1,8 @@
 """The tools that read the demand of the case and run a plant on it."""
 
 import asyncio
-from datetime import datetime, timezone
+import copy
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from geomind.errors import ToolError
@@ -89,7 +90,7 @@ def temperature(kelvin):
 
 
 def profile_row(case, service):
-    """Return the listing of one service of the case's demand."""
+    """Return the listing of one service; ``power`` names the file and column of its series."""
     import gemini as gm
 
     chosen, column = service_demand(case, service, "list_profiles")
@@ -97,8 +98,7 @@ def profile_row(case, service):
     peak = gm.units.Quantity(float(series.max()), "W").to(POWER_UNIT)
     return {
         "service": service,
-        "column": chosen.column,
-        "file_unit": str(chosen.unit.value),
+        "power": case.to_dict()["demand"][service]["power"],
         "supply_temperature": temperature(chosen.supply_temperature),
         "return_temperature": temperature(chosen.return_temperature),
         "start": series.index[0].isoformat(),
@@ -158,6 +158,18 @@ def planned(plant, case, start, end):
     return plan
 
 
+def cut_to_window(data, plan, step):
+    """Return the case dict ``data`` with its time cut to the steps of ``plan``.
+
+    gemini judges a run against the case's time, so a window is a case of its own: the run, its
+    report and every later tool of the run read the same steps.
+    """
+    window = copy.deepcopy(data)
+    window["time"]["start"] = plan.index[0].isoformat()
+    window["time"]["end"] = (plan.index[-1] + timedelta(seconds=step)).isoformat()
+    return window
+
+
 def quantified(value):
     """Return a value of ``{"value", "unit"}`` as a gemini ``Quantity``, any other as it is."""
     import gemini as gm
@@ -203,7 +215,8 @@ def run_summary(plant, case, results, label):
         "failed_steps": failures["total"],
         "failures": failures["groups"][:SHOWN_GROUPS],
         "report": {key: report[key] for key in REPORT_KEYS if key in report},
-        "violated": [item for item in report["constraints"] if item["passed"] is False],
+        "verdict": report["verdict"],
+        "unmet": [item for item in report["requirements"] if item["passed"] is False],
         "coverage": {key: totals[key].to_dict() for key in COVERAGE_KEYS if key in totals},
     }
 
@@ -217,10 +230,14 @@ def run_plant(context, design, changes, start, end):
 
     plant = load_plant(context, design, "simulate")
     apply_changes(plant, changes)
-    ran = ran_case(context)
+    data, files = ran_case(context)
+    whole = build_case(data, files)
+    plan = planned(plant, whole, start, end)
+    if plan is not None:
+        data = cut_to_window(data, plan, whole.time.step)
+    ran = (data, files)
     case = build_case(*ran)
-    plan = planned(plant, case, start, end)
-    results = gm.simulate(plant, case, plan=plan, on_error="record")
+    results = gm.simulate(plant, case, plan=plan)
     summary = run_summary(plant, case, results, design or "project")
     return plant, results, summary, {"start": start, "end": end}, ran
 
@@ -238,12 +255,17 @@ async def simulate(
     ``design`` is a stored design (``design/<name>``), or the project's plant without one.
     ``changes`` holds parameters by module path for this run only, each a ``{"value", "unit"}``
     (a dimensionless parameter may be a number). ``start`` and ``end`` are ISO 8601 times that cut
-    the case's time to a window, both inclusive; to change the case's time itself use set_case.
+    the case's time to a window, both inclusive: the run, its summary and its stored case are those
+    of the window (the case's ``time`` cut to it); to change the case's time itself use set_case.
 
-    The plan comes from gemini's schedule over the case. A day that fails is one of gemini's
-    problems in the summary and the run goes on. The summary gives the steps, the failed steps
-    with their first groups, the report's totals in display units (MWh, MEUR, EUR/MWh, kt), the
-    violated constraints, the coverage of the demand, the plant and the case's time span.
+    The plan comes from gemini's schedule over the case. A step that fails is a failed row in the
+    summary and the run goes on. What ``gm.check`` finds wrong with the plant on this case (a
+    parameter without a value, equipment without a cost in the economics, a role a requirement
+    names) is a gemini error with each issue's path and message, and nothing runs.
+
+    The summary gives the steps, the failed steps with their first groups, the report's totals in
+    display units (MWh, MEUR, EUR/MWh, kt), gemini's ``verdict``, the requirements that are not met
+    (``unmet``), the coverage of the demand, the plant and the case's time span.
     """
     plant, results, summary, options, ran = await asyncio.to_thread(
         run_plant, context, design, changes, start, end
