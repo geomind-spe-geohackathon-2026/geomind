@@ -1,6 +1,7 @@
 """``DesignLoop``: propose, simulate, verify, route the failures by domain, and repeat."""
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -17,9 +18,11 @@ from geomind.loops.design import (
     request_of,
     routed_task,
 )
+from geomind.stores import MemoryWorkspace
 from geomind.types import Message
 from tests.fixtures.cases import example_case
 from tests.fixtures.runs import call, context, engine_for, logged, of_type, same_usage, says, uses
+from tests.fixtures.sessions import StubSession
 
 FAILED = {
     "passed": False,
@@ -351,3 +354,75 @@ def test_the_economist_compares_only_what_the_designer_ran():
     assert "compare it with result/start, result/f2" in task
     empty = economist_task("design/best", "result/best", ProblemState())
     assert "no sized start or alternative" in empty
+
+
+def plant_context(plants):
+    """Return a context of project ``p1`` whose workspace holds the plant files ``plants``."""
+    session = StubSession(workspace=MemoryWorkspace(plants={"p1": plants}))
+    return Context(
+        messages=[Message(role="user", content="Size the plant")], project="p1", session=session
+    )
+
+
+def test_the_first_task_names_the_project_s_plants():
+    """The designer needs no discovery step: the task lists the plant files, sorted."""
+    task = DesignDriver().first_task(plant_context({"Zeta": {}, "Alpha": {}}))
+    assert "The project's plants: Alpha, Zeta." in task
+    assert "project_plant" in task and task.startswith("Size the plant")
+
+
+def test_the_first_task_says_nothing_of_plants_when_the_project_has_none():
+    """Without plant files, or without a project, the task is the request and the rounds."""
+    without_files = DesignDriver().first_task(plant_context({}))
+    without_project = DesignDriver().first_task(context("Size the plant", session=StubSession()))
+    assert "plants" not in without_files and without_files == without_project
+
+
+def test_the_recorded_designer_stores_the_project_plant_before_its_first_study():
+    """In the recording, the first study call reads a design built from the project's plant."""
+    path = Path("evals/recordings/designer/project_plant.jsonl")
+    calls = [
+        call for line in path.read_text().splitlines() for call in json.loads(line)["tool_calls"]
+    ]
+    names = [item["name"] for item in calls]
+    read = calls[names.index("read_plant")]["input"]
+    built = calls[names.index("build_plant")]["input"]
+    study = calls[names.index("size_plant")]["input"]
+    project_file = Path("evals/projects/hackathon/plants") / f"{read['project_plant']}.json"
+    assert names.index("list_plants") < names.index("read_plant") < names.index("build_plant")
+    assert names.index("build_plant") < names.index("size_plant")
+    assert built["plant"]["type"] == json.loads(project_file.read_text())["type"]
+    assert study["design"] == f"design/{built['name']}"
+
+
+OLD_DESIGN = {
+    "reference": "design/best",
+    "result": "result/r2",
+    "start_result": {"reference": "result/r0", "summary": "start"},
+    "alternatives": [{"family": "F2", "design": "design/f2", "result": {"reference": "result/r3"}}],
+}
+
+
+def test_a_0_4_state_with_objects_for_references_loads_and_the_economist_task_reads_it():
+    """An object that carries a reference is converted; the economist task does not crash."""
+    problem = ProblemState.model_validate({"design": OLD_DESIGN})
+    task = economist_task("design/best", "result/r2", problem)
+    assert problem.design["start_result"] == "result/r0"
+    assert "result/r0, result/r3" in task
+
+
+def test_an_object_without_a_reference_is_set_aside_and_named_not_crashed_on():
+    """What cannot be converted moves to ``design.unreadable`` and the task goes on."""
+    problem = ProblemState.model_validate({"design": {"start_result": {"summary": "x"}}})
+    assert problem.design["unreadable"] == {"start_result": {"summary": "x"}}
+    assert "no sized start" in economist_task("design/a", "result/b", problem)
+
+
+def test_update_state_refuses_an_object_where_a_reference_belongs_and_shows_the_shape():
+    """The state change is refused with the field path and the expected string."""
+    from geomind.context.state import apply_changes
+    from geomind.errors import StateError
+
+    change = [{"op": "add", "path": "/design/start_result", "value": {"reference": "result/r"}}]
+    with pytest.raises(StateError, match="design.*start_result.*string"):
+        apply_changes(ProblemState(), change)

@@ -9,6 +9,7 @@ from geomind.agents.agent import Agent, Model
 from geomind.engine.hooks import Verified
 from geomind.loops.loop import Loop
 from geomind.tools import Delegate
+from geomind.tools.gemini.plants import project_plant_names
 from geomind.types import Action, ToolCall
 from geomind.verify.design import verify_design
 
@@ -143,12 +144,12 @@ class DesignDriver(Agent):
         return act(note, index, "designer", task=self.first_task(context))
 
     def first_task(self, context):
-        """Return the designer's first task: the user's request and the rules of the rounds."""
+        """Return the designer's first task: the request, the project's plants and the rounds."""
         request = request_of(context)
         return (
-            f"{request}\n\nRound 1 of at most {self._max_rounds}. Read the case, then size a "
-            "plant, simulate the whole year, check it, optimize it, simulate the optimised design "
-            "and record design.reference and design.result."
+            f"{request}{project_plants_text(context)}\n\nRound 1 of at most {self._max_rounds}. "
+            "Read the case, then size a plant, simulate the whole year, check it, optimize it, "
+            "simulate the optimised design and record design.reference and design.result."
         )
 
     def after_design(self, context, note, index):
@@ -177,7 +178,7 @@ class DesignDriver(Agent):
         """Check the design again with gemini, then cost it, route its failures, or stop."""
         found = await asyncio.to_thread(verify_design, context)
         round_number = rounds(calls)
-        design = context.problem.design.get("reference")
+        design = context.problem.design_state.reference
         result = context.problem.verification.get("result")
         index = len(calls)
         changed = case_change(found)
@@ -202,6 +203,18 @@ class DesignDriver(Agent):
 def request_of(context):
     """Return the run's own request: the last user message, after the chat's earlier turns."""
     return next(item.content for item in reversed(context.messages) if item.role == "user")
+
+
+def project_plants_text(context):
+    """Return the sentence naming the project's plant files, or ``""`` when it has none."""
+    names = project_plant_names(context)
+    if not names:
+        return ""
+    return (
+        f"\n\nThe project's plants: {', '.join(names)}. Start from one that fits: read_plant "
+        "with project_plant, store it with build_plant, and build a new plant only when none "
+        "fits, saying why in an assumption."
+    )
 
 
 def missing_case(problem):
@@ -272,22 +285,23 @@ def rounds(calls):
 
 def verifier_task(context):
     """Return the verifier's task: check the result the designer recorded for its design."""
-    design = context.problem.design or {}
-    if "reference" not in design or "result" not in design:
+    design = context.problem.design_state
+    if design.reference is None or design.result is None:
         return (
             "The designer recorded no design.reference and design.result. Report that no design "
             "can be verified."
         )
     return (
-        f"Verify {design['reference']}: run check_results once on its result {design['result']} "
+        f"Verify {design.reference}: run check_results once on its result {design.result} "
         "and record the verification."
     )
 
 
 def economist_task(design, result, problem):
     """Return the economist's task: cost the verified run, and compare it with what was run."""
-    start = problem.design.get("start_result")
-    others = [item.get("result") for item in problem.design.get("alternatives") or ()]
+    typed = problem.design_state
+    start = typed.start_result
+    others = [item.result for item in typed.alternatives or ()]
     compared = [reference for reference in (start, *others) if reference]
     against = (
         f"compare it with {', '.join(compared)} (the sized start and the alternatives the "
@@ -339,7 +353,7 @@ def explainer_task(context, calls):
     A study the designer recorded (``design.study``) is added as a ranked table.
     """
     request = request_of(context)
-    design = context.problem.design.get("reference")
+    design = context.problem.design_state.reference
     report = next((output for name, output in reversed(calls) if name == "verifier"), "")
     task = (
         f"Explain the verified design {design} for this request:\n\n{request}\n\nThe "

@@ -41,6 +41,15 @@ reference forms, sizing ranges, units and state shapes from failures.
 - Fix: `save_profile` read the case and its files on the event loop; it now reads them in a worker
   thread (`asyncio.to_thread`), as the docs said.
 
+- Fix: the Economist task no longer crashes on a `design.start_result` or `alternatives[].result` that
+  is an object. The problem state's design section is typed (`DesignState`); `update_state` refuses an
+  object for a reference, and a stored state with one loads converted or under `design.unreadable`.
+
+- The Designer starts from the project's plants: `read_plant(project_plant=...)`, then `build_plant`
+  before sizing or searching; a new plant only when none fits, with the reason as an assumption.
+  The `DesignLoop`'s first task names the project's plants (none when there are none). The prompt
+  shows the size-then-optimise sequence. New offline recording `designer/project_plant`.
+
 ## [0.4.1] - 2026-11-02
 
 Additive: models and OpenRouter providers can be chosen by deployment configuration.
