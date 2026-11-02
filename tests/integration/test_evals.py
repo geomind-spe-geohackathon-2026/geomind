@@ -157,6 +157,15 @@ def gemini_loaded():
     return gemini
 
 
+def test_the_verdict_reads_the_artifacts_of_the_task_s_chat():
+    """A task's design and result live in its chat, where the verification reads them."""
+    from geomind.stores import MemoryRunStore
+
+    store = MemoryRunStore()
+    store.save_chat_artifact(evals.CHAT, "result/r1", {"plant": {}})
+    assert evals.StoredArtifacts(store, evals.CHAT).load_artifact("result/r1") == {"plant": {}}
+
+
 def test_the_shipped_analyst_tasks_pass_offline(gemini_loaded):
     """The tasks of ``evals/tasks/analyst`` pass from their recordings, with the real tools."""
     outcomes = evals.run_agent("analyst")

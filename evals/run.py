@@ -79,24 +79,24 @@ def _drive(run, answers):
 
 
 class StoredArtifacts:
-    """The artifacts of one stored run, read as a session reads them."""
+    """The artifacts of one chat, read as a session of that chat reads them."""
 
-    def __init__(self, store, run_id):
-        """Keep the store and the run."""
+    def __init__(self, store, chat_id):
+        """Keep the store and the chat."""
         self.store = store
-        self.run_id = run_id
+        self.chat_id = chat_id
 
     def load_artifact(self, key):
-        """Return an artifact of the run, or ``None``."""
-        return self.store.load_artifact(self.run_id, key)
+        """Return an artifact of the chat, or ``None``."""
+        return self.store.load_chat_artifact(self.chat_id, key)
 
 
-def verdict(store, run_id, state):
+def verdict(store, chat_id, state):
     """Return gemini's checks on the final state's design and result, as ``verify_design``."""
     from geomind.verify.design import verify_design
 
     context = Context(
-        problem=ProblemState.model_validate(state), session=StoredArtifacts(store, run_id)
+        problem=ProblemState.model_validate(state), session=StoredArtifacts(store, chat_id)
     )
     return verify_design(context)
 
@@ -142,7 +142,7 @@ def run_task(name, task, agent_name, llm, loop=None):
         time=perf_counter() - started,
     )
     if any(isinstance(criterion, VerifiedCriterion) for criterion in task.criteria):
-        outcome.verdict = verdict(store, result.run_id, outcome.state)
+        outcome.verdict = verdict(store, CHAT, outcome.state)
     problems = [criterion.problem(outcome) for criterion in task.criteria]
     outcome.problems = [problem for problem in problems if problem is not None]
     if result.status == "failed":
