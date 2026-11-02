@@ -4,8 +4,9 @@ A design is a plant dict ``design/<name>``, ``gm.Plant.to_dict(structure=True)``
 plant's inputs. A run ``result/<id>`` keeps its summary there and, beside it, ``<id>.results``
 (``Results.to_bytes()``), ``<id>.plant`` (the plant dict that ran), ``<id>.case`` (the case dict it
 ran on, as the state held it when the run read it) and ``<id>.files`` (``{file name: sha256}`` of
-the case's files). Each file is kept once by its content as ``<sha256>.file``, so a file the case
-names that is overwritten later never changes what an older run reads. The id is a hash of the
+the case's files, series and economics). Each file is kept once by its content as
+``<sha256>.file``, so a file the case names that is overwritten later never changes what an older
+run reads. The id is a hash of the
 plant, the case, the files and the run's options, so the same run has the same reference.
 """
 

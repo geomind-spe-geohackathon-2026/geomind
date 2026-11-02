@@ -4,8 +4,7 @@ Each raises ``AssertionError`` with a clear message. geomind's own tests run the
 and file implementations; the backend runs them against its own.
 """
 
-from pathlib import Path
-
+from geomind.stores.casefiles import case_files, is_safe_name
 from geomind.types import Message
 from geomind.types.events import StepStarted, TextDelta
 
@@ -69,7 +68,7 @@ def _check_artifacts(store):
     _expect(store.load_artifact(OTHER_RUN, "json") is None, "artifacts must belong to one run")
     store.save_artifact(RUN, "design/conformance", {"name": "doublet"})
     store.save_artifact(RUN, "result/conformance", {"plant": {}})
-    store.save_artifact(RUN, "case/conformance.csv", b"time,x\n1,2\n")
+    store.save_artifact(RUN, "case/data/conformance.csv", b"time,x\n1,2\n")
     _expect(
         store.load_artifact(RUN, "design/conformance") == {"name": "doublet"},
         "a design/<name> key must round-trip",
@@ -79,8 +78,8 @@ def _check_artifacts(store):
         "a result/<id> key must round-trip",
     )
     _expect(
-        store.load_artifact(RUN, "case/conformance.csv") == b"time,x\n1,2\n",
-        "a case/<file name> key must round-trip its bytes",
+        store.load_artifact(RUN, "case/data/conformance.csv") == b"time,x\n1,2\n",
+        "a case/<file name> key, a path such as data/x.csv, must round-trip its bytes",
     )
 
 
@@ -97,13 +96,18 @@ def check_run_store(factory, seed_history=None):
 
 
 def _check_case(workspace, project, missing_project):
-    """Check that the project's case is ``(dict, folder)`` with its files and unknown has none."""
+    """Check that the project's case is ``(dict, files)`` with every file it names."""
     found = workspace.case(project)
     _expect(found is not None, "the project's case must load")
-    data, folder = found
+    data, files = found
     _expect(isinstance(data, dict) and "time" in data, "a case must be the dict of a case.json")
-    file = (data.get("demand") or {}).get("file")
-    _expect(file is None or (Path(folder) / file).is_file(), "the folder must hold the case files")
+    _expect(
+        isinstance(files, dict) and all(isinstance(item, bytes) for item in files.values()),
+        "the files of a case must be {name: bytes}",
+    )
+    _expect(all(map(is_safe_name, files)), "a case file name must be a relative path inside it")
+    missing = [name for name in case_files(data) if name not in files]
+    _expect(not missing, f"the files must hold every file the case names; missing {missing}")
     _expect(workspace.case(missing_project) is None, "an unknown project must have no case")
 
 

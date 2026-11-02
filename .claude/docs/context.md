@@ -12,7 +12,7 @@ and `case_origin`. It is frozen: a change is a new state.
 | Key | Shape |
 |---|---|
 | `goal` | text |
-| `requirements` | `[{id, text, constraint, status}]`: the user's words; `constraint` names the case constraint that gemini judges by its `{on, quantity, over, when}` (`ConstraintKey`; gemini's constraints have no id and a merge patch replaces the whole list, so never by index), or null; `status` starts `open` |
+| `requirements` | `[{id, text, case_requirement, status}]`: the user's words; `case_requirement` is the `name` of the case requirement that gemini judges, or null; `status` starts `open` |
 | `assumptions` | `[{id, text, value, source, confirmed}]`; `source` is `user`, `agent` or `default` |
 | `design` | an object, free in shape; `reference` names the current `design/<name>`, `result` its whole-year run, `start_result` the sized start's run and `alternatives` the other families simulated, `[{family, design, result}]` |
 | `results` | `[{id, summary, reference}]`; `reference` names the stored data |
@@ -38,38 +38,49 @@ and `case_origin`. It is frozen: a change is a new state.
 
 ## The case
 
-The problem is a gemini `gm.Case` (`case.json` and a demand CSV; sections `time`, `environment`,
-`demand`, `choices`, `constraints`, `assumptions` and `uncertainty`). The state holds it as plain
-JSON in `case`, and `context/` knows nothing of its content; `render` shows only the time, the
-section names and the demand file.
+The problem is a gemini `gm.Case` (a `case.json`, its series CSV files and its `economics.json`;
+sections `time`, `site`, `demand`, `utilities`, `economics`, `requirements` and optionally
+`initial_state`). The state holds it as plain JSON in `case`, header included (`format`, `kind`,
+`name`), and `context/` knows nothing of its content; `render` shows only the time, the section
+names and the files of the demand series.
 
 - **Stored as given.** `case` is the content of a `case.json` plus the merge-patch changes of the
-  user and the model, validated by `gm.Case.from_dict`. It is never `case.to_dict()`: that writes
-  the service unit as `W` but keeps the CSV column in its own unit, so `from_dict(to_dict())` reads
-  a kW file as W (gemini request 1 in the adaptation notes). A test keeps this: the stored case of
+  user and the model, validated by `gm.Case.from_dict` and `Case.check`. It is never
+  `case.to_dict()`; the stored case is what the user gave. A test keeps that the stored case of
   `shallow_district` gives its heating peak of 3.034 MW.
-- **The files.** The files a case names (`demand.file`, a profile file) are not in the state. The
-  run store keeps them as artifacts `case/<file name>` (bytes), so the run store is the source of
-  truth and a run does not read a project folder. `case_of(context)` in `tools/gemini/case.py`
-  writes them to a temporary folder and returns `gm.Case.from_dict(state.case, folder)`. With no
-  case it raises `ToolError` telling the model to call `set_case` or `ask_user`: there is no
-  fallback case anywhere.
-- **Who sets it.** `set_case(source=None, changes=None)`: `source="project"` loads the project's
-  case through `Workspace.case(project)` and copies its files into the run; `changes` is an
-  RFC 7386 JSON merge patch on the case. gemini validates the result; a rejected case comes back as
-  a tool error with gemini's `path`, `code` and message, and nothing is stored. `save_profile`
-  adds a user's demand values to `demand`. `update_state` cannot write it.
+- **The files.** The files a case names (the `file` of each series, such as `data/demand.csv`, and
+  its `economics` file) are not in the state. Their names are relative paths: nothing absolute, no
+  `..` (`geomind/stores/casefiles.py`). The run store keeps them as artifacts `case/<file name>`
+  (bytes), so the run store is the source of truth and a run does not read a project folder.
+  `case_of(context)` in `tools/gemini/case.py` returns
+  `gm.Case.from_dict(state.case, files={name: bytes})`; there is no temporary folder. With no case
+  it raises `ToolError` telling the model to call `set_case` or `ask_user`: there is no fallback
+  case anywhere.
+- **Who sets it.** `set_case(source=None, changes=None, requirements=None, economics=None)`:
+  `source="project"` loads the project's case through `Workspace.case(project)` and copies its
+  files into the run; `changes` is an RFC 7386 JSON merge patch on the case, except
+  `requirements` and `economics`, which `changes` refuses; `requirements` is
+  `{name: requirement | null}` (add or replace by name, remove with null, the others stay);
+  `economics` is a merge patch on the content of the economics file, stored as a new content file.
+  gemini validates the result with `Case.from_dict` and `Case.check()`; a rejected case comes back
+  as a tool error with gemini's `path`, `code` and message, and nothing is stored. `save_profile`
+  writes a user's demand values to `data/<name>.csv` (a `time` column and the values), points the
+  service's `power` at it and, when the profile does not cover the case's `time`, sets the time to
+  the profile's span in the same call. `update_state` cannot write the case.
 - **The case the user gave.** `case_origin` is the project's case (`source="project"`, without the
   changes of the same call) or the first case of the chat, which comes from the user's request or
   answer. Later changes leave it as it is; each file is kept by its content as `<sha256>.file`.
   `case_changes` (`origin.py`) lists every difference of `case` from it: a section key, a
-  constraint removed or added, a file whose content changed. `verify_design` fails a design with
-  `case_changed` while any difference is left, so no agent passes by weakening the case. The
-  design loop then asks the user: `approve` runs `accept_case` (only the driver holds it), which
-  makes the current case the origin; `restore` sends the designer back to
-  `set_case(source="origin")`.
-- **Who reads it.** `read_case(section=None)` returns the case, a section, or `gm.Case.schema()`
-  for `section="schema"`. The gemini tools read the case through `case_of`.
+  requirement by name (`requirements.<name>`), and every file whose content changed
+  (`file <name>`), the economics file included: a change of the economics is a change of the
+  case. `verify_design` fails a design with `case_changed` while any difference is left, so no
+  agent passes by weakening the case. The design loop then asks the user: `approve` runs
+  `accept_case` (only the driver holds it), which makes the current case the origin; `restore`
+  sends the designer back to `set_case(source="origin")`.
+- **Who reads it.** `read_case(section=None)` returns the case, a section, `economics` (the
+  parsed content of the economics file) or `schema` (`gm.Case.schema()` with
+  `gm.case.Economics.schema()` under `economics_schema`). The gemini tools read the case through
+  `case_of`.
 
 ## Long conversations
 

@@ -59,50 +59,6 @@
       "title": "Compaction",
       "type": "object"
     },
-    "ConstraintKey": {
-      "additionalProperties": false,
-      "description": "The fields that name a constraint of the case: ``on``, ``quantity``, ``over``, ``when``.\n\ngemini's constraints have no id, and a merge patch on ``constraints`` replaces the whole list,\nso a requirement names its constraint by these fields, never by its place in the list.",
-      "properties": {
-        "on": {
-          "title": "On",
-          "type": "string"
-        },
-        "over": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Over"
-        },
-        "quantity": {
-          "title": "Quantity",
-          "type": "string"
-        },
-        "when": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "When"
-        }
-      },
-      "required": [
-        "on",
-        "quantity"
-      ],
-      "title": "ConstraintKey",
-      "type": "object"
-    },
     "Question": {
       "additionalProperties": false,
       "description": "An open question for the user.",
@@ -125,18 +81,19 @@
     },
     "Requirement": {
       "additionalProperties": false,
-      "description": "A criterion of the task, in the user's words.\n\nA numeric one is a constraint of the case (``set_case``), and ``constraint`` names it by its\n``on``, ``quantity``, ``over`` and ``when``; gemini judges it, the text is never parsed.",
+      "description": "A criterion of the task, in the user's words.\n\nA numeric one is a requirement of the case (``set_case``), and ``case_requirement`` names it by\nits ``name``; gemini judges it, the text is never parsed.",
       "properties": {
-        "constraint": {
+        "case_requirement": {
           "anyOf": [
             {
-              "$ref": "#/$defs/ConstraintKey"
+              "type": "string"
             },
             {
               "type": "null"
             }
           ],
-          "default": null
+          "default": null,
+          "title": "Case Requirement"
         },
         "id": {
           "title": "Id",
