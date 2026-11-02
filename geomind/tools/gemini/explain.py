@@ -16,6 +16,10 @@ UNIT_GIVEN = re.compile(r"unit = '([^']*)'")
 UNIT_LISTED = ("accepted units", "expected a unit of")
 RANGE_SUFFIX = ".range"
 SHOWN_LEAVES = 12
+ASK = (
+    "the range is not in the case and only the user or the case gives one: ask the user with "
+    "ask_user, proposing values with a one-line reason, and after the user confirms call"
+)
 NO_RANGE = "states no range and no options"
 
 
@@ -95,7 +99,7 @@ def missing_range_text(error, plants):
         for design, plant in plants.items():
             if lacking(plant, path):
                 call = set_ranges_call(design, {path: range_entry(plant, path)})
-                lines.append(f"{design} has no range for {path}; add it with {call}")
+                lines.append(f"{design} has no range for {path}; {ASK} {call}")
     return "; ".join(lines)
 
 
@@ -110,7 +114,7 @@ def no_search_text(error, plants):
             more = f" and {len(found) - SHOWN_LEAVES} more" if len(found) > SHOWN_LEAVES else ""
             leaves = join_names(found[:SHOWN_LEAVES]) + more
             call = set_ranges_call(design, {"<leaf>": {"min": "<min>", "max": "<max>"}})
-            lines.append(f"{design} can state a range on: {leaves}; add one with {call}")
+            lines.append(f"{design} can state a range on: {leaves}; {ASK} {call}")
     return "; ".join(lines)
 
 

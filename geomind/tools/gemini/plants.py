@@ -227,7 +227,10 @@ async def set_ranges(
     name: str,
     options: dict[str, list[Any]] | None = None,
 ):
-    """Put search ranges and options on the leaves of a design; store it as design/<name>.
+    """Set search ranges on a design: they come from the user or the case, so ask_user first.
+
+    Propose values with ask_user and set them only after the user confirms. The result is stored
+    as design/<name>.
 
     ``ranges`` is ``{path: {"min": {"value", "unit"}, "max": {"value", "unit"}}}``; a count such
     as ``size.doublets`` takes plain numbers; a side left out is open and a leaf with neither

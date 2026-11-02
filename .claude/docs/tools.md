@@ -175,7 +175,9 @@ earlier result.
   `prepare: ["size"]` or `minimize`) keeps gemini's message, path and code and adds, per design
   that lacks the range, the `set_ranges(design=..., ranges={path: ...}, name=...)` call that adds
   it. The unit is the leaf's unit in the plant file; the bounds are the placeholders `<min>` and
-  `<max>`, never a number. A search over a plant with no range and no options lists the first
+  `<max>`, never a number. The text says the range is not in the case: ask the user with `ask_user`, propose values
+  with a reason, and call `set_ranges` only after the user confirms (ranges, and uncertainty
+  ranges, come only from the user or the case). A search over a plant with no range and no options lists the first
   twelve leaves that can state a range, with their units.
 
 ### How `simulate` runs

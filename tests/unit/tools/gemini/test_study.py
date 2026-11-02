@@ -483,6 +483,7 @@ def test_size_plant_names_the_missing_range_and_the_call_that_adds_it():
     assert "size.doublets.range is missing" in error["message"]
     assert "set_ranges(design='design/nodoublets'" in error["message"]
     assert "'size.doublets': {'min': <min>, 'max': <max>}" in error["message"]
+    assert "not in the case" in error["message"] and "ask_user" in error["message"]
     assert not any(character.isdigit() for character in error["message"].split("set_ranges")[1])
 
 
@@ -497,6 +498,7 @@ def test_optimize_with_no_range_lists_the_leaves_with_their_units():
     error = slow_calls()["studies"]["unsearched"].output["error"]
     assert error["code"] == "invalid_design"
     assert "depth [m]" in error["message"]
+    assert "ask_user" in error["message"] and "confirm" in error["message"]
     assert "set_ranges(design='design/bare'" in error["message"]
 
 
@@ -519,3 +521,13 @@ async def test_size_plant_with_a_name_without_its_prefix_lists_the_stored_design
     assert result.output["error"]["code"] == "unknown_name"
     assert "stored design references: design/hphp2" in message
     assert "did you mean 'design/hphp2'" in message
+
+
+def test_the_range_tools_say_ranges_come_from_the_user_or_the_case():
+    """set_ranges and the uncertainty studies tell the agent not to invent a range."""
+    from geomind.tools.gemini.plants import set_ranges
+
+    assert "from the user or the case" in set_ranges.description
+    assert "ask_user" in set_ranges.description
+    for tool in (study.sample_uncertainty, study.sensitivity):
+        assert "from the user or the case" in tool.description

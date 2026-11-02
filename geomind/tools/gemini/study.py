@@ -183,7 +183,9 @@ def sample_design(plant, case, metrics, samples, seed):
 async def sample_uncertainty(
     context, design: str, metrics: list[str], samples: int, seed: int, name: str
 ):
-    """Sample a stored design over the uncertainty the case declares; return a summary per metric.
+    """Sample a design over the case's uncertainty (from the user or the case, never made up).
+
+    Returns a summary per metric.
 
     The distributions are only those of the case's ``uncertainty`` (set them with ``set_case``);
     a case without any is an error. ``samples`` draws are simulated, one run each, from ``seed``.
@@ -217,7 +219,9 @@ def sensitivity_of_design(plant, case, metrics):
     late_schemas={"design": reference_schema("design")},
 )
 async def sensitivity(context, design: str, metrics: list[str], name: str):
-    """Rank the case's uncertain values by their effect on the metrics of a stored design.
+    """Rank the case's uncertain values (from the user or the case, never made up) by effect.
+
+    The metrics are those of a stored design.
 
     Each value the case declares an ``uncertainty`` for is set at its low and high bound. ``name``
     names the study ``study/<name>`` that records the call; a taken name is refused. Returns the
