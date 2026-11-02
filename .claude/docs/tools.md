@@ -271,8 +271,16 @@ functions.
   `stop_reason="error"`.
 - Any other exception is a bug: it is reported through `on_error`, and the model reads only
   `internal error`, with `code: "internal"`.
-- A result over `tool_result_limit` is saved with `store.save_artifact` and returned as
-  `{reference, summary}`. The key is a hash, so a call id from a model never becomes a path.
+- A result over 2000 characters is saved as the chat artifact `result-<hash of the call id>` and its
+  `tool.result` carries the `reference`; the key is a hash, so a call id never becomes a path
+  (`geomind/tools/stored.py`). Up to `tool_result_limit` the model reads it whole in the step after
+  the call; from the next step on, `Context` shows `stored_form` instead (the reference, the small
+  top-level values, an outline of the rest, see [context.md](context.md#long-conversations)). Over
+  the limit it gets `stored_form` at once. `read_stored(reference, path=None)` returns the whole or
+  one part (dotted keys and indexes); agents that read gemini results have it. Logs of 0.4.x hold
+  `{reference, summary}` only above the limit and no reference below it, so they replay as before.
+- `Tool.schema()` leaves out the `title` annotations of the input schema (late schemas stay as
+  gemini gives them).
 - A sync tool that times out keeps running in its thread until it returns; a thread cannot be
   stopped from outside.
 

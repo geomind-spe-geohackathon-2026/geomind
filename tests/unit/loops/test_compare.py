@@ -30,6 +30,9 @@ SEARCH = {"objective": "lcts", "evaluations": 5, "seed": 1}
 RESULT = re.compile(r"result/\w+")
 
 
+STORED = {}
+
+
 class Steps(FakeLLM):
     """A scripted provider whose entries may be functions of the agent's messages.
 
@@ -48,9 +51,12 @@ class Steps(FakeLLM):
 
 
 def output_of(messages, call_id):
-    """Return the output of one tool call of the agent's own conversation, as the model reads it."""
+    """Return the output of one tool call; an old one is read from its stored reference."""
     text = next(item.content for item in messages if item.tool_call_id == call_id)
-    return ast.literal_eval(text)
+    found = ast.literal_eval(text)
+    if isinstance(found, dict) and str(found.get("reference", "")).startswith("result-"):
+        return STORED["store"].load_chat_artifact(STORED["chat"], found["reference"])
+    return found
 
 
 def reference_of(messages):
@@ -176,6 +182,7 @@ async def run_compare():
     script = [*designer_script(), *verifier_script(), *economist_script(), says("explained")]
     engine = Engine(llm=Steps(script), permissions=Permissions(mode="auto"))
     start = context("Compare alternative plants for the case.", problem=ProblemState(case=data))
+    STORED.update(store=engine.store, chat=start.run_id)
     for file, content in files.items():
         engine.store.save_chat_artifact(start.run_id, f"case/{file}", content)
     result = await CompareLoop(Designer(), Verifier()).run(engine, start)

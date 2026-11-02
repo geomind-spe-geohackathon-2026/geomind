@@ -89,3 +89,15 @@ def test_only_read_and_compute_are_pure():
 def test_renamed_leaves_the_original_alone():
     """An agent's attribute name wins on its own copy."""
     assert add.renamed("sum").name == "sum" and add.name == "add"
+
+
+def test_the_offered_schema_has_no_title_annotations_but_keeps_a_property_named_title():
+    """Titles only repeat names; a field called ``title`` is still offered."""
+
+    @tool(effect="read")
+    def titled(title: str, count: int):
+        """Take two fields."""
+
+    offered = titled.schema()["input_schema"]
+    assert "title" in offered["properties"] and "title" not in offered
+    assert all("title" not in value for value in offered["properties"].values())

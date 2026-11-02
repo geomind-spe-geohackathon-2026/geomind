@@ -71,3 +71,26 @@ def test_a_class_that_does_not_import_raises():
     """A run naming a class that is gone is a run error."""
     with pytest.raises(RunError, match="importable"):
         agent_class(RunState(agent_class="no.such.module:X"))
+
+
+def test_a_result_stored_whole_keeps_its_short_form_and_an_old_one_does_not():
+    """The state remembers the short form of a result with a reference; a 0.4.x offload has it."""
+    from geomind.engine.recovery import _remember_stored
+    from geomind.engine.state import RunState
+    from geomind.types.events import ToolRecorded
+
+    state = RunState()
+    whole = ToolRecorded(
+        run_id="r", index=0, call_id="a", output={"k": "v" * 3000}, reference="result-1"
+    )
+    old = ToolRecorded(
+        run_id="r",
+        index=1,
+        call_id="b",
+        output={"reference": "result-2", "summary": "s"},
+        reference="result-2",
+    )
+    plain = ToolRecorded(run_id="r", index=2, call_id="c", output={"k": 1})
+    for event in (whole, old, plain):
+        _remember_stored(state, event)
+    assert list(state.stored) == ["a"] and "result-1" in state.stored["a"]

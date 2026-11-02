@@ -64,6 +64,7 @@ class RunState:
     action: Action | None = None
     calls: list[ToolCall] = field(default_factory=list)
     results: dict[str, Message] = field(default_factory=dict)
+    stored: dict[str, str] = field(default_factory=dict)
     allowed: list[str] = field(default_factory=list)
     started: list[str] = field(default_factory=list)
     usage: Usage = Usage()

@@ -727,6 +727,39 @@
       "late_schemas": [],
       "name": "read_skill"
     },
+    "read_stored": {
+      "description": "Return a result that was stored by reference, whole or one part of it.",
+      "effect": "read",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Path"
+          },
+          "reference": {
+            "title": "Reference",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reference"
+        ],
+        "title": "read_stored_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "read_stored"
+    },
     "read_study": {
       "description": "Read a stored study: what ran, what came back, the designs it read and wrote, and its case.",
       "effect": "read",

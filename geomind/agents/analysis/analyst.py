@@ -35,6 +35,7 @@ class Analyst(Agent):
         self.search_documents = tools.search_documents
         self.update_state = tools.update_state
         self.read_skill = tools.read_skill
+        self.read_stored = tools.read_stored
         self.ask_user = tools.ask_user
         self.finish = tools.finish
 

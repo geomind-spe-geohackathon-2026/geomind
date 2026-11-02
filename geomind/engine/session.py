@@ -148,6 +148,7 @@ class RunSession:
             steps_left=state.max_steps - state.step,
             problem=state.problem,
             session=self,
+            stored=state.stored,
         )
 
     def on_text(self, delta):

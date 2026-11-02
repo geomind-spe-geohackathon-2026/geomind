@@ -17,6 +17,7 @@ def test_it_is_complete():
             "read_result",
             "update_state",
             "read_skill",
+            "read_stored",
             "finish",
         ],
     )

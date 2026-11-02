@@ -83,7 +83,7 @@ class Tool:
 
     def _offered_schema(self):
         """Return ``input_schema`` with the late schemas in place, their definitions at the top."""
-        schema = copy.deepcopy(self.input_schema)
+        schema = without_titles(self.input_schema)
         for name, function in self.late_schemas.items():
             late = dict(function())
             definitions = late.pop("$defs", {})
@@ -119,6 +119,22 @@ class Tool:
                 f"expected the names {join_names(properties)}"
             )
         return dict(tool_input)
+
+
+def without_titles(schema):
+    """Return a copy of a JSON schema without its ``title`` annotations, which only repeat names.
+
+    A property named ``title`` stays: its value is a schema, while an annotation is text.
+    """
+    if isinstance(schema, list):
+        return [without_titles(item) for item in schema]
+    if not isinstance(schema, dict):
+        return schema
+    return {
+        key: without_titles(value)
+        for key, value in schema.items()
+        if not (key == "title" and isinstance(value, str))
+    }
 
 
 def _input_model(function):

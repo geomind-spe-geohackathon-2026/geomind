@@ -8,6 +8,7 @@ from geomind.context import Compaction, ProblemState, apply_changes
 from geomind.context.history import replace_older
 from geomind.engine.state import PendingAction, RunState
 from geomind.errors import RunError
+from geomind.tools.stored import is_stored_form, stored_form
 from geomind.types import Action, Message, Usage
 from geomind.types.events import LLM_EVENTS
 from geomind.utils.imports import import_class
@@ -91,6 +92,13 @@ def _count_failure(state, event):
     state.failures.pop(event.tool, None)
 
 
+def _remember_stored(state, event):
+    """Keep the short form of a result that was stored whole, for the steps after the next one."""
+    if event.reference is None or is_stored_form(event.output, event.reference):
+        return
+    state.stored[event.call_id] = _content(stored_form(to_jsonable(event.output), event.reference))
+
+
 def _tool_result(state, event):
     """Keep a result; the results of a step join the history together, in call order.
 
@@ -112,6 +120,7 @@ def _tool_result(state, event):
     state.results[event.call_id] = Message(
         role="tool", content=_content(event.output), tool_call_id=event.call_id
     )
+    _remember_stored(state, event)
     if all(call.id in state.results for call in state.calls):
         state.messages.extend(state.results[call.id] for call in state.calls)
 

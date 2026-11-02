@@ -12,6 +12,7 @@ from geomind.tools.dispatch import dispatch
 from geomind.tools.gemini import read_result, search_documents
 from geomind.tools.skills import read_skill
 from geomind.tools.state import update_state
+from geomind.tools.stored import read_stored
 
 __all__ = [
     "EFFECTS",
@@ -24,6 +25,7 @@ __all__ = [
     "read_file",
     "read_result",
     "read_skill",
+    "read_stored",
     "run_python",
     "search_documents",
     "tool",

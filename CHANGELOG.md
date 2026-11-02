@@ -50,6 +50,18 @@ reference forms, sizing ranges, units and state shapes from failures.
   The `DesignLoop`'s first task names the project's plants (none when there are none). The prompt
   shows the size-then-optimise sequence. New offline recording `designer/project_plant`.
 
+Additive; nothing renamed or removed. Cuts the input tokens of long tool loops.
+
+- Tool results over 2000 characters are stored as `result-...` (their `tool.result` has the
+  `reference`); the history shows them whole for one step, then as the reference, the small values and
+  an outline. New tool `read_stored(reference, path)` reads them again, whole or in part. Results over
+  `tool_result_limit` now keep their small top-level values and a structural outline (names of
+  list items, keys) instead of the first 500 characters.
+- Call inputs over 800 characters in older assistant messages are shortened to an outline.
+- Agents with `read_stored` get a shared "Stored results" text after their prompt (`STORED_RESULTS`,
+  `geomind/prompts/prompt.py`); `tests/unit/snapshots/tools.json` gains `read_stored` (additive).
+- `Tool.schema()` drops `title` annotations. 0.4.x logs replay and export unchanged.
+
 ## [0.4.1] - 2026-11-02
 
 Additive: models and OpenRouter providers can be chosen by deployment configuration.

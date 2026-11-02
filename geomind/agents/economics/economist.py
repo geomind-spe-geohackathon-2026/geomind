@@ -27,6 +27,7 @@ class Economist(Agent):
         self.read_study = tools.gemini.read_study
         self.update_state = tools.update_state
         self.read_skill = tools.read_skill
+        self.read_stored = tools.read_stored
         self.finish = tools.finish
 
         # Model

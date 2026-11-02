@@ -7,7 +7,7 @@ import pytest
 from geomind import runtime
 from geomind.agents import Analyst
 from geomind.engine import Context
-from geomind.prompts.prompt import role_files
+from geomind.prompts.prompt import SHARED_TOOLS, role_files
 from tests.unit.agents.structure import HEADINGS, headings
 
 
@@ -33,6 +33,7 @@ def test_it_declares_the_tools_it_needs():
         "search_documents",
         "update_state",
         "read_skill",
+        "read_stored",
         "ask_user",
         "finish",
     ]
@@ -59,7 +60,7 @@ def test_its_prompt_names_only_tools_it_has():
     text = role_files()["analyst"].read_text()
     tools_section = text.split("## Tools")[1].split("## Rules")[0]
     named = re.findall(r"^- `(\w+)`", tools_section, flags=re.MULTILINE)
-    assert sorted(named) == sorted(Analyst().tools())
+    assert sorted(named) == sorted(set(Analyst().tools()) - set(SHARED_TOOLS))
 
 
 def test_the_system_prompt_lists_the_skills_by_name():
