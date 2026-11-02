@@ -1,0 +1,22 @@
+# Hand-written recording (decisions by hand, every reference and number from the real tools); the live run replaces it.
+message: 'Compare alternative plants for the project''s case and rank them. Build two topologies,
+  the plant classes HeatingAbsorptionCoolingPlant and HeatingCoolingPlant, with the peak backup
+  policy and the number of doublets (1 to 2) as the only range. Compare them with one run_study
+  that minimises the levelised cost of thermal service (objective lcts) with 5 evaluations and
+  seed 1, and record the best.'
+answers:
+- Use the project's case.
+plant: evals/projects/hackathon
+criteria:
+- kind: tool
+  tool: run_study
+- kind: tool
+  tool: check_results
+- kind: state
+  path: /design/study/runs
+- kind: state
+  path: /design/reference
+- kind: state
+  path: /verification/passed
+  equals: true
+- kind: verified

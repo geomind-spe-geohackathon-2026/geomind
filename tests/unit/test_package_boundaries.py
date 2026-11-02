@@ -25,6 +25,7 @@ ORDER = [
     ("geomind.run",),
     ("geomind.testing",),
     ("geomind.live",),
+    ("geomind.export",),
     ("geomind.cli",),
 ]
 CORE_IMPORT = re.compile(r"^\s*(?:from|import) +\S*\bcore\b.*$", re.MULTILINE)

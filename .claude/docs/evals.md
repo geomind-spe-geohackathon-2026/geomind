@@ -5,15 +5,16 @@ Testing an agent by tasks. `evals/` is at the repository root, outside the packa
 ```text
 evals/
 ├── tasks/<agent>/<name>.yaml         message, plant and criteria
-├── recordings/<agent>/<name>.jsonl   one completion as JSON per line
+├── recordings/<agent>/<name>.jsonl   one completion as JSON per line (agent: a folder of tasks)
 ├── tasks_format.py                   the task file and its criteria
 ├── run.py                            the runner
-└── reports/                          generated; only summary.md is tracked
+└── reports/                          generated; only summary.md (the loop report) is tracked
 ```
 
 ```bash
 python -m evals.run --agent analyst          # offline, from recordings
 python -m evals.run --agent analyst --live   # OpenRouter; writes the recording anew
+python -m evals.run --report                 # offline: every task through three loops
 ```
 
 `--live` needs `OPENROUTER_API_KEY` and stops with a clear message without it. Exit codes: 0 all
@@ -57,8 +58,19 @@ task, whatever the criteria say.
 
 ## Report
 
-`evals/reports/summary.md` and the terminal show, per task and in total: passed, steps, tool calls,
-tokens, cost and time, then every failure with its reason.
+`python -m evals.run --agent <name>` prints, and writes to `evals/reports/<name>.md` (not
+tracked), per task and in total: passed, steps, tool calls, tokens, cost and time, then every
+failure with its reason.
+
+`python -m evals.run --report` writes the tracked `evals/reports/summary.md`: every task of every
+folder, offline from its recording, through `ToolLoop`, `DesignLoop` and `CompareLoop` (the
+`MakerCheckerLoop` is gone). One table per loop, a row per task and a total: criteria met, steps,
+tool calls, tokens, cost and time. `ToolLoop` runs the task's agent (the Designer alone for a suite).
+A recording holds the decisions of one loop, so a loop whose agents ask for other steps meets a task
+it cannot finish: its criteria are unmet, and the table shows how many held. A loop that raises
+fails its task and does not stop the report. Time differs between runs, so
+`tests/integration/test_evals.py` (slow) compares the checked-in report with a new one with the
+time cells blanked. Regenerate and commit it when a task, a recording or a loop changes.
 
 ## Projects
 
@@ -89,8 +101,8 @@ none is added here.
 ## Suites
 
 A folder of `SUITES` in `evals/run.py` runs its tasks through a loop instead of one agent:
-`python -m evals.run --agent challenge2` runs `evals/tasks/challenge2/` through the `DesignLoop`.
-Its tasks:
+`python -m evals.run --agent challenge2` runs `evals/tasks/challenge2/` through the `DesignLoop`;
+`--agent compare` runs `evals/tasks/compare/` through the `CompareLoop`. The `challenge2` tasks:
 
 | Task | Project | What it checks, and what fails when it is ignored |
 |---|---|---|
@@ -101,6 +113,20 @@ Its tasks:
 | `verifier` | `shallow_district` | the Verifier's part on a second example: `check_results` is called, `/verification/result` is set, the design is verified |
 | `economist` | `higher_gas` | the Economist's part: `estimate_costs` and `sample_uncertainty` are called, the LCTS in the answer is the one on the higher gas price (`number`), `/results/costs` is recorded |
 | `tight_budget` | `hackathon` | `max_steps: 7`: the Designer cannot reach `optimize`, so the loop ends without a design and says so; `optimize` and `estimate_costs` are not called |
+
+### The compare task
+
+`compare/two_families` (project `hackathon`) asks the `CompareLoop` for two topologies of the
+project's case, `HeatingAbsorptionCoolingPlant` and `HeatingCoolingPlant`, with the peak backup
+policy and the doublets (1 to 2) as the only range, compared with one `run_study` (objective
+`lcts`, 5 evaluations, seed 1). Criteria: `run_study` and `check_results` are called,
+`/design/study/runs` and `/design/reference` are set, `/verification/passed` is true and
+`verified` holds (gemini's verdict on the recorded design). The recording is hand-written
+(`model: hand-written`, the task file says so): the decisions are by hand, the numbers in the tool
+results (the ranked table of the study, the references) come from real gemini runs, because it
+was written by answering each model call from the results the run already held. The Designer
+builds both plants from gemini's example files, since a project with several plants has no
+named-plant access. The live run replaces it.
 
 A variant fails when the agents ignore its change: `tests/integration/test_evals.py` runs
 `tests/fixtures/recordings/*_ignored.jsonl` on the variant's task. The unsized plant on the 15 MW

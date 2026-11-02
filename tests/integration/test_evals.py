@@ -5,6 +5,7 @@ has now, and they cover every kind of criterion, pass and fail.
 """
 
 import json
+import re
 import shutil
 
 import pytest
@@ -46,11 +47,11 @@ def write_task(root, task=TASK, script=SCRIPT, name="depth"):
         append_line(root / "recordings" / "analyst" / f"{name}.jsonl", completion.model_dump())
 
 
-def test_a_task_passes_offline_and_writes_the_summary(tmp_path, capsys):
+def test_a_task_passes_offline_and_writes_its_report(tmp_path, capsys):
     """Every kind of criterion holds, and the report has the totals."""
     write_task(tmp_path)
     assert evals.main(["--agent", "analyst"], tmp_path) == 0
-    summary = (tmp_path / "reports" / "summary.md").read_text()
+    summary = (tmp_path / "reports" / "analyst.md").read_text()
     assert "| depth | pass | 3 | 2 |" in summary
     assert "Total: 1 of 1 passed, 3 steps, 2 tool calls" in summary
     assert summary in capsys.readouterr().out
@@ -72,7 +73,7 @@ def test_a_criterion_that_fails_is_reported(tmp_path, criterion, message):
     """A failing task fails the run and says why."""
     write_task(tmp_path, {**TASK, "criteria": [criterion]})
     assert evals.main(["--agent", "analyst"], tmp_path) == 1
-    assert message in (tmp_path / "reports" / "summary.md").read_text()
+    assert message in (tmp_path / "reports" / "analyst.md").read_text()
 
 
 def test_a_task_with_history_and_a_state_item_by_id(tmp_path):
@@ -99,7 +100,7 @@ def test_a_missing_recording_fails_the_task(tmp_path):
     """An empty script ends the run with an error, which fails the task."""
     write_task(tmp_path, script=[])
     assert evals.main(["--agent", "analyst"], tmp_path) == 1
-    assert "run: error" in (tmp_path / "reports" / "summary.md").read_text()
+    assert "run: error" in (tmp_path / "reports" / "analyst.md").read_text()
 
 
 def test_no_tasks_is_said_plainly(tmp_path, capsys):
@@ -193,6 +194,64 @@ def test_the_challenge2_cases_pass_offline_through_the_design_loop(gemini_loaded
     assert [outcome.problems for outcome in outcomes] == [[]] * len(NAMES)
     verified = [outcome for outcome in outcomes if outcome.name != "tight_budget"]
     assert all(outcome.verdict["passed"] for outcome in verified)
+
+
+@pytest.mark.slow
+def test_the_compare_task_passes_offline_through_the_compare_loop(gemini_loaded):
+    """Two topologies, one study: ``design.study``, ``design.reference`` and the verdict hold.
+
+    NOTE: slow, because the recording's study searches and simulates both topologies.
+    """
+    [outcome] = evals.run_agent("compare")
+    assert outcome.name == "two_families" and outcome.problems == []
+    study = outcome.state["design"]["study"]
+    assert len(study["runs"]) == 2 and study["method"] == "minimize"
+    best = next(run["design"] for run in study["runs"] if run["ranks"]["lcts"] == 1)
+    assert outcome.state["design"]["reference"] == best
+    assert outcome.verdict["passed"] and outcome.state["verification"]["passed"]
+    assert "| design | feasible | rank | lcts |" in outcome.answer
+
+
+def test_the_report_has_a_table_per_loop_and_main_writes_it(tmp_path, capsys):
+    """Each task runs through the three loops; a loop that cannot finish it meets fewer criteria."""
+    write_task(tmp_path)
+    assert evals.main(["--report"], tmp_path) == 0
+    text = (tmp_path / "reports" / "summary.md").read_text()
+    assert text + "\n" == capsys.readouterr().out
+    assert [line for line in text.splitlines() if line.startswith("## ")] == [
+        "## ToolLoop",
+        "## DesignLoop",
+        "## CompareLoop",
+    ]
+    assert "| analyst/depth | 5 of 5 | 3 | 2 | 45 | 0.0300 |" in text
+
+
+def without_times(text):
+    """Return a report with the time cells blanked: they differ from run to run."""
+    return re.sub(r"\| [\d.]+ \|$", "| time |", text, flags=re.MULTILINE)
+
+
+def test_the_checked_in_report_has_every_task_under_each_loop():
+    """``evals/reports/summary.md`` has a table per loop, with a row for every task file."""
+    text = (evals.ROOT / "reports" / "summary.md").read_text()
+    tasks = sorted(
+        f"{path.parent.name}/{path.stem}" for path in (evals.ROOT / "tasks").glob("*/*.yaml")
+    )
+    tables = text.split("## ")[1:]
+    assert [table.splitlines()[0] for table in tables] == ["ToolLoop", "DesignLoop", "CompareLoop"]
+    for table in tables:
+        rows = [line.split(" | ")[0].removeprefix("| ") for line in table.splitlines()[4:]]
+        assert [row for row in rows if row] == [*tasks, "Total"]
+
+
+@pytest.mark.slow
+def test_the_checked_in_report_is_the_generated_one(gemini_loaded):
+    """``evals/reports/summary.md`` is what ``python -m evals.run --report`` writes, but for time.
+
+    NOTE: slow, because every task runs through three loops.
+    """
+    checked_in = (evals.ROOT / "reports" / "summary.md").read_text()
+    assert without_times(evals.report()) == without_times(checked_in)
 
 
 def run_recorded(tmp_path, task, recording):
