@@ -49,7 +49,7 @@ the routing, for testing one agent by hand, and so does a `run.loop` set before 
 ## Command line
 
 - `geomind run "<message>" [--model ID] [--max-steps N] [--mode ask|auto|readonly|plan]
-  [--sandbox local|docker] [--loop tool|design] [--project PATH]
+  [--sandbox local|docker] [--loop tool|design|compare] [--project PATH]
   [--recording FILE] [--record FILE] [--max-tokens N] [--max-cost USD]` runs with `OpenRouter` and
   `FileRunStore(".runs")`, prints text as it streams, asks in the terminal when a request pauses the
   run, then resumes. `--loop` chooses the loop instead of the coordinator; `--recording` runs from

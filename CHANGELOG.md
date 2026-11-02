@@ -4,6 +4,107 @@
 interface raises the minor version, and an addition or a fix raises the patch version. The rule and
 the list of frozen interfaces are in [.claude/docs/api.md](.claude/docs/api.md#frozen-interfaces).
 
+## [0.3.0] - 2026-11-02
+
+Breaking: geomind runs on gemini `>=0.5,<0.6` (pinned in `pyproject.toml`; a test fails on another
+installed version). gemini's problem is a project folder (`case.json`, `economics.json`, `data/`,
+`plants/`), pass or fail is `gm.evaluate.verdict`, and a plant is a file with ranges. geomind keeps
+no copy of gemini's logic. `gm.evaluate.run_all`, `gm.physics.control`, `gm.data`, `gm.case.roles`
+and `gm.plants.validate` are not used anywhere.
+
+Problem state and backend contract:
+
+- `Requirement.case_requirement` (the name of a requirement of the case, `str | null`) replaces
+  `Requirement.constraint`; `ConstraintKey` is removed (schema `problem_state.json` and its sample).
+- `case_origin` now compares the case's requirements by name (added, removed, changed) and its
+  files, `economics.json` included.
+- `Workspace.case(project_id)` returns `(case dict, {file name: bytes})` (was `(case dict,
+  folder)`); the files are the ones `case.json` names, `economics.json` included, by relative
+  name such as `data/demand.csv`.
+- `Workspace.plant(project_id)` is removed. `Workspace.plants(project_id)` returns `{file stem:
+  plant file dict}` from the project's `plants/*.json`, `{}` without plants. `MemoryWorkspace`
+  takes `plants={project: {name: dict}}`; `FileWorkspace` reads the folder; `check_workspace`
+  checks both. The backend implements `plants` and the new `case`.
+- `RunStore.save_chat_artifact(chat_id, key, data)` and `RunStore.load_chat_artifact(chat_id,
+  key)` are new (`FileRunStore` keeps `<root>/chats/<chat id>/artifacts/`; `check_run_store`
+  tests them). Artifacts live in the chat, not in the root run: the case files (`case/<path>`), the
+  designs, the results, the modules and the cut tool outputs are read by every later message of the
+  chat. A run without a chat uses its root run id as the chat id. The per-run methods remain in the
+  protocol. `FileRunStore` accepts the key kind `module/<file name>`.
+- A design is written once: `design/<name>` with the same content is accepted, other content is a
+  `ToolError` that asks for a new name.
+- Replay falls back to the recorded chat's artifact space.
+
+Tools:
+
+- Added: `set_ranges(design, ranges, name, options=None)` (search ranges and options on a copy of a
+  design, stored as `design/<name>`), `run_study(designs, method, objective=None, evaluations=None,
+  seed=None, samples=None, metrics=None, prepare=None)` (one `gm.Study` over several designs,
+  `method` is `run`, `minimize`, `sample` or `sensitivity`; each run's plant is stored as
+  `design/<name>_best`), `write_module(name, code)`.
+- `set_case(source, changes, requirements, economics)`: `requirements` and `economics` are new
+  arguments; `save_profile` writes the demand file in one step.
+- `read_case` sections `economics` and `schema` are new (the case, its economics or gemini's
+  schema).
+- `read_plant(design, plant_class, project_plant)`: `plant_class` and `project_plant` are new (at
+  most one of the three; none reads the project's only plant file, several plant files need
+  `project_plant`). It returns `{plant, ranges, options, issues, checked_against}`; `issues` is
+  `gm.check(plant, case)` against the state's case (`checked_against: "case"`) or `plant.check()`
+  (`"plant"`), and `missing_parameters` is gone. `ranges` are in display units.
+- `build_plant(plant file, name)` builds with `gm.Plant.from_dict` (no `gm.plants.validate`),
+  returns `{design, checked_against, issues}`, and a bad file is gemini's error.
+- `list_plants` gains `roles` (`gm.plants.roles()`) and `project_plants` (the project's plant file
+  names); `capabilities` carries `ranges`.
+- `evaluate_module` returns display units (`units="display"`: MW, Pa for pressure) and takes
+  `state` and `dt`; every inlet needs a `fluid`.
+- `simulate` summary: `report`, `verdict` and `unmet` (requirement checks that failed); `constraints`
+  and `violated` are gone. A window cuts the case's time too.
+- `check_results` returns `{feasible, reasons, requirements, failures, metrics}`; `passed`,
+  `constraints` and `balances` are gone. `feasible` and `reasons` are `gm.evaluate.verdict`.
+  `gd.verify.verify(plant, results, case)` returns `{passed, checks, failures, metrics}`; a
+  failure carries `kind`.
+- `size_plant(design, name)` loses `backup` (the policy is `params.backup` of the plant).
+- `optimize(design, objective, evaluations, seed, name)` loses `variables` and `constraints`:
+  variables are the design's ranges (`set_ranges`), constraints are the case's requirements; `seed`
+  is required.
+- `sample_uncertainty(design, metrics, samples, seed)`: `count` is renamed `samples`.
+- `compare` reads display values from each run's `Report.to_dict()`; no column labels are parsed.
+- `test_module(name, example=None)` moved to `modules.py` and checks the stored `module/<name>.py`
+  with `gm.modules.check` in the gemini sandbox (`gemini-sandbox:<gm.__version__>`, no network);
+  it was `test_module(path)` over a file, a stub. A local sandbox is `not_allowed`. New skill
+  `writing-a-gemini-module` flow: `write_module`, then `test_module`.
+- Study tools: `shown_value`, `shown_values`, `to_quantities` and `check_plant_variables` are
+  removed; the study tools time out after 900 s.
+
+Agents and loops:
+
+- `CompareLoop` is added (`geomind/loops/compare.py`, name `compare`): the Designer builds one
+  design per plant family, `run_study` ranks them, then the design loop's Verifier, Economist and
+  Explainer. `Route.loop` and `LOOPS` hold `tool`, `design` and `compare`; `geomind run --loop`
+  takes `compare`.
+- `MakerCheckerLoop` is removed.
+- The Designer gains `set_ranges`, `run_study`, `write_module` and `test_module`; the Economist
+  gains `run_study`; the Analyst gains `write_module` and `test_module`. The agent chooses a
+  setting the request does not give (backup, objective, evaluations, seed, samples, ranges) and
+  records it as an unconfirmed `agent` assumption.
+
+Command line and evals:
+
+- New `geomind check-live [--max-tokens N] [--max-cost USD]`: checks the role models against
+  OpenRouter's public list and what a first live run needs.
+- `geomind run --mode auto` with OpenRouter and no spending cap is refused; a recording is exempt.
+- `geomind show --format md` is the competition export (`geomind/export.py`): the request, the
+  versions and models, every LLM call with the messages added since the last call, each agent's
+  prompt once, and the token tables by agent and step. Two runs of one recording export the same
+  text.
+- Eval task field `max_steps` (caps the steps of every agent, for a tight-budget task); new suite
+  `compare`; `python -m evals.run --report` writes `evals/reports/summary.md` (a table per loop),
+  and `--agent X` writes `evals/reports/X.md`.
+- The eval projects are copies of gemini's examples in gemini's layout (`case.json`,
+  `economics.json`, `data/`, `plants/`): `hackathon`, `hackathon_plant`, `shallow_district` and the
+  variants `more_cooling`, `colder_reservoir`, `higher_gas`, `user_profile`. The old `doublet`
+  project is removed.
+
 ## 0.2.0 (unreleased)
 
 Breaking: geomind runs on gemini `dev` (cca153b8), whose problem is a `gm.Case` (`case.json` and a

@@ -694,10 +694,12 @@
       },
       "RunStore": {
         "load_artifact": "(self, run_id, key)",
+        "load_chat_artifact": "(self, chat_id, key)",
         "load_events": "(self, run_id)",
         "load_history": "(self, chat_id)",
         "load_state": "(self, chat_id)",
         "save_artifact": "(self, run_id, key, data)",
+        "save_chat_artifact": "(self, chat_id, key, data)",
         "save_event": "(self, run_id, event)",
         "save_state": "(self, chat_id, state)"
       },
@@ -713,7 +715,7 @@
       "Workspace": {
         "case": "(self, project_id)",
         "documents": "(self, project_id, query)",
-        "plant": "(self, project_id)"
+        "plants": "(self, project_id)"
       }
     },
     "runlog": {
@@ -1060,5 +1062,5 @@
       "step_limit": "failed"
     }
   },
-  "version": "0.2.0"
+  "version": "0.3.0"
 }

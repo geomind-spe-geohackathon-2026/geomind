@@ -16,6 +16,7 @@
       "tools": "(self, recurse=False)"
     },
     "LOOPS": {
+      "compare": "(self, designer, verifier, max_rounds=5)",
       "design": "(self, designer, verifier, max_rounds=5)",
       "tool": "(self, agent, max_steps=None)"
     },
@@ -123,7 +124,8 @@
           "default": "tool",
           "enum": [
             "tool",
-            "design"
+            "design",
+            "compare"
           ],
           "title": "Loop",
           "type": "string"
@@ -169,6 +171,16 @@
             "default": null
           }
         },
+        "check-live": {
+          "--max-cost": {
+            "choices": null,
+            "default": null
+          },
+          "--max-tokens": {
+            "choices": null,
+            "default": null
+          }
+        },
         "replay": {
           "run": {
             "choices": null,
@@ -179,7 +191,8 @@
           "--loop": {
             "choices": [
               "tool",
-              "design"
+              "design",
+              "compare"
             ],
             "default": null
           },
@@ -457,7 +470,7 @@
         }
       },
       "additionalProperties": false,
-      "description": "One task file; ``plant`` is a project folder and ``answers`` reply to questions in order.\n\nThe folder holds ``case.json`` with its demand file, and ``plant.json`` when the task starts\nfrom a plant.",
+      "description": "One task file; ``plant`` is a project folder and ``answers`` reply to questions in order.\n\nThe folder is gemini's project layout: ``case.json``, ``economics.json``, ``data/`` and, when\nthe task starts from a plant, one file in ``plants/``. ``max_steps`` caps the steps of every\nagent of the run, for a task about a tight budget.",
       "properties": {
         "answers": {
           "default": [],
@@ -508,6 +521,18 @@
           "title": "History",
           "type": "array"
         },
+        "max_steps": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Steps"
+        },
         "message": {
           "title": "Message",
           "type": "string"
@@ -540,5 +565,5 @@
       "Model"
     ]
   },
-  "version": "0.2.0"
+  "version": "0.3.0"
 }

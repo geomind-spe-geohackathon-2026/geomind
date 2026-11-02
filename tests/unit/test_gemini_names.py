@@ -2,8 +2,12 @@
 
 import ast
 import re
+import tomllib
 
 import pytest
+from packaging.requirements import Requirement
+from packaging.specifiers import SpecifierSet
+from packaging.version import Version
 
 from tests.fixtures import ROOT
 from tests.unit.test_code_quality import tracked_files
@@ -26,6 +30,18 @@ REMOVED_NAMES = re.compile(
             r"set_brief",
             r"hackathon_2027",
             r"profile/<",
+            r"gm\.data\b",
+            r"gm\.case\.roles",
+            r"gm\.plants\.validate",
+            r"missing_parameters",
+            r"\bConstraint\b",
+            r"\bChoices\b",
+            r"gm\.(?:\w+\.)*Assumptions\b",
+            r"inputs/examples",
+            r"run_all",
+            r"gm\.physics\.control",
+            r"\bbackup=",
+            r"\bvariables=",
         )
     )
 )
@@ -161,7 +177,26 @@ def test_no_removed_gemini_name_in_the_package_or_the_docs():
 
 def test_the_removed_name_check_sees_a_violation():
     """The pattern matches each removed name."""
-    for name in ("gm.profiles.get", "Brief(", "set_brief", "profile/<name>", "Plant.validate"):
+    names = (
+        "gm.profiles.get",
+        "Brief(",
+        "set_brief",
+        "profile/<name>",
+        "Plant.validate",
+        "gm.data.from_values",
+        "gm.case.roles()",
+        "gm.plants.validate(x)",
+        "plant.missing_parameters()",
+        "Constraint(",
+        "Choices(",
+        "gm.Assumptions",
+        "inputs/examples",
+        "gm.evaluate.run_all",
+        "gm.physics.control",
+        "size(plant, backup=",
+        "minimize(variables=",
+    )
+    for name in names:
         assert REMOVED_NAMES.search(name), name
 
 
@@ -175,3 +210,13 @@ def test_the_hackathon_check_sees_a_violation():
     """The pattern matches the name and each figure."""
     for text in ("Hackathon", "the 2027 year", "30 K/km", "2500 m", "37.58", "48.48"):
         assert HACKATHON.search(text), text
+
+
+def test_the_installed_gemini_is_in_the_supported_range():
+    """``pyproject.toml`` pins gemini to 0.5 and the installed version satisfies the pin."""
+    import gemini as gm
+
+    dependencies = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["dependencies"]
+    pins = [Requirement(item) for item in dependencies if "gemini" in item]
+    assert [pin.specifier for pin in pins] == [SpecifierSet(">=0.5,<0.6")]
+    assert Version(gm.__version__) in pins[0].specifier, f"unsupported gemini {gm.__version__}"

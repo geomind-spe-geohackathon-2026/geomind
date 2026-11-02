@@ -208,7 +208,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "One task file; ``plant`` is a project folder and ``answers`` reply to questions in order.\n\nThe folder holds ``case.json`` with its demand file, and ``plant.json`` when the task starts\nfrom a plant.",
+  "description": "One task file; ``plant`` is a project folder and ``answers`` reply to questions in order.\n\nThe folder is gemini's project layout: ``case.json``, ``economics.json``, ``data/`` and, when\nthe task starts from a plant, one file in ``plants/``. ``max_steps`` caps the steps of every\nagent of the run, for a task about a tight budget.",
   "properties": {
     "answers": {
       "default": [],
@@ -258,6 +258,18 @@
       },
       "title": "History",
       "type": "array"
+    },
+    "max_steps": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Max Steps"
     },
     "message": {
       "title": "Message",

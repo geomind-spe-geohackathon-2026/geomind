@@ -71,6 +71,8 @@ The suite must remain safe under `pytest -n auto`:
   [conventions.md](conventions.md#dependencies), and that no `core` package or import returns.
 - `tests/unit/test_code_quality.py`: comments, nesting, function length with `LONG_FUNCTIONS`,
   `else` after an early exit, builtin raises, framework names and the former package name.
+- `tests/unit/test_gemini_names.py`: no private or removed gemini name and no hackathon figure in
+  the package, prompts or docs, and the installed gemini is inside the pinned range.
 - `tests/unit/test_public_api.py`: the curated `gd` names, documented, and the version.
 - `tests/unit/test_docs_links.py`: every link in `AGENTS.md` and `.claude/docs/` resolves.
 - `tests/unit/test_frozen_api.py`: the snapshots and schemas of
