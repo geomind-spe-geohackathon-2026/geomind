@@ -29,8 +29,8 @@ async def update_state(context, changes: list[dict[str, Any]]):
     Paths are JSON Pointers under goal, requirements, assumptions, design, results, verification
     or questions; the case is set only with set_case. Items of requirements, assumptions, results
     and questions are addressed by id, as in /assumptions/A1/confirmed; add to /requirements/-
-    appends an item that has an id. A requirement has id, text, status and, when a constraint of
-    the case judges it, constraint: that constraint's {on, quantity, over, when}. An assumption
+    appends an item that has an id. A requirement has id, text, status and, when a requirement
+    of the case judges it, case_requirement: that requirement's name. An assumption
     has id, text, value, source (user, agent or default) and confirmed; a result id, summary,
     reference; a question id, text.
     """
