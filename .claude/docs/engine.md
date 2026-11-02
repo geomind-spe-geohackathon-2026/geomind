@@ -114,11 +114,11 @@ stop is written as `stop: <reason>` in the driver's step text and the answer. A 
 without a pass moves the design to `design.rejected` before it answers, so it never presents it. It
 registers the `Verified` hook.
 
-`MakerCheckerLoop(maker, checker, max_rounds=3)` and `CompareLoop(loop, alternatives, criteria)` have
-their final constructors, and their `run` raises `NotImplementedYet` until the phase in
-[plan.md](plan.md#7-remaining-work). `Run.astart` turns that
-into `Engine.decline(loop, context, error)`: a run that starts and ends in the log, with
-`stop_reason="not_implemented"`. `loop_of(route)` in `run.py` builds the loop a `Route` names.
+`CompareLoop(designer, verifier, max_rounds=5)` is a `DesignLoop` (name `compare`) whose driver
+asks the designer for two or three families and one `run_study` over them; the study is recorded as
+`design.study` and its ranked table goes to the economist's and the explainer's tasks. A loop whose
+`run` raises `NotImplementedYet` is turned by `Run.astart` into `Engine.decline(loop, context,
+error)`: a run that starts and ends in the log, with `stop_reason="not_implemented"`. `loop_of(route)` in `run.py` builds the loop a `Route` names.
 
 ## Recovery and resume
 

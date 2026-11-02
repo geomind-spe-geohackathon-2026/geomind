@@ -13,6 +13,7 @@ def test_it_is_complete():
             "compute_kpis",
             "estimate_costs",
             "compare",
+            "run_study",
             "sample_uncertainty",
             "sensitivity",
             "read_result",

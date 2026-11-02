@@ -194,25 +194,18 @@ def test_a_loaded_design_run_keeps_its_round_limit():
     assert loop_for(state).max_rounds == 2
 
 
-@pytest.mark.parametrize("name", ["makerchecker", "compare"])
-def test_a_stub_loop_is_a_run_error(name):
-    """The run starts and ends in the log, with ``not_implemented``, and no LLM call."""
+def test_run_load_rebuilds_the_compare_loop():
+    """A stored compare run comes back as a compare loop, not as a design loop."""
     from geomind.agents import Designer, Verifier
-    from geomind.loops import CompareLoop, MakerCheckerLoop
+    from geomind.loops import CompareLoop
+    from geomind.run import loop_for
 
     store = MemoryRunStore()
     run = run_of([], store=store)
-    design = DesignLoop(Designer(), Verifier())
-    stubs = {"makerchecker": MakerCheckerLoop(Designer(), Verifier()), "compare": None}
-    stubs["compare"] = CompareLoop(design, (), ())
-    run.loop = stubs[name]
-    result = run.start()
-    assert (result.status, result.stop_reason) == ("failed", "not_implemented")
-    events = store.load_events(result.run_id)
-    assert of_type(events, "run.started")[0].loop == name
-    finished = of_type(events, "run.finished")[0]
-    assert finished.stop_reason == "not_implemented" and "comes in" in finished.message
-    assert of_type(events, "error")[0].error_class == "NotImplementedYet"
+    run.loop = CompareLoop(Designer(), Verifier(), max_rounds=3)
+    run.start()
+    loaded = loop_for(recover(store.load_events(run.id), run.id))
+    assert (type(loaded), loaded.max_rounds) == (CompareLoop, 3)
 
 
 def test_a_route_to_the_tool_loop_runs_its_agent():
@@ -222,8 +215,8 @@ def test_a_route_to_the_tool_loop_runs_its_agent():
 
 
 def test_the_tables_hold_only_loops_that_are_built():
-    """A route can name no stub loop, so a live request never ends in ``not_implemented``."""
-    assert set(LOOPS) == {"tool", "design"}
+    """A route can name no unbuilt loop, so a live request never ends in ``not_implemented``."""
+    assert set(LOOPS) == {"tool", "design", "compare"}
     assert set(Route.model_fields["loop"].annotation.__args__) == set(LOOPS)
     assert "brief" not in Route.model_fields
 

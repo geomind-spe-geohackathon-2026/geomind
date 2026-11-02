@@ -10,13 +10,13 @@ from geomind.engine.context import new_run_id
 from geomind.engine.hooks import Cancellation
 from geomind.engine.recovery import agent_class, recover
 from geomind.errors import NotImplementedYet, RunError
-from geomind.loops import DesignLoop, ToolLoop
+from geomind.loops import CompareLoop, DesignLoop, ToolLoop
 from geomind.loops.design import DesignDriver
 from geomind.providers import OpenRouter
 from geomind.stores.run import MemoryRunStore
 from geomind.types import Message
 
-LOOPS = {"tool": ToolLoop, "design": DesignLoop}
+LOOPS = {"tool": ToolLoop, "design": DesignLoop, "compare": CompareLoop}
 AGENTS = {"analyst": Analyst, "code_assistant": CodeAssistant}
 
 
@@ -36,16 +36,16 @@ def loop_of(route):
         return LOOPS["tool"](Answer(route.answer or ""))
     if route.loop == "tool":
         return LOOPS["tool"](AGENTS[route.agent]())
-    return LOOPS["design"](Designer(), Verifier())
+    return LOOPS[route.loop](Designer(), Verifier())
 
 
 def loop_for(state):
     """Return the loop a stored run was started with, around the agent it names."""
     agent = agent_class(state)()
-    if state.loop == "design" and isinstance(agent, DesignDriver):
+    if state.loop in ("design", "compare") and isinstance(agent, DesignDriver):
         agents = agent.tools()
         limit = {key: value for key, value in state.loop_state.items() if key == "max_rounds"}
-        return LOOPS["design"](agents["designer"].agent, agents["verifier"].agent, **limit)
+        return LOOPS[state.loop](agents["designer"].agent, agents["verifier"].agent, **limit)
     return LOOPS["tool"](agent)
 
 

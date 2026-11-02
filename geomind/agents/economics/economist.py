@@ -19,6 +19,7 @@ class Economist(Agent):
         self.compute_kpis = tools.gemini.compute_kpis
         self.estimate_costs = tools.gemini.estimate_costs
         self.compare = tools.gemini.compare
+        self.run_study = tools.gemini.run_study
         self.sample_uncertainty = tools.gemini.sample_uncertainty
         self.sensitivity = tools.gemini.sensitivity
         self.read_result = tools.read_result

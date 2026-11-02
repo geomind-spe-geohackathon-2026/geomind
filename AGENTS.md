@@ -81,7 +81,7 @@ geomind/
 ├── agents/           # Agent, AgentResult, Model, Output, and one folder per area of agents
 ├── engine/           # engine, session, step, delegation, log, recovery, state, context,
 │                     # callbacks, hooks, permissions, replay, compaction
-└── loops/            # Loop, ToolLoop, DesignLoop, MakerCheckerLoop, CompareLoop
+└── loops/            # Loop, ToolLoop, DesignLoop, CompareLoop
 examples/             # area/category/NN_name.py
 scripts/              # test_changed.py, the development test profile; snapshot_api.py
 evals/                # tasks/, recordings/, reports/ and the runner, run.py

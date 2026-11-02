@@ -77,10 +77,20 @@ async def test_a_routing_run_and_a_delegate_both_count():
 
 def test_a_routed_loop_that_is_not_built_counts_its_route(monkeypatch):
     """A declined run still spent the coordinator's tokens, and continues its log's numbering."""
-    from geomind.agents import Designer, Verifier
-    from geomind.loops import MakerCheckerLoop
+    from geomind.errors import NotImplementedYet
+    from geomind.loops import Loop
 
-    monkeypatch.setattr("geomind.run.loop_of", lambda _: MakerCheckerLoop(Designer(), Verifier()))
+    class Unbuilt(Loop):
+        """A loop that is not built yet."""
+
+        name = "unbuilt"
+        agent = Worker()
+
+        async def run(self, engine, task):
+            """Say so."""
+            raise NotImplementedYet("Unbuilt comes later")
+
+    monkeypatch.setattr("geomind.run.loop_of", lambda _: Unbuilt())
     store = MemoryRunStore()
     result = gd.Run(message="hello", llm=FakeLLM([route("design")]), store=store).start()
     events = store.load_events(result.run_id)
