@@ -8,6 +8,7 @@ TOOL_ERROR_CODES = (
     "not_implemented",
     "not_allowed",
     "timeout",
+    "budget",
     "internal",
 )
 """The codes of geomind's own errors; a gemini error keeps its code from ``gm.errors.CODES``."""

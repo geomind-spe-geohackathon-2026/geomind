@@ -66,6 +66,7 @@ class RunSession:
         self.parent = parent
         self.waiting_child = None
         self.child_usage = None
+        self.child_limit = None
         self._sandbox = None
         self._held_text = ""
         self._output_limit = None

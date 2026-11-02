@@ -27,6 +27,7 @@ class StubSession:
         self.artifacts = {}
         self.changes = []
         self.errors = []
+        self.child_limit = None
         self.sandbox_root = sandbox_root
         self.current_sandbox = None
         self.lost = 0

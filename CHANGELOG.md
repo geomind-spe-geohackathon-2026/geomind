@@ -24,7 +24,7 @@ Additive: geomind holds no model id (Sahand, 2026-11-02: no Anthropic model anyw
 - `geomind check-live` lists every role with its model and fails on a role without a model or an
   Anthropic model id. A test greps the package, evals and docs for Anthropic model ids.
 
-Additive: a run ends at or below its cap, and a run that a limit stopped still answers.
+Also additive: a run ends at or below its cap, and a run that a limit stopped still answers.
 
 - `CostBudget(prices=...)`, `TokenBudget(bound_input=True)` and `ProjectBudget` fit each LLM call
   before it is made: the input bound times the input price plus `max_tokens` times the output
@@ -33,6 +33,10 @@ Additive: a run ends at or below its cap, and a run that a limit stopped still a
   Fixes runs that overshot the cap by one call (9% of 0.50 USD, 63% of 0.01 USD in live tests).
 - `answer_reserve` and `answer_agents` on the budgets keep an amount for the agent that writes the
   answer. No default; off when unset. A hook argument, not a `gd.runtime` setting.
+- A delegate whose nested run a budget or `TimeLimit` stopped fails with the new tool error code
+  `budget` and the message `<agent>: run <limit and what was spent of the cap>`, no longer `internal`.
+- A delegate whose nested run a budget or `TimeLimit` stopped fails with the new tool error code
+  `budget` and the message `<agent>: run <limit and what was spent of the cap>`, no longer `internal`.
 - `TimeLimit(max_seconds)` denies an LLM call once the root run has run that long.
 - A root run that stops on a budget, `TimeLimit` or the step limit gets an answer built with no LLM
   call from the problem state and the log (`geomind/engine/partial.py`), streamed like an answer;

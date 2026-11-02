@@ -26,5 +26,12 @@ def test_a_problem_has_no_other_keys():
 
 def test_the_codes_are_the_fixed_list():
     """The list of ``tools.md``."""
-    expected = {"invalid_input", "unknown_name", "not_implemented", "not_allowed", "timeout"}
+    expected = {
+        "invalid_input",
+        "unknown_name",
+        "not_implemented",
+        "not_allowed",
+        "timeout",
+        "budget",
+    }
     assert set(TOOL_ERROR_CODES) == expected | {"internal"}

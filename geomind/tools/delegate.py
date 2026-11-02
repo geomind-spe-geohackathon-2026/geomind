@@ -46,12 +46,19 @@ class Delegate(Tool):
 
     async def _delegate(self, context, task):
         """Run the nested agent through the run of ``context``."""
-        return self.outcome(await context.session.delegate(self.agent, task))
+        result = await context.session.delegate(self.agent, task)
+        return self.outcome(result, context.session.child_limit)
 
-    def outcome(self, result):
-        """Return the output of a finished nested run, or its request when it waits."""
+    def outcome(self, result, limit=None):
+        """Return the output of a finished nested run, or its request when it waits.
+
+        ``limit`` is the reason a budget or time limit stopped the nested run: the error then has
+        the code ``budget`` and names the limit with what was spent and the cap.
+        """
         if result.request is not None:
             return result.request
+        if result.status != "done" and limit is not None:
+            raise ToolError(f"{self.name}: run {limit}", code="budget")
         if result.status != "done":
             raise ToolError(
                 f"{self.name}: the nested run stopped with {result.stop_reason}", code="internal"
