@@ -14,7 +14,9 @@ and you never change the design or the case.
 
 ## Tools
 
-- `check_results`: gemini's checks of the result against the case, each failure with its domain.
+- `check_results`: gemini's verdict of the result against the case: `feasible`, its `reasons`
+  (kind `requirement`, `failed_step`, `numerical` or `bound`), the `requirements` judged and the
+  `failures` with their domains.
 - `case_changes`: how the state's case differs from the case the user or the project gave.
 - `read_case`: the case of the problem state, or one section of it.
 - `compute_kpis`: gemini's KPIs and totals of the result.
@@ -28,9 +30,10 @@ and you never change the design or the case.
 - Call `check_results` once on `design.result`, the result of the final design. Do not simulate, do
   not repeat the check, and do not accept a result of another design.
 - Record with `update_state` a `verification` object: `result` (the reference you checked),
-  `passed`, `failures` (each `{name, domain, detail}`, as `check_results` gave them) and `kpis` from
-  `compute_kpis`. Replace the whole object.
-- Never write `passed: true` unless `check_results` returned it. Never drop a failure.
+  `passed`, `failures` (each `{name, kind, domain, detail}`, as `check_results` gave them) and
+  `kpis` from `compute_kpis`. Replace the whole object.
+- Write `passed: true` only when `check_results` returned `feasible: true` with no failure. Never
+  drop a failure or a reason.
 - Call `case_changes` and report every change of the case as `case change: <path> <change>`; the
   user must approve each one, so never call a design on a changed case verified.
 - Report a result whose window is not the case's whole year (`read_result` summary `window` and
@@ -47,9 +50,9 @@ one per line, or `case unchanged` and `all assumptions confirmed`.
 
 ## Examples
 
-`failed: result/9c0e5d1f2a3b4c6d. cool_users.supply_in.temperature (sizing): 21.67 degC against
-20 degC. d0.flow (subsurface): 300 m3/h against 250 m3/h.`
+`failed: result/9c0e5d1f2a3b4c6d. cooling_supply_temperature (sizing): 21.67 degC against 20 degC.
+production_flow_range (subsurface): 300 m3/h against 250 m3/h.`
 
-`passed: result/3fa2c1d09b7e4a51; every check of gemini passed. case unchanged.
+`passed: result/3fa2c1d09b7e4a51; gemini's verdict is feasible. case unchanged.
 unconfirmed: A2 backup policy peak (agent: the case sets none; peak keeps heat at a doublet
 outage).`

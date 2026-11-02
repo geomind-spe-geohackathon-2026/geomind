@@ -295,18 +295,58 @@ def economist_task(design, result, problem):
         if compared
         else "there is no sized start or alternative in the state to compare it with; say so"
     )
-    return f"Cost the verified design {design} on its result {result}; {against}."
+    ranked = (
+        " The designer's ranking of the families is in design.study: report it beside yours."
+        if problem.design.get("study")
+        else ""
+    )
+    return f"Cost the verified design {design} on its result {result}; {against}.{ranked}"
+
+
+def metric_text(value):
+    """Return a metric of the study as text: ``value unit`` for a quantity, else the value."""
+    if isinstance(value, dict) and "value" in value:
+        return f"{value['value']} {value.get('unit', '')}".strip()
+    return str(value)
+
+
+def study_table(study):
+    """Return the designer's study as a Markdown table, one row per design, or ``""``."""
+    runs = (study or {}).get("runs") or ()
+    if not runs:
+        return ""
+    names = sorted({name for run in runs for name in run.get("metrics") or ()})
+    rows = [
+        "| design | feasible | rank | " + " | ".join(names) + " |",
+        "|" + " --- |" * (3 + len(names)),
+    ]
+    for run in runs:
+        metrics = run.get("metrics") or {}
+        cells = [metric_text(metrics[name]) if name in metrics else "" for name in names]
+        ranks = run.get("ranks") or {}
+        rank = ranks.get(study.get("objective"), "")
+        rows.append(
+            f"| {run.get('design', '')} | {run.get('feasible', '')} | {rank} | "
+            + " | ".join(cells)
+            + " |"
+        )
+    return "\n".join(rows)
 
 
 def explainer_task(context, calls):
-    """Return the explainer's task: the request, the verified design and the verifier's report."""
+    """Return the explainer's task: the request, the verified design and the verifier's report.
+
+    A study the designer recorded (``design.study``) is added as a ranked table.
+    """
     request = request_of(context)
     design = context.problem.design.get("reference")
     report = next((output for name, output in reversed(calls) if name == "verifier"), "")
-    return (
+    task = (
         f"Explain the verified design {design} for this request:\n\n{request}\n\nThe "
         f"verifier's report:\n\n{report}"
     )
+    table = study_table(context.problem.design.get("study"))
+    return f"{task}\n\nThe designer's ranked study of the families:\n\n{table}" if table else task
 
 
 def stop(context, note, index):
@@ -347,13 +387,14 @@ class DesignLoop(Loop):
     """
 
     name = "design"
+    driver = DesignDriver
 
     def __init__(self, designer, verifier, max_rounds=5):
         """Keep the two agents and the limit; a run starts with the designer."""
         self.designer = designer
         self.verifier = verifier
         self.max_rounds = max_rounds
-        self.agent = DesignDriver(designer, verifier, max_rounds)
+        self.agent = self.driver(designer, verifier, max_rounds)
 
     def guard(self, engine):
         """Register the ``Verified`` hook once, so no design reaches the user unverified."""

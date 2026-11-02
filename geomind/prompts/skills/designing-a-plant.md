@@ -3,51 +3,82 @@ How to design a geothermal heating and cooling plant in gemini for any case: rea
 Reading the case:
 
 - Read the case first with `read_case`: the time axis, the demand with its supply and return
-  temperatures, the environment, the choices to search and the constraints gemini judges. When the
-  state has none, `set_case` from the project or from the values the request gives. Never take the
+  temperatures, the site, the utilities, the requirements gemini judges by name, and the
+  uncertainty. `read_case(section="economics")` gives the prices (`economics.json`). When the state
+  has no case, `set_case` from the project or from the values the request gives. Never take the
   numbers of one case for another.
 - A design needs a demand. When the request and the project give none, ask the user; a profile
   they give as daily values goes in with `save_profile`, and then into the case's demand.
-- A limit the case does not state is not checked; do not invent one. A value the design needs and
-  the case lacks (a return temperature, a price) is an assumption: ask the user, or record it with
+- A requirement is a named limit of the case (`name`, `on`, `quantity`, `min`/`max`). Add, replace
+  or remove one only with the user's values: `set_case(requirements={name: requirement or null})`.
+  A limit the case does not state is not checked; do not invent one. A price is changed with
+  `set_case(economics={...})`, a merge patch of `economics.json`. A value the design needs and the
+  case lacks (a return temperature, a price) is an assumption: ask the user, or record it with
   its value, `source: "default"` and `confirmed: false`.
 - Read the demand with `read_profile` before you size: the peak, the annual energy, and when
   heating and cooling overlap.
 
 Choosing families:
 
-- Propose 4 to 6 materially different families, each `{id, summary, status}`: vary the number and
+- Propose 2 to 6 materially different families, each `{id, summary, status}`: vary the number and
   depth of the doublets, how the supply temperature is reached (direct geothermal heat, a heat
   pump, a boiler, deeper wells), how cold is made (absorption chiller, compression chiller, heat
   pump) and storage or backup. Mark a family gemini cannot run `blocked`, with the reason.
-- Start the one most likely to pass; keep the others for later rounds.
+- `list_plants` shows the plant classes gemini can build, with their roles. Start with the one
+  most likely to pass; build the others to compare them.
 
 From a family to a design:
 
-- `list_plants` shows what gemini can build; `read_plant` of a plant class or a stored design
-  returns the plant and its `missing_parameters`: the values a run still needs, each of which you
-  give with its unit or take from the case.
-- `build_plant` stores the plant under a new name. `size_plant` sizes it for the case under a
-  backup policy and stores the sized plant as another design; its notes say what was sized, what
-  stayed, and what is broken. Then `simulate` the whole year and `check_results`.
-- `optimize` searches the sized design for the values that minimise a metric, with its variables
-  and the number of evaluations the case or the request gives. Its trials count as feasible only
-  when they pass every constraint of the case. When it returns `feasible: false`, change the
-  topology or the variables and search again.
+- `read_plant(plant_class=...)` (or `design=...`) returns `plant`, the plant file; `ranges`, the
+  leaves that can be searched with their bounds; `options`; and `issues`, each with a path and what
+  is missing or wrong. `checked_against` is `case` when the state has a case, else `plant`.
+- Complete the plant file and pass it to `build_plant(plant=..., name=...)`. Every value with a
+  dimension is `{"value", "unit"}`. Every source of a stream (a grid, a user, an air module)
+  needs its fluid under `fluids` of the file, keyed by module name. The backup policy is
+  `params.backup`: `{"value": "peak"}` covers the whole heating peak with the doublets off,
+  `{"value": "none"}` only what the doublets cannot reach; there is no default, so state it and
+  record it as an assumption. Values the case owns (ground, reservoir, brine, air, temperatures of
+  the grids) are the case's: a plant file that states one is refused. gemini reports a file it
+  cannot read as problems with a path, a message and suggestions; a file that builds is stored with
+  its `issues`.
+- `set_ranges(design, ranges, name)` puts the search on the leaves: `ranges` is `{leaf: {"min":
+  {"value", "unit"}, "max": {"value", "unit"}}}`, and a count such as `size.doublets` takes plain
+  numbers. A leaf is the path in the plant file without `params.`: `size.doublets`, `depth`,
+  `heat_pump.capacity`, `d0.nominal_flow`. `options={leaf: [values]}` offers a list instead of a
+  range. An unknown leaf is an error that lists the valid ones. Without ranges nothing is searched.
+- `size_plant` sizes the built design for the case under its `params.backup` and stores the sized
+  plant as another design; its notes say what was sized, what stayed and what is broken. Then
+  `simulate` the whole year and `check_results`.
+- `optimize(design, objective, evaluations, seed, name)` searches the ranges for the objective
+  (`lcts`, `lcoh`, `lcoc`, `annualised_cost`, `co2`; a leading `-` maximises). gemini needs
+  at least five evaluations per searched continuous leaf, so search few leaves with few
+  evaluations. It returns the `best`, `feasible`, the `trials` and the stored design. A trial is
+  feasible only when gemini's verdict says so. When it returns `feasible: false`, read the `reason`
+  and change the ranges, the options or the topology.
+- `run_study(designs, method, ...)` runs one study over several designs and ranks them:
+  `method="minimize"` with `objective`, `evaluations` and `seed`, and `prepare=["size"]` to size
+  each first. It returns one run per design (`feasible`, `metrics`, `ranks`, `pareto`, the stored
+  `design`) and `best`. This is how families are compared.
 - Get the numbers from gemini (`evaluate_module` on a doublet, `simulate` on a short window around
   the peak), never by hand. After any change, every earlier result of that design is stale.
 
+What `check_results` returns:
+
+- `feasible` is gemini's verdict, true when nothing is wrong. `reasons` lists what is, each with a
+  `kind` (`requirement`, `failed_step`, `numerical` or `bound`), a `name` and a `message`.
+  `requirements` is one check per unit of each requirement, and `failures` the failed steps by
+  module and code. A failed step is a simulation problem to fix in the plant; a requirement is a
+  limit of the case, never loosened.
+
 What gemini can run (facts about gemini, not a design):
 
-- A run plans the demand by rule from the case: sources load from the cheapest to the dearest and
-  the limits are the case's constraints. `check_results` reports what the plan cannot enforce.
+- A run plans the demand by rule from the case: sources load from the cheapest to the dearest.
 - No water circuit may return to itself unless gemini closes it; plan where each stream goes.
   Water that leaves a unit colder (a chiller's drive water, a user's return) cannot be mixed back
   into a fixed-temperature supply without lowering it.
 - Gas the reservoir co-produces is a stream like any other: where it goes is a design decision,
-  judged by the case's constraints, not by this skill.
+  judged by the case's requirements, not by this skill.
 
-The plant record (`plant`) is what `read_plant` returns and `build_plant` takes: modules, their
-connections, and the parameters of each. Every port is connected or named as a plant port. Values
-that the case owns (ground, reservoir, brine, air, temperatures of the grids) are the case's: a
-plant record that states one is refused. Give every dimensional value as `{value, unit}`.
+The plant file is what `read_plant` returns and `build_plant` takes: modules, their connections,
+the parameters of each under `params`, and `fluids`. Every port is connected or named as a plant
+port.

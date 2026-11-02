@@ -98,25 +98,28 @@ frozen; the tools themselves are in [tools.md](tools.md#catalogue). Every agent 
 |---|---|
 | `Analyst` | `read_case`, `list_modules`, `describe_module`, `evaluate_module`, `list_plants`, `read_plant`, `list_profiles`, `read_profile`, `save_profile`, `simulate`, `read_result`, `compute_kpis`, `search_documents`, `update_state`, `read_skill`, `ask_user`, `finish` |
 | `Coordinator` | none: it answers with a `Route` |
-| `Designer` | `read_case`, `set_case`, `save_profile`, `list_plants`, `read_plant`, `list_modules`, `describe_module`, `evaluate_module`, `build_plant`, `size_plant`, `list_profiles`, `read_profile`, `simulate`, `read_result`, `check_results`, `optimize`, `search_documents`, `update_state`, `read_skill`, `ask_user`, `finish` |
+| `Designer` | `read_case`, `set_case`, `save_profile`, `list_plants`, `read_plant`, `list_modules`, `describe_module`, `evaluate_module`, `build_plant`, `set_ranges`, `size_plant`, `list_profiles`, `read_profile`, `simulate`, `read_result`, `check_results`, `optimize`, `run_study`, `search_documents`, `update_state`, `read_skill`, `ask_user`, `finish` |
 | `Verifier` | `check_results`, `case_changes`, `read_case`, `compute_kpis`, `read_result`, `update_state`, `read_skill`, `finish` |
-| `Economist` | `compute_kpis`, `estimate_costs`, `compare`, `sample_uncertainty`, `sensitivity`, `read_result`, `update_state`, `read_skill`, `finish` |
+| `Economist` | `compute_kpis`, `estimate_costs`, `compare`, `run_study`, `sample_uncertainty`, `sensitivity`, `read_result`, `update_state`, `read_skill`, `finish` |
 | `Explainer` | `read_case`, `case_changes`, `read_plant`, `read_result`, `compute_kpis`, `estimate_costs`, `search_documents`, `finish` |
 | `CodeAssistant` | `ask_user`, `finish`, `run_python`, `read_file`, `write_file`; `test_module` is a later addition |
 | `Assistant` | `ask_user`, `finish` |
 | `Summarizer` | none |
 
 Package code holds no engineering default; an agent's decision is not a default. The Designer
-chooses the backup policy, the objective, the variables and the evaluations when the request gives
-none, and the Economist the sample count and seed, each recorded as an assumption with `source:
+chooses the backup policy (`params.backup` of the plant), the objective, the ranges and options, the
+evaluations and the seed when the request gives none, and the Economist the `samples` and seed, each recorded as an assumption with `source:
 agent`, `confirmed: false` and a one-line reason, which the Verifier and the Explainer report. The
 Designer records the sized start's whole-year run as `design.start_result` and any other family it
-simulated as `design.alternatives` (`[{family, design, result}]`); the driver names those results
-in the Economist's task, which compares only them.
+simulated as `design.alternatives` (`[{family, design, result}]`). With two or more buildable
+families it compares them in one `run_study` (`minimize`, `prepare: ["size"]`) and records it as
+`design.study` (`{designs, method, objective, evaluations, seed, best, runs}`). The driver names
+those results and the study in the Economist's task, which compares only them, and puts the study's
+ranked table in the Explainer's task.
 
-The Designer optimises directly after its own `check_results`: `gm.study.minimize` counts only
-trials that pass every constraint of the case as feasible, so no Verifier round comes before it, and
-when `optimize` returns `feasible: false` the Designer changes the topology or the variables itself.
+The Designer optimises directly after its own `check_results`: the search counts only trials that
+`gm.evaluate.verdict` calls feasible, so no Verifier round comes before it, and when `optimize`
+returns `feasible: false` the Designer changes the ranges, the options or the topology itself.
 The Verifier calls `check_results` once, on the final design, and reviews what gemini cannot see:
 the case changes since the user gave it (`case_changes`), a result that is not the design's whole
 year, and the assumptions the user has not confirmed. The driver hands its report to the
@@ -131,8 +134,8 @@ and `agent` a name of `AGENTS`. There is no task text: the loop reads the user's
 so nothing the user said is lost in a retelling. `Run.start` calls the coordinator first, as a
 nested run logged before the run. `loop_of(route)` in `run.py` builds the loop: an `answer` route
 runs the rule agent `Answer`, which gives the route's text. `LOOPS` holds only the loops that are
-built (`tool`, `design`), so a route never reaches a stub; a stub loop set by hand still ends the
-run with `stop_reason="not_implemented"`.
+built (`tool`, `design`, `compare`), so a route never reaches an unbuilt loop; one set by hand that
+raises `NotImplementedYet` still ends the run with `stop_reason="not_implemented"`.
 
 ## How to add or fill an agent
 

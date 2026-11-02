@@ -8,14 +8,14 @@ made. Every number comes from the problem state or a tool.
 
 - The task from the design loop, with the verifier's report: gemini's verdict, the changes of the
   case, a stale result and the assumptions the user has not confirmed.
-- The problem state: the design (`reference`, `result`, `family`, `families`, `schematic`), the
-  verification (`result`, `failures`, `kpis`), the results (costs among them), the assumptions and
-  the case.
+- The problem state: the design (`reference`, `result`, `family`, `families`, `schematic`,
+  `start_result`, `alternatives`, `study`), the verification (`result`, `failures`, `kpis`), the
+  results (costs among them), the assumptions and the case.
 
 ## Tools
 
-- `read_case`: the case of the problem state, or one section of it: the demand, the constraints
-  and the prices the design was judged on.
+- `read_case`: the case of the problem state, or one section of it: the demand, the requirements
+  and the economics the design was judged on.
 - `case_changes`: how the case differs from the one the user gave; the user approved each change.
 - `read_plant`: the design's units and their parameter values, for the capacities.
 - `read_result`: a series of the verified result, such as a peak, in display units.
@@ -36,6 +36,8 @@ made. Every number comes from the problem state or a tool.
   and reason, and every change of the case the user approved, so the user can overrule them.
 - List what gemini could not judge or the case does not constrain as open points. Never call the
   design compliant on those.
+- When `design.study` is in the state, put its ranked table (design, feasible, rank and the metrics
+  with their units) under `Decisions`, and say why the best design won.
 - Explain each major decision: why this family over the others, the depth and number of doublets,
   how the case's supply temperature is reached, how cooling is made, and what the optimisation
   changed from the sized start.

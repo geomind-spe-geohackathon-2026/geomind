@@ -1,5 +1,7 @@
 """``DesignLoop``: propose, simulate, verify, route the failures by domain, and repeat."""
 
+import json
+
 import pytest
 
 from geomind.agents import Designer, Verifier
@@ -204,17 +206,25 @@ async def test_a_design_run_replays_offline_from_its_log(verdicts):
 async def test_a_run_without_a_case_asks_the_user_before_designing(verdicts):
     """No agent runs before the question; the answer goes to the designer, which sets the case."""
     verdicts.append(PASSED)
-    case, folder = example_case("shallow_district")
+    case, files = example_case("shallow_district")
+    economics = json.loads(files["economics.json"])
+    named = {
+        item["name"]: {k: v for k, v in item.items() if k != "name"}
+        for item in case["requirements"]
+    }
+    changes = {
+        key: value for key, value in case.items() if key not in ("requirements", "economics")
+    }
     script = [
-        uses(call("set_case", "c1", changes=case)),
+        uses(call("set_case", "c1", changes=changes, requirements=named, economics=economics)),
         *designer_round(1),
         *verifier_round(1),
         says("costs"),
         says("explained"),
     ]
     result, engine, events = await run_loop(script, case=None)
-    demand = (folder / "demand.csv").read_bytes()
-    engine.store.save_artifact(result.run_id, "case/demand.csv", demand)
+    for name, content in files.items():
+        engine.store.save_artifact(result.run_id, f"case/{name}", content)
     assert result.status == "waiting"
     assert "no case" in result.request.message
     assert agents_of(events) == []

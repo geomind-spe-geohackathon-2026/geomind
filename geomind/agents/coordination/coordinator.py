@@ -17,7 +17,7 @@ class Route(Record):
 
     kind: Literal["answer", "loop"]
     answer: str | None = None
-    loop: Literal["tool", "design"] = "tool"
+    loop: Literal["tool", "design", "compare"] = "tool"
     agent: Literal["analyst", "code_assistant"] = "analyst"
 
 
