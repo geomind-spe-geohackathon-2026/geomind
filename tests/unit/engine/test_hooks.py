@@ -257,7 +257,7 @@ def test_a_design_that_fails_a_check_is_refused_with_the_failures(stored):
     verification = {"result": stored["failing"]}
     decision = decide(stored["peak"], {"reference": stored["design"]}, verification)
     assert isinstance(decision, Deny)
-    assert "cool_users.supply_in.temperature (sizing)" in decision.reason
+    assert "cold_delivered (sizing)" in decision.reason
 
 
 def test_a_passed_flag_written_by_the_model_is_not_trusted(stored):
