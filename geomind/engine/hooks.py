@@ -3,6 +3,7 @@
 import asyncio
 
 from geomind.engine.callbacks import call_maybe_async
+from geomind.errors import BudgetError
 from geomind.types import Allow, Cancel, Deny, Request
 from geomind.verify.design import verify_design
 
@@ -74,6 +75,39 @@ class CostBudget(Hook):
         if cost >= self.max_cost:
             return Deny(reason=f"cost budget: used {cost} of {self.max_cost}")
         return None
+
+
+class ProjectBudget(Hook):
+    """Stop a run before an LLM call once its project has used a cap, this run included.
+
+    The project has spent ``ledger.spent(project_id)`` in finished runs, which the backend
+    stores; this run adds ``context.session.total_usage``, nested runs included. A run being
+    resumed is not finished, so the ledger does not hold it and its steps count once. At least
+    one cap is required: there is no default.
+    """
+
+    def __init__(self, ledger, project_id, max_tokens=None, max_cost=None):
+        """Keep the ledger, the project and the caps; raise ``BudgetError`` with neither cap."""
+        if max_tokens is None and max_cost is None:
+            raise BudgetError("project budget: expected max_tokens or max_cost; got neither")
+        self.ledger = ledger
+        self.project_id = project_id
+        self.max_tokens = max_tokens
+        self.max_cost = max_cost
+
+    def before_llm_call(self, context, agent, messages):
+        """Deny the call once the project reaches a cap."""
+        usage = self.ledger.spent(self.project_id) + context.session.total_usage
+        used = usage.input_tokens + usage.output_tokens
+        if self.max_tokens is not None and used >= self.max_tokens:
+            return self._deny("token", used, self.max_tokens)
+        if self.max_cost is not None and usage.cost >= self.max_cost:
+            return self._deny("cost", usage.cost, self.max_cost)
+        return None
+
+    def _deny(self, kind, used, cap):
+        """Return the denial that names the project, the cap and what was spent."""
+        return Deny(reason=f"project {kind} budget: {self.project_id} used {used} of {cap}")
 
 
 class RequireApproval(Hook):

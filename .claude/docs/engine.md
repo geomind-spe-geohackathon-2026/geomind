@@ -172,6 +172,9 @@ and the root log names the loop of the recording, so exports of a run and its re
 `RunStore` is the nine-method protocol of the contract, `load_events` and the two chat-artifact
 methods included. `MemoryRunStore`
 and `FileRunStore(root=".runs")` add `add_message(chat_id, message)`.
+`UsageLedger.spent(project_id)` (`gd.stores`) returns the `Usage` of the finished runs of a
+project; `MemoryUsageLedger.add(project_id, usage)` and `FileUsageLedger(root)` ship, and
+`ProjectBudget` reads one.
 `FileRunStore` writes `<root>/<run id>/events.jsonl` and `artifacts/`, and
 `<root>/chats/<chat id>/history.jsonl`, `state.json` and `artifacts/`. Unsafe ids raise
 `RunError`.

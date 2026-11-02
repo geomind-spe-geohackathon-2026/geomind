@@ -394,3 +394,20 @@ def test_replay_says_when_nested_runs_were_reused(service, capsys, monkeypatch):
     assert cli.main(["replay", run_folder()]) == 0
     lines = capsys.readouterr().out.splitlines()
     assert lines[1] == "nested runs reused: the run has a project; pass --project to replay them"
+
+
+def test_a_project_cap_needs_a_project(service, capsys):
+    """The project flags mean nothing without --project."""
+    assert cli.main(["run", "x", "--project-max-cost", "1"]) == 1
+    assert "need --project" in capsys.readouterr().err
+
+
+def test_a_project_cap_counts_the_earlier_runs_of_the_project(service, capsys):
+    """The first run (20 tokens) is under the cap; the second is denied before its first call."""
+    project = str(Path("site") / "p1")
+    Path(project).mkdir(parents=True)
+    service += [routed_answer(), answer("Hello")]
+    assert cli.main(["run", "x", "--project", project, "--project-max-tokens", "100"]) == 0
+    assert "denied" not in capsys.readouterr().out
+    assert cli.main(["run", "x", "--project", project, "--project-max-tokens", "20"]) == 1
+    assert "(denied)" in capsys.readouterr().out

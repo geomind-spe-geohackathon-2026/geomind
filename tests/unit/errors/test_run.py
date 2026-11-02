@@ -2,7 +2,15 @@
 
 import pytest
 
-from geomind.errors import GeomindError, LoopError, ReplayError, RequestError, RunError, StateError
+from geomind.errors import (
+    BudgetError,
+    GeomindError,
+    LoopError,
+    ReplayError,
+    RequestError,
+    RunError,
+    StateError,
+)
 
 
 @pytest.mark.parametrize(
@@ -12,6 +20,7 @@ from geomind.errors import GeomindError, LoopError, ReplayError, RequestError, R
         (RequestError, (ValueError,)),
         (ReplayError, (RuntimeError,)),
         (LoopError, (RuntimeError,)),
+        (BudgetError, (ValueError,)),
     ],
 )
 def test_classes_derive_from_their_builtin(error, builtins):

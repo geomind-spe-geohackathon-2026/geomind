@@ -229,6 +229,14 @@
             "choices": null,
             "default": null
           },
+          "--project-max-cost": {
+            "choices": null,
+            "default": null
+          },
+          "--project-max-tokens": {
+            "choices": null,
+            "default": null
+          },
           "--record": {
             "choices": null,
             "default": null

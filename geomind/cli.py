@@ -14,14 +14,14 @@ from geomind import agents, live, runtime
 from geomind.agents import Route
 from geomind.context import ProblemState, render
 from geomind.engine import Engine, Permissions, callbacks
-from geomind.engine.hooks import CostBudget, TokenBudget
+from geomind.engine.hooks import CostBudget, ProjectBudget, TokenBudget
 from geomind.engine.replay import nested_runs_reused, version_differences
 from geomind.errors import GeomindError, RunError
 from geomind.export import models_by_agent, render_export
 from geomind.providers import FakeLLM, OpenRouter, Recorder
 from geomind.run import LOOPS, Run, loop_of
 from geomind.sandbox import DockerSandbox, LocalSandbox
-from geomind.stores import FileWorkspace
+from geomind.stores import FileUsageLedger, FileWorkspace
 from geomind.stores.casefiles import named_files
 from geomind.stores.run import FileRunStore
 from geomind.stores.workspace import read_bytes
@@ -164,7 +164,19 @@ def _budgets(args):
         caps.append(TokenBudget(args.max_tokens))
     if args.max_cost is not None:
         caps.append(CostBudget(args.max_cost))
+    caps.extend(_project_budgets(args))
     return caps
+
+
+def _project_budgets(args):
+    """Return the project cap of ``--project-max-tokens`` and ``--project-max-cost``, if any."""
+    if args.project_max_tokens is None and args.project_max_cost is None:
+        return []
+    if args.project is None:
+        raise RunError("run: --project-max-tokens and --project-max-cost need --project")
+    ledger = FileUsageLedger(RUNS_FOLDER)
+    project = Path(args.project).name
+    return [ProjectBudget(ledger, project, args.project_max_tokens, args.project_max_cost)]
 
 
 def _require_cap(args):
@@ -414,6 +426,16 @@ def _command_show(args):
     return 0
 
 
+def _add_project_caps(run):
+    """Add the caps over all runs of a project to the ``run`` command."""
+    run.add_argument(
+        "--project-max-tokens", type=int, help="deny model calls once the project used this many"
+    )
+    run.add_argument(
+        "--project-max-cost", type=float, help="deny model calls once the project cost this, USD"
+    )
+
+
 def _parser():
     """Return the argument parser."""
     parser = argparse.ArgumentParser(prog="geomind", description=__doc__)
@@ -430,6 +452,7 @@ def _parser():
     run.add_argument("--record")
     run.add_argument("--max-tokens", type=int, help="deny model calls once the run used this many")
     run.add_argument("--max-cost", type=float, help="deny model calls once the run cost this, USD")
+    _add_project_caps(run)
     run.set_defaults(function=_command_run)
     check = commands.add_parser("check-live", help="check what a first live run needs")
     check.add_argument("--max-tokens", type=int)

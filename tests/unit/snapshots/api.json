@@ -677,6 +677,10 @@
         "before_llm_call": "(self, context, agent, messages)",
         "before_tool_call": "(self, context, agent, call)"
       },
+      "ProjectBudget": {
+        "__init__": "(self, ledger, project_id, max_tokens=None, max_cost=None)",
+        "before_llm_call": "(self, context, agent, messages)"
+      },
       "RequireApproval": {
         "__init__": "(self, tools)"
       },
@@ -711,6 +715,9 @@
       },
       "SandboxProvider": {
         "provision": "(self, manifest)"
+      },
+      "UsageLedger": {
+        "spent": "(self, project_id)"
       },
       "Workspace": {
         "case": "(self, project_id)",

@@ -7,7 +7,14 @@ of ``geomind``.
 
 from geomind.errors.agent import DeclarationError, OutputError, UnknownNameError
 from geomind.errors.base import GeomindError
-from geomind.errors.run import LoopError, ReplayError, RequestError, RunError, StateError
+from geomind.errors.run import (
+    BudgetError,
+    LoopError,
+    ReplayError,
+    RequestError,
+    RunError,
+    StateError,
+)
 from geomind.errors.services import NotImplementedYet, ProviderError, SandboxError, ToolError
 
 __all__ = [
@@ -20,6 +27,7 @@ __all__ = [
     "StateError",
     "ReplayError",
     "LoopError",
+    "BudgetError",
     "ProviderError",
     "ToolError",
     "SandboxError",

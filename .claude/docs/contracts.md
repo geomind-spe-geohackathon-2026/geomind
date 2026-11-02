@@ -46,13 +46,14 @@ and to read one back `event_from_dict`.
 | `gd.providers.OpenRouter` | `geomind/providers/openrouter.py` | `tests/unit/providers/test_openrouter.py` |
 | `gd.providers.FakeLLM` | `geomind/providers/fake.py` | `tests/unit/providers/test_fake.py` |
 | Memory and file stores | `geomind/stores/run.py` | `tests/unit/stores/test_run.py` |
+| `UsageLedger`, memory and file usage ledgers | `geomind/stores/usage.py` | `tests/unit/stores/test_usage.py` |
 | Memory and file workspaces | `geomind/stores/workspace.py` | `tests/unit/stores/test_workspace.py` |
 | Internal `compaction` event | `geomind/types/events.py` | `tests/unit/engine/test_compaction.py` |
 | Everything in this section, name by name | `tests/unit/snapshots/api.json` | `tests/unit/test_contract_map.py` |
 | The schemas and samples of the exchanged documents | `geomind/schemas/` | `tests/unit/test_frozen_api.py` |
 | `gd.Run`, `start`, `astart`, `load`, `resume`, `aresume`, `cancel` | `geomind/run.py` | `tests/unit/test_run.py` |
 | `gd.Permissions` | `geomind/engine/permissions.py` | `tests/unit/engine/test_permissions.py` |
-| `gd.hooks.TokenBudget`, `RequireApproval`, `Cancellation` | `geomind/engine/hooks.py` | `tests/unit/engine/test_hooks.py` |
+| `gd.hooks.TokenBudget`, `ProjectBudget`, `RequireApproval`, `Cancellation` | `geomind/engine/hooks.py` | `tests/unit/engine/test_hooks.py` |
 | `RunResult` and the statuses | `geomind/types/results.py` | `tests/unit/types/test_results.py` |
 | The shapes of `answer` | `geomind/types/decisions.py` | `tests/unit/types/test_decisions.py` |
 | `resume()` of a dead run | `geomind/engine/recovery.py` | `tests/integration/test_recovery.py` |

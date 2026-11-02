@@ -54,6 +54,8 @@ the routing, for testing one agent by hand, and so does a `run.loop` set before 
   `FileRunStore(".runs")`, prints text as it streams, asks in the terminal when a request pauses the
   run, then resumes. `--loop` chooses the loop instead of the coordinator; `--recording` runs from
   recorded completions, offline; `--record` writes the completions of this run for that.
+  `--project-max-tokens` and `--project-max-cost` (only with `--project`) cap the project over all
+  its finished runs in `.runs` (`ProjectBudget`); they do not satisfy the `--mode auto` rule below.
   `--max-tokens` and `--max-cost` are the spending cap: `TokenBudget` and `CostBudget` deny the next
   model call once the whole run, nested runs included, is over it, and the run ends `denied`. Beside the log it writes
   `.runs/<run id>/run_manifest.json`: the geomind and gemini commits (and whether either has

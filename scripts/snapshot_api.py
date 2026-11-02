@@ -28,7 +28,7 @@ from geomind.engine.callbacks import Callback
 from geomind.providers.base import LLM
 from geomind.run import AGENTS, LOOPS
 from geomind.sandbox.base import Sandbox, SandboxProvider
-from geomind.stores import RunStore, Workspace
+from geomind.stores import RunStore, UsageLedger, Workspace
 from geomind.tools.delegate import DelegateInput
 from geomind.types import (
     Answer,
@@ -49,8 +49,16 @@ ROOT = Path(__file__).resolve().parent.parent
 SNAPSHOTS = ROOT / "tests/unit/snapshots"
 SCHEMAS = ROOT / "geomind/schemas"
 RECORD_KEYS = ("agent", "parent")
-SHIPPED_HOOKS = ("Hook", "TokenBudget", "CostBudget", "RequireApproval", "Cancellation", "Verified")
-PROTOCOLS = (RunStore, Workspace, LLM, Sandbox, SandboxProvider)
+SHIPPED_HOOKS = (
+    "Hook",
+    "TokenBudget",
+    "CostBudget",
+    "ProjectBudget",
+    "RequireApproval",
+    "Cancellation",
+    "Verified",
+)
+PROTOCOLS = (RunStore, Workspace, UsageLedger, LLM, Sandbox, SandboxProvider)
 
 
 def signature_of(function):

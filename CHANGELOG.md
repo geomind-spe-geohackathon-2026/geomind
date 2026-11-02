@@ -4,6 +4,17 @@
 interface raises the minor version, and an addition or a fix raises the patch version. The rule and
 the list of frozen interfaces are in [.claude/docs/api.md](.claude/docs/api.md#frozen-interfaces).
 
+## [Unreleased]
+
+Additive: a budget over a project; nothing renamed or removed.
+
+- `UsageLedger` (`spent(project_id) -> Usage`), `MemoryUsageLedger` and `FileUsageLedger` in
+  `gd.stores`; `gd.hooks.ProjectBudget(ledger, project_id, max_tokens=None, max_cost=None)` denies
+  an LLM call once the project's finished runs plus this run reach a cap. No cap is
+  `gd.errors.BudgetError`. Pass it in `gd.Run(hooks=[...])`.
+- `geomind run --project-max-tokens` and `--project-max-cost`, valid with `--project`; a live
+  `--mode auto` run still needs `--max-cost` or `--max-tokens`.
+
 ## [0.3.1] - 2026-11-02
 
 Additive: a new optional event field and a stronger replay; nothing renamed or removed.

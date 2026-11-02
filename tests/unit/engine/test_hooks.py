@@ -9,17 +9,21 @@ from geomind.engine.hooks import (
     Cancellation,
     CostBudget,
     Hook,
+    ProjectBudget,
     RequireApproval,
     TokenBudget,
     Verified,
     ask_hooks,
 )
 from geomind.engine.recovery import recover
+from geomind.errors import BudgetError
+from geomind.stores import MemoryUsageLedger
 from geomind.tools.gemini.stored import save_design
 from geomind.types import Action, Allow, Deny, Request, Usage
 from tests.fixtures.cases import example_plant
 from tests.fixtures.runs import (
     EXECUTED,
+    Lead,
     Worker,
     call,
     context,
@@ -313,3 +317,69 @@ async def test_a_budget_counts_the_runs_above_a_nested_run():
     nested = [e for e in events if e.type == "run.finished" and e.parent is not None]
     assert nested[0].stop_reason == "denied"
     assert "token budget: used 915 of 910" in nested[0].message
+
+
+def reason_of(events):
+    """Return the message the root run ended with."""
+    return next(e.message for e in events if e.type == "run.finished" and e.parent is None)
+
+
+def prior(tokens=0, cost=0.0):
+    """Return a ledger where the project ``p`` already spent this much in earlier runs."""
+    ledger = MemoryUsageLedger()
+    ledger.add("p", Usage(input_tokens=tokens, cost=cost))
+    return ledger
+
+
+async def test_project_budget_under_the_cap_goes_ahead():
+    """Earlier spending and this run together under the caps change nothing."""
+    budget = ProjectBudget(prior(100, 1.0), "p", max_tokens=1000, max_cost=5.0)
+    result, _, _ = await run([says("end")], hooks=[budget])
+    assert result.answer == "end"
+
+
+async def test_project_budget_denies_before_the_call_at_the_cap():
+    """Earlier spending alone at the cap denies the first call, and the reason says what."""
+    budget = ProjectBudget(prior(100), "p", max_tokens=100)
+    result, _, events = await run([says("never")], hooks=[budget])
+    assert (result.stop_reason, result.steps) == ("denied", 1)
+    assert not [e for e in events if e.type == "llm.completed"]
+    assert "project token budget: p used 100 of 100" in reason_of(events)
+
+
+async def test_project_budget_adds_this_run_to_earlier_spending():
+    """The first call passes at 15 of 20 tokens, the second sees 30."""
+    budget = ProjectBudget(prior(5), "p", max_tokens=20)
+    script = [uses(call("lookup", key="k")), says("never")]
+    result, _, events = await run(script, hooks=[budget])
+    assert (result.stop_reason, result.steps) == ("denied", 2)
+    assert "project token budget: p used 20 of 20" in reason_of(events)
+
+
+async def test_project_budget_caps_the_cost():
+    """The cost cap denies with the cost in the reason."""
+    budget = ProjectBudget(prior(0, 2.0), "p", max_cost=2.0)
+    _, _, events = await run([says("never")], hooks=[budget])
+    assert "project cost budget: p used 2.0 of 2.0" in reason_of(events)
+
+
+async def test_project_budget_counts_nested_runs():
+    """A delegate's calls count against the project, with the runs above it."""
+    expensive = Usage(input_tokens=900, output_tokens=0, cost=0.9)
+    script = [
+        uses(call("helper", task="t"), usage=expensive),
+        uses(call("lookup", key="k")),
+        says("found"),
+        says("end"),
+    ]
+    budget = ProjectBudget(prior(0), "p", max_tokens=910)
+    _, _, events = await run(script, agent=Lead(), hooks=[budget])
+    nested = [e for e in events if e.type == "run.finished" and e.parent is not None]
+    assert nested[0].stop_reason == "denied"
+    assert "project token budget: p used 915 of 910" in nested[0].message
+
+
+def test_project_budget_without_a_cap_is_an_error():
+    """There is no default cap."""
+    with pytest.raises(BudgetError, match="expected max_tokens or max_cost"):
+        ProjectBudget(MemoryUsageLedger(), "p")
