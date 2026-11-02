@@ -193,9 +193,8 @@ Open geomind items:
 - **Replay of loop runs** replays only the root run (nested runs are reused), so a replayed log
   lacks the nested calls and the loop name.
 - **Versions are not in the event log**; the export reads them from `run_manifest.json`.
-- The Docker tests of the module sandbox need the `gemini-sandbox` image (`make sandbox-image`) and
-  were not run on the machine that wrote them.
-- `set_case` takes a merge patch, so changing one requirement resends the whole list.
+- The Docker tests of the module sandbox need the `gemini-sandbox:<gemini version>` image
+  (`make sandbox-image` in gemini); they passed on 2026-11-02 with `gemini-sandbox:0.5.0`.
 
 Open requests to gemini (full text in the adaptation notes):
 
@@ -205,10 +204,9 @@ Open requests to gemini (full text in the adaptation notes):
 3. `capabilities()["ranges"]` is incomplete (example plant files range leaves it does not name),
    and `set_range` accepts any numeric leaf; make the list complete or refuse leaves not meant to
    be searched.
-4. `Best.to_dict()` and `Sample.to_dict()` in display units, as `Report.to_dict()`.
-5. The parts of a value (capex modules, opex components) in display money units.
-6. A `gm.case.missing(case, job)` that lists every missing value at once.
-7. `gm.evaluate` copies the plant and applies the case for each metric (about ten times per
+4. The parts of a value (capex modules, opex components) in display money units.
+5. A `gm.case.missing(case, job)` that lists every missing value at once.
+6. `gm.evaluate` copies the plant and applies the case for each metric (about ten times per
    report), most of a tool call's time.
 
 ### S2b: gemini tools (the first job; the text below is the original plan)
