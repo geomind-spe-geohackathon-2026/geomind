@@ -202,15 +202,13 @@ Open requests to gemini (full text in the adaptation notes):
 1. `units="display"` on `Results.get` and `Results.summary` (geomind keeps a small `READ_UNITS`
    map), with pressure and mass flow in the display table.
 2. `Comparison.to_dict(units="display")` (`compare` reads each report's display values instead).
-3. `gm.check(plant, case)` raises `ValidationError` when a module's `equipment_kind` reads a missing
-   parameter, though it should list the problem as an issue.
-4. `capabilities()["ranges"]` is incomplete (example plant files range leaves it does not name),
+3. `capabilities()["ranges"]` is incomplete (example plant files range leaves it does not name),
    and `set_range` accepts any numeric leaf; make the list complete or refuse leaves not meant to
    be searched.
-5. `Best.to_dict()` and `Sample.to_dict()` in display units, as `Report.to_dict()`.
-6. The parts of a value (capex modules, opex components) in display money units.
-7. A `gm.case.missing(case, job)` that lists every missing value at once.
-8. `gm.evaluate` copies the plant and applies the case for each metric (about ten times per
+4. `Best.to_dict()` and `Sample.to_dict()` in display units, as `Report.to_dict()`.
+5. The parts of a value (capex modules, opex components) in display money units.
+6. A `gm.case.missing(case, job)` that lists every missing value at once.
+7. `gm.evaluate` copies the plant and applies the case for each metric (about ten times per
    report), most of a tool call's time.
 
 ### S2b: gemini tools (the first job; the text below is the original plan)
