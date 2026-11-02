@@ -32,7 +32,7 @@ def verdict(name, variant="base"):
 
 @functools.cache
 def broken(path, value, unit):
-    """Return the verdict on the hackathon design with the doublet ``path`` set to ``value unit``."""
+    """Return the verdict on the hackathon design with doublet ``path`` set to ``value unit``."""
     import gemini as gm
 
     context, _, result = variant_run("hackathon_2026", "base")
