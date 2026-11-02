@@ -60,7 +60,11 @@ Additive; nothing renamed or removed. Cuts the input tokens of long tool loops.
 - Call inputs over 800 characters in older assistant messages are shortened to an outline.
 - Agents with `read_stored` get a shared "Stored results" text after their prompt (`STORED_RESULTS`,
   `geomind/prompts/prompt.py`); `tests/unit/snapshots/tools.json` gains `read_stored` (additive).
-- `Tool.schema()` drops `title` annotations. 0.4.x logs replay and export unchanged.
+- `list_plants` takes `plant_class` and `with_schema`; without them it returns `project_plants` and the class
+  names with summaries only (its former `capabilities` and `roles` for all classes passed the result
+  limit). `plant_class` returns that class's `capabilities` and `roles`; `with_schema` gemini's plant
+  schema. `build_plant` offers a short `plant` schema (validation unchanged).
+- `Tool.schema()` drops `title` and `default` annotations and the long text of definitions. 0.4.x logs replay and export unchanged.
 
 ## [0.4.1] - 2026-11-02
 

@@ -410,12 +410,30 @@
       "name": "list_modules"
     },
     "list_plants": {
-      "description": "List the plant classes and the project's plant files, with capabilities and roles.",
+      "description": "List the plant classes and the project's plant files; one class in full on request.",
       "effect": "read",
       "idempotent": true,
       "input_schema": {
         "additionalProperties": false,
-        "properties": {},
+        "properties": {
+          "plant_class": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Plant Class"
+          },
+          "with_schema": {
+            "default": false,
+            "title": "With Schema",
+            "type": "boolean"
+          }
+        },
         "title": "list_plants_input",
         "type": "object"
       },

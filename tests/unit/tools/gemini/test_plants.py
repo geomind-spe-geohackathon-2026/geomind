@@ -76,17 +76,19 @@ def reads():
     return {pair: asyncio.run(read_with_and_without_case(*pair)) for pair in CASED}
 
 
-def test_build_plant_offers_the_plant_schema_of_gemini(gm):
-    """The model fills in gemini's own schema, its definitions at the top so references resolve."""
+def test_build_plant_offers_a_short_schema_and_list_plants_gives_gemini_full_one(gm):
+    """The offered ``plant`` is small; gemini's whole schema is one call away."""
     schema = gm.plants.schema()
     offered = TOOLS.build_plant.schema()["input_schema"]
     assert offered["properties"]["plant"]["anyOf"] == schema["anyOf"]
-    assert offered["$defs"].items() >= schema.get("$defs", {}).items()
-    assert "$defs" not in offered["properties"]["plant"]
+    assert "$defs" not in offered
+    assert len(str(offered)) < len(str(schema)) / 4
+    full = asyncio.run(call(TOOLS.list_plants, {"with_schema": True}))
+    assert full.output["schema"] == schema
 
 
-async def test_list_plants_names_every_class_with_its_summary_capabilities_and_roles(gm):
-    """The rows are gemini's names, in its order, and the capabilities and roles are gemini's."""
+async def test_list_plants_names_every_class_with_its_summary(gm):
+    """The rows are gemini's names, in its order, with its summary."""
     result = await call(TOOLS.list_plants, {})
     rows = result.output["plants"]
     assert [row["name"] for row in rows] == gm.plants.names()
@@ -94,9 +96,24 @@ async def test_list_plants_names_every_class_with_its_summary_capabilities_and_r
         "name": rows[0]["name"],
         "summary": gm.plants.get(rows[0]["name"]).describe()["summary"],
     }
-    assert result.output["capabilities"] == gm.plants.capabilities()
-    assert set(result.output["capabilities"]["HeatingPlant"]) == {"roles", "schedulable", "ranges"}
-    assert result.output["roles"] == gm.plants.roles()
+    assert "capabilities" not in result.output
+
+
+async def test_list_plants_gives_the_capabilities_and_roles_of_one_class(gm):
+    """Every class's capabilities are reachable, and its roles are those it uses."""
+    capabilities, roles = gm.plants.capabilities(), gm.plants.roles()
+    for name in gm.plants.names():
+        output = (await call(TOOLS.list_plants, {"plant_class": name})).output
+        assert output["capabilities"] == capabilities[name]
+        assert output["roles"] == {role: roles[role] for role in capabilities[name]["roles"]}
+    assert set(capabilities["HeatingPlant"]) == {"roles", "schedulable", "ranges"}
+
+
+async def test_list_plants_with_an_unknown_class_suggests_one():
+    """A wrong class name is a result the model can act on."""
+    result = await call(TOOLS.list_plants, {"plant_class": "HeatingPlan"})
+    assert result.output["error"]["path"] == "plant_class"
+    assert "HeatingPlant" in result.output["error"]["message"]
 
 
 @cased_plants
