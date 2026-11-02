@@ -10,18 +10,23 @@ PIPE = {
     "length": {"value": 1000, "unit": "m"},
     "inner_diameter": {"value": 0.2, "unit": "m"},
     "elevation_change": {"value": 0, "unit": "m"},
-    "heat_transfer_coefficient": 1.0,
+    "heat_transfer_coefficient": {"value": 1.0, "unit": "W/m2/K"},
+    "roughness": {"value": 4.5e-5, "unit": "m"},
 }
+BRINE = {"kind": "brine"}
+AIR = {"kind": "gas", "gas_composition": {"N2": 0.79, "O2": 0.21}}
 PIPE_INLETS = {
     "fluid_in": {
         "m_dot": {"value": 40, "unit": "kg/s"},
         "T": {"value": 80, "unit": "degC"},
         "p": {"value": 10, "unit": "bar"},
+        "fluid": BRINE,
     },
     "air_in": {
         "m_dot": {"value": 0, "unit": "kg/s"},
         "T": {"value": 10, "unit": "degC"},
         "p": {"value": 1, "unit": "bar"},
+        "fluid": AIR,
     },
 }
 
@@ -89,17 +94,19 @@ async def test_an_unknown_module_is_unknown_name_with_suggestions(gm, tool, tool
     assert problem["suggestions"] == ["Pipe"]
 
 
-async def test_evaluate_module_returns_readable_units(gm):
-    """Quantities go in as ``{value, unit}`` and come out in bar, degC and kW, not SI."""
+async def test_evaluate_module_returns_display_units(gm):
+    """Quantities go in as ``{value, unit}`` and come out in display units."""
     result = await call(
         TOOLS.evaluate_module, {"name": "Pipe", "parameters": PIPE, "inlets": PIPE_INLETS}
     )
     assert not result.is_error
-    outputs = result.output["outputs"]
-    assert outputs["pressure_drop"]["unit"] == "bar"
     assert result.output["outlets"]["fluid_out"]["T"]["unit"] == "degC"
-    assert result.output["outlets"]["loss_out"]["power"]["unit"] == "kW"
-    assert outputs["pressure_drop"]["value"] == pytest.approx(0.6812, abs=1e-3)
+    assert result.output["outlets"]["loss_out"]["power"]["unit"] == "MW"
+    assert result.output["outputs"]["pressure_drop"] == {
+        "value": pytest.approx(68117.3, abs=1),
+        "unit": "Pa",
+    }
+    assert result.output["state"] == {}
 
 
 async def test_a_unit_string_is_refused_by_gemini(gm):
@@ -118,6 +125,25 @@ async def test_a_missing_inlet_is_gemini_s_problem(gm):
     assert result.is_error
     assert result.output["error"]["code"] != "internal"
     assert "air_in" in result.output["error"]["message"]
+
+
+async def test_an_inlet_without_a_fluid_is_gemini_s_problem(gm):
+    """Every inlet needs ``fluid``; gemini says which inlet lacks it."""
+    inlets = {**PIPE_INLETS, "fluid_in": {**PIPE_INLETS["fluid_in"]}}
+    del inlets["fluid_in"]["fluid"]
+    result = await call(
+        TOOLS.evaluate_module, {"name": "Pipe", "parameters": PIPE, "inlets": inlets}
+    )
+    assert result.is_error
+    assert "fluid_in" in result.output["error"]["message"]
+    assert "fluid" in result.output["error"]["message"]
+
+
+def test_evaluate_module_takes_the_state_and_the_step_of_a_stateful_module():
+    """``state`` and ``dt`` are inputs; the description says every inlet needs a fluid."""
+    properties = TOOLS.evaluate_module.input_schema["properties"]
+    assert {"state", "dt"} <= properties.keys()
+    assert "fluid" in TOOLS.evaluate_module.description
 
 
 def test_evaluate_module_needs_a_name_and_parameters():
