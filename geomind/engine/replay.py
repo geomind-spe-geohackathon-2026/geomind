@@ -9,6 +9,7 @@ from geomind.engine.context import Context
 from geomind.engine.hooks import Hook
 from geomind.engine.permissions import Permissions
 from geomind.engine.recovery import agent_class
+from geomind.engine.session import current_versions
 from geomind.errors import ReplayError
 from geomind.providers import FakeLLM
 from geomind.stores.run import MemoryRunStore
@@ -165,6 +166,20 @@ def _compare_end(finished, result):
             f"replay: step {result.steps}: recorded answer {finished.answer!r}, "
             f"replayed {result.answer!r} ({result.stop_reason})"
         )
+
+
+def version_differences(events):
+    """Return ``{name: (recorded, current)}`` for each recorded version that is not the current one.
+
+    A log without versions, as 0.3.0 wrote, has none to compare. The replay runs either way.
+    """
+    started = next(e for e in events if e.type == "run.started" and e.parent is None)
+    current = current_versions()
+    return {
+        name: (recorded, current.get(name))
+        for name, recorded in started.versions.items()
+        if recorded != current.get(name)
+    }
 
 
 async def replay_run(engine_class, store, run_id):

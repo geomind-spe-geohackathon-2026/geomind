@@ -103,9 +103,10 @@ def _call_lines(number, call, previous):
 def _header(events, manifest):
     """Return the header: the request, the loop, the versions and the models by role."""
     started = next(e for e in events if e.type == "run.started" and e.parent is None)
-    request = next((m.content for m in started.messages if m.role == "user"), "")
+    request = next((m.content for m in reversed(started.messages) if m.role == "user"), "")
     versions = {
-        name: (manifest or {}).get(name, {}).get("version", NOT_RECORDED)
+        name: started.versions.get(name)
+        or (manifest or {}).get(name, {}).get("version", NOT_RECORDED)
         for name in ("geomind", "gemini")
     }
     lines = [
@@ -179,8 +180,8 @@ def _tables(calls):
 def render_export(events, manifest=None):
     """Return the Markdown export of a run: header, every LLM call, prompts, tokens, totals.
 
-    ``manifest`` is the run's ``run_manifest.json``, where the versions are recorded; the event
-    log holds neither version, so without a manifest they read ``not recorded``.
+    The versions come from the root ``run.started``. A log of 0.3.0 has none; then they come from
+    ``manifest``, the run's ``run_manifest.json``, and read ``not recorded`` without one.
     """
     calls = _calls(events)
     lines = [*_header(events, manifest), "## LLM calls", ""]

@@ -56,7 +56,11 @@ class Event(Record):
 
 
 class RunStarted(Event):
-    """A run began; the fields after ``loop`` rebuild it and are not streamed."""
+    """A run began; the fields after ``loop`` rebuild it and are not streamed.
+
+    NOTE: ``versions`` holds the geomind, gemini and python versions the run began with. A run
+    stored by 0.3.0 has none, so the field is optional here while every new run has it.
+    """
 
     type: ClassVar[str] = "run.started"
     is_public: ClassVar[bool] = True
@@ -74,6 +78,7 @@ class RunStarted(Event):
     problem: dict[str, Any] = {}
     settings: dict[str, Any] = {}
     loop_state: dict[str, Any] = {}
+    versions: dict[str, str] = {}
 
 
 class StepStarted(Event):

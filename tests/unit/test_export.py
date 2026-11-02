@@ -2,9 +2,9 @@
 
 import asyncio
 
-from geomind.engine import Engine, replay
+from geomind.engine import Context, Engine, replay
 from geomind.export import models_by_agent, render_export
-from geomind.types import Usage
+from geomind.types import Message, Usage
 from tests.fixtures.runs import Lead, Worker, call, context, engine_for, says, uses
 
 CACHED = Usage(input_tokens=100, output_tokens=20, cost=0.5, cached_tokens=60)
@@ -28,15 +28,57 @@ def exported(manifest=None):
 def test_the_header_holds_the_request_loop_versions_and_models():
     """The export begins with the request, the loop, both versions and the model of each role."""
     manifest = {"geomind": {"version": "1.2.3"}, "gemini": {"version": "4.5.6"}}
-    events, text = exported(manifest)
+    events = without_versions(exported()[0])
+    text = render_export(events, manifest)
     header = text.split("## LLM calls")[0]
     assert "What is x?" in header and "gemini version: 4.5.6. geomind version: 1.2.3." in header
     assert "- lead: fake/model" in header and models_by_agent(events)["lead"] == ["fake/model"]
 
 
-def test_versions_missing_from_the_log_read_not_recorded():
-    """The event log holds no version; without a manifest the export says so."""
-    assert "gemini version: not recorded" in exported()[1]
+def without_versions(events):
+    """Return the events as a 0.3.0 log has them: no ``versions`` on any run start."""
+    return [
+        event.model_copy(update={"versions": {}}) if event.type == "run.started" else event
+        for event in events
+    ]
+
+
+def test_the_header_shows_the_versions_of_the_log():
+    """A run records its versions, so the export needs no manifest."""
+    events, text = exported()
+    versions = events[0].versions
+    assert set(versions) == {"geomind", "gemini", "python"}
+    assert f"gemini version: {versions['gemini']}. geomind version: {versions['geomind']}." in text
+
+
+def test_the_versions_of_the_log_win_over_the_manifest():
+    """The manifest is only the fallback."""
+    events, _ = exported()
+    manifest = {"geomind": {"version": "1.2.3"}, "gemini": {"version": "4.5.6"}}
+    text = render_export(events, manifest)
+    assert "4.5.6" not in text and events[0].versions["gemini"] in text
+
+
+def test_a_log_without_versions_falls_back_to_the_manifest():
+    """A 0.3.0 log has no versions: the manifest is read, then not recorded."""
+    events = without_versions(exported()[0])
+    manifest = {"geomind": {"version": "1.2.3"}, "gemini": {"version": "4.5.6"}}
+    assert "gemini version: 4.5.6. geomind version: 1.2.3." in render_export(events, manifest)
+    assert "gemini version: not recorded" in render_export(events)
+
+
+def test_the_header_shows_the_request_of_the_run_not_the_chat_history():
+    """The run's messages hold the chat history first; the request is the last user message."""
+    engine = engine_for([says("ok")])
+    history = [
+        Message(role="user", content="first question"),
+        Message(role="assistant", content="first answer"),
+        Message(role="user", content="second question"),
+    ]
+    start = Context(messages=history)
+    asyncio.run(engine.run(Worker(), start))
+    header = render_export(engine.store.load_events(start.run_id)).split("## LLM calls")[0]
+    assert "second question" in header and "first question" not in header
 
 
 def test_every_call_shows_messages_answer_tool_calls_and_tokens():

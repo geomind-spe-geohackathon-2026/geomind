@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import platform
 from time import perf_counter
 
 from geomind import runtime
@@ -31,6 +32,23 @@ from geomind.types.redaction import redact
 from geomind.utils.imports import class_path
 
 FROZEN = "design/"
+
+
+def current_versions():
+    """Return the versions a run begins with; ``gemini`` is left out when it cannot be imported.
+
+    NOTE: gemini is imported here, not at the top, so ``import geomind`` stays fast.
+    """
+    import geomind
+
+    versions = {"geomind": geomind.__version__}
+    try:
+        import gemini as gm
+    except ImportError:
+        pass
+    else:
+        versions["gemini"] = gm.__version__
+    return {**versions, "python": platform.python_version()}
 
 
 class RunSession:
@@ -94,6 +112,7 @@ class RunSession:
             problem=context.problem.model_dump(mode="json"),
             settings=runtime.state(),
             loop_state=self.loop_state(),
+            versions=current_versions(),
         )
 
     def loop_state(self):

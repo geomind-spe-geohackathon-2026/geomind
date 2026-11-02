@@ -107,6 +107,20 @@ def test_replay_reproduces_a_run_offline(service, capsys):
     assert capsys.readouterr().out.startswith("pass: 1 steps")
 
 
+def test_replay_prints_one_line_when_the_versions_differ(service, capsys):
+    """A run recorded with another gemini replays; the difference is one line, not an error."""
+    service += [routed_answer(), answer("Hello")]
+    cli.main(["run", "x"])
+    capsys.readouterr()
+    folder = Path(run_folder())
+    log = folder / "events.jsonl"
+    log.write_text(log.read_text().replace('"gemini": "', '"gemini": "0.0.1+'))
+    assert cli.main(["replay", str(folder)]) == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[0].startswith("pass: 1 steps")
+    assert lines[1].startswith("versions differ: gemini recorded 0.0.1+")
+
+
 def test_replay_of_a_missing_run_reports_it(service, capsys):
     """A wrong folder is an error message, not a traceback."""
     assert cli.main(["replay", ".runs/nothing"]) == 1

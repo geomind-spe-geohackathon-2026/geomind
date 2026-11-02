@@ -4,6 +4,18 @@
 interface raises the minor version, and an addition or a fix raises the patch version. The rule and
 the list of frozen interfaces are in [.claude/docs/api.md](.claude/docs/api.md#frozen-interfaces).
 
+## [Unreleased]
+
+- `run.started` records `versions` (`geomind`, `gemini`, `python`) on every run, nested ones
+  included; it is not streamed and `public_fields` is unchanged. A 0.3.0 log has none and still
+  loads, recovers, replays and exports (the export falls back to `run_manifest.json`).
+- The export header reads the versions from the log, so runs of the backend, chats, `gd.Run` and
+  evals no longer show "not recorded".
+- Fix: the export header showed the first user message of the run, a chat's oldest; it shows the
+  last, the run's own request.
+- `geomind replay` prints one line `versions differ: ...` when a version differs from the recorded
+  one; `version_differences(events)` in `geomind.engine.replay` returns the difference.
+
 ## [0.3.0] - 2026-11-02
 
 Breaking: geomind runs on gemini `>=0.5,<0.6` (pinned in `pyproject.toml`; a test fails on another
