@@ -65,6 +65,9 @@ failure with its reason.
 `designer/project_plant` (project `hackathon`, recorded by script, no live call) lists the plants,
 reads the project plant, stores it with `build_plant` and sizes `design/start`.
 
+`designer/missing_range` (scripted) has a plant without a range: the Designer records the question in
+`questions` and calls `ask_user`; it never calls `set_ranges`.
+
 `python -m evals.run --report` writes the tracked `evals/reports/summary.md`: every task of every
 folder, offline from its recording, through `ToolLoop`, `DesignLoop` and `CompareLoop` (the
 `MakerCheckerLoop` is gone). One table per loop, a row per task and a total: criteria met, steps,

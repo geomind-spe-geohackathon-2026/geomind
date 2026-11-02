@@ -426,3 +426,26 @@ def test_update_state_refuses_an_object_where_a_reference_belongs_and_shows_the_
     change = [{"op": "add", "path": "/design/start_result", "value": {"reference": "result/r"}}]
     with pytest.raises(StateError, match="design.*start_result.*string"):
         apply_changes(ProblemState(), change)
+
+
+def test_the_recorded_designer_asks_for_a_missing_range_and_never_sets_one():
+    """In the recording, a plant without a range ends in ask_user after the question is recorded."""
+    path = Path("evals/recordings/designer/missing_range.jsonl")
+    calls = [
+        call for line in path.read_text().splitlines() for call in json.loads(line)["tool_calls"]
+    ]
+    names = [item["name"] for item in calls]
+    assert "set_ranges" not in names
+    assert names.index("update_state") < names.index("ask_user")
+    recorded = calls[names.index("update_state")]["input"]["changes"][0]
+    assert recorded["path"] == "/questions/-"
+
+
+def test_the_designer_prompt_asks_instead_of_inventing_a_range():
+    """The prompt and the skill say ranges come from the user or the case, and to ask."""
+    root = Path("geomind/prompts")
+    for text in (
+        (root / "design" / "designer.md").read_text(),
+        (root / "skills" / "designing-a-plant.md").read_text(),
+    ):
+        assert "ask_user" in text and ("invent" in text or "Never fill a missing one" in text)
