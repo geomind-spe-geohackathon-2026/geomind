@@ -156,6 +156,7 @@ check it before writing a tool, because gemini's names change.
 | Terminal | `geomind run` no longer prints the coordinator's route JSON; plan corrections from the audit | this commit | done |
 | gemini 0.5 | geomind 0.3.0 on gemini `>=0.5,<0.6`: project folder case with `economics.json`, verdict, ranges and `run_study`, `Workspace.plants`, chat-scoped artifacts, `write_module`/`test_module` in the gemini sandbox, `CompareLoop`, the competition export, `check-live`, the loop report ([CHANGELOG.md](../../CHANGELOG.md)) | merged sections A to P | done |
 | Log and replay | geomind 0.3.1: `run.started` records the geomind, gemini and python versions and the export reads them; the export header shows the run's own request; a replay runs every nested run again with its own completions and compares every run | merged sections V and R | done |
+| Studies, budget, replays | geomind 0.4.0: every study tool stores `study/<name>` (gemini's study and result form) and emits `study.recorded`; `list_studies`, `read_study`; `ProjectBudget` with `UsageLedger`; replay matches results by step and call id, and a log of another geomind version checks decisions, not tool outputs; every eval recording replays in a test | merged sections P, S and B | done |
 
 No live OpenRouter run has been made yet. It needs `OPENROUTER_API_KEY` in geomind's own
 environment, never the backend's key.
@@ -196,7 +197,11 @@ Open geomind items:
 - **Versions of a 0.3.0 log are not in the event log**; the export reads them from
   `run_manifest.json` (runs from 0.3.1 record them on `run.started`).
 - The Docker tests of the module sandbox need the `gemini-sandbox:<gemini version>` image
-  (`make sandbox-image` in gemini); they passed on 2026-11-02 with `gemini-sandbox:0.5.0`.
+  (`make sandbox-image` in gemini); they passed on 2026-11-02 with `gemini-sandbox:0.5.1`.
+- **A log of another geomind version** replays with recorded tool results (pure tools are not run
+  again), so it checks the agents' decisions, not the tools' outputs.
+- **`ProjectBudget`** reads the ledger once per run: runs of one project running at the same time
+  are not counted against each other.
 
 Open requests to gemini (full text in the adaptation notes):
 
@@ -210,6 +215,10 @@ Open requests to gemini (full text in the adaptation notes):
 5. A `gm.case.missing(case, job)` that lists every missing value at once.
 6. `gm.evaluate` copies the plant and applies the case for each metric (about ten times per
    report), most of a tool call's time.
+7. A size-only study method (`size_plant` stores its study as method `run` with `prepare: ["size"]`).
+8. A public `to_dict()` for the result of `gm.study.minimize`, history included (`optimize` stores
+   the best without its plant and drops the history).
+9. `Plant.to_dict()` carrying `sizing` with quantities (geomind converts the sizing notes itself).
 
 ### S2b: gemini tools (the first job; the text below is the original plan)
 
