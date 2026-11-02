@@ -4,6 +4,8 @@ import re
 from pathlib import Path
 from typing import Protocol
 
+from geomind.errors import UnknownNameError
+from geomind.stores.casefiles import named_files
 from geomind.utils.json import read_json
 
 _WORD = re.compile(r"\w+")
@@ -17,9 +19,10 @@ class Workspace(Protocol):
         """Return the stored plant as a gemini plant, or ``None``."""
 
     def case(self, project_id):
-        """Return the project's case as ``(case dict, folder of its files)``, or ``None``.
+        """Return the project's case as ``(case dict, {name: bytes})``, or ``None``.
 
-        The dict is the content of a ``case.json``, as written; the folder holds the files it names.
+        The dict is the content of a ``case.json``, as written. The files are every file the case
+        names, such as ``data/demand.csv`` and ``economics.json``, by their path in the project.
         """
 
     def documents(self, project_id, query):
@@ -38,10 +41,15 @@ def search(documents, query):
     return sorted(found, key=lambda item: item["score"], reverse=True)
 
 
+def read_bytes(path):
+    """Return the bytes of a file, or ``None`` when it does not exist."""
+    return path.read_bytes() if path.is_file() else None
+
+
 class MemoryWorkspace:
     """Hold ``plants``, ``cases`` and ``documents`` by project id.
 
-    A document is ``{id, title, text}``; a case is ``(case dict, folder of its files)``.
+    A document is ``{id, title, text}``; a case is ``(case dict, {file name: bytes})``.
     """
 
     def __init__(self, plants=None, documents=None, cases=None):
@@ -64,10 +72,11 @@ class MemoryWorkspace:
 
 
 class FileWorkspace:
-    """Read ``<root>/<project id>/plant.json``, ``case.json`` and the text files in ``documents/``.
+    """Read gemini's project folder, ``<root>/<project id>/``.
 
-    A plant file is gemini's ``plant.json``. NOTE: gemini is imported only here, and only when a
-    plant is read, because ``import geomind`` should not pay for it.
+    It holds ``case.json``, ``economics.json``, ``data/`` for the series, ``plants/`` for the plant
+    files (``kind: plant``) and the text files in ``documents/``. NOTE: gemini is imported only
+    here, and only when a plant is read, because ``import geomind`` should not pay for it.
     """
 
     def __init__(self, root):
@@ -75,19 +84,30 @@ class FileWorkspace:
         self.root = Path(root)
 
     def plant(self, project_id):
-        """Return the plant of a project, or ``None``."""
-        path = self.root / project_id / "plant.json"
-        if not path.exists():
+        """Return the plant of a project, or ``None`` without one.
+
+        The project's plant is the one file of ``plants/``; several files are ambiguous and raise.
+        """
+        paths = sorted((self.root / project_id / "plants").glob("*.json"))
+        if len(paths) > 1:
+            names = ", ".join(path.stem for path in paths)
+            raise UnknownNameError(
+                f"workspace: project {project_id!r} has several plants ({names}); expected one"
+            )
+        if not paths:
             return None
         import gemini as gm
 
-        return gm.Plant.from_json(path)
+        return gm.Plant.from_dict(read_json(paths[0]))
 
     def case(self, project_id):
-        """Return ``(case dict, project folder)`` from ``case.json``, or ``None`` without it."""
+        """Return ``(case dict, {name: bytes})`` from ``case.json``, or ``None`` without it."""
         folder = self.root / project_id
         path = folder / "case.json"
-        return (read_json(path), folder) if path.exists() else None
+        if not path.exists():
+            return None
+        data = read_json(path)
+        return data, named_files(data, lambda name: read_bytes(folder / name))
 
     def documents(self, project_id, query):
         """Search the text files of a project."""

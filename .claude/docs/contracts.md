@@ -77,16 +77,22 @@ and to read one back `event_from_dict`.
   store them.
 - `event.to_dict()` holds every field a store must keep, and `event_from_dict` restores it.
 - `save_artifact` keys may hold a `/`: `design/<name>`, `result/<id>` and `case/<file name>`
-  (bytes: the CSV files of the run's case). The former profile key is gone: a user's demand profile is a
-  file of the case, `case/<file name>`. `check_run_store` tests them. A run also keeps keys
+  (bytes: the series and economics files of the run's case; the file name is a relative path such
+  as `data/demand.csv`, each part safe). A user's demand profile is a file of the case,
+  `case/<file name>`. `check_run_store` tests them. A run also keeps keys
   without a `/`: `<id>.results`, `<id>.plant`, `<id>.case`, `<id>.files` and `<sha256>.file`
   (bytes: a case file by its content, which an older run reads).
-- `Workspace.case(project_id)` returns the project's case as `(case dict, folder)` or `None`: the
-  content of its `case.json` as written, and a folder (a path) holding the files it names.
-  `check_workspace` needs a project whose case names a demand file. The file workspace reads
-  `<root>/<project>/case.json`; the memory one takes `cases={project: (dict, folder)}`.
+- `Workspace.case(project_id)` returns the project's case as `(case dict, {name: bytes})` or
+  `None`: the content of its `case.json` as written, and the bytes of every file it names,
+  `economics.json` and the series (`data/demand.csv`), by their relative path. `check_workspace`
+  checks that every named file is there and every name is a safe relative path. The file workspace
+  reads gemini's project folder `<root>/<project>/` (`case.json`, `economics.json`, `data/`,
+  `plants/`, `documents/`); the memory one takes `cases={project: (dict, files)}`.
+  `Workspace.plant(project_id)` returns a `gm.Plant` built by `gm.Plant.from_dict` from the one
+  plant file (`kind: plant`) of `plants/`; a project with several plant files is ambiguous and the
+  file workspace raises `UnknownNameError`.
 - **What the backend stores for a project.** Its `case.json` (the case as written, read by
-  `Workspace.case`) and the demand CSV it names. The problem state holds the case under the key
+  `Workspace.case`), its `economics.json`, the series files they name and its plant files. The problem state holds the case under the key
   `case` (it replaced `brief`), and a run copies the files into its own `case/<file name>`
   artifacts. Nothing else of the case needs storing.
 - **Tool errors.** A gemini `ValidationError` passes through with its `path`, `code` and message

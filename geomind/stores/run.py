@@ -90,9 +90,15 @@ def _safe(name):
 
 
 def _safe_key(key):
-    """Return an artifact key that is safe as a path: one name, or a frozen reference."""
+    """Return an artifact key that is safe as a path: one name, or a frozen reference.
+
+    A ``case/<file name>`` may be a path such as ``case/data/demand.csv``; each part is safe.
+    """
     kind, slash, name = str(key).partition("/")
-    return f"{kind}/{_safe(name)}" if slash and kind in REFERENCE_KINDS else _safe(key)
+    if not (slash and kind in REFERENCE_KINDS):
+        return _safe(key)
+    parts = name.split("/") if kind == "case" else [name]
+    return f"{kind}/" + "/".join(_safe(part) for part in parts)
 
 
 class FileRunStore:
@@ -101,7 +107,7 @@ class FileRunStore:
     A run has ``<root>/<run id>/events.jsonl`` and ``artifacts/``; a chat has
     ``<root>/chats/<chat id>/history.jsonl`` and ``state.json``. Ids become path parts, so unsafe
     ones raise. An artifact key is one such part, or the frozen ``design/<name>``,
-    ``result/<id>`` or ``case/<file name>``, a file of the run's case.
+    ``result/<id>`` or ``case/<file name>``, a file of the run's case (its name may be a path).
     """
 
     def __init__(self, root=".runs"):

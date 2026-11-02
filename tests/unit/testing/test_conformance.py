@@ -6,7 +6,7 @@ import pytest
 
 import geomind as gd
 from geomind.testing import check_run_store, check_workspace
-from tests.fixtures.cases import example_case
+from tests.fixtures.cases import example_case, example_folder
 
 
 def seed_history(store, chat_id, messages):
@@ -38,19 +38,10 @@ def test_memory_workspace_passes():
     check_workspace(workspace, project="p", query="heat")
 
 
-@pytest.fixture(scope="module")
-def doublet():
-    """Return a gemini plant; importing gemini takes more than the budget of one test call."""
-    import gemini as gm
-
-    return gm.plants.Doublet()
-
-
-def test_file_workspace_passes(tmp_path, doublet):
-    """The file workspace fulfils the contract, with a real gemini plant file."""
+def test_file_workspace_passes(tmp_path):
+    """The file workspace fulfils the contract, with gemini's project folder of an example."""
     project = tmp_path / "p"
-    doublet.to_json(project / "plant.json")
-    shutil.copytree(example_case("shallow_district")[1], project, dirs_exist_ok=True)
+    shutil.copytree(example_folder("shallow_district"), project)
     (project / "documents").mkdir()
     (project / "documents/report.md").write_text("heat pump heat")
     check_workspace(lambda: gd.stores.FileWorkspace(tmp_path), project="p", query="heat")
@@ -122,3 +113,35 @@ def test_a_store_that_loses_case_files_fails():
 
     with pytest.raises(AssertionError, match="case/<file name>"):
         check_run_store(Lossy)
+
+
+def test_a_workspace_that_forgets_a_case_file_fails():
+    """Every file the case names, the economics too, comes with the case."""
+
+    class Forgetful(gd.stores.MemoryWorkspace):
+        def case(self, project_id):
+            data, files = super().case(project_id)
+            return data, {
+                name: content for name, content in files.items() if name != "economics.json"
+            }
+
+    with pytest.raises(AssertionError, match="economics.json"):
+        check_workspace(
+            lambda: Forgetful({"p": object()}, {"p": []}, {"p": example_case("shallow_district")}),
+            project="p",
+            query="heat",
+        )
+
+
+def test_a_workspace_with_an_unsafe_file_name_fails():
+    """A case file name is a relative path inside the project."""
+    data, files = example_case("shallow_district")
+    unsafe = workspace_with({"../demand.csv": b"x", **files}, data)
+    with pytest.raises(AssertionError, match="relative path"):
+        check_workspace(lambda: unsafe, project="p", query="heat")
+
+
+def workspace_with(files, data):
+    """Return a memory workspace whose case has these files."""
+    documents = {"p": [{"id": "1", "title": "Heat", "text": "heat"}]}
+    return gd.stores.MemoryWorkspace({"p": object()}, documents, {"p": (data, files)})

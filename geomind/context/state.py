@@ -11,34 +11,16 @@ from geomind.types.patch import ITEM_LISTS, operation_problem
 from geomind.utils.strings import did_you_mean, join_names
 
 
-class ConstraintKey(Record):
-    """The fields that name a constraint of the case: ``on``, ``quantity``, ``over``, ``when``.
-
-    gemini's constraints have no id, and a merge patch on ``constraints`` replaces the whole list,
-    so a requirement names its constraint by these fields, never by its place in the list.
-    """
-
-    on: str
-    quantity: str
-    over: str | None = None
-    when: str | None = None
-
-    def matches(self, constraint):
-        """Tell whether a constraint dict of the case is the one this key names."""
-        named = self.model_dump(exclude_none=True)
-        return all(constraint.get(field) == value for field, value in named.items())
-
-
 class Requirement(Record):
     """A criterion of the task, in the user's words.
 
-    A numeric one is a constraint of the case (``set_case``), and ``constraint`` names it by its
-    ``on``, ``quantity``, ``over`` and ``when``; gemini judges it, the text is never parsed.
+    A numeric one is a requirement of the case (``set_case``), and ``case_requirement`` names it by
+    its ``name``; gemini judges it, the text is never parsed.
     """
 
     id: str
     text: str
-    constraint: ConstraintKey | None = None
+    case_requirement: str | None = None
     status: str = "open"
 
 
@@ -207,8 +189,8 @@ def apply_changes(state, changes):
 
 def _requirement_line(item):
     """Return one requirement as a line."""
-    key = item.constraint
-    linked = f" (case constraint {key.quantity} on {key.on})" if key is not None else ""
+    name = item.case_requirement
+    linked = f" (case requirement {name})" if name is not None else ""
     return f"Requirement {item.id} [{item.status}]: {item.text}{linked}"
 
 
@@ -225,15 +207,24 @@ def _result_line(item):
     return f"Result {item.id}: {item.summary}{reference}"
 
 
+def _served_files(demand):
+    """Return ``service file`` for each service of a demand section that has a power series."""
+    served = []
+    for name in ("heating", "cooling"):
+        power = (demand.get(name) or {}).get("power")
+        if isinstance(power, dict) and "file" in power:
+            served.append(f"{name} in {power['file']}")
+    return served
+
+
 def _case_line(case):
     """Return the case as one line: its time and its sections, never the demand itself."""
     time = case.get("time") or {}
     span = f"{time.get('start')} to {time.get('end')}"
-    sections = ", ".join(name for name in case if name != "time")
-    demand = case.get("demand") or {}
-    served = [name for name in ("heating", "cooling") if name in demand]
+    sections = ", ".join(name for name in case if name not in ("time", "format", "kind", "name"))
+    served = _served_files(case.get("demand") or {})
     line = f"Case: time {span}; sections {sections or 'none'}"
-    return f"{line}; demand {', '.join(served)} in {demand.get('file')}" if served else line
+    return f"{line}; demand {', '.join(served)}" if served else line
 
 
 def render(state):

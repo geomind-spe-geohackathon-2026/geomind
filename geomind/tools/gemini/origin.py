@@ -1,7 +1,8 @@
 """How the state's case differs from the case the user or the project gave, and its approval.
 
-A design is verified only on the case the user gave (``case_origin``). Every difference of the
-current case from it, a constraint, a demand value, a file, the time or a price, is listed here, so
+A design is verified only on the case the user gave (``case_origin``), the content of every file
+it names included, the economics and the series. Every difference of the current case from it, a
+requirement, a demand value, a file, the time or a price, is listed here, so
 no agent passes verification by weakening the case. Only the user approves a difference, through
 the design loop's question, and the driver then calls ``accept_case``.
 """
@@ -11,32 +12,35 @@ from geomind.tools.base import tool
 from geomind.tools.gemini.case import digests, file_contents, keep_files, state_case
 
 
-def constraint_changes(given, now):
-    """Return the constraints removed from and added to the given list."""
-    removed = [
-        {"path": "constraints", "change": "removed", "given": item}
-        for item in given
-        if item not in now
-    ]
-    added = [
-        {"path": "constraints", "change": "added", "now": item} for item in now if item not in given
-    ]
-    return removed + added
+def change_of(path, given, now):
+    """Return one change: ``added`` if only ``now`` has a value, ``removed`` if only ``given``."""
+    kind = "added" if given is None else "removed" if now is None else "changed"
+    return {"path": path, "change": kind, "given": given, "now": now}
 
 
-def section_changes(name, given, now):
-    """Return the changes of one section: by key for an object, else the section as a whole."""
-    if given == now:
-        return []
-    if name == "constraints":
-        return constraint_changes(given or [], now or [])
-    if not (isinstance(given, dict) and isinstance(now, dict)):
-        return [{"path": name, "change": "changed", "given": given, "now": now}]
+def keyed_changes(prefix, given, now):
+    """Return the changes by key of two mappings, each key under ``prefix``."""
     return [
-        {"path": f"{name}.{key}", "change": "changed", "given": given.get(key), "now": now.get(key)}
+        change_of(f"{prefix}.{key}", given.get(key), now.get(key))
         for key in sorted(set(given) | set(now))
         if given.get(key) != now.get(key)
     ]
+
+
+def by_name(requirements):
+    """Return ``{name: requirement}`` of a list of case requirements."""
+    return {item.get("name"): item for item in requirements or []}
+
+
+def section_changes(name, given, now):
+    """Return the changes of one section: by key for an object, by name for the requirements."""
+    if given == now:
+        return []
+    if name == "requirements":
+        return keyed_changes(name, by_name(given), by_name(now))
+    if not (isinstance(given, dict) and isinstance(now, dict)):
+        return [change_of(name, given, now)]
+    return keyed_changes(name, given, now)
 
 
 def file_changes(given, now):
@@ -67,7 +71,7 @@ def changes_of(context):
 def case_changes(context):
     """List how the state's case differs from the case the user or the project gave.
 
-    Each item has ``path`` (a section, ``section.key``, ``constraints`` or ``file <name>``),
+    Each item has ``path`` (a section, ``section.key``, ``requirements.<name>`` or ``file <name>``),
     ``change`` (``changed``, ``removed`` or ``added``) and the ``given`` and ``now`` values. An
     empty list means the case is the one the user gave. A design is verified only on that case:
     any difference waits for the user's approval.

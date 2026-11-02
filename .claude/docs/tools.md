@@ -19,13 +19,13 @@ the problem state as `update_state` does.
 | `list_plants` | `plants.py` | `read` | none | `{plants: [{name, summary}], capabilities}`; `capabilities` is `gm.plants.capabilities()`: roles, schedulable and choices of each class | built |
 | `read_plant` | `plants.py` | `read` | `design=None`: `None` is the project's plant from `Workspace.plant`, `design/<name>` a stored design, otherwise a plant class name (`gm.plants.get`) | `{plant, missing_parameters}`: `to_dict(structure=True)` and `missing_parameters()`; a class with missing parameters is a valid answer, the model fills them | built |
 | `build_plant` | `plants.py` | `write` | `plant` (input schema: `gm.plants.schema()`), `name` | `{design, problems}`; `gm.plants.validate(plant, on_error="record")` problems keep gemini's path, code and did-you-mean, and a plant with problems stores nothing; otherwise `gm.Plant.from_dict` is stored by `stored.save_design` | built |
-| `set_case` | `case.py` | `write` | `source=None, changes=None`: `source` is `project`, `origin` (the case the user gave, with its files) or none (the state's case); `changes` an RFC 7386 merge patch on the case | `{case, version}`; the state's `case` replaced and its files kept as `case/<file name>`; the project's case or the first case of a chat also becomes `case_origin`; a case `gm.Case.from_dict` rejects is an error with gemini's `path`, `code` and message | built |
-| `case_changes` | `origin.py` | `read` | none | `[{path, change, given, now}]`: every difference of the state's case from `case_origin` (`changed`, `removed`, `added`; `file <name>` for a file's content); `[]` when it is the case the user gave | built |
+| `set_case` | `case.py` | `write` | `source=None, changes=None, requirements=None, economics=None`: `source` is `project`, `origin` (the case the user gave, with its files) or none (the state's case); `changes` an RFC 7386 merge patch on the case, without `requirements` and `economics`; `requirements` `{name: requirement or null}` (add, replace or remove by name); `economics` a merge patch on the content of the economics file | `{case, version}`; the state's `case` replaced and its files kept as `case/<file name>`; the project's case or the first case of a chat also becomes `case_origin`; a case `gm.Case.from_dict` or `Case.check` rejects is an error with gemini's `path`, `code` and message and nothing is stored | built |
+| `case_changes` | `origin.py` | `read` | none | `[{path, change, given, now}]`: every difference of the state's case from `case_origin` (`changed`, `removed`, `added`; a section key, `requirements.<name>`, `file <name>` for a file's content, the economics file included); `[]` when it is the case the user gave | built |
 | `accept_case` | `origin.py` | `write` | none | `{version}`; `case_origin` becomes the state's case. Only the design loop's driver holds it, after the user approved the change | built |
-| `read_case` | `case.py` | `read` | `section=None`: a section of the case, or `schema` | the case, the section or `gm.Case.schema()`; no case is `invalid_input` | built |
+| `read_case` | `case.py` | `read` | `section=None`: a key of the case, `economics` or `schema` | the case, the section, the parsed economics file, or `gm.Case.schema()` with `economics_schema`; no case is `invalid_input` | built |
 | `list_profiles` | `runs.py` | `read` | none | `[{service, column, file_unit, supply_temperature, return_temperature, start, end, steps, peak}]`: the heating and cooling demand of the state's case, temperatures in degC and the peak in MW | built |
 | `read_profile` | `runs.py` | `read` | `service` (`heating` or `cooling`), `start=None`, `end=None` (ISO 8601, inclusive) | `{service, time, value, unit}` of the case's demand in MW | built |
-| `save_profile` | `case.py` | `write` | `name, values, unit, start, step, service`, all required: `unit` a unit of power, `step` `{value, unit}`, `service` `heating` or `cooling` | `{demand, steps, version}`; gemini checks the values (`gm.data.from_values`), they are written in `unit` as the column `name` of `<name>.csv` in the run's case files, the other service keeps its column, and the case's `demand` points at it; steps other than the case's `time` are gemini's error | built |
+| `save_profile` | `case.py` | `write` | `name, values, unit, start, step, service`, all required: `unit` a unit of power, `step` `{value, unit}`, `service` `heating` or `cooling` | `{demand, time, steps, version}`; gemini checks the values (`gm.case.from_values`), they are written in `unit` as the column `name` of `data/<name>.csv` (first column `time`) in the run's case files and the service's `power` becomes `{unit, file, column}`; a profile that does not cover the case's `time` sets it to the profile's span in the same call; gemini rejects a case that does not fit and nothing is stored | built |
 | `simulate` | `runs.py` | `compute` | `design=None, changes=None, start=None, end=None` | `{reference, summary}`; the run is stored; the summary gives the plant, the case's time span, the window, `steps`, `failed_steps` and the first `failures`, the `report` totals in display units, the `violated` constraints and the demand `coverage` | built |
 | `read_result` | `results.py` | `read` | `reference, path=None, field=None, start=None, end=None` (ISO 8601, inclusive) | `{time, value, unit}` with `path` and `field`, otherwise `{path: {field: {min, max, mean}}}`, in MW, degC, bar, m3/h and kg/s | built |
 | `search_documents` | `results.py` | `read` | `query` | `[{id, title, text, score}]` | built |
@@ -52,11 +52,11 @@ filling a stub, because gemini's names change.
 | `list_plants` | `gm.plants.names`, `gm.plants.get(name).describe()`, `gm.plants.capabilities` | real |
 | `read_plant` | `stored.load_design`, `gm.plants.get`, `plant.to_dict(structure=True)`, `plant.missing_parameters()` | real |
 | `build_plant` | `gm.plants.validate(plant, on_error="record")`, `gm.plants.schema`, `gm.Plant.from_dict` | real |
-| `set_case` | `gm.Case.from_dict` | real |
-| `read_case` | `gm.Case.schema` | real |
+| `set_case` | `gm.Case.from_dict`, `Case.check` | real |
+| `read_case` | `gm.Case.schema`, `gm.case.Economics.schema` | real |
 | `list_profiles` | `gm.Case` (`case.demand`), `gm.units.Quantity` | real |
 | `read_profile` | `gm.Case` (`case.demand.frame`), `gm.units.convert` | real |
-| `save_profile` | `gm.data.from_values`, `gm.units.Quantity`, `gm.Case.from_dict` | real |
+| `save_profile` | `gm.case.from_values`, `gm.units.Quantity`, `gm.Case.from_dict`, `Case.check` | real |
 | `simulate` | `gm.schedule`, `gm.simulate`, `gm.evaluate.report`, `totals`, `failures`, `plant.set_params`, `Results.to_bytes` | real |
 | `read_result` | `Results.get`, `Results.summary` through `load_run` | real |
 | `search_documents` | none: it reads `Workspace.documents` | built |
@@ -93,8 +93,9 @@ accept the `/`; `check_run_store` tests it. An artifact belongs to its root run.
   cannot change what a run stores. `<id>` is a hash of the plant, the case, the files' contents
   and the window, so the same run has the same reference. `read_result` loads it with `load_run`
   and reads `Results.get` and `summary`.
-- **A case file** is stored under `case/<file name>` as bytes (the CSV of the demand or of a
-  profile), one name and no folder. `set_case(source="project")` and `save_profile` write them;
+- **A case file** is stored under `case/<file name>` as bytes (a series CSV, a profile or
+  `economics.json`); the name is a relative path such as `data/demand.csv`. `set_case` and
+  `save_profile` write them;
   `case_of` reads them; `list_profiles`, `read_profile` and `simulate` read the case.
 
 `geomind/tools/gemini/stored.py` is the one contract of both: `save_design(context, name, plant)
@@ -121,8 +122,8 @@ case with `save_profile`.
 `gd.verify.verify(plant, results, case)` (`verify/` may import `tools`, not the other way). Every
 check, balance and number is gemini's (`gm.evaluate`) on the case the run ran on; there is no
 geomind limit, tolerance or brief. A limit is a constraint of the case (`set_case`), and a numeric
-requirement of the problem state is one too: `Requirement.constraint` names it by its `on`,
-`quantity`, `over` and `when`.
+requirement of the problem state is one too: `Requirement.case_requirement` names it by its
+`name`.
 
 - `assess` returns `{passed, constraints, failures, balances, metrics}`. `constraints` are the
   report's checks of the case's constraints and of the services' supply temperatures

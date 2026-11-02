@@ -11,7 +11,7 @@ from tests.fixtures.cases import example_case, example_names
 R1 = {
     "id": "R1",
     "text": "Cover the load",
-    "constraint": {"on": "heating_supply", "quantity": "unmet", "over": "max"},
+    "case_requirement": "heat_delivered",
 }
 A1 = {"id": "A1", "text": "Inlet temperature", "value": 80, "source": "user"}
 
@@ -140,7 +140,7 @@ def test_render_gives_one_line_per_item():
     assert render(state).splitlines() == [
         "Problem state, version 2",
         "Goal: Size it",
-        "Requirement R1 [open]: Cover the load (case constraint unmet on heating_supply)",
+        "Requirement R1 [open]: Cover the load (case requirement heat_delivered)",
         "Assumption A1 [unconfirmed, user]: Inlet temperature = 80",
         'Design: {"plant": "doublet"}',
         "Result X1: ok",
@@ -150,7 +150,7 @@ def test_render_gives_one_line_per_item():
     ]
 
 
-def test_render_keeps_a_requirement_without_a_constraint_short():
+def test_render_keeps_a_requirement_without_a_case_requirement_short():
     """Optional fields leave no trace."""
     state = apply_changes(
         ProblemState(),
@@ -192,18 +192,15 @@ def test_render_shows_the_case_briefly(name):
     state = apply_changes(ProblemState(), [{"op": "replace", "path": "/case", "value": case}])
     line = render(state).splitlines()[1]
     assert line.startswith(f"Case: time {case['time']['start']} to {case['time']['end']}")
-    assert "demand heating, cooling in demand.csv" in line
+    assert "demand heating in data/demand.csv, cooling in data/demand.csv" in line
     assert len(line) < 300
 
 
-def test_a_requirement_is_text_with_a_link_to_a_case_constraint_never_a_target():
-    """A number is a constraint of the case; the requirement keeps the words and its key."""
+def test_a_requirement_is_text_with_a_link_to_a_case_requirement_never_a_target():
+    """A number is a requirement of the case; the requirement keeps the words and its name."""
     state = with_items()
-    key = state.requirements[0].constraint
-    assert key.matches({"on": "heating_supply", "quantity": "unmet", "over": "max", "max": 1})
-    assert not key.matches({"on": "heating_supply", "quantity": "unmet", "over": "sum"})
-    assert not key.matches({"on": "cooling_supply", "quantity": "unmet", "over": "max"})
-    assert "(case constraint unmet on heating_supply)" in render(state)
+    assert state.requirements[0].case_requirement == "heat_delivered"
+    assert "(case requirement heat_delivered)" in render(state)
     with pytest.raises(StateError, match="metric"):
         apply_changes(
             ProblemState(),

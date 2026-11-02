@@ -1,9 +1,10 @@
 """The case of a run in gemini's terms: the tools that set, read and extend it.
 
 The problem state holds the case as given, the content of a ``case.json`` and the changes of the
-model, validated by ``gm.Case.from_dict`` and never written back from ``Case.to_dict`` (which does
-not round-trip the demand). The files the case names are run artifacts ``case/<file name>``, so
-the run store is the source of truth and a run does not depend on a project folder.
+model, validated by ``gm.Case.from_dict`` and ``Case.check`` and never written back from
+``Case.to_dict``. The files the case names (series such as ``data/demand.csv`` and its
+``economics.json``) are run artifacts ``case/<file name>``, so the run store is the source of truth
+and a run does not depend on a project folder.
 
 ``case_origin`` in the state is the case the user or the project gave, ``{case, files}`` with the
 files as ``{name: sha256}``, each kept by its content as ``<sha256>.file``. Verification fails a
@@ -15,20 +16,26 @@ case.
 import copy
 import hashlib
 import io
+import json
 import re
-import tempfile
-from pathlib import Path
 from typing import Any, Literal
 
 from geomind.errors import ToolError
+from geomind.stores.casefiles import case_files, is_safe_name, named_files
 from geomind.tools.base import tool
 from geomind.utils.strings import did_you_mean, join_names
 
 CASE_FILE = "case/"
 SERVICES = ("heating", "cooling")
 TIME_COLUMN = "time"
+TIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 PROFILE_NAME = re.compile(r"[A-Za-z0-9_-]+")
 SOURCES = ("project", "origin")
+OWN_ARGUMENTS = {
+    "requirements": "{name: requirement or null} to add, replace or remove one by name",
+    "economics": "a merge patch on the content of economics.json",
+}
+ECONOMICS_FILE = "economics.json"
 FILE = ".file"
 
 
@@ -45,21 +52,13 @@ def merge_patch(target, patch):
     return result
 
 
-def case_files(node):
-    """Return the names of the files a case dict names: every ``file`` of a section or profile."""
-    if isinstance(node, list):
-        return [name for item in node for name in case_files(item)]
-    if not isinstance(node, dict):
-        return []
-    named = [node["file"]] if isinstance(node.get("file"), str) else []
-    return named + [name for item in node.values() for name in case_files(item)]
-
-
 def checked_name(name):
-    """Return a file name of a case, which must be one name and no path."""
-    if not name or Path(name).name != name or name in (".", ".."):
+    """Return a file name of a case, which must be a relative path inside the case's folder."""
+    if not is_safe_name(name):
         raise ToolError(
-            f"case: file = {name!r}; expected a file name without a folder", path="demand.file"
+            f"case: file = {name!r}; expected a relative path such as 'data/demand.csv', not "
+            "absolute and without '..'",
+            path="file",
         )
     return name
 
@@ -77,14 +76,15 @@ def state_case(context):
 
 def file_contents(context, data, supplied):
     """Return ``{name: bytes}`` of the files ``data`` names: ``supplied``, else the run's own."""
-    files = {}
-    for name in map(checked_name, case_files(data)):
-        content = supplied.get(name)
-        if content is None:
-            content = context.session.load_artifact(f"{CASE_FILE}{name}")
-        if content is not None:
-            files[name] = content
-    return files
+    for name in case_files(data):
+        checked_name(name)
+
+    def read(name):
+        if name in supplied:
+            return supplied[name]
+        return context.session.load_artifact(f"{CASE_FILE}{name}")
+
+    return named_files(data, read)
 
 
 def digests(files):
@@ -105,13 +105,31 @@ def kept_files(context, named):
 
 
 def build_case(data, files):
-    """Return the ``gm.Case`` of a case dict, its files written to a folder for gemini to read."""
+    """Return the ``gm.Case`` of a case dict and the bytes of the files it names."""
     import gemini as gm
 
-    with tempfile.TemporaryDirectory() as folder:
-        for name, content in files.items():
-            (Path(folder) / name).write_bytes(content)
-        return gm.Case.from_dict(copy.deepcopy(data), folder)
+    return gm.Case.from_dict(copy.deepcopy(data), files=files)
+
+
+def checked_case(data, files):
+    """Return the ``gm.Case`` of a case dict, or raise gemini's error for its first problem.
+
+    ``Case.from_dict`` raises on what it cannot read; ``Case.check`` finds the rest.
+    """
+    import gemini as gm
+
+    case = build_case(data, files)
+    issues = case.check()
+    if issues:
+        first = issues[0].problem()
+        raise gm.errors.ValidationError(
+            first["message"],
+            path=first["path"],
+            code=first["code"],
+            suggestions=first["suggestions"],
+            problems=[issue.problem() for issue in issues],
+        )
+    return case
 
 
 def case_of(context):
@@ -127,10 +145,10 @@ async def store_case(context, data, supplied, origin=None):
     """Validate a case dict with its files, keep the files and the case; return the version.
 
     ``origin`` is ``(case dict, files)`` of the case the user or the project gave, kept as the
-    state's ``case_origin``; ``None`` leaves the origin as it is.
+    state's ``case_origin``; ``None`` leaves the origin as it is. A rejected case stores nothing.
     """
     files = file_contents(context, data, supplied)
-    build_case(data, files)
+    checked_case(data, files)
     for name in supplied.keys() & files.keys():
         await context.session.save_artifact(f"{CASE_FILE}{name}", supplied[name])
     changes = [{"op": "replace", "path": "/case", "value": data}]
@@ -158,22 +176,16 @@ def project_case(context):
             code="unknown_name",
             path="source",
         )
-    data, folder = found
-    files = {name: project_file(folder, name) for name in map(checked_name, case_files(data))}
-    return copy.deepcopy(data), files
-
-
-def project_file(folder, name):
-    """Return the bytes of a file the project's case names, or raise naming the file."""
-    path = Path(folder) / name
-    if not path.is_file():
-        raise ToolError(
-            f"set_case: the project's case names the file {name!r}, which the project does not "
-            "have; expected the file beside its case.json, or ask_user for it",
-            code="unknown_name",
-            path="source",
-        )
-    return path.read_bytes()
+    data, files = found
+    for name in map(checked_name, case_files(data)):
+        if name not in files:
+            raise ToolError(
+                f"set_case: the project's case names the file {name!r}, which the project does "
+                "not have; expected the file beside its case.json, or ask_user for it",
+                code="unknown_name",
+                path="source",
+            )
+    return copy.deepcopy(data), dict(files)
 
 
 def origin_case(context):
@@ -203,29 +215,96 @@ def base_case(context, source):
     )
 
 
+def checked_changes(changes):
+    """Return ``changes`` if it leaves ``requirements`` and ``economics`` to their own argument."""
+    for key, form in OWN_ARGUMENTS.items():
+        if key in changes:
+            raise ToolError(
+                f"set_case: changes has {key!r}; expected the argument {key!r}: {form}",
+                path=f"changes.{key}",
+            )
+    return changes
+
+
+def edited_requirements(current, edits):
+    """Return the requirement list with ``edits`` ``{name: dict | None}`` applied by name."""
+    items = copy.deepcopy(current or [])
+    names = [item.get("name") for item in items]
+    for name, value in edits.items():
+        if value is not None and not isinstance(value, dict):
+            raise ToolError(
+                f"set_case: requirements.{name} = {value!r}; expected a requirement object or null",
+                path=f"requirements.{name}",
+            )
+        if value is None and name not in names:
+            raise ToolError(
+                f"set_case: requirements.{name}; expected a requirement the case has: "
+                f"{join_names(names)}{did_you_mean(name, names)}",
+                code="unknown_name",
+                path=f"requirements.{name}",
+            )
+        if value is None:
+            items = [item for item in items if item.get("name") != name]
+        elif name in names:
+            items[names.index(name)] = {**value, "name": name}
+        else:
+            items.append({**value, "name": name})
+        names = [item.get("name") for item in items]
+    return items
+
+
+def edited_economics(context, data, supplied, patch):
+    """Set the economics of ``data`` by a merge ``patch``; return the files with the new content.
+
+    The economics file is stored whole as a new content, under the name the case gives it (or
+    ``economics.json`` for a case that has none); an economics written inline is patched in place.
+    """
+    named = data.get("economics")
+    if isinstance(named, dict):
+        data["economics"] = merge_patch(named, patch)
+        return supplied
+    name = checked_name(named or ECONOMICS_FILE)
+    data["economics"] = name
+    current = file_contents(context, data, supplied).get(name)
+    content = json.loads(current) if current is not None else {}
+    text = json.dumps(merge_patch(content, patch), indent=2, ensure_ascii=False)
+    return {**supplied, name: text.encode()}
+
+
 @tool(effect="write", idempotent=False, reruns_in_replay=True)
-async def set_case(context, source: str | None = None, changes: dict[str, Any] | None = None):
+async def set_case(
+    context,
+    source: str | None = None,
+    changes: dict[str, Any] | None = None,
+    requirements: dict[str, dict[str, Any] | None] | None = None,
+    economics: dict[str, Any] | None = None,
+):
     """Set the case of the problem state: the project's case, changes to it, or both.
 
     ``source`` is ``project`` to load the project's ``case.json`` and its files, ``origin`` to go
     back to the case the user or the project gave, or omitted to start from the state's case (an
     empty one when it has none). ``changes`` is a JSON merge patch (RFC 7386) on the case: an
-    object merges into the case, a value replaces, null removes a key. The sections are ``time``,
-    ``environment``, ``demand``, ``choices``, ``constraints``, ``assumptions`` and
-    ``uncertainty``; ``read_case(section="schema")`` is the exact schema. gemini validates the
-    result: a rejected case comes back with the path and message to fix, and nothing is stored.
-    The project's case, or the first case of a chat, is the case the user gave; a design is
-    verified only on it, so any later change of it waits for the user's approval. Returns the case
-    and the state version.
+    object merges into the case, a value replaces, null removes a key; it never holds
+    ``requirements`` or ``economics``. ``requirements`` is ``{name: requirement or null}``: a
+    requirement object adds or replaces the one of that name, null removes it, and the others stay.
+    ``economics`` is a merge patch on the content of the case's economics file. The sections are
+    in ``read_case(section="schema")``, the exact schema. gemini validates the result: a rejected
+    case comes back with the path and message to fix, and nothing is stored. The project's case, or
+    the first case of a chat, is the case the user gave; a design is verified only on it, so any
+    later change of it, economics included, waits for the user's approval. Returns the case and
+    the state version.
     """
     base, supplied = base_case(context, source)
-    data = merge_patch(base, changes or {})
-    origin = given_case(context, source, (base, supplied), data)
-    version = await store_case(context, data, supplied, origin)
+    data = merge_patch(base, checked_changes(changes or {}))
+    if requirements:
+        data["requirements"] = edited_requirements(data.get("requirements"), requirements)
+    files = edited_economics(context, data, supplied, economics) if economics else supplied
+    origin = given_case(context, source, (base, supplied), (data, files))
+    version = await store_case(context, data, files, origin)
     return {"case": data, "version": version}
 
 
-def given_case(context, source, base, data):
+def given_case(context, source, base, current):
     """Return ``(case dict, files)`` that ``set_case`` keeps as the origin, or ``None``.
 
     The project's case is the origin, without the changes of the same call; the first case of a
@@ -234,24 +313,43 @@ def given_case(context, source, base, data):
     if source == "project":
         return base[0], file_contents(context, base[0], base[1])
     if source is None and context.problem.case_origin is None:
-        return data, file_contents(context, data, {})
+        return current[0], file_contents(context, *current)
     return None
+
+
+def economics_of(context, data):
+    """Return the parsed economics of a case dict: its file's content, or the inline object."""
+    named = data.get("economics")
+    if isinstance(named, dict):
+        return named
+    content = file_contents(context, data, {}).get(named) if named else None
+    if content is None:
+        raise ToolError(
+            "read_case: the case has no economics file in the run; expected set_case with the "
+            "economics",
+            code="unknown_name",
+            path="section",
+        )
+    return json.loads(content)
 
 
 @tool(effect="read")
 def read_case(context, section: str | None = None):
-    """Return the case of the problem state, one of its sections, or gemini's case schema.
+    """Return the case of the problem state, one of its sections, its economics or the schema.
 
-    ``section`` is ``time``, ``environment``, ``demand``, ``choices``, ``constraints``,
-    ``assumptions``, ``uncertainty``, or ``schema`` for the JSON Schema of a case.
+    ``section`` is a key of the case (``time``, ``site``, ``demand``, ``utilities``,
+    ``requirements``, ``initial_state``), ``economics`` for the content of the economics file, or
+    ``schema`` for the JSON Schema of a case (and of the economics under ``economics_schema``).
     """
     import gemini as gm
 
     if section == "schema":
-        return gm.Case.schema()
+        return {**gm.Case.schema(), "economics_schema": gm.case.Economics.schema()}
     data = state_case(context)
     if section is None:
         return data
+    if section == "economics":
+        return economics_of(context, data)
     if section not in data:
         names = sorted(gm.Case.schema()["properties"])
         raise ToolError(
@@ -262,33 +360,11 @@ def read_case(context, section: str | None = None):
     return data[section]
 
 
-def other_columns(case, service, frame):
-    """Return ``{service: (column, values in W)}`` of the other services of ``case``."""
-    others = {}
-    if case.demand is None:
-        return others
-    for name in SERVICES:
-        given = getattr(case.demand, name)
-        if name != service and given is not None:
-            if not case.demand.frame.index.equals(frame.index):
-                raise ToolError(
-                    f"save_profile: the case's {name} demand is on other steps than the profile; "
-                    f"expected the same steps, or remove it with set_case changes "
-                    f"{{'demand': {{'{name}': null}}}}",
-                    path="start",
-                )
-            others[name] = (given.column, case.demand.frame[f"{name}_demand"])
-    return others
-
-
-def profile_csv(frame, name, values, others):
-    """Return the CSV text of the new column, the time and the columns of the other services."""
+def profile_csv(frame, name, values):
+    """Return the CSV bytes of a profile: the ``time`` column of ``frame`` and the ``values``."""
     import pandas as pd
 
-    table = pd.DataFrame({TIME_COLUMN: [moment.isoformat() for moment in frame.index]})
-    table[name] = list(values)
-    for column, series in others.values():
-        table[column] = series.to_numpy()
+    table = pd.DataFrame({TIME_COLUMN: frame.index.strftime(TIME_FORMAT), name: list(values)})
     buffer = io.StringIO()
     table.to_csv(buffer, index=False)
     return buffer.getvalue().encode()
@@ -315,6 +391,24 @@ def step_seconds(step):
     return gm.units.Quantity(step["value"], step["unit"]).to("s").value
 
 
+def followed_time(case, frame, step):
+    """Return the case's ``time`` made to follow the profile ``frame``, or ``None`` if it covers.
+
+    A profile that starts after the case's start or ends before its end does not cover the case's
+    time; the time then becomes the profile's own span and step.
+    """
+    import pandas as pd
+
+    end = frame.index[-1] + pd.Timedelta(seconds=step_seconds(step))
+    if frame.index[0] <= case.time.start and end >= case.time.end:
+        return None
+    return {
+        "start": frame.index[0].strftime(TIME_FORMAT),
+        "end": end.strftime(TIME_FORMAT),
+        "step": step,
+    }
+
+
 @tool(effect="write", idempotent=False, reruns_in_replay=True)
 async def save_profile(
     context,
@@ -330,21 +424,25 @@ async def save_profile(
     ``values`` are the demand of the ``service`` (heating or cooling), one per step in the power
     unit ``unit`` (such as ``MW``), from the ISO 8601 time ``start`` at a constant ``step``, given
     as ``{"value": 1, "unit": "d"}``. gemini checks them (finite, not negative). They are written
-    to the run's case files as the column ``name`` of ``<name>.csv``, in ``unit``, and the case's
-    ``demand`` points at it; the temperatures of the service and its other service are kept. The
-    steps must be those of the case's ``time``: set that first with set_case.
+    to the run's case files as ``data/<name>.csv`` with a ``time`` column and the column ``name``,
+    in ``unit``, and the ``power`` of the service points at it; the rest of the demand is kept. A
+    profile that does not cover the case's ``time`` sets the time to the profile's own span and
+    step, in the same call. The service's temperatures and the other series must fit the result:
+    gemini rejects the case otherwise and nothing is stored.
     """
     import gemini as gm
 
     check_profile_name(name)
     quantity = f"{service}_demand"
-    frame = gm.data.from_values(values, unit, start, step_seconds(step), quantity)
+    frame = gm.case.from_values(values, unit, start, step_seconds(step), quantity)
     case = case_of(context)
-    others = other_columns(case, service, frame)
-    file = f"{name}.csv"
-    demand = {"file": file, "time_column": TIME_COLUMN, service: {"column": name, "unit": unit}}
-    demand.update({other: {"column": column, "unit": "W"} for other, (column, _) in others.items()})
-    data = merge_patch(state_case(context), {"demand": demand})
-    supplied = {file: profile_csv(frame, name, values, others)}
-    version = await store_case(context, data, supplied)
-    return {"demand": data["demand"], "steps": len(values), "version": version}
+    data = state_case(context)
+    file = f"data/{name}.csv"
+    demand = data.setdefault("demand", {})
+    demand.setdefault(service, {})["power"] = {"unit": unit, "file": file, "column": name}
+    time = followed_time(case, frame, step)
+    if time is not None:
+        data["time"] = time
+    version = await store_case(context, data, {file: profile_csv(frame, name, values)})
+    shown = {"demand": data["demand"], "time": data["time"]}
+    return {**shown, "steps": len(values), "version": version}

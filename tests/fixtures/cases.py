@@ -1,40 +1,79 @@
-"""gemini's example cases: where they are and what they hold, for tests that read a case."""
+"""gemini's example projects: where they are and what they hold, for tests that read a case."""
 
+import copy
 import json
+from functools import cache
 from pathlib import Path
 
 import pytest
 
+from geomind.stores.casefiles import named_files
+
 EXAMPLES = ("hackathon_2026", "shallow_district")
 SHALLOW_PEAK_HEATING = 3.034e6
 """The heating peak of ``shallow_district``, in W: its CSV is in kW."""
+PLANTS = {"hackathon_2026": "HackathonPlant", "shallow_district": "HeatingHeatPumpCoolingPlant"}
+"""The plant file of each example that the tests simulate."""
 
 
 def example_folder(name):
-    """Return the folder of one of gemini's example cases."""
+    """Return the folder of one of gemini's example projects."""
     import gemini as gm
 
-    return Path(gm.__file__).resolve().parents[1] / "inputs/examples" / name
+    return Path(gm.__file__).resolve().parents[1] / "examples" / name
+
+
+@cache
+def read_example(name):
+    """Return ``(case.json text, {file name: bytes})`` of an example, read once."""
+    folder = example_folder(name)
+    text = (folder / "case.json").read_text()
+    files = named_files(
+        json.loads(text),
+        lambda file: (folder / file).read_bytes() if (folder / file).is_file() else None,
+    )
+    return text, files
 
 
 def example_case(name):
-    """Return ``(case dict, folder)`` of an example, the dict as its ``case.json`` holds it."""
+    """Return ``(case dict, {file name: bytes})`` of an example: its series and economics.json."""
+    text, files = read_example(name)
+    return json.loads(text), copy.copy(files)
+
+
+@cache
+def read_plants(name):
+    """Return ``{plants/<file>: bytes}`` of the plant files of an example."""
     folder = example_folder(name)
-    return json.loads((folder / "case.json").read_text()), folder
+    return {
+        f"plants/{path.name}": path.read_bytes()
+        for path in sorted((folder / "plants").glob("*.json"))
+    }
+
+
+def example_plant_files(name):
+    """Return ``{plants/<file>: bytes}`` of the plant files of an example."""
+    return copy.copy(read_plants(name))
+
+
+def example_plant(name, plant=None):
+    """Return a new gemini plant of an example: ``plant`` names a file in ``plants/``."""
+    import gemini as gm
+
+    file = f"plants/{plant or PLANTS[name]}.json"
+    return gm.Plant.from_dict(json.loads(read_plants(name)[file]))
 
 
 example_names = pytest.mark.parametrize("name", EXAMPLES)
 
 
-PLANTS = {"hackathon_2026": "plants/HackathonPlant.json", "shallow_district": "plant.json"}
-"""The plant of each example that passes its case; the hackathon one was found by hand."""
-
-
-def example_plant(name, plant=None):
-    """Return a new gemini plant of an example: ``plant`` names a file, else the passing one."""
+def warm_gemini():
+    """Import gemini and build both examples once, so no timed test call pays for the import."""
     import gemini as gm
 
-    return gm.Plant.from_json(example_folder(name) / (plant or PLANTS[name]))
+    for name in EXAMPLES:
+        data, files = example_case(name)
+        gm.Case.from_dict(data, files=files)
 
 
 async def case_context(name, session=None, project=None):
@@ -44,8 +83,7 @@ async def case_context(name, session=None, project=None):
     from tests.fixtures.sessions import StubSession
 
     session = session or StubSession()
-    data, folder = example_case(name)
-    for file in (data.get("demand") or {}).get("file", "").split():
-        await session.save_artifact(f"case/{file}", (folder / file).read_bytes())
-    problem = ProblemState(case=data)
-    return Context(session=session, problem=problem, project=project)
+    data, files = example_case(name)
+    for file, content in files.items():
+        await session.save_artifact(f"case/{file}", content)
+    return Context(session=session, problem=ProblemState(case=data), project=project)

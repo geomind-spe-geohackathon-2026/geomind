@@ -18,11 +18,7 @@
   ],
   "requirements": [
     {
-      "constraint": {
-        "on": "heating_supply",
-        "over": "max",
-        "quantity": "unmet"
-      },
+      "case_requirement": "heat_delivered",
       "id": "R1",
       "status": "open",
       "text": "Cover peak heat"
