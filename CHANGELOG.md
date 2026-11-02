@@ -29,6 +29,10 @@ Studies the app can list. A new required tool argument; the coordinator sets the
 - A log of 0.3.1 without `study.recorded` loads, replays and exports. Recorded model calls of
   `run_study`, `sample_uncertainty` and `sensitivity` from 0.3.1 lack the new `name`, so the
   recordings of this repository carry one (`families`, `draws`).
+- Fix: `Engine.replay` matches a run's recorded results by step and call id, not by call id alone.
+  A model that reuses an id in a later step (`explainer/unverified`, `analyst/module_lookup`) no
+  longer gets the input of the later call at the earlier step. New test replaying every eval
+  recording.
 
 ## [0.3.1] - 2026-11-02
 

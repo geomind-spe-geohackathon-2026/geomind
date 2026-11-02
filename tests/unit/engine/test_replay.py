@@ -51,6 +51,15 @@ async def test_replay_passes_without_network():
     assert (replayed.answer, replayed.steps) == ("end", 2)
 
 
+async def test_a_call_id_reused_in_a_later_step_replays():
+    """Ids are unique in one completion only: a later step may reuse one with another input."""
+    result, engine, _ = await run(
+        [uses(call("lookup", "c1", key="a")), uses(call("lookup", "c1", key="b")), says("end")]
+    )
+    replayed = await Engine.replay(engine.store, result.run_id)
+    assert (replayed.answer, replayed.steps) == ("end", 3)
+
+
 async def test_read_and_compute_run_again_and_others_do_not():
     """Only pure tools execute in a replay."""
     result, engine, _ = await run(
@@ -350,8 +359,8 @@ def delegated_log():
 def test_parallel_delegates_keep_their_own_state_changes():
     """A nested run's state changes belong to the call that started it, not to every open call."""
     changes = _nested_changes(delegated_log(), "root")
-    assert [change[0]["value"]["by"] for change in changes["a"]] == ["from a"]
-    assert [change[0]["value"]["by"] for change in changes["b"]] == ["from b"]
+    assert [change[0]["value"]["by"] for change in changes[(1, "a")]] == ["from a"]
+    assert [change[0]["value"]["by"] for change in changes[(1, "b")]] == ["from b"]
 
 
 async def replayed_log(engine, run_id):
@@ -420,7 +429,7 @@ def test_nested_runs_are_matched_to_their_call_by_step_and_task():
     """Calls of one step keep their own nested run, whatever the order of the log."""
     from geomind.engine.replay import _children
 
-    assert _children(delegated_log(), "root") == {"a": "child-a", "b": "child-b"}
+    assert _children(delegated_log(), "root") == {(1, "a"): "child-a", (1, "b"): "child-b"}
 
 
 class Middle(Agent):

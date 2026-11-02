@@ -213,6 +213,10 @@ geomind run "<the brief>" --loop design --project <case folder> --mode auto --ma
 `geomind run --mode auto` with the real provider and neither `--max-cost` nor `--max-tokens`
 refuses to start. A recording needs no cap.
 
+`tests/integration/test_eval_replay.py` runs every task of `evals/recordings/` into a store and
+replays it (single agents in the fast tier, the `challenge2` and `compare` loop suites `slow`), so
+a recording that stops replaying fails in CI.
+
 What to check in the answer: the verdict is feasible; the assumptions are listed (agent choices
 with `confirmed: false` and a reason); costs are in display units, not SI; `geomind show <run>
 --format md` shows the token table by agent and step, and the total stays under the cap (a run over
