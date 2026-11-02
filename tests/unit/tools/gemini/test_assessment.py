@@ -9,7 +9,6 @@ import geomind as gd
 from tests.fixtures.calls import call
 from tests.fixtures.cases import EXAMPLES, example_names
 from tests.fixtures.stored_runs import stored_run, variant_run, warm_runs
-from tests.fixtures.stubs import check_stub
 
 TOOLS = gd.tools.gemini
 
@@ -37,11 +36,6 @@ def warmed():
 def assessed(tool, name, variant):
     """Return the output of a tool on the stored run of a variant, once per process."""
     return asyncio.run(assess(getattr(TOOLS, tool), name, variant)).output
-
-
-async def test_the_module_test_says_when_it_comes():
-    """It has its final signature and a phase."""
-    await check_stub(TOOLS.test_module, {"path": "module.py"}, "execute", "S3")
 
 
 async def assess_in(context, tool, result, **tool_input):

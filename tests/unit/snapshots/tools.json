@@ -101,7 +101,7 @@
       "name": "ask_user"
     },
     "build_plant": {
-      "description": "Validate a plant dict and store it as design/<name>; a plant with problems is not stored.",
+      "description": "Build a plant from a plant file and store it as design/<name>; return its issues.",
       "effect": "write",
       "idempotent": true,
       "input_schema": {
@@ -143,7 +143,7 @@
       "name": "case_changes"
     },
     "check_results": {
-      "description": "Check stored results against the case they ran on: gemini's report, balances and failures.",
+      "description": "Check stored results against the case they ran on: gemini's verdict and report.",
       "effect": "compute",
       "idempotent": true,
       "input_schema": {
@@ -274,7 +274,7 @@
       "name": "estimate_costs"
     },
     "evaluate_module": {
-      "description": "Run one module at one point and return its outlets and outputs in readable units.",
+      "description": "Run one module at one point in display units; every inlet needs a fluid.",
       "effect": "compute",
       "idempotent": true,
       "input_schema": {
@@ -292,6 +292,19 @@
             ],
             "default": null,
             "title": "Controls"
+          },
+          "dt": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Dt"
           },
           "inlets": {
             "anyOf": [
@@ -317,6 +330,19 @@
             "additionalProperties": true,
             "title": "Parameters",
             "type": "object"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "State"
           }
         },
         "required": [
@@ -376,7 +402,7 @@
       "name": "list_modules"
     },
     "list_plants": {
-      "description": "List the plant classes with their summary, and what each can do.",
+      "description": "List the plant classes with their summary, capabilities (with ranges) and roles.",
       "effect": "read",
       "idempotent": true,
       "input_schema": {
@@ -408,22 +434,6 @@
       "input_schema": {
         "additionalProperties": false,
         "properties": {
-          "constraints": {
-            "anyOf": [
-              {
-                "items": {
-                  "additionalProperties": true,
-                  "type": "object"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Constraints"
-          },
           "design": {
             "title": "Design",
             "type": "string"
@@ -440,20 +450,16 @@
             "title": "Objective",
             "type": "string"
           },
-          "variables": {
-            "items": {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            "title": "Variables",
-            "type": "array"
+          "seed": {
+            "title": "Seed",
+            "type": "integer"
           }
         },
         "required": [
           "design",
           "objective",
-          "variables",
           "evaluations",
+          "seed",
           "name"
         ],
         "title": "optimize_input",
@@ -463,7 +469,7 @@
       "name": "optimize"
     },
     "read_case": {
-      "description": "Return the case of the problem state, one of its sections, or gemini's case schema.",
+      "description": "Return the case of the problem state, one of its sections, its economics or the schema.",
       "effect": "read",
       "idempotent": true,
       "input_schema": {
@@ -510,7 +516,7 @@
       "name": "read_file"
     },
     "read_plant": {
-      "description": "Read a plant: the project's, a stored design ``design/<name>`` or a plant class by name.",
+      "description": "Read the project's plant, a stored design or a plant class: file, ranges, issues.",
       "effect": "read",
       "idempotent": true,
       "input_schema": {
@@ -527,6 +533,18 @@
             ],
             "default": null,
             "title": "Design"
+          },
+          "plant_class": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Plant Class"
           }
         },
         "title": "read_plant_input",
@@ -691,6 +709,120 @@
       "late_schemas": [],
       "name": "run_python"
     },
+    "run_study": {
+      "description": "Run one study over several stored designs on the state's case and rank them.",
+      "effect": "compute",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "designs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Designs",
+            "type": "array"
+          },
+          "evaluations": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Evaluations"
+          },
+          "method": {
+            "enum": [
+              "run",
+              "minimize",
+              "sample",
+              "sensitivity"
+            ],
+            "title": "Method",
+            "type": "string"
+          },
+          "metrics": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Metrics"
+          },
+          "objective": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Objective"
+          },
+          "prepare": {
+            "anyOf": [
+              {
+                "items": {
+                  "const": "size",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Prepare"
+          },
+          "samples": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Samples"
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Seed"
+          }
+        },
+        "required": [
+          "designs",
+          "method"
+        ],
+        "title": "run_study_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "run_study"
+    },
     "sample_uncertainty": {
       "description": "Sample a stored design over the uncertainty the case declares; return a summary per metric.",
       "effect": "compute",
@@ -698,10 +830,6 @@
       "input_schema": {
         "additionalProperties": false,
         "properties": {
-          "count": {
-            "title": "Count",
-            "type": "integer"
-          },
           "design": {
             "title": "Design",
             "type": "string"
@@ -713,6 +841,10 @@
             "title": "Metrics",
             "type": "array"
           },
+          "samples": {
+            "title": "Samples",
+            "type": "integer"
+          },
           "seed": {
             "title": "Seed",
             "type": "integer"
@@ -721,7 +853,7 @@
         "required": [
           "design",
           "metrics",
-          "count",
+          "samples",
           "seed"
         ],
         "title": "sample_uncertainty_input",
@@ -854,6 +986,42 @@
             "default": null,
             "title": "Changes"
           },
+          "economics": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Economics"
+          },
+          "requirements": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": true,
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Requirements"
+          },
           "source": {
             "anyOf": [
               {
@@ -872,6 +1040,57 @@
       },
       "late_schemas": [],
       "name": "set_case"
+    },
+    "set_ranges": {
+      "description": "Put search ranges and options on the leaves of a design; store it as design/<name>.",
+      "effect": "write",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "design": {
+            "title": "Design",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "items": {},
+                  "type": "array"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Options"
+          },
+          "ranges": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Ranges",
+            "type": "object"
+          }
+        },
+        "required": [
+          "design",
+          "ranges",
+          "name"
+        ],
+        "title": "set_ranges_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "set_ranges"
     },
     "simulate": {
       "description": "Simulate a plant on the state's case and store the results; return a reference and summary.",
@@ -946,14 +1165,6 @@
       "input_schema": {
         "additionalProperties": false,
         "properties": {
-          "backup": {
-            "enum": [
-              "peak",
-              "none"
-            ],
-            "title": "Backup",
-            "type": "string"
-          },
           "design": {
             "title": "Design",
             "type": "string"
@@ -965,7 +1176,6 @@
         },
         "required": [
           "design",
-          "backup",
           "name"
         ],
         "title": "size_plant_input",
@@ -975,19 +1185,32 @@
       "name": "size_plant"
     },
     "test_module": {
-      "description": "Check an agent-written module file in the sandbox and return gemini's report.",
+      "description": "Check a stored module with gemini's module check in the docker sandbox; return its report.",
       "effect": "execute",
       "idempotent": true,
       "input_schema": {
         "additionalProperties": false,
         "properties": {
-          "path": {
-            "title": "Path",
+          "example": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Example"
+          },
+          "name": {
+            "title": "Name",
             "type": "string"
           }
         },
         "required": [
-          "path"
+          "name"
         ],
         "title": "test_module_input",
         "type": "object"
@@ -1045,6 +1268,32 @@
       },
       "late_schemas": [],
       "name": "write_file"
+    },
+    "write_module": {
+      "description": "Store a gemini module you wrote as the artifact ``module/<name>.py`` and return its name.",
+      "effect": "write",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "code"
+        ],
+        "title": "write_module_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "write_module"
     }
   },
   "version": "0.2.0"
