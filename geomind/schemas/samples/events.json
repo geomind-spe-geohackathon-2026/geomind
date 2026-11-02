@@ -100,7 +100,7 @@
   "step.started": {
     "agent": "analyst",
     "index": 1,
-    "model": "anthropic/claude-sonnet-5.5",
+    "model": "deepseek/deepseek-v4.1-flash-1017",
     "parent": null,
     "run_id": "run-1",
     "sequence": 1,

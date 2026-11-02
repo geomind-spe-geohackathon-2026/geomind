@@ -8,11 +8,11 @@ import httpx
 from geomind import runtime
 from geomind.errors import ProviderError
 from geomind.types import Completion, ToolCall, Usage
+from geomind.utils.models import BASE_URL, fetch_context_windows
 
-BASE_URL = "https://openrouter.ai/api/v1"
+__all__ = ["BASE_URL", "INVALID_ARGUMENTS", "OpenRouter", "fetch_context_windows"]
+
 INVALID_ARGUMENTS = "invalid_json_arguments"
-CACHED_MODELS = ("anthropic/",)
-"""Model prefixes whose prompt is cached with a ``cache_control`` breakpoint."""
 
 
 def is_retryable_status(status):
@@ -38,13 +38,17 @@ def _message_json(message):
 
 
 def _with_cache_breakpoint(messages, model):
-    """Return wire messages with the first system message cached, for a model that caches.
+    """Return wire messages with the first system message cached, for a model that needs it.
+
+    Only a model id starting with a prefix of ``cache_marked_models`` gets a breakpoint; providers
+    that cache on their own, such as DeepSeek, are sent nothing.
 
     NOTE: the prompt is cached in the order tools, system, messages, so one breakpoint at the end
     of the agent's system prompt caches the tool schemas too. The rendered problem state, a later
     system message, changes with every call and is never cached.
     """
-    if not runtime.get("prompt_caching") or not model.startswith(CACHED_MODELS):
+    prefixes = runtime.get("cache_marked_models")
+    if not runtime.get("prompt_caching") or not prefixes or not model.startswith(tuple(prefixes)):
         return messages
     position = next((i for i, item in enumerate(messages) if item["role"] == "system"), None)
     if position is None or not messages[position]["content"]:
@@ -154,6 +158,8 @@ class OpenRouter:
     ``transport`` replaces the network, for tests.
     """
 
+    needs_models = True
+
     def __init__(self, api_key=None, base_url=BASE_URL, transport=None):
         """Read ``OPENROUTER_API_KEY`` when no key is given."""
         self.api_key = api_key or os.environ.get("OPENROUTER_API_KEY")
@@ -185,8 +191,17 @@ class OpenRouter:
             body["provider"] = {"order": list(providers)}
         return body
 
+    @staticmethod
+    def _missing():
+        """Return the settings to set, for the refusal of a call without a model."""
+        return " and ".join(runtime.missing_model_settings()) or "a model for the agent"
+
     async def complete(self, messages, tools, *, model, settings, on_text=None):
         """Return the completion of one streamed call."""
+        if model is None:
+            raise ProviderError(
+                f"OpenRouter: model = None; expected a model: set {self._missing()}"
+            )
         stream = _Stream(on_text)
         headers = {"Authorization": f"Bearer {self.api_key}"}
         client = httpx.AsyncClient(

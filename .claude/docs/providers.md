@@ -28,14 +28,22 @@ given, and raises `ProviderError` when there is none. It streams with `httpx.Asy
 `request_timeout` setting, and fills `Usage`, including cost, from the response. HTTP and API errors
 raise `ProviderError` with `status` and the message; 429, 5xx, timeouts and connection failures are
 retryable. Tool arguments that are not valid JSON stay visible as `{invalid_json_arguments: text}`,
-so validation sends them back to the model. `transport` replaces the network in tests.
+so validation sends them back to the model. `transport` replaces the network in tests. The engine refuses a run on a provider with `needs_models = True` (`OpenRouter`, also through
+`Recorder` and the retry layer) before `run.started` when a role has no model. A call
+with `model=None` raises `ProviderError` naming the unset `GEOMIND_MODEL` / `GEOMIND_CHEAP_MODEL`
+before any request. `geomind.utils.models.fetch_context_windows()` reads `context_length` of every
+model from the public list.
 
 **Provider routing.** When the setting `provider` is a list of provider slugs, the request sends
 `provider: {"order": [...]}`, so OpenRouter tries those providers first, in that order, and falls
 back to others as usual. `None` (the default) sends no `provider` field.
 
-**Prompt caching.** With the setting `prompt_caching` (on by default), a request to a model of
-`CACHED_MODELS` (`anthropic/`) sends its first system message, the agent's prompt, as one text
+**Prompt caching.** OpenRouter caches DeepSeek, OpenAI, Grok, Moonshot, Groq and Z.AI prompts
+automatically, so geomind sends them nothing ([OpenRouter docs](https://openrouter.ai/docs/features/prompt-caching)).
+A provider that needs explicit breakpoints (Gemini, Qwen) is named in `cache_marked_models`. With
+`prompt_caching` (on by default), a request to a model of
+the setting `cache_marked_models` (model id prefixes; unset means none) sends, for a model with
+such a prefix, its first system message, the agent's prompt, as one text
 part with `cache_control: {"type": "ephemeral"}` (five minutes). The prompt is cached in the order
 tools, system, messages, so this one breakpoint caches the tool schemas too; OpenRouter documents
 breakpoints on content parts, not on tools, so none is set on a tool. The rendered problem state,

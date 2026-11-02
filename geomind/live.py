@@ -5,11 +5,11 @@ import os
 import httpx
 
 from geomind import runtime
-from geomind.providers.openrouter import BASE_URL
+from geomind.utils.models import BASE_URL, LIST_TIMEOUT
 
 KEY_NAME = "OPENROUTER_API_KEY"
-ROLES = ("analyst", "coordinator", "designer", "economist", "explainer", "summarizer", "verifier")
-LIST_TIMEOUT = 15.0
+ROLES = runtime.ROLES
+FORBIDDEN_PREFIX = "anthropic/"
 
 
 def fetch_model_ids():
@@ -20,8 +20,27 @@ def fetch_model_ids():
 
 
 def role_models():
-    """Return the model id of each role from the runtime settings, the default where unset."""
-    return {role: runtime.get(f"{role}_model") or runtime.get("default_model") for role in ROLES}
+    """Return the model id of each role from the runtime settings; ``None`` where none is set."""
+    return runtime.role_models()
+
+
+def _role_lines():
+    """Return one line per role with the model it would use."""
+    lines = []
+    for role, model in role_models().items():
+        lines.append(f"role {role}: {model or 'NOT SET'}")
+    return lines
+
+
+def role_problems():
+    """Return the roles without a model, with the setting to set, and the Anthropic models."""
+    problems = []
+    for name in runtime.missing_model_settings():
+        problems.append(f"model not set: {name}")
+    for role, model in role_models().items():
+        if model and model.startswith(FORBIDDEN_PREFIX):
+            problems.append(f"model not allowed: {model} (role {role})")
+    return problems
 
 
 def _model_lines(fetcher):
@@ -33,7 +52,7 @@ def _model_lines(fetcher):
     return [
         f"model not in the OpenRouter list: {model} (role {role})"
         for role, model in role_models().items()
-        if model not in known
+        if model and model not in known
     ]
 
 
@@ -43,7 +62,7 @@ def missing(max_cost=None, max_tokens=None, fetcher=None):
     The model list comes from ``fetcher`` (OpenRouter's list when None). A failed fetch is
     reported as a skipped check that does not count as missing.
     """
-    lines = []
+    lines = role_problems()
     if not os.environ.get(KEY_NAME):
         lines.append(f"{KEY_NAME}: not set")
     if max_cost is None and max_tokens is None:
@@ -62,4 +81,5 @@ def report(max_cost=None, max_tokens=None, fetcher=None):
     ready = all(is_skipped(line) for line in lines)
     if os.environ.get(KEY_NAME):
         lines = [f"{KEY_NAME}: set", *lines]
+    lines = [*_role_lines(), *lines]
     return lines, ready

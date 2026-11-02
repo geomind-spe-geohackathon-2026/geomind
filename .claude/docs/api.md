@@ -64,7 +64,8 @@ the routing, for testing one agent by hand, and so does a `run.loop` set before 
   the seeds (none: gemini is deterministic, geomind draws no random numbers, agents run at
   temperature 0).
   `--mode auto` with OpenRouter and no cap refuses to start (`RunError`).
-- `geomind check-live [--max-cost USD] [--max-tokens N]` checks a first live run: `OPENROUTER_API_KEY`
+- `geomind check-live [--max-cost USD] [--max-tokens N]` lists every role with its model, fails
+  when a role has none or a model id starts with the Anthropic prefix, and checks a first live run: `OPENROUTER_API_KEY`
   set (the value is never printed), every role's model id in OpenRouter's public model list (one
   GET; skipped with a message when it fails), and a cap given. It prints one line per missing item
   and exits 1 when anything is missing. See `evals.md`, "First live run".

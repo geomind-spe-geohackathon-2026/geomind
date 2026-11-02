@@ -59,7 +59,9 @@ class RunStarted(Event):
     """A run began; the fields after ``loop`` rebuild it and are not streamed.
 
     NOTE: ``versions`` holds the geomind, gemini and python versions the run began with. A run
-    stored by 0.3.0 has none, so the field is optional here while every new run has it.
+    stored by 0.3.0 has none, so the field is optional here while every new run has it. ``models``
+    holds the model id of every role (``None`` where a fake run set none); a run stored before
+    0.4.2 has none.
     """
 
     type: ClassVar[str] = "run.started"
@@ -79,6 +81,7 @@ class RunStarted(Event):
     settings: dict[str, Any] = {}
     loop_state: dict[str, Any] = {}
     versions: dict[str, str] = {}
+    models: dict[str, str | None] = {}
 
 
 class StepStarted(Event):

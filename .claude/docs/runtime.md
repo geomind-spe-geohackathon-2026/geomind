@@ -4,7 +4,7 @@
 
 - `get(name)`, `state()`, `load_state(mapping)` and `settings(**changes)`, usable as `with` and as
   a decorator, built on `geomind.utils.context.ContextSetting`.
-- Settings: `default_model` (from `GEOMIND_MODEL`, else `FIXED_DEFAULT_MODEL`), `max_steps`,
+- Settings: `default_model` (from `GEOMIND_MODEL`; unset is `None`, and a real provider refuses to call), `max_steps`,
   `retry_count`, `retry_delay`, `request_timeout`, `prompt_caching` (true: see
   [providers.md](providers.md#openrouter)), `tool_result_limit` (characters, 40 000: a
   plant's description with its spec fits),
@@ -12,7 +12,11 @@
   `compaction_threshold` (a share of the model's window), `compaction_keep_turns`.
 - Role settings: `analyst_model`, `designer_model`, `verifier_model`, `economist_model` and
   `explainer_model` are `None`, which means `default_model`; `coordinator_model` and
-  `summarizer_model` come from `GEOMIND_CHEAP_MODEL`, else `FIXED_CHEAP_MODEL`.
+  `summarizer_model` come from `GEOMIND_CHEAP_MODEL`, else `None` (no model id is built in).
+  `role_models()` returns the model of every role; `missing_model_settings()` names the unset
+  variables. `context_window` (`GEOMIND_CONTEXT_WINDOW`, tokens) and `cache_marked_models`
+  (`GEOMIND_CACHE_MARKED_MODELS`, comma-separated model id prefixes) default to `None`: see
+  [providers.md](providers.md#openrouter) and [context.md](context.md).
 - `provider`: the OpenRouter providers to try, in order (see
   [providers.md](providers.md#openrouter)), from `GEOMIND_PROVIDER` (comma-separated slugs, for
   example `relace/fp4`); `None` lets OpenRouter choose.

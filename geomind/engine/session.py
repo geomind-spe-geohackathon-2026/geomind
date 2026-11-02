@@ -7,12 +7,14 @@ from time import perf_counter
 
 from geomind import runtime
 from geomind.context import apply_changes
+from geomind.context.compaction import load_windows
 from geomind.engine.context import Context
 from geomind.engine.delegation import run_child
 from geomind.engine.hooks import ask_hooks
 from geomind.engine.recovery import apply
 from geomind.engine.state import Stop
 from geomind.errors import RunError, SandboxError, ToolError
+from geomind.providers import needs_models
 from geomind.sandbox import Manifest
 from geomind.types import Allow, Deny, Request, Usage
 from geomind.types.events import (
@@ -98,7 +100,9 @@ class RunSession:
         return event
 
     async def start(self, context, *, max_steps, parent=None, parent_step=None, root=None):
-        """Log the start of a new run."""
+        """Log the start of a new run; a real provider needs every role's model first."""
+        if parent is None:
+            await self._require_models()
         self.state.run_id = context.run_id
         self.state.agent = self.agent.path
         self.state.parent = parent
@@ -117,7 +121,17 @@ class RunSession:
             settings=runtime.state(),
             loop_state=self.loop_state(),
             versions=current_versions(),
+            models=runtime.role_models(),
         )
+
+    async def _require_models(self):
+        """Refuse a run on a real provider that lacks a model, and read the context windows."""
+        if not needs_models(self.engine.llm):
+            return
+        problems = runtime.model_problems()
+        if problems:
+            raise RunError("run: models = unset; expected one per role: " + "; ".join(problems))
+        await load_windows(set(runtime.role_models().values()))
 
     def loop_state(self):
         """Return the state of the loop driving this run."""
@@ -167,6 +181,8 @@ class RunSession:
         """Call the provider for an agent."""
         if self.engine.llm is None:
             raise RunError("engine: llm = None; expected a provider")
+        if needs_models(self.engine.llm):
+            await load_windows({agent.model.resolved_name()})
         llm = self.engine.recorded_llms.get(self.state.run_id, self.engine.llm)
         return await llm.complete(
             list(messages),

@@ -330,8 +330,9 @@ gemini.
 
 ## 9. Open questions (ask Sahand)
 
-Settled: the model ids `anthropic/claude-sonnet-5.5` and `anthropic/claude-haiku-5.5` are both in
-OpenRouter's public model list (checked 2026-10-31).
+Settled (Sahand, 2026-11-02): no Anthropic model anywhere; DeepSeek everywhere. geomind holds no
+model id as a fallback: the deploy config names every model (production uses
+`deepseek/deepseek-v4.1-flash-1017`), and a live run without them refuses to start.
 
 - Return temperatures of the heating and cooling networks (assumed 60 °C and 25 °C until Sahand
   confirms).

@@ -1,11 +1,12 @@
 """A long chat stays under its threshold and remembers what it compacted."""
 
+import pytest
+
 from geomind import runtime
 from geomind.agents import Assistant
-from geomind.context.compaction import CONTEXT_WINDOWS, estimate_tokens
+from geomind.context.compaction import estimate_tokens
 from geomind.engine import Permissions
 from geomind.run import Run
-from geomind.runtime import FIXED_CHEAP_MODEL, FIXED_DEFAULT_MODEL
 from geomind.stores import MemoryRunStore
 from geomind.types import Completion, Message
 from tests.fixtures.runs import of_type
@@ -15,7 +16,14 @@ FACT_TURN = 3
 FACT = "The well on the north site is 2345 m deep."
 TURN_CHARACTERS = 2000
 LIMIT = 15_500
-SHARE = LIMIT / CONTEXT_WINDOWS[FIXED_DEFAULT_MODEL]
+SHARE = LIMIT / 128_000
+
+
+@pytest.fixture(autouse=True)
+def distinct_summarizer():
+    """Give the summarizer its own model id, so the fake provider can tell its calls."""
+    with runtime.settings(summarizer_model="fake/summarizer"):
+        yield
 
 
 class Remembering:
@@ -29,7 +37,7 @@ class Remembering:
     async def complete(self, messages, tools, *, model, settings, on_text=None):
         """Answer from the messages, as a model with no other memory would."""
         text = " ".join(message.content for message in messages)
-        if model == FIXED_CHEAP_MODEL:
+        if model == runtime.get("summarizer_model"):
             self.summaries += 1
             return Completion(text=FACT if FACT in text else "nothing", model=model)
         self.largest = max(self.largest, estimate_tokens(messages))

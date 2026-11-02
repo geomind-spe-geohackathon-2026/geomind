@@ -5,9 +5,9 @@ from typing import get_args
 import pytest
 from pydantic import ValidationError
 
+from geomind import runtime
 from geomind.agents import Coordinator, Route
 from geomind.run import AGENTS, LOOPS
-from geomind.runtime import FIXED_CHEAP_MODEL
 from tests.unit.agents.structure import check_complete
 
 
@@ -38,5 +38,5 @@ def test_an_unknown_loop_is_refused():
 
 def test_it_is_cheap_and_not_routed_yet():
     """``Run`` does not call it, and skeletons are no rows of the table."""
-    assert Coordinator().model.resolved_name() == FIXED_CHEAP_MODEL
+    assert Coordinator().model.resolved_name() == runtime.get("coordinator_model")
     assert set(AGENTS) == {"analyst", "code_assistant"}
