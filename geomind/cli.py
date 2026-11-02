@@ -15,7 +15,7 @@ from geomind.agents import Route
 from geomind.context import ProblemState, render
 from geomind.engine import Engine, Permissions, callbacks
 from geomind.engine.hooks import CostBudget, TokenBudget
-from geomind.engine.replay import version_differences
+from geomind.engine.replay import nested_runs_reused, version_differences
 from geomind.errors import GeomindError, RunError
 from geomind.export import models_by_agent, render_export
 from geomind.providers import FakeLLM, OpenRouter, Recorder
@@ -342,7 +342,10 @@ def _command_replay(args):
     workspace, _ = _project(args.project)
     result = asyncio.run(Engine.replay(store, run_id, workspace=workspace))
     print(f"pass: {result.steps} steps, stop reason {result.stop_reason}")
-    differences = version_differences(store.load_events(run_id))
+    events = store.load_events(run_id)
+    if nested_runs_reused(events, workspace):
+        print("nested runs reused: the run has a project; pass --project to replay them")
+    differences = version_differences(events)
     if differences:
         print(f"versions differ: {_difference_text(differences)}")
     return 0

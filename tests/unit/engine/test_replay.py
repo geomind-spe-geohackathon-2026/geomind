@@ -528,3 +528,39 @@ async def test_nested_runs_of_a_project_run_are_reused_without_a_workspace():
     assert EXECUTED == [] and sum(e.type == "llm.completed" for e in log) == 2
     await Engine.replay(engine.store, start.run_id, replayed=log, workspace=MemoryWorkspace())
     assert EXECUTED == ["lookup"]
+
+
+async def test_a_run_without_a_script_raises_a_replay_error_naming_it():
+    """A nested run that was not matched to a recorded one is a ReplayError, not a KeyError."""
+    from geomind.engine.replay import _Recording
+
+    script = [uses(call("helper", task="find")), says("found"), says("end")]
+    result, engine, _ = await run(script, agent=Lead())
+    nested = nested_ids(engine.store.load_events(result.run_id))[0]
+    original = _Recording.before_llm_call
+
+    def without_script(self, context, agent, messages):
+        self.scripts.pop(nested, None)
+        return original(self, context, agent, messages)
+
+    _Recording.before_llm_call = without_script
+    try:
+        with pytest.raises(ReplayError, match=f"run {nested} \\(.*helper"):
+            await Engine.replay(engine.store, result.run_id)
+    finally:
+        _Recording.before_llm_call = original
+
+
+async def test_nested_runs_reused_are_reported():
+    """A run with a project replayed without a workspace says its nested runs were reused."""
+    from geomind.engine.replay import nested_runs_reused
+    from geomind.stores import MemoryWorkspace
+
+    engine = engine_for([uses(call("helper", task="f")), says("f"), says("e")])
+    start = context(project="p")
+    await engine.run(Lead(), start)
+    events = engine.store.load_events(start.run_id)
+    assert nested_runs_reused(events, None)
+    assert not nested_runs_reused(events, MemoryWorkspace())
+    plain, plain_engine, plain_events = await run([says("e")])
+    assert not nested_runs_reused(plain_events, None)

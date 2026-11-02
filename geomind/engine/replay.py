@@ -39,31 +39,45 @@ class _Recording(Hook):
 
     Permissions and hooks of the original run are not repeated: the log holds their outcome. A
     call without a recorded result ends the replay, so a paused run never runs its pending tool.
-    NOTE: the hook is engine-wide but every rule is per run, because call ids are not unique
+    NOTE: a run with no script raises, and the engine would end that run as an error, so the
+    first such error is kept in ``failure`` for ``replay_run`` to raise. The hook is engine-wide
+    but every rule is per run, because call ids are not unique
     across the runs of a tree and each run has its own completions.
     """
 
     def __init__(self, scripts):
         """Keep the script of each run, by run id."""
         self.scripts = scripts
+        self.failure = None
+
+    def _script(self, context):
+        """Return the script of the run, or raise when the run has none."""
+        script = self.scripts.get(context.run_id)
+        if script is None:
+            self.failure = ReplayError(
+                f"replay: run {context.run_id} ({context.session.state.agent}): "
+                "started in the replay without a recorded run to follow"
+            )
+            raise self.failure
+        return script
 
     def before_llm_call(self, context, agent, messages):
         """End the replay when no recorded completion is left; a rule step calls no model."""
-        script = self.scripts[context.run_id]
+        script = self._script(context)
         if type(agent).forward is not Agent.forward:
             return None
         return None if len(script.llm.calls) < script.scripted else Cancel(reason=END_OF_RECORDING)
 
     def before_tool_call(self, context, agent, call):
         """Use the recorded input, or end the replay at a call without a result."""
-        recorded = self.scripts[context.run_id].results.get(call.id)
+        recorded = self._script(context).results.get(call.id)
         if recorded is None:
             return Cancel(reason=END_OF_RECORDING)
         return Allow(input=recorded.input) if recorded.input != call.input else None
 
     def before_finish(self, context, agent, action):
         """Refuse the answers the original run refused."""
-        reason = self.scripts[context.run_id].refusals.get(context.session.state.step)
+        reason = self._script(context).refusals.get(context.session.state.step)
         return Deny(reason=reason) if reason is not None else None
 
 
@@ -283,6 +297,18 @@ def version_differences(events):
     }
 
 
+def nested_runs_reused(events, workspace):
+    """Tell whether a replay with this ``workspace`` reuses the nested runs of the root run.
+
+    That is the case for a run with a project when no workspace is given: the log holds no project
+    files, so its nested runs keep their recorded answer.
+    """
+    root = next(e for e in events if e.type == "run.started" and e.parent is None)
+    return (
+        workspace is None and root.project is not None and len(_plan(events, root.run_id, True)) > 1
+    )
+
+
 async def replay_run(engine_class, store, run_id, *, replayed=None, workspace=None):
     """Rerun a stored run and every nested run of its tree with their recorded completions.
 
@@ -301,8 +327,9 @@ async def replay_run(engine_class, store, run_id, *, replayed=None, workspace=No
         raise ReplayError(f"replay: run = {run_id!r}; no recorded run.started")
     can_read_project = workspace is not None or started.project is None
     scripts = {id_: _Script(_of_run(tree, id_)) for id_ in _plan(tree, run_id, can_read_project)}
+    recording = _Recording(scripts)
     engine = engine_class(
-        hooks=[_Recording(scripts)],
+        hooks=[recording],
         permissions=Permissions(mode="auto"),
         llm=scripts[run_id].llm,
         workspace=workspace,
@@ -320,6 +347,8 @@ async def replay_run(engine_class, store, run_id, *, replayed=None, workspace=No
         agent = agent_class(started)()
         loop = _RecordedLoop(started) if started.loop else None
         result = await engine.run(agent, context, max_steps=started.max_steps, loop=loop)
+    if recording.failure is not None:
+        raise recording.failure
     log = engine.store.load_events(run_id)
     for id_ in reversed(list(scripts)):
         _compare_run(tree, log, id_)
