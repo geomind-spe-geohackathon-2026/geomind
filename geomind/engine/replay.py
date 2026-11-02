@@ -162,8 +162,11 @@ def _children(tree, run_id):
 
 
 def _nested_changes(events, run_id):
-    """Return, by (step, call id) of the run, the problem-state changes its nested runs logged.
+    """Return, by (step, call id) of the run, the problem-state changes made during that call.
 
+    These are the changes of the nested runs the call started and the run's own changes while the
+    call was open (the first open call, when calls run in parallel). A replay applies them when it
+    reuses the call's result instead of running the tool.
     NOTE: a nested run that did not end with an answer is not run again; its recorded result is
     reused and the replay applies again what it wrote in the shared problem state, in log order.
     A nested run that ended with an answer runs again and writes its own changes.
@@ -171,11 +174,24 @@ def _nested_changes(events, run_id):
     owners = _child_calls(events, run_id)
     own = _results(e for e in events if e.run_id == run_id)
     changes = {(result.index, result.call_id): [] for result in own}
+    open_calls = []
     for e in events:
-        key = owners.get(e.run_id)
+        if e.run_id == run_id and e.type in ("tool.started", "tool.result"):
+            open_calls = _tracked(open_calls, e)
+            continue
+        own = open_calls[0] if open_calls else None
+        key = own if e.run_id == run_id else owners.get(e.run_id)
         if e.type == "state.changed" and key in changes:
             changes[key].append(e.changes)
     return changes
+
+
+def _tracked(open_calls, event):
+    """Return the calls still open after a ``tool.started`` or ``tool.result`` of the run."""
+    key = (event.index, event.call_id)
+    if event.type == "tool.started":
+        return [*open_calls, key]
+    return [item for item in open_calls if item != key]
 
 
 def _signature(event):
@@ -299,6 +315,17 @@ def version_differences(events):
     }
 
 
+def reuses_tool_results(started):
+    """Tell whether a replay keeps the recorded tool results of a log, root ``run.started`` given.
+
+    A log of another geomind version, or of one that recorded none (0.3.0), checks the agents'
+    decisions, not the tools' outputs: a tool may have changed its input or its output since, and
+    the log cannot tell a change of the tool from a change of the agent. NOTE: a difference in
+    gemini alone still runs the tools, as it reports a difference in ``version_differences``.
+    """
+    return started.versions.get("geomind") != current_versions()["geomind"]
+
+
 def nested_runs_reused(events, workspace):
     """Tell whether a replay with this ``workspace`` reuses the nested runs of the root run.
 
@@ -315,7 +342,9 @@ async def replay_run(engine_class, store, run_id, *, replayed=None, workspace=No
     """Rerun a stored run and every nested run of its tree with their recorded completions.
 
     ``read`` and ``compute`` tools run again, in every run; others reuse their recorded results, as
-    do calls that were denied or answered by the user. A nested run that ended with an answer runs
+    do calls that were denied or answered by the user. A log of another geomind version (or with
+    none recorded) reuses the result of every pure tool (``reuses_tool_results``); tools that
+    write the problem state still run. A nested run that ended with an answer runs
     again as a nested run, matched to its call by the step and task, with the completions of its
     own events. A difference in any run raises ``ReplayError`` naming the run, its agent and the
     first differing step. ``replayed``, when a list, receives the events of the replayed tree;
@@ -338,6 +367,7 @@ async def replay_run(engine_class, store, run_id, *, replayed=None, workspace=No
         store=_ReplayStore(store, run_id, started.chat or started.root),
     )
     _arm(engine, tree, scripts)
+    engine.reuses_tools = reuses_tool_results(started)
     context = Context(
         messages=list(started.messages),
         run_id=run_id,

@@ -168,6 +168,16 @@ the end of every finished nested run too. A difference raises `ReplayError` nami
 its agent, the step and the tool. `replayed`, a list, receives the events of the replayed tree,
 and the root log names the loop of the recording, so exports of a run and its replay compare.
 
+**A log of another geomind version checks the agents' decisions, not the tools' outputs.** When
+the root `run.started` records a geomind version other than the current one, or none (0.3.0), the
+replay does not run pure tools (`read`, `compute`): each keeps its recorded result and the problem
+state changes it made (`_nested_changes` also holds a run's own changes per call), because a tool
+may have changed its input or output since (0.4.0 added `name` to the study tools). Tools that
+write the problem state (`reruns_in_replay`) and the call that ends a run still run. The
+completions, the calls, the step order and the answers are still compared. A difference in gemini
+alone only reports (`versions differ`) and runs the tools. `Engine.reuses_tools` carries this and
+`reuses_tool_results` decides it.
+
 ## Stores and workspaces
 
 `RunStore` is the nine-method protocol of the contract, `load_events` and the two chat-artifact

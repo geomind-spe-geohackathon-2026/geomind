@@ -26,6 +26,10 @@ Studies the app can list. A new required tool argument; the coordinator sets the
   `FileRunStore.load_events` uses it, so a newer log opens in an older reader. Every consumer,
   the backend included, must ignore unknown event types. `event_from_dict` still raises.
 - `Context.call_id` and `Context.for_call`: a tool knows the call it serves.
+- Replay of a log of another geomind version (or with none recorded) keeps the recorded results
+  of pure tools and the state changes they made, and still compares completions, calls, steps and
+  answers: a 0.3.1 log with study calls (no `name`, other outputs) replays. Tools that write the
+  state still run. A run's own state changes during a reused call are applied too.
 - A log of 0.3.1 without `study.recorded` loads, replays and exports. Recorded model calls of
   `run_study`, `sample_uncertainty` and `sensitivity` from 0.3.1 lack the new `name`, so the
   recordings of this repository carry one (`families`, `draws`).
