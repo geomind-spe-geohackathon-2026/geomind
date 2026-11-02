@@ -684,7 +684,7 @@
         "before_tool_call": "(self, context, agent, call)"
       },
       "CostBudget": {
-        "__init__": "(self, max_cost)",
+        "__init__": "(self, max_cost, answer_reserve=None, answer_agents=None, prices=None)",
         "before_llm_call": "(self, context, agent, messages)"
       },
       "Hook": {
@@ -693,14 +693,14 @@
         "before_tool_call": "(self, context, agent, call)"
       },
       "ProjectBudget": {
-        "__init__": "(self, ledger, project_id, max_tokens=None, max_cost=None)",
+        "__init__": "(self, ledger, project_id, max_tokens=None, max_cost=None, answer_reserve=None, answer_agents=None, prices=None, bound_input=False)",
         "before_llm_call": "(self, context, agent, messages)"
       },
       "RequireApproval": {
         "__init__": "(self, tools)"
       },
       "TokenBudget": {
-        "__init__": "(self, max_tokens)",
+        "__init__": "(self, max_tokens, answer_reserve=None, answer_agents=None, bound_input=False)",
         "before_llm_call": "(self, context, agent, messages)"
       },
       "Verified": {
@@ -1084,5 +1084,5 @@
       "step_limit": "failed"
     }
   },
-  "version": "0.4.1"
+  "version": "0.4.2"
 }

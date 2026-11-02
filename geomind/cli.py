@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from uuid import uuid4
 
+import httpx
+
 from geomind import agents, live, runtime
 from geomind.agents import Route
 from geomind.context import ProblemState, render
@@ -19,6 +21,7 @@ from geomind.engine.replay import nested_runs_reused, version_differences
 from geomind.errors import GeomindError, RunError
 from geomind.export import models_by_agent, render_export
 from geomind.providers import FakeLLM, OpenRouter, Recorder
+from geomind.providers.openrouter import BASE_URL
 from geomind.run import LOOPS, Run, loop_of
 from geomind.sandbox import DockerSandbox, LocalSandbox
 from geomind.stores import FileUsageLedger, FileWorkspace
@@ -157,18 +160,47 @@ def write_manifest(root, run_id, args):
     return manifest
 
 
-def _budgets(args):
-    """Return the spending caps of ``--max-tokens`` and ``--max-cost``, over the whole run."""
+def _fetch_prices(fetcher=None):
+    """Return ``{model id: (input, output)}`` price per token from OpenRouter's public list.
+
+    The list is the one ``live`` already reads for model ids. A failed fetch returns ``None`` and
+    says so on stderr: cost caps then refuse a call only once reached.
+    """
+    try:
+        if fetcher is not None:
+            return fetcher()
+        response = httpx.get(f"{BASE_URL}/models", timeout=live.LIST_TIMEOUT)
+        response.raise_for_status()
+        return {
+            item["id"]: (float(item["pricing"]["prompt"]), float(item["pricing"]["completion"]))
+            for item in response.json()["data"]
+            if {"prompt", "completion"} <= set(item.get("pricing") or {})
+        }
+    except (httpx.HTTPError, OSError, KeyError, ValueError) as error:
+        print(f"prices: not fetched ({type(error).__name__}); cost caps cannot bound a call")
+        return None
+
+
+def _budgets(args, fetcher=None):
+    """Return the spending caps of ``--max-tokens`` and ``--max-cost``, over the whole run.
+
+    A live run bounds each call: the prices come from OpenRouter's list. A run from a recording
+    costs nothing and fetches none.
+    """
+    is_live = args.recording is None
+    prices = None
+    if is_live and (args.max_cost is not None or args.project_max_cost is not None):
+        prices = _fetch_prices(fetcher)
     caps = []
     if args.max_tokens is not None:
-        caps.append(TokenBudget(args.max_tokens))
+        caps.append(TokenBudget(args.max_tokens, bound_input=is_live))
     if args.max_cost is not None:
-        caps.append(CostBudget(args.max_cost))
-    caps.extend(_project_budgets(args))
+        caps.append(CostBudget(args.max_cost, prices=prices))
+    caps.extend(_project_budgets(args, prices, is_live))
     return caps
 
 
-def _project_budgets(args):
+def _project_budgets(args, prices=None, is_live=False):
     """Return the project cap of ``--project-max-tokens`` and ``--project-max-cost``, if any."""
     if args.project_max_tokens is None and args.project_max_cost is None:
         return []
@@ -176,7 +208,16 @@ def _project_budgets(args):
         raise RunError("run: --project-max-tokens and --project-max-cost need --project")
     ledger = FileUsageLedger(RUNS_FOLDER)
     project = Path(args.project).name
-    return [ProjectBudget(ledger, project, args.project_max_tokens, args.project_max_cost)]
+    return [
+        ProjectBudget(
+            ledger,
+            project,
+            args.project_max_tokens,
+            args.project_max_cost,
+            prices=prices,
+            bound_input=is_live,
+        )
+    ]
 
 
 def _require_cap(args):

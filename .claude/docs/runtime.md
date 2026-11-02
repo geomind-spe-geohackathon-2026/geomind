@@ -21,6 +21,9 @@
   [providers.md](providers.md#openrouter)), from `GEOMIND_PROVIDER` (comma-separated slugs, for
   example `relace/fp4`); `None` lets OpenRouter choose.
 
+Limits of spending and time are not settings: `answer_reserve` and the prices belong to a budget
+hook (see [hooks.md](hooks.md#shipped-hooks)), which keeps no default and is off when unset.
+
 Unknown names raise `gd.errors.UnknownNameError`. asyncio tasks and `asyncio.to_thread` workers
 start from a copy of their creator's context, while new threads start from the defaults. A run
 stores the settings it starts with, and a resumed run applies them again; a setting added after

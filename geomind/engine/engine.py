@@ -8,6 +8,7 @@ later would touch every layer. ``Run`` is the sync facade.
 from geomind import runtime
 from geomind.engine.delegation import answer_child, end_orphans
 from geomind.engine.log import RunLog
+from geomind.engine.partial import is_limit_stop, partial_answer
 from geomind.engine.permissions import Permissions
 from geomind.engine.recovery import agent_class, recover
 from geomind.engine.replay import replay_run
@@ -158,6 +159,8 @@ class Engine:
         await session.close_sandbox()
         if stop.reason == "request":
             return run_result(session, stop)
+        if is_limit_stop(session, stop):
+            stop = await self._answer_from_record(session, stop)
         await session.emit(
             RunFinished,
             status=status_of(stop.reason),
@@ -167,6 +170,12 @@ class Engine:
         )
         await session.save_problem()
         return run_result(session, stop)
+
+    async def _answer_from_record(self, session, stop):
+        """Give a run that a limit stopped the answer its record makes, streamed like any answer."""
+        text = await partial_answer(session, stop)
+        await session.stream_answer(text)
+        return Stop(stop.reason, stop.message, answer=text)
 
     async def resume(self, run_id, request_id=None, answer=None, *, agent=None, loop=None):
         """Continue a run from its events, in any process.

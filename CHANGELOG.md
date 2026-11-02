@@ -24,6 +24,24 @@ Additive: geomind holds no model id (Sahand, 2026-11-02: no Anthropic model anyw
 - `geomind check-live` lists every role with its model and fails on a role without a model or an
   Anthropic model id. A test greps the package, evals and docs for Anthropic model ids.
 
+Additive: a run ends at or below its cap, and a run that a limit stopped still answers.
+
+- `CostBudget(prices=...)`, `TokenBudget(bound_input=True)` and `ProjectBudget` fit each LLM call
+  before it is made: the input bound times the input price plus `max_tokens` times the output
+  price. A call that passes the cap gets a lower `max_tokens`; one whose input does not fit is
+  denied. Off when unset. `geomind run` reads the prices from OpenRouter's public model list.
+  Fixes runs that overshot the cap by one call (9% of 0.50 USD, 63% of 0.01 USD in live tests).
+- `answer_reserve` and `answer_agents` on the budgets keep an amount for the agent that writes the
+  answer. No default; off when unset. A hook argument, not a `gd.runtime` setting.
+- `TimeLimit(max_seconds)` denies an LLM call once the root run has run that long.
+- A root run that stops on a budget, `TimeLimit` or the step limit gets an answer built with no LLM
+  call from the problem state and the log (`geomind/engine/partial.py`), streamed like an answer;
+  `stop_reason` and `status` are unchanged. `geomind export` shows it in a `## Stop` section.
+  Logs of 0.4.1 and earlier, whose such stops have no answer, still load, replay and export.
+- `ProjectBudget` reads `UsageLedger.spent` in a worker thread, as the docs said. `save_profile`
+  still reads case artifacts on the event loop (open: needs `tools/gemini/case.py`), and the
+  conventions say so.
+
 ## [0.4.1] - 2026-11-02
 
 Additive: models and OpenRouter providers can be chosen by deployment configuration.

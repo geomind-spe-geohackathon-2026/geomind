@@ -49,6 +49,7 @@ def service(monkeypatch, tmp_path):
         return OpenRouter(api_key="sk-test", transport=transport)
 
     monkeypatch.setattr(cli, "OpenRouter", provider)
+    monkeypatch.setattr(cli, "_fetch_prices", lambda fetcher=None: None)
     with runtime.settings(retry_delay=0):
         yield responses
 
@@ -407,7 +408,27 @@ def test_a_project_cap_counts_the_earlier_runs_of_the_project(service, capsys):
     project = str(Path("site") / "p1")
     Path(project).mkdir(parents=True)
     service += [routed_answer(), answer("Hello")]
-    assert cli.main(["run", "x", "--project", project, "--project-max-tokens", "100"]) == 0
+    assert cli.main(["run", "x", "--project", project, "--project-max-tokens", "100000"]) == 0
     assert "denied" not in capsys.readouterr().out
     assert cli.main(["run", "x", "--project", project, "--project-max-tokens", "20"]) == 1
     assert "(denied)" in capsys.readouterr().out
+
+
+def test_a_live_cost_cap_bounds_calls_with_the_prices_of_the_list(monkeypatch):
+    """A live run's cost cap carries the fetched prices; a recording fetches none."""
+    prices = {"fake/model": (1e-6, 2e-6)}
+    args = cli._parser().parse_args(["run", "x", "--max-cost", "1"])
+    budget = cli._budgets(args, fetcher=lambda: prices)[0]
+    assert budget.prices == prices and budget.bounds_input
+    offline = cli._parser().parse_args(["run", "x", "--max-cost", "1", "--recording", "r"])
+    assert cli._budgets(offline, fetcher=lambda: prices)[0].prices is None
+
+
+def test_prices_that_cannot_be_fetched_are_said(capsys):
+    """A failed fetch is reported and leaves the cap unbounded by prices."""
+
+    def failing():
+        raise OSError("down")
+
+    assert cli._fetch_prices(failing) is None
+    assert "prices: not fetched" in capsys.readouterr().out

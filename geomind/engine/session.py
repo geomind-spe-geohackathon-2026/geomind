@@ -68,6 +68,16 @@ class RunSession:
         self.child_usage = None
         self._sandbox = None
         self._held_text = ""
+        self._output_limit = None
+        self.limit_reached = None
+
+    def limit_output(self, tokens):
+        """Lower the output limit of the next provider call to ``tokens``, never raise it."""
+        self._output_limit = min(self._output_limit or tokens, tokens)
+
+    def note_limit(self, reason):
+        """Remember that a budget or time limit denied a call, so the run answers from its state."""
+        self.limit_reached = reason
 
     def versions(self):
         """Return the versions of this process, for what a tool stores beside its result."""
@@ -163,6 +173,11 @@ class RunSession:
         self._held_text = text[cut:]
         self._stream(text[:cut])
 
+    async def stream_answer(self, text):
+        """Stream an answer that no model wrote, as the events of one that did."""
+        self._stream(text)
+        await self.log.flush()
+
     def _stream(self, text):
         """Tell the callbacks one piece of text, in order, without waiting.
 
@@ -177,6 +192,14 @@ class RunSession:
         """Log one provider retry."""
         await self.emit(Retried, **fields)
 
+    def _call_settings(self, agent):
+        """Return the agent's settings with the output limit a hook set for this call, used once."""
+        settings = agent.model.settings()
+        limit, self._output_limit = self._output_limit, None
+        if limit is not None and (settings.get("max_tokens") or limit) >= limit:
+            settings = {**settings, "max_tokens": limit}
+        return settings
+
     async def _call_provider(self, agent, messages, on_text):
         """Call the provider for an agent."""
         if self.engine.llm is None:
@@ -184,11 +207,12 @@ class RunSession:
         if needs_models(self.engine.llm):
             await load_windows({agent.model.resolved_name()})
         llm = self.engine.recorded_llms.get(self.state.run_id, self.engine.llm)
+        settings = self._call_settings(agent)
         return await llm.complete(
             list(messages),
             agent.tool_schemas(),
             model=agent.model.resolved_name(),
-            settings=agent.model.settings(),
+            settings=settings,
             on_text=on_text,
             fallbacks=agent.model.fallbacks,
             on_retry=self._on_retry,
@@ -233,6 +257,7 @@ class RunSession:
     async def before_llm_call(self, agent, messages):
         """Return the hook decision of an LLM call, unless the user approved it."""
         hooks = self._hooks_for("llm")
+        self._output_limit = None
         decision, _ = await ask_hooks(
             hooks, "before_llm_call", self.context(), agent, tuple(messages)
         )

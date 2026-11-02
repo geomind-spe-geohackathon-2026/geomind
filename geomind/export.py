@@ -181,6 +181,24 @@ def _tables(calls):
     ]
 
 
+def _stop_lines(events):
+    """Return the section of a run that a limit stopped: why, and the answer built from its record.
+
+    A run that ended with an answer, and a log of 0.4.1 or earlier, whose stop has no answer, add
+    nothing.
+    """
+    ended = next((e for e in events if e.type == "run.finished" and e.parent is None), None)
+    if ended is None or not ended.answer or ended.stop_reason in ("answer", "finish"):
+        return []
+    return [
+        "## Stop",
+        "",
+        f"Stop reason: {ended.stop_reason}. {ended.message or ''}".strip(),
+        "",
+        *_block(str(ended.answer)),
+    ]
+
+
 def render_export(events, manifest=None):
     """Return the Markdown export of a run: header, every LLM call, prompts, tokens, totals.
 
@@ -193,7 +211,7 @@ def render_export(events, manifest=None):
     for number, call in enumerate(calls, 1):
         lines += _call_lines(number, call, last.get(call.run_id))
         last[call.run_id] = call
-    lines += ["## Appendix: system prompts", ""]
+    lines += [*_stop_lines(events), "## Appendix: system prompts", ""]
     for agent, text in _prompts(calls).items():
         lines += [f"### {agent}", "", *_block(text)]
     total = sum((call.completion.usage for call in calls), Usage())

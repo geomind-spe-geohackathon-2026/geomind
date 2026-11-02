@@ -62,7 +62,7 @@ and to read one back `event_from_dict`.
 | The schemas and samples of the exchanged documents | `geomind/schemas/` | `tests/unit/test_frozen_api.py` |
 | `gd.Run`, `start`, `astart`, `load`, `resume`, `aresume`, `cancel` | `geomind/run.py` | `tests/unit/test_run.py` |
 | `gd.Permissions` | `geomind/engine/permissions.py` | `tests/unit/engine/test_permissions.py` |
-| `gd.hooks.TokenBudget`, `ProjectBudget`, `RequireApproval`, `Cancellation` | `geomind/engine/hooks.py` | `tests/unit/engine/test_hooks.py` |
+| `gd.hooks.TokenBudget`, `ProjectBudget`, `RequireApproval`, `Cancellation` | `geomind/engine/hooks.py` | `tests/unit/engine/test_hooks.py`, `tests/unit/engine/test_partial.py` |
 | `RunResult` and the statuses | `geomind/types/results.py` | `tests/unit/types/test_results.py` |
 | The shapes of `answer` | `geomind/types/decisions.py` | `tests/unit/types/test_decisions.py` |
 | `resume()` of a dead run | `geomind/engine/recovery.py` | `tests/integration/test_recovery.py` |
