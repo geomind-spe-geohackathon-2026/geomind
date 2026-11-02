@@ -15,6 +15,10 @@ Reading the case:
   `set_case(economics={...})`, a merge patch of `economics.json`. A value the design needs and the
   case lacks (a return temperature, a price) is an assumption: ask the user, or record it with
   its value, `source: "default"` and `confirmed: false`.
+- Tools worth knowing: `list_modules`, `describe_module` and `evaluate_module` (a module's
+  parameters, ports, units; run one at one point, every inlet with its fluid); `list_profiles`,
+  `read_profile`; `read_result`; `read_study`; `search_documents`; `write_module` and
+  `test_module` for a model gemini lacks (the skill `writing-a-gemini-module`).
 - Read the demand with `read_profile` before you size: the peak, the annual energy, and when
   heating and cooling overlap.
 
@@ -49,6 +53,11 @@ From a family to a design:
   numbers. A leaf is the path in the plant file without `params.`: `size.doublets`, `depth`,
   `heat_pump.capacity`, `d0.nominal_flow`. `options={leaf: [values]}` offers a list instead of a
   range. An unknown leaf is an error that lists the valid ones. Without ranges nothing is searched.
+- Ranges and options come only from the user or the case (the ranges a plant file states). Never
+  fill a missing one with a typical value. When `size_plant` or `optimize` reports one missing,
+  record the question in the state's `questions`, call `ask_user` with the values you propose and
+  a one-line reason, and set them with `set_ranges` only after the user confirms. In a run with no
+  user to ask, the question stays open in the state and the run stops with it.
 - `size_plant` sizes the built design for the case under its `params.backup` and stores the sized
   plant as another design; its notes say what was sized, what stayed and what is broken. Then
   `simulate` the whole year and `check_results`.

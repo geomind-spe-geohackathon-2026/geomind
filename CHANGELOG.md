@@ -6,6 +6,8 @@ the list of frozen interfaces are in [.claude/docs/api.md](.claude/docs/api.md#f
 
 ## [Unreleased]
 
+- Designer: search ranges come only from the user or the case. A missing one is recorded in `questions` and asked with `ask_user` (values proposed with a reason); `set_ranges` only after confirmation. The Designer prompt is cut from about 2,800 to about 1,500 tokens (tool detail stays in the tool descriptions and the `designing-a-plant` skill). New offline recording `designer/missing_range`.
+
 Additive: geomind holds no model id (Sahand, 2026-11-02: no Anthropic model anywhere).
 
 - `FIXED_DEFAULT_MODEL` and `FIXED_CHEAP_MODEL` are removed. `default_model`, `coordinator_model`

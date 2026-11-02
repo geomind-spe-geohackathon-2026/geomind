@@ -108,7 +108,8 @@ frozen; the tools themselves are in [tools.md](tools.md#catalogue). Every agent 
 
 Package code holds no engineering default; an agent's decision is not a default. The Designer
 starts from a project plant when `list_plants` has `project_plants` (it builds another only when
-none fits, and says why in an assumption), and
+none fits, and says why in an assumption). Search ranges are never its choice: they come from the
+user or the case, and a missing one is asked with `ask_user` (recorded in `questions`). It also
 chooses the backup policy (`params.backup` of the plant), the objective, the ranges and options, the
 evaluations and the seed when the request gives none, and the Economist the `samples` and seed, each recorded as an assumption with `source:
 agent`, `confirmed: false` and a one-line reason, which the Verifier and the Explainer report. The
