@@ -50,8 +50,8 @@ names and the files of the demand series.
   `shallow_district` gives its heating peak of 3.034 MW.
 - **The files.** The files a case names (the `file` of each series, such as `data/demand.csv`, and
   its `economics` file) are not in the state. Their names are relative paths: nothing absolute, no
-  `..` (`geomind/stores/casefiles.py`). The run store keeps them as artifacts `case/<file name>`
-  (bytes), so the run store is the source of truth and a run does not read a project folder.
+  `..` (`geomind/stores/casefiles.py`). The run store keeps them as chat artifacts `case/<file name>`
+  (bytes; `save_chat_artifact`, so every run of the chat reads them), so the run store is the source of truth and a run does not read a project folder.
   `case_of(context)` in `tools/gemini/case.py` returns
   `gm.Case.from_dict(state.case, files={name: bytes})`; there is no temporary folder. With no case
   it raises `ToolError` telling the model to call `set_case` or `ask_user`: there is no fallback

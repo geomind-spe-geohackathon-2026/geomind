@@ -11,6 +11,7 @@ from geomind.types.events import StepStarted, TextDelta
 RUN = "conformance-run"
 OTHER_RUN = "conformance-other-run"
 CHAT = "conformance-chat"
+OTHER_CHAT = "conformance-other-chat"
 MISSING = "conformance-missing"
 
 
@@ -83,6 +84,30 @@ def _check_artifacts(store):
     )
 
 
+def _check_chat_artifacts(store):
+    """Check that a chat has its own artifact space, apart from every run's."""
+    _expect(store.load_chat_artifact(CHAT, MISSING) is None, "a missing chat artifact must be None")
+    store.save_chat_artifact(CHAT, "bytes", b"\x00\x01")
+    store.save_chat_artifact(CHAT, "design/conformance", {"name": "doublet"})
+    store.save_chat_artifact(CHAT, "case/data/conformance.csv", b"time,x\n1,2\n")
+    _expect(store.load_chat_artifact(CHAT, "bytes") == b"\x00\x01", "chat bytes must round-trip")
+    _expect(
+        store.load_chat_artifact(CHAT, "design/conformance") == {"name": "doublet"},
+        "a chat design/<name> key must round-trip",
+    )
+    _expect(
+        store.load_chat_artifact(CHAT, "case/data/conformance.csv") == b"time,x\n1,2\n",
+        "a chat case/<file name> key must round-trip its bytes",
+    )
+    _expect(
+        store.load_chat_artifact(OTHER_CHAT, "bytes") is None,
+        "chat artifacts must belong to one chat",
+    )
+    _expect(store.load_artifact(CHAT, "bytes") is None, "a chat's space must not be a run's space")
+    store.save_artifact(RUN, "only-run", b"1")
+    _expect(store.load_chat_artifact(RUN, "only-run") is None, "a run's space must not be a chat's")
+
+
 def check_run_store(factory, seed_history=None):
     """Check a ``RunStore``; ``factory()`` returns a fresh store.
 
@@ -93,6 +118,7 @@ def check_run_store(factory, seed_history=None):
     _check_history(factory(), seed_history)
     _check_state(factory())
     _check_artifacts(factory())
+    _check_chat_artifacts(factory())
 
 
 def _check_case(workspace, project, missing_project):

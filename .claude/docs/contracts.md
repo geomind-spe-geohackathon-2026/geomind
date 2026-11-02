@@ -76,7 +76,15 @@ and to read one back `event_from_dict`.
 - Pass `sandbox` and `permissions` again to `Run.load`, like hooks and callbacks; a run does not
   store them.
 - `event.to_dict()` holds every field a store must keep, and `event_from_dict` restores it.
-- `save_artifact` keys may hold a `/`: `design/<name>`, `result/<id>` and `case/<file name>`
+- **Chat artifacts (an addition).** `save_chat_artifact(chat_id, key, data)` and
+  `load_chat_artifact(chat_id, key)` keep the artifacts the problem state can name in the chat's
+  space, so a second message of a chat reads the case files, designs and results of the first.
+  Same keys, same safe-key rules, same types (bytes or a JSON value, `None` when missing) as the
+  run's. A chat's space and a run's are separate (`check_run_store` tests it). `FileRunStore`
+  writes `<root>/chats/<chat id>/artifacts/...`. Geomind saves every artifact below in the chat's
+  space; the run's methods remain for what is per run. A run without a chat uses its root run id
+  as its chat id.
+- Artifact keys (the rule applies to both spaces) may hold a `/`: `design/<name>`, `result/<id>` and `case/<file name>`
   (bytes: the series and economics files of the run's case; the file name is a relative path such
   as `data/demand.csv`, each part safe). A user's demand profile is a file of the case,
   `case/<file name>`. `check_run_store` tests them. A run also keeps keys

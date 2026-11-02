@@ -140,5 +140,5 @@ async def test_a_secret_never_reaches_an_artifact():
     start = Context(messages=[])
     with runtime.settings(tool_result_limit=10):
         await engine.run(Leaking(), start)
-    assert engine.store.artifacts
-    assert "sk-SECRET-123" not in str(engine.store.artifacts)
+    assert engine.store.chat_artifacts
+    assert "sk-SECRET-123" not in str(engine.store.chat_artifacts)

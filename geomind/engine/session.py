@@ -1,6 +1,7 @@
 """One run in progress: what agents, tools and hooks reach as ``context.session``."""
 
 import asyncio
+import json
 from time import perf_counter
 
 from geomind import runtime
@@ -10,7 +11,7 @@ from geomind.engine.delegation import run_child
 from geomind.engine.hooks import ask_hooks
 from geomind.engine.recovery import apply
 from geomind.engine.state import Stop
-from geomind.errors import RunError, SandboxError
+from geomind.errors import RunError, SandboxError, ToolError
 from geomind.sandbox import Manifest
 from geomind.types import Allow, Deny, Request, Usage
 from geomind.types.events import (
@@ -28,6 +29,8 @@ from geomind.types.events import (
 )
 from geomind.types.redaction import redact
 from geomind.utils.imports import class_path
+
+FROZEN = "design/"
 
 
 class RunSession:
@@ -276,14 +279,37 @@ class RunSession:
             data = state.problem.model_dump(mode="json")
             await asyncio.to_thread(self.store.save_state, state.chat, data)
 
+    @property
+    def chat_id(self):
+        """Return the chat of the run; a run without a chat is the chat of its root run."""
+        return self.state.chat or self.state.root
+
     async def save_artifact(self, key, data):
-        """Save a large result, under the same rule for secrets as an event."""
+        """Save an artifact in the space of the chat, under the same rule for secrets as an event.
+
+        The problem state can name every artifact a tool saves, so the next run of the chat must
+        read it; the run's own space (``store.save_artifact``) is for what no state names. A
+        ``design/<name>`` is written once: the same content again is fine, other content raises
+        ``ToolError``, so a result never points at a design that changed.
+        """
         clean = redact(data, self.log.secrets)
-        await asyncio.to_thread(self.store.save_artifact, self.state.root, key, clean)
+        if key.startswith(FROZEN):
+            self.check_frozen(key, clean)
+        await asyncio.to_thread(self.store.save_chat_artifact, self.chat_id, key, clean)
+
+    def check_frozen(self, key, data):
+        """Raise ``ToolError`` when ``key`` already holds other content."""
+        kept = self.load_artifact(key)
+        if kept is not None and json.loads(json.dumps(kept)) != json.loads(json.dumps(data)):
+            raise ToolError(
+                f"design: name = {key.removeprefix(FROZEN)!r}; a design with this name is stored"
+                " with other content; use a new name",
+                path="name",
+            )
 
     def load_artifact(self, key):
-        """Return a stored result of this run; called by sync tools, in a worker thread."""
-        return self.store.load_artifact(self.state.root, key)
+        """Return a stored artifact of this chat; called by sync tools, in a worker thread."""
+        return self.store.load_chat_artifact(self.chat_id, key)
 
     async def report_error(self, error, where):
         """Log an error and call ``on_error``."""

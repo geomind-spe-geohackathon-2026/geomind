@@ -224,7 +224,7 @@ async def test_a_run_without_a_case_asks_the_user_before_designing(verdicts):
     ]
     result, engine, events = await run_loop(script, case=None)
     for name, content in files.items():
-        engine.store.save_artifact(result.run_id, f"case/{name}", content)
+        engine.store.save_chat_artifact(result.run_id, f"case/{name}", content)
     assert result.status == "waiting"
     assert "no case" in result.request.message
     assert agents_of(events) == []

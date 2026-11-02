@@ -88,7 +88,7 @@ async def test_large_tool_result_is_an_artifact_in_the_store(tmp_path):
         result, _, events = await run([uses(call("lookup", key="k" * 100)), says()], store=store)
     recorded = [event for event in events if event.type == "tool.result"][0]
     assert recorded.reference == recorded.output["reference"]
-    assert "k" * 100 in store.load_artifact(result.run_id, recorded.reference)
+    assert "k" * 100 in store.load_chat_artifact(result.run_id, recorded.reference)
 
 
 def test_file_store_keeps_a_case_file_under_its_name(tmp_path):
@@ -99,3 +99,23 @@ def test_file_store_keeps_a_case_file_under_its_name(tmp_path):
     assert store.load_artifact("r", "case/demand.csv") == b"time,x\n"
     with pytest.raises(RunError, match="expected letters"):
         store.save_artifact("r", "case/../x", b"x")
+
+
+def test_a_chat_has_its_own_artifact_space(tmp_path):
+    """A chat's artifacts are not a run's, and a chat reads only its own."""
+    for store in (MemoryRunStore(), FileRunStore(tmp_path)):
+        store.save_chat_artifact("c", "case/data/demand.csv", b"x")
+        store.save_chat_artifact("c", "design/d", {"a": 1})
+        assert store.load_chat_artifact("c", "case/data/demand.csv") == b"x"
+        assert store.load_chat_artifact("c", "design/d") == {"a": 1}
+        assert store.load_chat_artifact("other", "design/d") is None
+        assert store.load_artifact("c", "design/d") is None
+
+
+def test_file_store_layout_of_a_chat_artifact(tmp_path):
+    """The chat's artifacts are below the chat's folder, with the run keys' safe rules."""
+    store = FileRunStore(tmp_path)
+    store.save_chat_artifact("c", "design/d", {"a": 1})
+    assert (tmp_path / "chats/c/artifacts/design/d.json").is_file()
+    with pytest.raises(RunError, match="expected letters"):
+        store.save_chat_artifact("c", "case/../x", b"x")
