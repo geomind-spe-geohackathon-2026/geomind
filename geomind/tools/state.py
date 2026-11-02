@@ -27,33 +27,28 @@ PATH_DESCRIPTION = (
 )
 
 
-def changes_schema():
-    """Return the JSON Schema of ``changes``: operations whose ``value`` fits the state's models.
+def value_description():
+    """Return what ``value`` holds, with the shape of each list's item, from the state's models."""
+    shapes = "; ".join(f"{root} item {shape_of(model)}" for root, model in ITEM_MODELS.items())
+    return (
+        "Absent on remove. For '/<list>/-' and '/<list>/<id>' one item: "
+        f"{shapes}. For '/goal' a string; for a field of an item the field's value."
+    )
 
-    NOTE: the alternatives of ``value`` are ``anyOf``, not ``oneOf``, because a requirement and an
-    assumption of the same keys both fit. The tool checks the value against the model of the path.
+
+def changes_schema():
+    """Return the JSON Schema of ``changes``: operations with the shape of ``value`` in words.
+
+    NOTE: the models are not sent as ``$defs`` with ``anyOf``: that cost more than the shapes in
+    words, and the tool checks the value against the model of the path and returns the shape
+    expected there when it does not fit.
     """
-    definitions = {}
-    alternatives = []
-    for name, model in ((m.__name__, m) for m in ITEM_MODELS.values()):
-        schema = model.model_json_schema()
-        schema.pop("title", None)
-        definitions[name] = schema
-        alternatives.append({"$ref": f"#/$defs/{name}"})
-    plain = [{"type": kind} for kind in ("string", "number", "boolean", "object", "array", "null")]
     operation = {
         "type": "object",
         "properties": {
             "op": {"enum": list(OPERATIONS)},
             "path": {"type": "string", "pattern": PATH_PATTERN, "description": PATH_DESCRIPTION},
-            "value": {
-                "anyOf": [*alternatives, *plain],
-                "description": (
-                    "Absent on remove. For '/<list>/-' and '/<list>/<id>' an item: a "
-                    "Requirement, Assumption, Result or Question by the list; for '/goal' a "
-                    "string; for a field of an item the field's value."
-                ),
-            },
+            "value": {"description": value_description()},
         },
         "required": ["op", "path"],
         "additionalProperties": False,
@@ -62,7 +57,6 @@ def changes_schema():
         "type": "array",
         "items": operation,
         "minItems": 1,
-        "$defs": definitions,
         "description": "JSON Patch operations, applied together or not at all.",
     }
 

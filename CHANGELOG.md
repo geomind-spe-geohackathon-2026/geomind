@@ -64,6 +64,9 @@ Additive; nothing renamed or removed. Cuts the input tokens of long tool loops.
   names with summaries only (its former `capabilities` and `roles` for all classes passed the result
   limit). `plant_class` returns that class's `capabilities` and `roles`; `with_schema` gemini's plant
   schema. `build_plant` offers a short `plant` schema (validation unchanged).
+- `update_state` offers `changes` without `$defs` and `anyOf`: the shape of each list's item is in
+  the description of `value` (half the tokens); the tool still checks the value and returns the shape
+  expected for a path. Every input valid before stays valid.
 - `Tool.schema()` drops `title` and `default` annotations and the long text of definitions. 0.4.x logs replay and export unchanged.
 
 ## [0.4.1] - 2026-11-02

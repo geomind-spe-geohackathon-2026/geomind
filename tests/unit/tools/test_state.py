@@ -20,14 +20,16 @@ def test_the_schema_hides_the_context():
 
 
 def test_the_schema_types_the_operations():
-    """The op is an enum, the path has the allowed roots and value takes the state's models."""
+    """The op is an enum, the path has the allowed roots and value names the state's item shapes."""
     items = update_state.schema()["input_schema"]["properties"]["changes"]["items"]
     assert items["properties"]["op"] == {"enum": ["add", "replace", "remove"]}
     assert "results" in items["properties"]["path"]["pattern"]
     assert "case" not in items["properties"]["path"]["pattern"]
-    shapes = update_state.schema()["input_schema"]["$defs"]
-    assert set(shapes) == {"Requirement", "Assumption", "Result", "Question"}
-    assert shapes["Result"]["properties"].keys() == {"id", "summary", "reference"}
+    assert "$defs" not in update_state.schema()["input_schema"]
+    value = items["properties"]["value"]["description"]
+    for root in ("requirements", "assumptions", "results", "questions"):
+        assert f"{root} item {{" in value
+    assert "'summary': 'string', 'reference?'" in value
 
 
 @pytest.mark.parametrize(

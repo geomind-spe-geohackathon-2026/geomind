@@ -321,8 +321,8 @@ Both have effect `read`, so `ask` mode lets them through; `plan` mode runs neith
 and emits `state.changed`; see [context.md](context.md#problem-state). An invalid patch is an error result that
 says how to fix it. A path under `/case` or `/case_origin` is `not_allowed`: only `set_case`
 writes the case, after gemini validates it. The offered schema types `changes`: `op` an enum, `path` a pattern over the allowed roots and
-`value` any of the `Requirement`, `Assumption`, `Result` and `Question` models (`anyOf`, since a
-requirement and an assumption of the same keys both fit) or plain data. The input model is still
+`value` described in words with the item shape of each list (no `$defs`, no `anyOf`: that cost
+twice the tokens; the error of a wrong value repeats the shape expected). The input model is still
 `list[dict]`, so what was valid stays valid; before the patch is applied the tool checks the path
 form and the value against the model of the list (`/results/-` for an add, `/results/<id>` for a
 replace or remove, `/results/<id>/<field>` for a field, `/results` with a list, never a position),
