@@ -6,6 +6,10 @@ the list of frozen interfaces are in [.claude/docs/api.md](.claude/docs/api.md#f
 
 ## [Unreleased]
 
+- Fix: the Economist task no longer crashes on a `design.start_result` or `alternatives[].result` that
+  is an object. The problem state's design section is typed (`DesignState`); `update_state` refuses an
+  object for a reference, and a stored state with one loads converted or under `design.unreadable`.
+
 - The Designer starts from the project's plants: `read_plant(project_plant=...)`, then `build_plant`
   before sizing or searching; a new plant only when none fits, with the reason as an assumption.
   The `DesignLoop`'s first task names the project's plants (none when there are none). The prompt

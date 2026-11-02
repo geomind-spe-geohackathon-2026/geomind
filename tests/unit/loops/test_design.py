@@ -393,3 +393,36 @@ def test_the_recorded_designer_stores_the_project_plant_before_its_first_study()
     assert names.index("build_plant") < names.index("size_plant")
     assert built["plant"]["type"] == json.loads(project_file.read_text())["type"]
     assert study["design"] == f"design/{built['name']}"
+
+
+OLD_DESIGN = {
+    "reference": "design/best",
+    "result": "result/r2",
+    "start_result": {"reference": "result/r0", "summary": "start"},
+    "alternatives": [{"family": "F2", "design": "design/f2", "result": {"reference": "result/r3"}}],
+}
+
+
+def test_a_0_4_state_with_objects_for_references_loads_and_the_economist_task_reads_it():
+    """An object that carries a reference is converted; the economist task does not crash."""
+    problem = ProblemState.model_validate({"design": OLD_DESIGN})
+    task = economist_task("design/best", "result/r2", problem)
+    assert problem.design["start_result"] == "result/r0"
+    assert "result/r0, result/r3" in task
+
+
+def test_an_object_without_a_reference_is_set_aside_and_named_not_crashed_on():
+    """What cannot be converted moves to ``design.unreadable`` and the task goes on."""
+    problem = ProblemState.model_validate({"design": {"start_result": {"summary": "x"}}})
+    assert problem.design["unreadable"] == {"start_result": {"summary": "x"}}
+    assert "no sized start" in economist_task("design/a", "result/b", problem)
+
+
+def test_update_state_refuses_an_object_where_a_reference_belongs_and_shows_the_shape():
+    """The state change is refused with the field path and the expected string."""
+    from geomind.context.state import apply_changes
+    from geomind.errors import StateError
+
+    change = [{"op": "add", "path": "/design/start_result", "value": {"reference": "result/r"}}]
+    with pytest.raises(StateError, match="design.*start_result.*string"):
+        apply_changes(ProblemState(), change)

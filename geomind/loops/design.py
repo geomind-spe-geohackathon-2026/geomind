@@ -178,7 +178,7 @@ class DesignDriver(Agent):
         """Check the design again with gemini, then cost it, route its failures, or stop."""
         found = await asyncio.to_thread(verify_design, context)
         round_number = rounds(calls)
-        design = context.problem.design.get("reference")
+        design = context.problem.design_state.reference
         result = context.problem.verification.get("result")
         index = len(calls)
         changed = case_change(found)
@@ -285,22 +285,23 @@ def rounds(calls):
 
 def verifier_task(context):
     """Return the verifier's task: check the result the designer recorded for its design."""
-    design = context.problem.design or {}
-    if "reference" not in design or "result" not in design:
+    design = context.problem.design_state
+    if design.reference is None or design.result is None:
         return (
             "The designer recorded no design.reference and design.result. Report that no design "
             "can be verified."
         )
     return (
-        f"Verify {design['reference']}: run check_results once on its result {design['result']} "
+        f"Verify {design.reference}: run check_results once on its result {design.result} "
         "and record the verification."
     )
 
 
 def economist_task(design, result, problem):
     """Return the economist's task: cost the verified run, and compare it with what was run."""
-    start = problem.design.get("start_result")
-    others = [item.get("result") for item in problem.design.get("alternatives") or ()]
+    typed = problem.design_state
+    start = typed.start_result
+    others = [item.result for item in typed.alternatives or ()]
     compared = [reference for reference in (start, *others) if reference]
     against = (
         f"compare it with {', '.join(compared)} (the sized start and the alternatives the "
@@ -352,7 +353,7 @@ def explainer_task(context, calls):
     A study the designer recorded (``design.study``) is added as a ranked table.
     """
     request = request_of(context)
-    design = context.problem.design.get("reference")
+    design = context.problem.design_state.reference
     report = next((output for name, output in reversed(calls) if name == "verifier"), "")
     task = (
         f"Explain the verified design {design} for this request:\n\n{request}\n\nThe "

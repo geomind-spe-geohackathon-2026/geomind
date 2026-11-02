@@ -5,6 +5,13 @@ LLM call or an event stays in the engine.
 
 ## Problem state
 
+The `design` section is typed by `DesignState` (`context/state.py`; `ProblemState.design_state`):
+`reference`, `result` and `start_result` are reference strings (`design/<name>`, `result/<id>`; the
+pattern is advertised, not enforced) and `alternatives` is a list of `{family, design, result}`;
+other keys are free. `update_state` refuses an object where a reference belongs. A stored 0.4.x state
+with one loads: an object carrying a `reference` is converted, any other is kept under
+`design.unreadable`.
+
 `ProblemState` (`context/state.py`) holds the notes of one chat, outside the message window: `version`,
 `goal`, `requirements`, `assumptions`, `design`, `results`, `verification`, `questions`, `case`
 and `case_origin`. It is frozen: a change is a new state.

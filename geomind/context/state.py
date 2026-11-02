@@ -1,9 +1,9 @@
 """The problem state: shared notes kept outside the message window."""
 
 import json
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import ValidationError, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from geomind.errors import StateError
 from geomind.types import Record
@@ -56,6 +56,81 @@ class Compaction(Record):
     turns: int
 
 
+REFERENCE_PATTERN = r"^(design|result)/[^/]+$"
+Reference = Annotated[str, Field(json_schema_extra={"pattern": REFERENCE_PATTERN})]
+REFERENCE_FIELDS = {"reference": "reference", "result": "result", "start_result": "reference"}
+
+
+class Alternative(BaseModel):
+    """A family built and simulated for the whole year: its design and result."""
+
+    model_config = ConfigDict(frozen=True, extra="allow")
+
+    family: str | None = None
+    design: Reference | None = None
+    result: Reference | None = None
+
+
+class DesignState(BaseModel):
+    """The design section of the state: references are strings, not objects.
+
+    ``reference`` is the final design (``design/<name>``), ``result`` its whole-year run and
+    ``start_result`` the sized start's run (``result/<id>``); ``alternatives`` lists the other
+    families as ``{family, design, result}``. Other keys (``families``, ``family``, ``schematic``,
+    ``study``, ``rejected``) are free. The pattern is advertised, not enforced, so a state stored
+    before it still loads.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="allow")
+
+    reference: Reference | None = None
+    result: Reference | None = None
+    start_result: Reference | None = None
+    alternatives: tuple[Alternative, ...] | None = None
+
+
+def converted(value, key):
+    """Return the reference a 0.4.x object carries (``{key: ...}`` or ``reference``), else None."""
+    if not isinstance(value, dict):
+        return None
+    found = value.get(key) or value.get("reference")
+    return found if isinstance(found, str) else None
+
+
+def convert_fields(document, names, unreadable, prefix=""):
+    """Convert each object in ``document[name]`` (``names`` maps a field to its key), in place."""
+    for name, key in names.items():
+        if not isinstance(document.get(name), dict):
+            continue
+        value = document.pop(name)
+        found = converted(value, key)
+        if found is None:
+            unreadable[f"{prefix}{name}"] = value
+        else:
+            document[name] = found
+
+
+def old_design(design):
+    """Return ``design`` with each object where a reference belongs converted when it carries one.
+
+    What cannot be converted moves to ``unreadable`` (name -> value), so a stored state loads and
+    says what it could not read.
+    """
+    document = dict(design)
+    unreadable = dict(document.get("unreadable") or {})
+    convert_fields(document, REFERENCE_FIELDS, unreadable)
+    alternatives = []
+    for index, item in enumerate(document.get("alternatives") or ()):
+        item = dict(item) if isinstance(item, dict) else {"unreadable": item}
+        convert_fields(
+            item, {"design": "design", "result": "result"}, unreadable, f"alternatives/{index}/"
+        )
+        alternatives.append(item)
+    if "alternatives" in document:
+        document["alternatives"] = alternatives
+    return {**document, **({"unreadable": unreadable} if unreadable else {})}
+
+
 class ProblemState(Record):
     """The notes of one chat; ``version`` is raised by one with every change.
 
@@ -78,6 +153,26 @@ class ProblemState(Record):
     case: dict[str, Any] | None = None
     case_origin: dict[str, Any] | None = None
     compaction: Compaction | None = None
+
+    @field_validator("design", mode="before")
+    @classmethod
+    def _typed_design(cls, design, info):
+        """Validate the design section as ``DesignState``.
+
+        Update_state's validation (``context={"strict": True}``) refuses an object where a
+        reference belongs and says the shape; loading a stored state converts or sets it aside.
+        """
+        if not isinstance(design, dict):
+            return design
+        if not (info.context or {}).get("strict"):
+            design = old_design(design)
+        DesignState.model_validate(design)
+        return design
+
+    @property
+    def design_state(self):
+        """Return the design section as a typed ``DesignState``."""
+        return DesignState.model_validate(self.design)
 
     @model_validator(mode="after")
     def _check_ids(self):
@@ -162,7 +257,7 @@ def _problems(error):
 def _validated(document):
     """Return the state a document describes, or raise what the model must fix."""
     try:
-        return ProblemState.model_validate(document)
+        return ProblemState.model_validate(document, context={"strict": True})
     except ValidationError as error:
         raise StateError(f"update_state: {_problems(error)}") from error
 
