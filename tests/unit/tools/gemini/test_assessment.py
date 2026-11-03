@@ -2,10 +2,12 @@
 
 import asyncio
 import functools
+import json
 
 import pytest
 
 import geomind as gd
+from tests.fixtures import ROOT
 from tests.fixtures.calls import call
 from tests.fixtures.cases import EXAMPLES, example_names
 from tests.fixtures.stored_runs import stored_run, variant_run, warm_runs
@@ -175,23 +177,53 @@ async def test_a_case_without_economics_is_incomplete():
     assert output["error"]["path"].startswith("economics")
 
 
-async def test_a_kpi_the_case_cannot_give_says_what_is_missing():
-    """A cost without its economics keeps gemini's reason and adds the gap with its path."""
+SHAPE_0_4_11 = json.loads((ROOT / "tests" / "fixtures" / "kpi_shape_0_4_11.json").read_text())
+"""The shape of ``compute_kpis`` in 0.4.11 on the shallow example, with and without economics."""
+
+
+def shape(value):
+    """Return the shape of a KPI value: ``quantity``, ``null``, a type, or a dict of shapes."""
+    if value is None:
+        return "null"
+    if isinstance(value, dict):
+        return "quantity" if "value" in value else {key: shape(item) for key, item in value.items()}
+    return type(value).__name__
+
+
+async def without_economics():
+    """Return the output of ``compute_kpis`` on the shallow run with its economics removed."""
     context, _, result = await stored_run("shallow_district")
     identifier = result.removeprefix("result/")
     ran_on = dict(context.session.load_artifact(f"{identifier}.case"))
     del ran_on["economics"]
     await context.session.save_artifact(f"{identifier}.case", ran_on)
-    output = (await assess_in(context, TOOLS.compute_kpis, result)).output
-    lcoh = output["lcoh"]
-    assert lcoh["value"] is None and "discount_rate" in lcoh["reason"]
-    assert lcoh["error"]["code"] == "case_incomplete"
-    assert lcoh["error"]["path"].startswith("economics")
-    assert lcoh["error"]["suggestions"] == [lcoh["error"]["path"]]
-    assert output["npv"]["error"]["code"] == "case_incomplete"
+    return (await assess_in(context, TOOLS.compute_kpis, result)).output
+
+
+@pytest.mark.parametrize("variant", ["base", "no_economics"])
+async def test_the_kpis_keep_the_shape_of_0_4_11(variant):
+    """Every key of 0.4.11 keeps its shape, and the one new key is ``errors``."""
+    if variant == "base":
+        output = (await assess(TOOLS.compute_kpis, "shallow_district")).output
+    else:
+        output = await without_economics()
+    assert {key: shape(value) for key, value in output.items() if key != "errors"} == (
+        SHAPE_0_4_11[variant]
+    )
+
+
+async def test_a_kpi_the_case_cannot_give_is_in_errors_with_its_path():
+    """A cost without its economics keeps gemini's entry, and ``errors`` names the gap."""
+    output = await without_economics()
+    assert output["lcoh"]["value"] is None and "discount_rate" in output["lcoh"]["reason"]
+    assert "error" not in output["lcoh"] and "npv" not in output
+    error = output["errors"]["lcoh"]
+    assert error["code"] == "case_incomplete" and error["path"].startswith("economics")
+    assert error["suggestions"] == [error["path"]]
+    assert output["errors"]["npv"]["code"] == "case_incomplete"
 
 
 async def test_a_kpi_that_has_a_value_has_no_error():
     """Nothing is added where gemini gave a number."""
     output = assessed("compute_kpis", "shallow_district", "base")
-    assert "error" not in output["lcts"] and output["lcts"]["value"] is not None
+    assert "lcts" not in output.get("errors", {}) and output["lcts"]["value"] is not None

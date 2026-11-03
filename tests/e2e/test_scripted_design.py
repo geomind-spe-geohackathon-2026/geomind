@@ -75,15 +75,61 @@ def test_a_case_gives_a_verified_design_that_replays(name, monkeypatch, tmp_path
 
 
 def calls_of(events):
-    """Return the completions and tool results of a log with their run's agent, in log order."""
+    """Return each step of a log with its run's agent: its completions, then its tool results.
+
+    NOTE: the read and compute calls of one step run side by side and log their results in the
+    order they finish, so a step's results are put in the order of its calls, as replay itself
+    compares them; a different completion or result still differs.
+    """
     runs = {e.run_id: e.agent for e in events if e.type == "run.started"}
-    found = []
+    places = {
+        (e.run_id, e.index, call.id): position
+        for e in events
+        if e.type == "llm.completed"
+        for position, call in enumerate(e.completion.tool_calls)
+    }
+    steps = {}
     for e in events:
+        if e.type not in ("llm.completed", "tool.result"):
+            continue
+        completions, results = steps.setdefault((e.run_id, e.index), ([], []))
         if e.type == "llm.completed":
-            found.append((runs[e.run_id], e.index, e.completion.text, e.completion.tool_calls))
-        if e.type == "tool.result":
-            found.append((runs[e.run_id], e.index, e.tool, e.input, e.output))
-    return found
+            completions.append((e.completion.text, e.completion.tool_calls))
+            continue
+        place = places.get((e.run_id, e.index, e.call_id), len(places))
+        results.append((place, e.tool, e.input, e.output))
+    return [
+        (runs[run], index, completions, sorted(results, key=lambda item: item[0]))
+        for (run, index), (completions, results) in steps.items()
+    ]
+
+
+def test_results_of_one_step_compare_in_call_order():
+    """Two results of one step that finished the other way round are the same step."""
+    from geomind.types import Completion, ToolCall, Usage
+    from geomind.types.events import LLMCompleted, RunStarted, ToolRecorded
+
+    calls = (ToolCall(id="a", name="x", input={}), ToolCall(id="b", name="y", input={}))
+    completion = Completion(text="", tool_calls=calls, usage=Usage(), model="m")
+    started = RunStarted(run_id="r", sequence=1, run="r", root="r", agent_class="c", max_steps=1)
+
+    def log(first, second, changed=""):
+        return [
+            started,
+            LLMCompleted(run_id="r", sequence=2, index=1, completion=completion),
+            ToolRecorded(run_id="r", sequence=3, index=1, call_id=first, tool=first, output=first),
+            ToolRecorded(
+                run_id="r",
+                sequence=4,
+                index=1,
+                call_id=second,
+                tool=second,
+                output=second + changed,
+            ),
+        ]
+
+    assert calls_of(log("b", "a")) == calls_of(log("a", "b"))
+    assert calls_of(log("a", "b", changed="!")) != calls_of(log("a", "b"))
 
 
 def normalised(text):

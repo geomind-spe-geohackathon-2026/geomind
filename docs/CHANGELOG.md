@@ -6,6 +6,13 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.13] - 2026-11-03
+
+Additive; it takes back the change of shape of 0.4.12.
+
+- `compute_kpis` has the output shape of 0.4.11 again: a cost gemini gives no value for is its report entry (`{value: null, unit, reason}`), or left out as `npv` and `payback` are without revenue. 0.4.12 added `error` inside entries and turned an absent `npv` into a dict; both are gone. The new `errors` key maps each such cost to its error, `case_incomplete` with the path in `suggestions`. A test pins the 0.4.11 shape of every key.
+- The flaky replay check of `tests/e2e/test_scripted_design.py` was geomind's test, not gemini: the explainer calls `estimate_costs` and `compute_kpis` in one step, they run side by side, and their results are logged in the order they finish. In 60 runs under load the two results came the other way round twice, every value equal. The test now compares each step's results in the order of its calls, as replay itself does; a different value still fails.
+
 ## [0.4.12] - 2026-11-03
 
 Additive; one change of shape the backend sees.

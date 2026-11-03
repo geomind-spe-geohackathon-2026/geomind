@@ -376,8 +376,9 @@ When a case misses values, `set_case` answers `case_incomplete` with every path 
 from `gm.case.missing`, for one question to the user. The design loop asks for a missing case at
 its start only when the project has no files; with files the designer reads them first.
 
-`compute_kpis` keeps gemini's report entries; a cost gemini gives no value for (`capex`, `opex`,
-`annualised_cost`, `lcoh`, `lcoc`, `lcts`, `npv`, `payback`, `co2`) also has `error`, gemini's error
-for it with a missing case value as `case_incomplete` and the path in `suggestions`, beside the
-report's `reason`. A cost the report left `null` becomes `{"value": null, "error": ...}`.
+`compute_kpis` keeps gemini's report entries as they are, in the shape of 0.4.11: a cost gemini
+gives no value for is `{value: null, unit, reason}` or left out, as the report gives it. Beside them,
+`errors` maps each such cost (`capex`, `opex`, `annualised_cost`, `lcoh`, `lcoc`, `lcts`, `npv`,
+`payback`, `co2`) to gemini's error for it, a missing case value being `case_incomplete` with the
+path in `suggestions`; without any, `errors` is left out. `names` keeps the errors of those names.
 
