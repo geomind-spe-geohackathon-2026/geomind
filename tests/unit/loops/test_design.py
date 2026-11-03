@@ -575,3 +575,15 @@ async def test_a_verified_design_is_kept_as_experience(verdicts):
     [kept] = memory.entries("experience")
     assert result.status == "done" and kept["verdict"] == "passed"
     assert kept["design"] == "design/d1" and kept["features"]["depth"] == 1300.0
+
+
+def test_the_formulation_task_names_the_project_s_case_file():
+    """A project with a case.json: the formulator is told to load it, not to ask the user."""
+    from geomind.loops.design import formulation_task
+
+    case, files = example_case("shallow_district")
+    session = StubSession(workspace=MemoryWorkspace(cases={"p": (case, files)}))
+    task = formulation_task(
+        Context(messages=[Message(role="user", content="Design it")], session=session, project="p")
+    )
+    assert "set_case(source='project')" in task

@@ -309,8 +309,16 @@ def has_project_case(context):
 
 
 def formulation_task(context):
-    """Return the formulator's task: the request and the project's files."""
-    return f"{request_of(context)}{project_files_text(context)}\n\nSet the case for this design."
+    """Return the formulator's task: the request, the project's case file and its files."""
+    own = (
+        "\n\nThe project holds a case file: start from set_case(source='project'), then add what "
+        "it lacks."
+        if has_project_case(context)
+        else ""
+    )
+    return (
+        f"{request_of(context)}{own}{project_files_text(context)}\n\nSet the case for this design."
+    )
 
 
 def case_changes_named(output):
