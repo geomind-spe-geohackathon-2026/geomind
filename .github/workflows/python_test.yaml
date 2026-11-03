@@ -19,9 +19,8 @@ jobs:
         python: ["3.11", "3.12", "3.13", "3.14"]
     env:
       NPY_DISABLE_CPU_FEATURES: X86_V4 AVX512_ICL AVX512_SPR AVX512F AVX512CD AVX512_SKX AVX512_CLX AVX512_CNL
-      PROFILE: >-
-        ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main' && 'release') ||
-        'development' }}
+      TIER: >-
+        ${{ (github.event_name == 'push' && github.ref == 'refs/heads/dev' && 'fast') || 'full' }}
     steps:
     - uses: actions/checkout@v5
       with:
@@ -34,11 +33,9 @@ jobs:
         .venv/bin/python scripts/project_dependencies.py | uv pip install -r -
         uv pip install --group test
         echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
-    - name: Run development profile against the base
-      if: env.PROFILE == 'development'
-      env:
-        BASE: ${{ github.base_ref || 'main' }}
-      run: python scripts/test_changed.py --base "origin/$BASE"
+    - name: Run the fast tier
+      if: env.TIER == 'fast'
+      run: python -m pytest -m "not slow and not docker" --profile=release --durations=20
     - name: Run the full suite
-      if: env.PROFILE == 'release'
+      if: env.TIER == 'full'
       run: python -m pytest -n auto -m "not docker" --profile=release --durations=20

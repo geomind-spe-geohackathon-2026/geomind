@@ -11,6 +11,7 @@ TOOL_ERROR_CODES = (
     "case_incomplete",
     "files_unavailable",
     "not_text",
+    "nested_stopped",
     "timeout",
     "budget",
     "internal",

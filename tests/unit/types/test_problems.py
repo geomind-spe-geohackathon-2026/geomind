@@ -35,6 +35,7 @@ def test_the_codes_are_the_fixed_list():
         "case_incomplete",
         "files_unavailable",
         "not_text",
+        "nested_stopped",
         "timeout",
         "budget",
     }

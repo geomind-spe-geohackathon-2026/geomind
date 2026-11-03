@@ -34,6 +34,7 @@ def run_result(session, stop):
         usage=state.usage,
         steps=state.step,
         stop_reason=stop.reason,
+        message=None if stop.is_crash else stop.message,
     )
 
 
@@ -132,7 +133,7 @@ class Engine:
         except Exception as error:
             await session.report_error(error, where="engine")
             reason = "not_implemented" if isinstance(error, NotImplementedYet) else "error"
-            stop = Stop(reason, str(error))
+            stop = Stop(reason, str(error), is_crash=reason == "error")
         return await self.end(session, stop)
 
     async def decline(self, loop, context, error):

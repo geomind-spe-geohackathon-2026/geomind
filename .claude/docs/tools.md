@@ -310,6 +310,7 @@ A validation error takes `path` from the first input field that failed. Every ot
 | `not_text` | `read_document`: the file gives no text (binary, encrypted, a scan) |
 | `timeout` | the tool passed its time limit |
 | `budget` | a budget or time limit stopped a delegate's nested run; the message names it with what was spent and the cap |
+| `nested_stopped` | a delegate's nested run stopped without an answer (a step limit, a refusal, invalid calls); the message says why |
 | `internal` | a bug or a crash; the detail is in the log, never in the result |
 
 A permission denial is no error class: its result is the reason as text, with `is_error` set and

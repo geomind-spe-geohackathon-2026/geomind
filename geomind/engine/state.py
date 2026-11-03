@@ -9,12 +9,13 @@ from geomind.types import Action, Cancel, Message, Record, Request, ToolCall, Us
 
 @dataclass
 class Stop:
-    """Why a run stops now: exactly one reason."""
+    """Why a run stops now: exactly one reason; ``is_crash`` keeps the message out of the result."""
 
     reason: str
     message: str | None = None
     answer: Any = None
     request: Request | None = None
+    is_crash: bool = False
 
 
 def is_cancel(decision):
