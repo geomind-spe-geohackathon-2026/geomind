@@ -64,7 +64,23 @@ def test_it_computes_nothing_and_invents_no_number():
     """#43 and #44: a derived value stays unset for gemini; a value with no source is asked."""
     text = CaseLead().prompt.content
     assert "Compute nothing" in text and "stays unset" in text
-    assert "propose no number of" in text
+    assert "with no number of your own" in text
+
+
+def test_it_writes_no_number_it_worked_out():
+    """#64: a dew point worked out inside a question; the span is copied from the file."""
+    text = " ".join(CaseLead().prompt.content.split())
+    assert "every number you write, in a question" in text and "a dew point" in text
+    assert "from the `span` of the data file's `table`" in text
+
+
+def test_a_missing_value_is_searched_before_it_is_asked_for():
+    """Sahand: files, then the knowledge base, then MCP, and only then the user."""
+    text = " ".join(CaseLead().prompt.content.split())
+    order = ["the project's files", "the knowledge base:", "an MCP tool", "only when none"]
+    assert [text.index(item) for item in order] == sorted(text.index(item) for item in order)
+    assert "Search 3 and 4 for every value the files lack before you ask" in text
+    assert "knowledge/cost-sources.csv" in text and "`placeholder`" in text
 
 
 def test_time_end_is_exclusive_and_the_data_decides_the_span():

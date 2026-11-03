@@ -418,6 +418,32 @@
           "title": "AnswerRule",
           "type": "object"
         },
+        "BeforeCriterion": {
+          "additionalProperties": false,
+          "description": "``tool`` was called before the first call of ``then``; a run without ``then`` passes.\n\nThe order of the run's own tool results, so a search comes before the question it spares.",
+          "properties": {
+            "kind": {
+              "const": "before",
+              "title": "Kind",
+              "type": "string"
+            },
+            "then": {
+              "title": "Then",
+              "type": "string"
+            },
+            "tool": {
+              "title": "Tool",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "tool",
+            "then"
+          ],
+          "title": "BeforeCriterion",
+          "type": "object"
+        },
         "Message": {
           "additionalProperties": false,
           "description": "One message of a conversation.",
@@ -689,6 +715,7 @@
           "items": {
             "discriminator": {
               "mapping": {
+                "before": "#/$defs/BeforeCriterion",
                 "number": "#/$defs/NumberCriterion",
                 "question": "#/$defs/QuestionCriterion",
                 "sourced": "#/$defs/SourcedCriterion",
@@ -716,6 +743,9 @@
               },
               {
                 "$ref": "#/$defs/SourcedCriterion"
+              },
+              {
+                "$ref": "#/$defs/BeforeCriterion"
               }
             ]
           },
@@ -782,5 +812,5 @@
       "Model"
     ]
   },
-  "version": "0.4.22.dev40"
+  "version": "0.4.22.dev41"
 }

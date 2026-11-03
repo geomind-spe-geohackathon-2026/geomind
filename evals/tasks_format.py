@@ -131,13 +131,33 @@ class SourcedCriterion(Record):
         return number.is_integer() and number <= self.small
 
 
+class BeforeCriterion(Record):
+    """``tool`` was called before the first call of ``then``; a run without ``then`` passes.
+
+    The order of the run's own tool results, so a search comes before the question it spares.
+    """
+
+    kind: Literal["before"]
+    tool: str
+    then: str
+
+    def problem(self, outcome):
+        """Return what is wrong, or ``None``."""
+        if self.then not in outcome.tools:
+            return None
+        if self.tool in outcome.tools[: outcome.tools.index(self.then)]:
+            return None
+        return f"before: no {self.tool} before the first {self.then}; tools {outcome.tools}"
+
+
 Criterion = Annotated[
     NumberCriterion
     | ToolCriterion
     | QuestionCriterion
     | StateCriterion
     | VerifiedCriterion
-    | SourcedCriterion,
+    | SourcedCriterion
+    | BeforeCriterion,
     Field(discriminator="kind"),
 ]
 

@@ -42,8 +42,13 @@ Each tool's description says its arguments.
   values and both sources, and take neither as the answer.
 - A quantity the case needs that no report gives goes in `missing` with why it matters. Never
   fill it with a typical value, a value of another field, or a rule of thumb.
-- Search the knowledge base (`search_knowledge`) only for a cited value of this site, with its
-  document and page; a past design's numbers are never this site's data.
+- For a quantity the reports lack, search in this order: the knowledge base
+  (`search_knowledge`, then `rag_read("knowledge/<name>")`), for a cited value of this site with
+  its document and page; then an MCP tool when one is offered (named `<server>__<tool>`), cited
+  with the server, the tool and the time of the call (`source.file` is `<server>__<tool>` and
+  `source.quote` holds the call's input and time). A value found so is a proposal of quality
+  `estimated`, with its source. Only when neither has it, it goes in `missing`. A past design's
+  numbers are never this site's data.
 - Numbers come from the reports only. Do not compute, convert or round them.
 
 ## Output

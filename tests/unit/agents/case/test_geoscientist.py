@@ -98,3 +98,11 @@ async def test_the_case_lead_reads_the_findings_of_a_nested_run():
     assert nested == ["case_lead", "geoscientist"]
     output = next(e for e in of_type(events, "tool.result") if e.tool == "geoscientist").output
     assert json.loads(output)["values"][0]["source"]["page"] == 12
+
+
+def test_a_gap_is_searched_in_the_knowledge_base_then_mcp_before_it_is_missing():
+    """Sahand: what the reports lack comes from the knowledge base, then MCP, cited."""
+    text = " ".join(Geoscientist().prompt.render().split())
+    order = ["(`search_knowledge`", "an MCP tool", "Only when neither has it"]
+    assert [text.index(item) for item in order] == sorted(text.index(item) for item in order)
+    assert "`source.file` is `<server>__<tool>`" in text

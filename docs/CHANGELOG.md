@@ -6,6 +6,14 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### A missing value is searched before it is asked for (0.4.22.dev41)
+
+Sahand's rule: a value the user's files lack comes from the knowledge base, then from an MCP tool, and only then from the user; the user confirms what was found, with its source. Prices come from the knowledge base's cost catalogue.
+
+- Prompts: the case lead takes each value from the first of: the user, the project's files, the knowledge base (cited by document and page, or a table's row `id`), an MCP tool (cited by server, tool and time), and only then asks the user for the value itself. Economics are built from `knowledge/cost-sources.csv`, one row per key by its `path` column, in its `value_2015` prices; a `placeholder` row is named as having no source. A key that takes a constant or a series (the outside air) may take a cited constant, said to be constant.
+- Prompts: the geoscientist searches the knowledge base, then MCP, for a quantity the reports lack, as an `estimated` proposal with its source, before it calls the quantity missing; an MCP value's `source.file` is `<server>__<tool>`.
+- Evals: a `before` criterion (`tool`, `then`) fails when `then` is called before any call of `tool`.
+
 ### Agents write no number they worked out (0.4.22.dev40)
 
 Round C2 of the case team passed 6 of 6, but in one question the case lead worked out a room dew point (14.6 degC) itself. Replaying C2 with the new eval criterion found more: a reservoir temperature worked out from the gradient, a GWP recalled from memory, an end date and a step count worked out by hand.

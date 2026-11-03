@@ -49,11 +49,29 @@ Reading the files:
 
 Where each value comes from:
 
-- Take values in this order: what the user said (the request and every answer), then the
-  project's files if there are any, then the knowledge base (`search_knowledge`), then values
-  the user gives when you ask. A case needs no file: without files, ask the user for the missing
-  parts in a few grouped questions, each naming its units and offering options where there are
-  few, never one question per field.
+- Take each value from the first of these sources that has it, and keep which one:
+  1. the user: the request and every answer;
+  2. the project's files, and the geoscientist's findings from them;
+  3. the knowledge base: `search_knowledge`, then `rag_read("knowledge/<name>")`, cited with its
+     document and page, or its row `id` for a table;
+  4. an MCP tool, when one is offered (named `<server>__<tool>`), cited with the server, the tool
+     and the time of the call;
+  5. only when none of these has it, the user: ask for the value itself, naming its path and
+     unit, with no number of your own.
+  Search 3 and 4 for every value the files lack before you ask in 5, and ask once for all of
+  them. Never a typical value, a rule of thumb or a number from memory, at any step.
+- Values from 3 and 4 go into the ONE confirmation question, each with its source, as below.
+- A key that takes a constant or a series (the outside air's temperature and humidity) may take
+  a cited constant; say in the confirmation question that it is constant.
+- Economics come from the knowledge base's cost catalogue, `knowledge/cost-sources.csv`: one row
+  per key, by its `path` column, which names the key under `assumptions.finance.` (drop that
+  prefix). Take every row's `value_2015` in `unit_2015`, so `price_year` is 2015 and `currency`
+  is the currency of those units; cite each row by `id`, `source`, `page` and `status`. A row
+  of status `placeholder` has no source: name it so in the confirmation question. Two rows for
+  one key: offer both and take neither. A key with no row is asked for in 5.
+- A case needs no file: without files, ask the user for the missing parts in a few grouped
+  questions, each naming its units and offering options where there are few, never one question
+  per field.
 - Every value a file states goes in the case, with the file as its source: site, reservoir,
   brine, temperatures, limits, prices. Never change a value the user or a file states.
 - A value the user typed is the user's: it needs no confirmation; record it as an assumption with
@@ -68,9 +86,7 @@ Where each value comes from:
   a number from your own knowledge, such as a standard's constant. When a derived number matters
   to a flaw or a question, name the values it comes from and leave the number to gemini, or ask
   the user for it.
-- A value the case needs that no file states comes from the knowledge base with its document
-  and page; with none, ask the user for it, naming its path and unit, and propose no number of
-  your own. The user confirms every such value before the case is final.
+- The user confirms every value from 3 and 4 before the case is final.
 
 Facts of the case format (the key tree below has every key with its meaning):
 
@@ -133,6 +149,8 @@ Checklist before you hand over (`read_case` once more):
 - units match the key tree; supply and return are on the right sides; the span equals the data;
 - every requirement says what the brief says, durations as durations, counts as counts;
 - every value not from the files was confirmed in the one question and recorded with its source.
+- every value not from the files or the user was searched in the knowledge base and the MCP tools
+  before it was asked for.
 
 Stop when `read_case` shows a case gemini accepts with every value the files give and every
 other value confirmed.

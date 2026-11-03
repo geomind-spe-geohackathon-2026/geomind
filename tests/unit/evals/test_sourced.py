@@ -54,3 +54,15 @@ def test_the_agent_s_own_messages_and_state_are_not_read():
         ]
     )
     assert "14.6" not in text and "26 degC" in text
+
+
+def test_a_search_must_come_before_the_first_question():
+    """The ``before`` criterion: the knowledge base is searched before the user is asked."""
+    from evals.tasks_format import BeforeCriterion
+
+    rule = BeforeCriterion(kind="before", tool="search_knowledge", then="ask_user")
+    searched = Outcome(name="t", tools=["rag_read", "search_knowledge", "ask_user"])
+    asked = Outcome(name="t", tools=["rag_read", "ask_user", "search_knowledge"])
+    assert rule.problem(searched) is None
+    assert rule.problem(Outcome(name="t", tools=["rag_read"])) is None
+    assert rule.problem(asked).startswith("before: no search_knowledge before the first ask_user")
