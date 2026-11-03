@@ -143,6 +143,22 @@ def _is_plant_file(item):
     return isinstance(name, str) and isinstance(file, dict)
 
 
+def _check_files(workspace, project, missing_project):
+    """Check the optional file methods of a workspace that has them."""
+    if not callable(getattr(workspace, "files", None)):
+        return
+    for item in workspace.files(project):
+        _expect(
+            set(item) == {"name", "size", "media_type"},
+            "a file must have name, size and media_type",
+        )
+        content = workspace.file(project, item["name"])
+        _expect(isinstance(content, bytes), "a listed file must read as bytes")
+        _expect(len(content) == item["size"], "size must be the length of the bytes")
+    _expect(workspace.files(missing_project) == [], "an unknown project must have no files")
+    _expect(workspace.file(project, "conformance-missing") is None, "an unknown file is None")
+
+
 def check_workspace(factory, *, project, query, missing_project="conformance-missing"):
     """Check a ``Workspace``; ``factory()`` holds plants, a case and a document for ``query``."""
     workspace = factory()
@@ -163,3 +179,4 @@ def check_workspace(factory, *, project, query, missing_project="conformance-mis
     scores = [document["score"] for document in found]
     _expect(scores == sorted(scores, reverse=True), "documents must come best first")
     _expect(workspace.documents(missing_project, query) == [], "an unknown project has none")
+    _check_files(workspace, project, missing_project)

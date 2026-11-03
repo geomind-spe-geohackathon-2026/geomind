@@ -10,6 +10,8 @@ def test_it_is_complete():
         Designer,
         "designer",
         [
+            "list_files",
+            "read_document",
             "read_case",
             "set_case",
             "save_profile",

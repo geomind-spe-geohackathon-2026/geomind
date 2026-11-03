@@ -9,6 +9,8 @@ TOOL_ERROR_CODES = (
     "not_allowed",
     "no_case",
     "case_incomplete",
+    "files_unavailable",
+    "not_text",
     "timeout",
     "budget",
     "internal",

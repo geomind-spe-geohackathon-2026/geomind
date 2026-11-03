@@ -144,3 +144,37 @@ def test_an_economics_file_names_series_beside_it():
         {"plans/economics.json": content, "plans/prices.csv": b"x"}.get,
     )
     assert set(files) == {"plans/economics.json", "plans/prices.csv"}
+
+
+def test_a_memory_workspace_holds_files_by_project():
+    """The files keep their bytes, and an unknown file or project has none."""
+    workspace = MemoryWorkspace(files={"p": {"a.csv": b"x,y\n", "b.bin": b"\x00"}})
+    assert workspace.files("p") == [
+        {"name": "a.csv", "size": 4, "media_type": "text/csv"},
+        {"name": "b.bin", "size": 1, "media_type": "application/octet-stream"},
+    ]
+    assert workspace.file("p", "a.csv") == b"x,y\n"
+    assert workspace.file("p", "c.csv") is None
+    assert workspace.files("q") == []
+    assert workspace.file("q", "a.csv") is None
+
+
+def test_a_file_workspace_lists_the_files_folder(tmp_path):
+    """``files/`` holds a project's files, by their path below it."""
+    folder = tmp_path / "p" / "files" / "sub"
+    folder.mkdir(parents=True)
+    (folder.parent / "a.csv").write_text("x,y\n")
+    (folder / "b.txt").write_text("text")
+    workspace = FileWorkspace(tmp_path)
+    assert [item["name"] for item in workspace.files("p")] == ["a.csv", "sub/b.txt"]
+    assert workspace.file("p", "sub/b.txt") == b"text"
+    assert workspace.file("p", "c.csv") is None
+    assert workspace.files("q") == []
+
+
+@pytest.mark.parametrize("name", ["../secret.txt", "/etc/passwd", "sub/../../secret.txt"])
+def test_a_file_workspace_stays_in_the_files_folder(tmp_path, name):
+    """A name cannot leave ``files/``."""
+    (tmp_path / "p" / "files").mkdir(parents=True)
+    (tmp_path / "p" / "secret.txt").write_text("secret")
+    assert FileWorkspace(tmp_path).file("p", name) is None

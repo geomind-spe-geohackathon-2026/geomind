@@ -1,10 +1,11 @@
 """The plants, case and documents of a project."""
 
+import mimetypes
 import re
 from pathlib import Path
 from typing import Protocol
 
-from geomind.stores.casefiles import named_files
+from geomind.stores.casefiles import is_safe_name, named_files
 from geomind.utils.json import read_json
 
 _WORD = re.compile(r"\w+")
@@ -31,6 +32,22 @@ class Workspace(Protocol):
     def documents(self, project_id, query):
         """Return matching documents as ``[{id, title, text, score}]``, best first."""
 
+    def files(self, project_id):
+        """Return the project's files as ``[{name, size, media_type}]``; ``[]`` without any.
+
+        NOTE: optional, with ``file``. A workspace without the two keeps working: the file tools
+        answer ``files_unavailable``. ``size`` is in bytes and ``media_type`` a MIME type.
+        """
+
+    def file(self, project_id, name):
+        """Return the bytes of a file ``files`` lists, or ``None`` for any other name."""
+
+
+def file_entry(name, size):
+    """Return the row of a project file: its name, size in bytes and media type."""
+    media_type = mimetypes.guess_type(name)[0] or "application/octet-stream"
+    return {"name": name, "size": size, "media_type": media_type}
+
 
 def search(documents, query):
     """Return the documents that hold a word of ``query``, by keyword count, best first."""
@@ -50,17 +67,18 @@ def read_bytes(path):
 
 
 class MemoryWorkspace:
-    """Hold ``plants``, ``cases`` and ``documents`` by project id.
+    """Hold ``plants``, ``cases``, ``documents`` and ``files`` by project id.
 
     A project's plants are ``{name: plant file dict}``; a document is ``{id, title, text}``; a
-    case is ``(case dict, {file name: bytes})``.
+    case is ``(case dict, {file name: bytes})``; its files are ``{name: bytes}``.
     """
 
-    def __init__(self, plants=None, documents=None, cases=None):
+    def __init__(self, plants=None, documents=None, cases=None, files=None):
         """Keep the given values."""
         self.project_plants = dict(plants or {})
         self.cases = dict(cases or {})
         self.project_documents = dict(documents or {})
+        self.project_files = dict(files or {})
 
     def plants(self, project_id):
         """Return the plant files of a project, ``{}`` without any."""
@@ -74,12 +92,21 @@ class MemoryWorkspace:
         """Search the documents of a project."""
         return search(self.project_documents.get(project_id, ()), query)
 
+    def files(self, project_id):
+        """Return the rows of the files of a project, by name."""
+        held = self.project_files.get(project_id, {})
+        return [file_entry(name, len(held[name])) for name in sorted(held)]
+
+    def file(self, project_id, name):
+        """Return the bytes of a file of a project, or ``None``."""
+        return self.project_files.get(project_id, {}).get(name)
+
 
 class FileWorkspace:
     """Read gemini's project folder, ``<root>/<project id>/``.
 
     It holds ``case.json``, ``economics.json``, ``data/`` for the series, ``plants/`` for the plant
-    files (``kind: plant``) and the text files in ``documents/``.
+    files (``kind: plant``), the text files in ``documents/`` and the user's files in ``files/``.
     """
 
     def __init__(self, root):
@@ -106,3 +133,17 @@ class FileWorkspace:
         paths = sorted(path for path in folder.glob("*") if path.suffix in DOCUMENT_SUFFIXES)
         items = [{"id": path.name, "title": path.stem, "text": path.read_text()} for path in paths]
         return search(items, query)
+
+    def files(self, project_id):
+        """Return the rows of every file below ``files/``, by its path there."""
+        folder = self.root / project_id / "files"
+        paths = sorted(path for path in folder.rglob("*") if path.is_file())
+        return [
+            file_entry(path.relative_to(folder).as_posix(), path.stat().st_size) for path in paths
+        ]
+
+    def file(self, project_id, name):
+        """Return the bytes of a file below ``files/``; a name leaving the folder has none."""
+        if not is_safe_name(name):
+            return None
+        return read_bytes(self.root / project_id / "files" / name)

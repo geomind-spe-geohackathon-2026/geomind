@@ -9,6 +9,7 @@ from geomind.agents.agent import Agent, Model
 from geomind.engine.hooks import Verified
 from geomind.loops.loop import Loop
 from geomind.tools import Delegate
+from geomind.tools.files import project_file_names
 from geomind.tools.gemini.plants import project_plant_names
 from geomind.types import Action, ToolCall
 from geomind.verify.design import verify_design
@@ -135,9 +136,9 @@ class DesignDriver(Agent):
         return act(note, index, "finish", answer=stop_answer(notes(context.messages)[-1]))
 
     def begin(self, context, note, index):
-        """Start with the designer, or ask the user for the case the design run still lacks."""
+        """Start with the designer, or ask for a missing case when no project file can hold it."""
         missing = missing_case(context.problem)
-        if missing is not None:
+        if missing is not None and not project_file_names(context):
             return act(
                 {**note, "missing": missing}, index, "ask_user", question=question_of(missing)
             )
@@ -147,7 +148,8 @@ class DesignDriver(Agent):
         """Return the designer's first task: the request, the project's plants and the rounds."""
         request = request_of(context)
         return (
-            f"{request}{project_plants_text(context)}\n\nRound 1 of at most {self._max_rounds}. "
+            f"{request}{project_plants_text(context)}{project_files_text(context)}\n\n"
+            f"Round 1 of at most {self._max_rounds}. "
             "Read the case, then size a plant, simulate the whole year, check it, optimize it, "
             "simulate the optimised design and record design.reference and design.result."
         )
@@ -214,6 +216,17 @@ def project_plants_text(context):
         f"\n\nThe project's plants: {', '.join(names)}. Start from one that fits: read_plant "
         "with project_plant, store it with build_plant, and build a new plant only when none "
         "fits, saying why in an assumption."
+    )
+
+
+def project_files_text(context):
+    """Return the sentence naming the project's files, or ``""`` when it has none."""
+    names = project_file_names(context)
+    if not names:
+        return ""
+    return (
+        f"\n\nThe project's files: {', '.join(names)}. Read them first with read_document and "
+        "fill the case from them with set_case (files), before you ask the user for anything."
     )
 
 

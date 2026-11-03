@@ -1,6 +1,6 @@
 """Compare alternative plant families in one study and rank them."""
 
-from geomind.loops.design import DesignDriver, DesignLoop, request_of
+from geomind.loops.design import DesignDriver, DesignLoop, project_files_text, request_of
 
 
 class CompareDriver(DesignDriver):
@@ -9,7 +9,8 @@ class CompareDriver(DesignDriver):
     def first_task(self, context):
         """Return the designer's first task: the request, and the comparison it must run."""
         return (
-            f"{request_of(context)}\n\nRound 1 of at most {self._max_rounds}. Read the case, then "
+            f"{request_of(context)}{project_files_text(context)}\n\n"
+            f"Round 1 of at most {self._max_rounds}. Read the case, then "
             "build and size two or three materially different families that gemini can run, "
             "compare them with one run_study (method minimize, prepare size), simulate the best "
             "feasible design for the whole year and check it. Record design.start_result, "

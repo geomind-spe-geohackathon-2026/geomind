@@ -1,0 +1,165 @@
+"""The files of a project: ``list_files`` and ``read_document``.
+
+A project's files come from the optional ``Workspace.files`` and ``Workspace.file``. A workspace
+without them gets ``files_unavailable``, so a backend that has not added them keeps working.
+"""
+
+import csv
+import difflib
+import io
+from pathlib import Path
+
+from geomind.errors import ToolError
+from geomind.tools.base import tool
+from geomind.utils.strings import join_names
+
+PAGE_CHARACTERS = 20_000
+"""The most text one ``read_document`` call returns; a longer file is read by pages."""
+FIRST_ROWS = 5
+TABLE_SUFFIXES = {".csv": ",", ".tsv": "\t"}
+PDF_START = b"%PDF-"
+
+
+def file_name_schema():
+    """Return the JSON Schema of an argument naming a project file; the pattern is not enforced."""
+    return {
+        "type": "string",
+        "pattern": "^[^/\\\\].*$",
+        "examples": ["demand.csv"],
+        "description": "A file of the project such as 'demand.csv'; list_files lists them.",
+    }
+
+
+def file_names_schema():
+    """Return the JSON Schema of an argument listing project files, or ``null``."""
+    names = {"type": "array", "items": file_name_schema()}
+    description = "Files of the project, such as ['demand.csv'], that the case names by this name."
+    return {"anyOf": [names, {"type": "null"}], "default": None, "description": description}
+
+
+def has_files(workspace):
+    """Tell whether a workspace has the optional file methods."""
+    return callable(getattr(workspace, "files", None)) and callable(
+        getattr(workspace, "file", None)
+    )
+
+
+def project_file_names(context):
+    """Return the names of the project's files; none without a project or the methods."""
+    workspace = context.session.workspace
+    if context.project is None or not has_files(workspace):
+        return []
+    return [item["name"] for item in workspace.files(context.project) or []]
+
+
+def files_workspace(context, tool_name):
+    """Return the run's workspace, or raise what the model should know about its files."""
+    workspace = context.session.workspace
+    if workspace is None or context.project is None:
+        raise ToolError(
+            f"{tool_name}: this run has no project; expected a workspace and one",
+            code="not_allowed",
+        )
+    if not has_files(workspace):
+        raise ToolError(
+            f"{tool_name}: this workspace cannot list files; ask the user for the values",
+            code="files_unavailable",
+        )
+    return workspace
+
+
+def project_file(context, tool_name, name):
+    """Return the bytes of a project file; an unknown name lists the project's files."""
+    workspace = files_workspace(context, tool_name)
+    content = workspace.file(context.project, name)
+    if content is not None:
+        return content
+    names = project_file_names(context)
+    raise ToolError(
+        f"{tool_name}: file = {name!r}; expected one of {join_names(names)}",
+        code="unknown_name",
+        path="name",
+        suggestions=difflib.get_close_matches(name, names),
+    )
+
+
+def not_text(name, reason):
+    """Return the error of a file that gives no text."""
+    return ToolError(f"read_document: {name!r} {reason}", code="not_text", path="name")
+
+
+def pdf_text(name, content):
+    """Return the text of a PDF, each page after its ``[page n]`` marker."""
+    from pypdf import PdfReader
+    from pypdf.errors import PyPdfError
+
+    try:
+        reader = PdfReader(io.BytesIO(content))
+        if reader.is_encrypted:
+            raise not_text(name, "is an encrypted PDF")
+        pages = [page.extract_text() or "" for page in reader.pages]
+    except (PyPdfError, ValueError, KeyError, OSError) as error:
+        raise not_text(name, f"is a PDF that cannot be read: {error}") from error
+    if not "".join(pages).strip():
+        raise not_text(name, "is a PDF with no text layer, such as a scan")
+    marked = [f"[page {number}]\n{text}" for number, text in enumerate(pages, start=1)]
+    return "\n\n".join(marked)
+
+
+def plain_text(name, content):
+    """Return the text of a UTF-8 file; a binary file is not text."""
+    try:
+        text = content.decode("utf-8-sig")
+    except UnicodeDecodeError as error:
+        raise not_text(name, "is not UTF-8 text") from error
+    if "\x00" in text:
+        raise not_text(name, "is a binary file, not text")
+    return text
+
+
+def document_text(name, content):
+    """Return the text of a file, by its content."""
+    return pdf_text(name, content) if content.startswith(PDF_START) else plain_text(name, content)
+
+
+def table_of(name, text):
+    """Return ``{columns, rows, first_rows}`` of a CSV or TSV, or ``None`` for another file."""
+    delimiter = TABLE_SUFFIXES.get(Path(name).suffix.lower())
+    if delimiter is None:
+        return None
+    rows = [row for row in csv.reader(io.StringIO(text), delimiter=delimiter) if row]
+    if not rows:
+        return None
+    return {"columns": rows[0], "rows": len(rows) - 1, "first_rows": rows[1:][:FIRST_ROWS]}
+
+
+@tool(effect="read")
+def list_files(context):
+    """List the files of the project: ``files``, each with ``name``, ``size`` and ``media_type``.
+
+    Read one with ``read_document``, and give a data file to the case with ``set_case`` ``files``.
+    """
+    workspace = files_workspace(context, "list_files")
+    return {"files": sorted(workspace.files(context.project), key=lambda item: item["name"])}
+
+
+@tool(effect="read", late_schemas={"name": file_name_schema})
+def read_document(context, name: str, start: int = 0, length: int | None = None):
+    """Read a project file as text, one page at a time.
+
+    CSV, TSV, JSON, Markdown and text files read as they are, and a PDF as its extracted text with
+    a ``[page n]`` marker before each page; another file is a ``not_text`` error. ``start`` is the
+    first character and ``length`` the number of characters, at most 20,000. Returns ``name``,
+    ``start``, ``total``, ``text`` and ``next``, where the following page starts (``null`` at the
+    end). The first page of a CSV or TSV also has ``table``: ``columns``, the number of ``rows``
+    and the ``first_rows``.
+    """
+    if start < 0:
+        raise ToolError(f"read_document: start = {start}; expected 0 or more", path="start")
+    text = document_text(name, project_file(context, "read_document", name))
+    size = min(length or PAGE_CHARACTERS, PAGE_CHARACTERS)
+    end = min(start + size, len(text))
+    page = {"name": name, "start": start, "total": len(text), "text": text[start:end]}
+    page["next"] = end if end < len(text) else None
+    table = table_of(name, text) if start == 0 else None
+    return page if table is None else {**page, "table": table}

@@ -47,6 +47,8 @@ and to read one back `event_from_dict`.
 |---|---|---|
 | `LLM` | `geomind/providers/base.py` | `tests/unit/providers/test_base.py` |
 | Tool error codes `no_case` and `case_incomplete` (beyond the shared contract) | `geomind/tools/gemini/case.py` | `tests/unit/tools/gemini/test_case.py` |
+| Optional `Workspace.files(project_id) -> [{name, size, media_type}]`, `Workspace.file(project_id, name) -> bytes \| None` (beyond the shared contract) | `geomind/stores/workspace.py` | `tests/unit/stores/test_workspace.py` |
+| Tool error codes `files_unavailable`, `not_text` (beyond the shared contract) | `geomind/tools/files.py` | `tests/unit/tools/test_files.py` |
 | `Completion`, `Usage`, `Message` | `geomind/types/messages.py` | `tests/unit/types/test_messages.py` |
 | `RunStore`, all seven methods, `load_events` included | `geomind/stores/run.py` | `tests/unit/testing/test_conformance.py` |
 | `Workspace` | `geomind/stores/workspace.py` | `tests/unit/testing/test_conformance.py` |
@@ -101,6 +103,12 @@ and to read one back `event_from_dict`.
   `case/<file name>`. `check_run_store` tests them. A run also keeps keys
   without a `/`: `<id>.results`, `<id>.plant`, `<id>.case`, `<id>.files` and `<sha256>.file`
   (bytes: a case file by its content, which an older run reads).
+- `Workspace.files(project_id)` and `Workspace.file(project_id, name)` are optional, and a backend
+  adds both or neither. `files` returns `[{"name": str, "size": int, "media_type": str}]`, one row per
+  file the user attached, `[]` without any: `name` is what the agent passes back, `size` is in bytes
+  and `media_type` a MIME type. `file` returns the file's `bytes`, or `None` for any other name. Both
+  are sync, called from a worker thread. Without them `list_files`, `read_document` and
+  `set_case(files=...)` answer `files_unavailable` and the rest of a run is unchanged.
 - `Workspace.case(project_id)` returns the project's case as `(case dict, {name: bytes})` or
   `None`: the content of its `case.json` as written, and the bytes of every file it names,
   `economics.json` and the series (`data/demand.csv`), by their relative path. `check_workspace`

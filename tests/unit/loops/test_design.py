@@ -250,6 +250,27 @@ async def test_a_case_without_demand_asks_the_user():
     assert agents_of(events) == []
 
 
+async def test_a_project_with_files_goes_to_the_designer_before_any_question():
+    """The files may hold the case, so the designer reads them first."""
+    workspace = MemoryWorkspace(files={"p": {"demand.csv": b"time,heat\n"}})
+    engine = engine_for([says("no case in them")], workspace=workspace)
+    start = context("Design the plant.", problem=ProblemState(), project="p")
+    result = await DesignLoop(Designer(), Verifier(), max_rounds=2).run(engine, start)
+    events = engine.store.load_events(start.run_id)
+    assert agents_of(events) == ["designer"]
+    assert "demand.csv" in tasks_of(events, "designer")[0]
+    assert result.status == "waiting" and "no case" in result.request.message
+
+
+async def test_a_workspace_without_files_still_asks_for_the_case():
+    """A backend that has not added ``files`` behaves as before."""
+    workspace = type("Old", (), {"plants": lambda self, project: {}})()
+    engine = engine_for([], workspace=workspace)
+    start = context("Design the plant.", problem=ProblemState(), project="p")
+    result = await DesignLoop(Designer(), Verifier()).run(engine, start)
+    assert result.status == "waiting" and "no case" in result.request.message
+
+
 async def test_a_designer_that_leaves_no_case_stops_with_no_case_at_the_limit():
     """At the last round the driver stops with a clear answer instead of asking again."""
     result, engine, _ = await run_loop([says("no case"), says("still none")], case=None)

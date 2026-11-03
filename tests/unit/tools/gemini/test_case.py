@@ -464,3 +464,58 @@ async def test_a_case_that_reads_but_is_wrong_keeps_gemini_s_error():
     }
     result = await call(save_profile, profile, session=session, problem=ProblemState(case=data))
     assert result.output["error"]["code"] != "case_incomplete"
+
+
+DEMAND = b"time,heat_mw\n2030-01-01T00:00:00Z,5\n2030-01-02T00:00:00Z,6\n2030-01-03T00:00:00Z,7\n"
+FROM_FILE = {
+    "format": 1,
+    "kind": "case",
+    "name": "from_a_file",
+    "time": {"start": "2030-01-01", "end": "2030-01-03", "step": {"value": 1, "unit": "d"}},
+    "demand": {"heating": {"power": {"unit": "MW", "file": "demand.csv", "column": "heat_mw"}}},
+}
+
+
+def session_with_file():
+    """Return a session whose project ``p`` holds one demand file."""
+    session = StubSession()
+    session.workspace = MemoryWorkspace(files={"p": {"demand.csv": DEMAND}})
+    return session
+
+
+async def test_set_case_takes_a_project_file_by_name():
+    """The file's bytes reach gemini, and the run keeps them, so no number is retyped."""
+    session = session_with_file()
+    problem = ProblemState()
+    tool_input = {"changes": FROM_FILE, "files": ["demand.csv"]}
+    result = await call(set_case, tool_input, session, "p", problem)
+    assert result.output["case"]["demand"]["heating"]["power"]["file"] == "demand.csv"
+    assert session.artifacts["case/demand.csv"] == DEMAND
+
+
+async def test_set_case_with_an_unknown_file_lists_the_project_s_files():
+    """Nothing is stored, and the error teaches the name."""
+    session = session_with_file()
+    tool_input = {"changes": FROM_FILE, "files": ["demnad.csv"]}
+    error = (await call(set_case, tool_input, session, "p")).output["error"]
+    assert error["code"] == "unknown_name"
+    assert error["suggestions"] == ["demand.csv"]
+
+
+async def test_set_case_with_a_file_on_a_workspace_without_files_says_so():
+    """A backend that has not added ``file`` gets the code, not a crash."""
+    session = StubSession()
+    session.workspace = MemoryWorkspace()
+    del_files = type("Old", (), {"plants": lambda self, project: {}})
+    session.workspace = del_files()
+    tool_input = {"changes": FROM_FILE, "files": ["demand.csv"]}
+    error = (await call(set_case, tool_input, session, "p")).output["error"]
+    assert error["code"] == "files_unavailable"
+
+
+async def test_set_case_on_a_partial_case_lists_every_gap():
+    """A case with values missing comes back with all of them, for one question to the user."""
+    changes = {key: FROM_FILE[key] for key in ("format", "kind", "name")}
+    error = (await call(set_case, {"changes": changes})).output["error"]
+    assert error["code"] == "case_incomplete"
+    assert error["suggestions"] == ["time.start", "time.end", "time.step"]

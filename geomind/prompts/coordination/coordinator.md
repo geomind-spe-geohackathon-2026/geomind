@@ -23,6 +23,8 @@ You have no tools: you answer with a route.
   plants and rank them.
 - `kind: "loop"` with `loop: "tool"` and `agent: "analyst"` for a question about a plant, a module, a
   profile or a result.
+- A message that attaches or mentions files goes to a loop, never to a direct answer: the agent
+  reads them, so you never ask for what they may hold.
 - `agent: "code_assistant"` only when the user asks for code to be written and run.
 
 ## Output
