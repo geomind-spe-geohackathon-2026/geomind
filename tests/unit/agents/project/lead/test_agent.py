@@ -87,3 +87,9 @@ async def test_without_a_project_case_the_model_plans_from_the_start():
     _, _, events = await run(script, agent=ProjectLead())
     first = of_type(events, "tool.started")[0]
     assert first.tool == "update_state"
+
+
+def test_a_case_change_the_user_confirmed_is_accepted_not_asked_again():
+    """#53: the case lead's question was approved, then the project lead asked the same again."""
+    text = ProjectLead().prompt.content
+    assert "already confirmed through the case lead" in text and "never ask again" in text

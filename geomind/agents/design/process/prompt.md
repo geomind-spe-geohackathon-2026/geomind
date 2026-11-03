@@ -44,6 +44,9 @@ Each tool's description says its arguments.
   cooling limit), `well` (well paths, risers, injectors, pumps in the wells), `energy` (heat
   pumps, chillers, boilers, storage, exchangers, surface pipes and network), `process` (what
   belongs to none of them). Every parameter path has exactly one owner.
+- A value gemini asks for at a case path (`site`, `demand`, `utilities`, `time`, `economics`,
+  `requirements`) belongs to the case: hand it over at once as `case change needed: <path>:
+  <why>`; never put it into the plant under another path, and never with a number of your own.
 - Compute nothing by hand: no formula, no unit conversion and no derived value in a patch or in
   your answer. A number you need comes from the case, a gemini tool (`evaluate_module`,
   `read_plant`) or is an equipment value no file gives, chosen with its reason and named as an

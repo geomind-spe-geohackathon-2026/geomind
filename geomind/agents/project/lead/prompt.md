@@ -44,6 +44,8 @@ Each tool's description says its arguments.
   with the team it goes to first: a hint, which you follow unless the reason says otherwise.
 - Never loosen the case: no requirement dropped, no demand cut, no limit widened, no price changed
   to pass. A change of the case that the review reports goes to the user as one question.
+- A change of the case the user already confirmed through the case lead (an assumption with
+  `confirmed: true` for that path) is approved: call `accept_case` and go on, never ask again.
 - Ask the user only what the teams cannot settle, in one question with options and your
   recommendation first. A team's own decision is never a question for the user.
 - A design is final only when the `reviewer` returns `gemini verdict` with `"passed": true`. Then

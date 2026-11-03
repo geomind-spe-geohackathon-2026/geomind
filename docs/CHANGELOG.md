@@ -6,6 +6,16 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### What the first end-to-end run showed (0.4.22.dev29)
+
+Run E1: the coordinator, then the project lead with every team, DeepSeek, memory off, capped at 1 USD (it stopped there, 0.997 USD, before a verified design). Each bug is pinned by a test.
+
+**Contract change for the backend:** a new tool `fill_parts` of the design lead, which runs the reservoir, well and energy systems engineers as nested runs at the same time (their events interleave under `design_lead`).
+
+- Fix (#55): the design lead called the reservoir, well and energy systems engineers one by one; `fill_parts` (`Team` in `geomind/tools/delegate.py`) takes one brief each and runs them side by side in code, within `design_concurrency`, a failing member's error beside the others' answers. A single engineer is still called alone to send it back a problem of its own.
+- Fix (#53): the project lead asked the user again about a case value the user had just approved through the case lead; a change the user confirmed is accepted (`accept_case`), never asked again.
+- Fix (#54): the design lead made up a grid gas composition and tried to put that case value under three plant paths; the design lead and the engineers hand a value gemini asks for at a case path over at once, never into the plant and never with a number of their own.
+
 ### gemini 0.5.14
 
 - geomind runs on the gemini 0.5.14 release wheel (`requirements/gemini.txt`, sha256 `91b8cc2428d1bfde4da936fe49308de8ac0c736bfa205023f75ac261b0a7e6ec`; `[tool.uv.sources]` in `pyproject.toml`). 0.5.14 runs a `Study`'s plants and cases in worker processes when gemini's runtime `processes` setting is above 1, with the same results in the same order and no API change; geomind does not set it. No sandbox image is needed any more.

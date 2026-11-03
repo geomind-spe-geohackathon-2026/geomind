@@ -3,49 +3,48 @@
 from geomind.agents import DesignLead
 from tests.unit.agents.structure import check_complete
 
+TOOLS = [
+    "process_engineer",
+    "integration_engineer",
+    "reservoir_engineer",
+    "well_engineer",
+    "energy_systems_engineer",
+    "fill_parts",
+    "merge_designs",
+    "read_case",
+    "list_plants",
+    "read_plant",
+    "list_modules",
+    "describe_module",
+    "evaluate_module",
+    "build_plant",
+    "patch_plant",
+    "set_ranges",
+    "size_plant",
+    "list_profiles",
+    "read_profile",
+    "simulate",
+    "read_result",
+    "list_studies",
+    "read_study",
+    "check_results",
+    "optimize",
+    "run_study",
+    "update_state",
+    "read_skill",
+    "read_stored",
+    "search_memory",
+    "read_memory",
+    "write_memory",
+    "support_lead",
+    "ask_user",
+    "finish",
+]
+
 
 def test_it_is_complete():
     """Its tools in order, every heading of its prompt filled, and only its tools named."""
-    check_complete(
-        DesignLead,
-        "design/lead",
-        [
-            "process_engineer",
-            "integration_engineer",
-            "reservoir_engineer",
-            "well_engineer",
-            "energy_systems_engineer",
-            "merge_designs",
-            "read_case",
-            "list_plants",
-            "read_plant",
-            "list_modules",
-            "describe_module",
-            "evaluate_module",
-            "build_plant",
-            "patch_plant",
-            "set_ranges",
-            "size_plant",
-            "list_profiles",
-            "read_profile",
-            "simulate",
-            "read_result",
-            "list_studies",
-            "read_study",
-            "check_results",
-            "optimize",
-            "run_study",
-            "update_state",
-            "read_skill",
-            "read_stored",
-            "search_memory",
-            "read_memory",
-            "write_memory",
-            "support_lead",
-            "ask_user",
-            "finish",
-        ],
-    )
+    check_complete(DesignLead, "design/lead", TOOLS)
 
 
 def test_a_plant_value_no_file_gives_is_the_designer_s_assumption():
@@ -69,6 +68,7 @@ def test_it_leads_the_design_team_in_order():
     assert not tools["integration_engineer"].runs_beside
     text = lead.prompt.render()
     assert text.index("`process_engineer` (the modules") < text.index("then `integration_engineer`")
+    assert text.index("then `integration_engineer`") < text.index("then `fill_parts`")
     assert "Send each problem back to its owner" in text
 
 
@@ -98,3 +98,50 @@ async def test_the_three_disciplines_fill_their_parts_in_one_step():
         "reservoir_engineer",
         "well_engineer",
     ]
+
+
+def test_a_case_value_is_never_slipped_into_the_plant():
+    """#54: the design lead put a made-up grid gas composition under three plant paths."""
+    for name in ("DesignLead", "ProcessEngineer", "ReservoirEngineer", "EnergySystemsEngineer"):
+        import geomind.agents as agents
+
+        text = getattr(agents, name)().prompt.content
+        assert "never put it into the plant under another path" in text
+
+
+async def test_fill_parts_runs_the_three_engineers_at_the_same_time():
+    """#55: the lead called them one by one; the tool runs every brief as its own nested run."""
+    import json
+
+    from geomind import runtime
+    from tests.fixtures.runs import call, of_type, run, says, uses
+
+    briefs = {
+        "reservoir_engineer": "Fill the reservoir of design/conn.",
+        "well_engineer": "Fill the wells of design/conn.",
+        "energy_systems_engineer": "Fill the energy system of design/conn.",
+    }
+    script = [
+        uses(call("fill_parts", "f", briefs=briefs)),
+        says("reservoir done"),
+        says("wells done"),
+        says("energy done"),
+        says("merged"),
+    ]
+    with runtime.settings(design_concurrency=3):
+        result, _, events = await run(script, agent=DesignLead())
+    nested = sorted(event.agent for event in of_type(events, "run.started"))[1:]
+    assert nested == ["energy_systems_engineer", "reservoir_engineer", "well_engineer"]
+    output = next(e for e in of_type(events, "tool.result") if e.tool == "fill_parts").output
+    assert set(output) == set(briefs) and result.answer == "merged"
+    assert json.dumps(output)
+
+
+async def test_fill_parts_refuses_a_brief_for_no_member():
+    """A brief for an engineer outside the side-by-side three is named with the members."""
+    from tests.fixtures.runs import call, of_type, run, says, uses
+
+    script = [uses(call("fill_parts", "f", briefs={"process_engineer": "x"})), says("ok")]
+    _, _, events = await run(script, agent=DesignLead())
+    result = next(e for e in of_type(events, "tool.result") if e.tool == "fill_parts")
+    assert result.is_error and "reservoir_engineer" in str(result.output)

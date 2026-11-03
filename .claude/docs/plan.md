@@ -224,6 +224,7 @@ cap is 5 USD (1.66 USD spent before the team).
 | Run | What | Cost (USD) | Total (USD) | Outcome |
 |---|---|---|---|---|
 | A1 | each of the 15 agents alone, in parallel, on a fixed input from the earlier runs (`setup`), 0.10 cap each | 0.43 | 2.09 | 15 of 15 passed their criteria; bugs #42 to #50 |
+| E1 | end to end from the coordinator, memory off, 1 USD cap, three answers by the test operator | 1.00 | 3.38 | stopped at its cap before a verified design: two families planned, process, integration and reservoir engineers done; bugs #53 to #55 |
 | A2 | the 6 agents the fixes touched, alone again | 0.29 | 2.38 | 5 passed; the case lead now asks for the values with no source (#44 working), so its task's fixed answer must change |
 
 Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/CHANGELOG.md)):
@@ -239,6 +240,9 @@ Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/C
 | 48 | A1, explainer | a reference in quotes refused | read as the reference | `768f396` |
 | 49 | A1, explainer | a made-up reference asked for six times with another `path` each | the same bad value counts as the same failure | `768f396` |
 | 51 | A2, well engineer | a name stored with other content refused with no way on; its last steps lost | the refusal suggests a free name | this commit |
+| 53 | E1, project lead | asked again about a value approved through the case lead | a confirmed change is accepted | this commit |
+| 54 | E1, design lead | made up a grid gas composition and put the case value under plant paths | handed over at once, never into the plant | this commit |
+| 55 | E1, design lead | the three side-by-side engineers called one by one | `fill_parts` runs them at the same time in code | this commit |
 | 50 | A1, all | models saw only the first paragraph of each tool's docstring | the whole docstring but its `NOTE:` paragraphs | `768f396` |
 
 ### The adaptation to gemini 0.5 (done) and what is open

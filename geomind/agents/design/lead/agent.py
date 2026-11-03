@@ -10,8 +10,11 @@ from geomind.agents.design.well.agent import WellEngineer
 from geomind.agents.support.lead.agent import SupportLead
 from geomind.prompts import Prompt
 from geomind.tools import Delegate
+from geomind.tools.delegate import Team
 from geomind.tools.gemini.skeleton import trees
 
+SIDE_BY_SIDE = ("reservoir_engineer", "well_engineer", "energy_systems_engineer")
+"""The engineers who fill their parts at the same time, from one connected design."""
 ENGINEER_TOKENS = 2000
 """The most tokens of an engineer's answer the design lead reads back."""
 LIMIT = "design_concurrency"
@@ -26,14 +29,25 @@ def beside(agent):
 
 
 def team():
-    """Return the design team as delegates by tool name, in the order the lead calls them."""
-    return {
+    """Return the design team as tools by name, in the order the lead calls them."""
+    members = {
         "process_engineer": Delegate(ProcessEngineer(), max_summary_tokens=ENGINEER_TOKENS),
         "integration_engineer": Delegate(IntegrationEngineer(), max_summary_tokens=ENGINEER_TOKENS),
         "reservoir_engineer": beside(ReservoirEngineer()),
         "well_engineer": beside(WellEngineer()),
         "energy_systems_engineer": beside(EnergySystemsEngineer()),
     }
+    return {**members, "fill_parts": side_by_side(members)}
+
+
+def side_by_side(members):
+    """Return the tool that has the side-by-side engineers fill their parts at the same time."""
+    return Team(
+        "fill_parts",
+        "Have the reservoir, well and energy systems engineers fill their parts side by side: "
+        "one brief each, by tool name; each answer, or its error, comes back by name.",
+        {name: members[name] for name in SIDE_BY_SIDE},
+    )
 
 
 class DesignLead(Agent):

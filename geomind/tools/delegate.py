@@ -111,3 +111,57 @@ class Delegate(Tool):
         tokens = self.max_summary_tokens or runtime.get("delegate_summary_tokens")
         answer = result.answer if isinstance(result.answer, str) else json.dumps(result.answer)
         return answer[: tokens * CHARACTERS_PER_TOKEN]
+
+
+class TeamInput(Record):
+    """What the model passes: one brief per member, by the member's tool name."""
+
+    briefs: dict[str, str]
+
+
+class Team(Tool):
+    """Run several members' agents side by side in one call, one brief each, within their limit.
+
+    NOTE: the parallel phase is code, not the model's choice of one step: each member is a
+    ``Delegate`` (with its ``limit``), every brief runs as its own nested run at the same time, and
+    a member that fails gives its error beside the others' answers instead of stopping them.
+    """
+
+    def __init__(self, name, description, members):
+        """Offer ``members``, delegates by tool name, as one tool named ``name``."""
+        super().__init__(
+            name,
+            description,
+            TeamInput.model_json_schema(),
+            self._run,
+            effect="compute",
+            idempotent=False,
+            input_model=TeamInput,
+        )
+        self.members = members
+
+    @property
+    def is_pure(self):
+        """Return that nested runs are never pure."""
+        return False
+
+    async def _run(self, context, briefs):
+        """Run each member on its brief at the same time; return each answer or error by name."""
+        unknown = sorted(set(briefs) - set(self.members))
+        if unknown or not briefs:
+            raise ToolError(
+                f"{self.name}: briefs = {sorted(briefs)}; expected one brief for each of "
+                f"{', '.join(self.members)} that has work",
+                path="briefs",
+            )
+        answers = await asyncio.gather(
+            *(self._member(context, name, task) for name, task in briefs.items())
+        )
+        return dict(zip(briefs, answers))
+
+    async def _member(self, context, name, task):
+        """Return one member's answer, or its error as ``{error: {code, message}}``."""
+        try:
+            return await self.members[name]._delegate(context, task)
+        except ToolError as error:
+            return {"error": {"code": error.code, "message": str(error)}}
