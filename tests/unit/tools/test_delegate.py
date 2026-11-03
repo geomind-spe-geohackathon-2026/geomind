@@ -6,6 +6,9 @@ from geomind import runtime
 from geomind.engine import Context
 from geomind.tools import Delegate, dispatch
 from geomind.types import Request, RunResult, ToolCall
+from tests.fixtures.runs import Worker
+from tests.fixtures.runs import call as fixture_call
+from tests.fixtures.runs import context, engine_for, uses
 from tests.fixtures.sessions import StubSession
 
 
@@ -71,3 +74,36 @@ async def test_default_limit_comes_from_the_runtime(tokens):
     with runtime.settings(delegate_summary_tokens=1):
         result = await dispatch(Delegate(Helper(), tokens), call(), Context(session=session))
     assert result.output == "xxxx"
+
+
+async def test_a_nested_run_that_stopped_says_why():
+    """A limit or a refusal inside the nested run reaches the model with its message."""
+    session = StubSession()
+    session.result = RunResult(
+        run_id="c", status="failed", stop_reason="step_limit", message="stopped after 30 steps"
+    )
+    error = (await dispatch(Delegate(Helper()), call(), Context(session=session))).output["error"]
+    assert error["code"] == "nested_stopped"
+    assert "stopped after 30 steps" in error["message"]
+
+
+async def test_a_nested_run_that_crashed_keeps_the_detail_in_the_log():
+    """A crash is ``internal``: its text is a bug's, so the model reads only that it happened."""
+    session = StubSession()
+    session.result = RunResult(run_id="c", status="failed", stop_reason="error")
+    error = (await dispatch(Delegate(Helper()), call(), Context(session=session))).output["error"]
+    assert error["code"] == "internal" and "log" in error["message"]
+
+
+async def test_a_crash_leaves_no_message_on_the_result():
+    """The engine keeps a crash's text in the log and off the ``RunResult``."""
+    engine = engine_for([RuntimeError("secret detail")])
+    result = await engine.run(Worker(), context())
+    assert result.status == "failed" and result.message is None
+
+
+async def test_a_step_limit_leaves_its_message_on_the_result():
+    """A stop that is no crash says why, for the parent of a nested run."""
+    engine = engine_for([uses(fixture_call("lookup", key="k"))] * 3)
+    result = await engine.run(Worker(), context(), max_steps=2)
+    assert result.stop_reason == "step_limit" and "2 steps" in result.message

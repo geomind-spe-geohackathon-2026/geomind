@@ -23,7 +23,10 @@ def status_of(stop_reason):
 
 
 class RunResult(Record):
-    """How a run ended, or that it waits for an answer to ``request``."""
+    """How a run ended, or that it waits for an answer to ``request``.
+
+    ``message`` says why a run stopped without an answer; a crash keeps its text in the log only.
+    """
 
     run_id: str
     status: str
@@ -32,3 +35,4 @@ class RunResult(Record):
     usage: Usage = Usage()
     steps: int = 0
     stop_reason: str | None = None
+    message: str | None = None

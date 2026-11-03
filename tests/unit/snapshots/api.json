@@ -303,11 +303,23 @@
         }
       },
       "additionalProperties": false,
-      "description": "How a run ended, or that it waits for an answer to ``request``.",
+      "description": "How a run ended, or that it waits for an answer to ``request``.\n\n``message`` says why a run stopped without an answer; a crash keeps its text in the log only.",
       "properties": {
         "answer": {
           "default": null,
           "title": "Answer"
+        },
+        "message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Message"
         },
         "request": {
           "anyOf": [
@@ -1086,5 +1098,5 @@
       "step_limit": "failed"
     }
   },
-  "version": "0.4.7"
+  "version": "0.4.8"
 }

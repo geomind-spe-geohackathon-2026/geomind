@@ -55,15 +55,24 @@ class Delegate(Tool):
         """Return the output of a finished nested run, or its request when it waits.
 
         ``limit`` is the reason a budget or time limit stopped the nested run: the error then has
-        the code ``budget`` and names the limit with what was spent and the cap.
+        the code ``budget`` and names the limit with what was spent and the cap. Another stop is
+        ``nested_stopped`` with its message, and a crash ``internal``, its text left in the log.
         """
         if result.request is not None:
             return result.request
         if result.status != "done" and limit is not None:
             raise ToolError(f"{self.name}: run {limit}", code="budget")
+        if result.status != "done" and result.message:
+            raise ToolError(
+                f"{self.name}: the nested run stopped with {result.stop_reason}: "
+                f"{result.message}",
+                code="nested_stopped",
+            )
         if result.status != "done":
             raise ToolError(
-                f"{self.name}: the nested run stopped with {result.stop_reason}", code="internal"
+                f"{self.name}: the nested run stopped with {result.stop_reason}; the detail is in "
+                "the log",
+                code="internal",
             )
         tokens = self.max_summary_tokens or runtime.get("delegate_summary_tokens")
         return str(result.answer)[: tokens * CHARACTERS_PER_TOKEN]

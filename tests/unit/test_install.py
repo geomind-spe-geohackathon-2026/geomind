@@ -50,3 +50,25 @@ def test_a_release_tag_must_name_the_version(monkeypatch):
     monkeypatch.setattr(check_release, "versions", lambda: ("1.2.3", "1.2.4"))
     with pytest.raises(SystemExit):
         check_release.main("v1.2.3")
+
+
+def test_every_push_and_pull_request_runs_tests():
+    """A push to ``dev`` runs the fast tier and every other event the full suite, never nothing."""
+    workflow = (ROOT / ".github/workflows/python_test.yaml").read_text()
+    assert "test_changed.py" not in workflow
+    assert 'python -m pytest -m "not slow and not docker" --profile=release' in workflow
+    assert 'python -m pytest -n auto -m "not docker" --profile=release' in workflow
+    assert "refs/heads/dev' && 'fast') || 'full'" in workflow
+
+
+def test_the_ci_matrix_is_the_supported_pythons():
+    """The matrix tests every Python the package declares, and no other."""
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
+    declared = sorted(
+        item.rsplit(":: ", 1)[1]
+        for item in project["classifiers"]
+        if re.fullmatch(r"Programming Language :: Python :: 3\.\d+", item)
+    )
+    workflow = (ROOT / ".github/workflows/python_test.yaml").read_text()
+    listed = re.search(r"python: \[(.*)\]", workflow).group(1)
+    assert sorted(item.strip().strip('"') for item in listed.split(",")) == declared

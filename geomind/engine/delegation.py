@@ -50,6 +50,7 @@ def _result_of_state(state):
         usage=state.usage,
         steps=state.step,
         stop_reason=state.stop_reason,
+        message=None if state.stop_reason == "error" else state.message,
     )
 
 

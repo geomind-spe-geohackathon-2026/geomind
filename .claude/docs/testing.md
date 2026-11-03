@@ -104,8 +104,11 @@ default.
 ## CI
 
 `.github/workflows/python_lint.yaml` runs Flake8, Black and isort. `python_test.yaml` runs on pushes
-to `dev` and `main` and on pull requests: the full suite on `main`, the development profile
-otherwise, on Python 3.11 to 3.14. It installs gemini from `requirements/gemini.txt`, geomind's
+to `dev` and `main` and on pull requests, on the Pythons `pyproject.toml` declares (3.11 to 3.14): a
+push to `dev` runs the fast tier and e2e (`-m "not slow and not docker"`), every other event the
+full suite (`-m "not docker"`), both in the release profile, since a shared runner is no measure
+of the one-second budget. The development profile against a base selected no test on a `dev`
+push, so it is not used in CI. It installs gemini from `requirements/gemini.txt`, geomind's
 runtime dependencies and the `test` group, and no project with `-e`; tests import geomind from the
 source folder. `tests/unit/test_install.py` keeps these files free of path and editable installs.
 CI turns NumPy's AVX-512 off as gemini's CI does: a few winter days split heat between heat pump and

@@ -55,9 +55,7 @@ RUN_STORE_METHODS = (
     "load_chat_artifact",
     "load_events",
 )
-RESULT_FIELDS = ("run_id", "status", "answer", "request", "usage", "stop_reason")
-KNOWN_MISSING_RESULT_FIELDS = {"message"}
-"""The contract says ``RunResult.message`` and the code has none; reported to Sahand."""
+RESULT_FIELDS = ("run_id", "status", "answer", "request", "usage", "stop_reason", "message")
 
 
 @pytest.fixture(scope="module")
@@ -106,10 +104,9 @@ def test_section_three_run_is_frozen(frozen):
 
 
 def test_section_three_result_is_frozen(frozen):
-    """The fields the contract lists; a missing one stays a reported difference."""
+    """The fields the contract lists, ``message`` since 0.4.8."""
     fields = set(frozen["RunResult"]["properties"])
     assert set(RESULT_FIELDS) <= fields
-    assert not KNOWN_MISSING_RESULT_FIELDS & fields
 
 
 def test_section_three_statuses_are_frozen(frozen):

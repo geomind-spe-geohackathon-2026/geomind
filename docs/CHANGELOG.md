@@ -6,6 +6,13 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.8] - 2026-11-03
+
+Additive.
+
+- A delegate whose nested run stopped without an answer says why: new code `nested_stopped` with the run's message (a step limit, a refusal, invalid calls); a crash stays `internal`, its text in the log only. `RunResult.message`, which the shared contract lists and geomind lacked, carries why a run stopped, `None` for a crash. A failed family of a comparison now keeps that reason.
+- CI: a push to `dev` runs the fast tier and e2e, everything else the full suite. Before, a `dev` push selected no test. A test pins the workflow and its Python matrix to the versions `pyproject.toml` declares.
+
 ## [0.4.7] - 2026-11-03
 
 Additive, with one changed code.
