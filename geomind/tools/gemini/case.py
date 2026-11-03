@@ -25,8 +25,8 @@ from geomind.errors import ToolError
 from geomind.stores.casefiles import case_files, is_safe_name, named_files
 from geomind.tools.base import tool
 from geomind.tools.files import file_names_schema, project_file
-from geomind.tools.gemini.explain import unit_error, unit_retry
-from geomind.tools.gemini.skeleton import case_skeleton
+from geomind.tools.gemini.explain import MISSING_CODES, shown_message, unit_error, unit_retry
+from geomind.tools.gemini.skeleton import case_skeleton, requirement_shape
 from geomind.utils.strings import did_you_mean, join_names
 
 CASE_FILE = "case/"
@@ -135,10 +135,35 @@ def readable_case(data, files):
         missing = [issue.problem()["path"] for issue in gm.case.missing(data)]
         if not missing:
             raise
-        skeleton = [json.dumps(case_skeleton())] if HEADER & set(missing) else []
+        header = HEADER & set(missing)
+        shown = shown_paths(missing)
+        if error.code not in MISSING_CODES and not header:
+            also = [f"case_incomplete: also missing {join_names(shown[0])}"] if shown[0] else []
+            unit = unit_retry(error, data) if error.code == "invalid_unit" else []
+            raise ToolError(
+                shown_message(error),
+                code=error.code,
+                path=error.path,
+                suggestions=[*unit, *also, *shown[1]],
+            ) from error
+        skeleton = [json.dumps(case_skeleton())] if header else []
+        first = (shown[0] or missing)[0]
         raise ToolError(
-            str(error), code="case_incomplete", path=missing[0], suggestions=missing + skeleton
+            shown_message(error),
+            code="case_incomplete",
+            path=first,
+            suggestions=[*shown[0], *shown[1], *skeleton],
         ) from error
+
+
+def shown_paths(missing):
+    """Return ``(paths, shapes)``: the missing paths, a requirement's as one shape of the schema.
+
+    The fields a requirement of another shape lacks, ``requirements[i].on`` for each ``i``, are
+    one suggestion: the shape of a requirement from gemini's schema.
+    """
+    paths = [path for path in missing if not path.startswith("requirements[")]
+    return paths, [requirement_shape()] if len(paths) < len(missing) else []
 
 
 def changes_schema():
@@ -347,7 +372,42 @@ def case_retries(error, data, supplied, files, columns, changes):
         retries.append(f"set_case(files={needed!r}{shown}, changes=<the same changes>)")
     if error.code == "invalid_unit":
         retries.extend(unit_retry(error, data))
+    retries.append(zone_retry(error, files, columns))
     return [retry for retry in retries if retry is not None]
+
+
+NO_OFFSET = "has no offset"
+"""How gemini says a series time lacks its UTC offset."""
+ZONE = "<IANA zone of time.start>"
+"""The placeholder of a series' ``time_zone``: the model chooses it, geomind has no zone."""
+
+
+def zone_retry(error, files, columns):
+    """Return the ``set_case`` call that gives ``time_zone`` to each series whose times lack one.
+
+    gemini reads a time without an offset as local time in the series' ``time_zone`` (an IANA
+    name); the zone is the one ``time.start`` is meant in, chosen by the model and recorded as an
+    assumption with a reason.
+    """
+    paths = {
+        problem["path"].removesuffix(".file")
+        for problem in getattr(error, "problems", None) or ()
+        if isinstance(problem, dict) and NO_OFFSET in problem.get("message", "")
+    }
+    if not paths:
+        return None
+    patch = {}
+    for path in sorted(paths):
+        node = patch
+        for part in path.split("."):
+            node = node.setdefault(part, {})
+        node["time_zone"] = ZONE
+    passed = f", files={list(files)!r}" if files else ""
+    passed += f", columns={columns!r}" if columns else ""
+    return (
+        f"set_case(changes=<the same changes merged with {patch!r}>{passed}); record the zone "
+        "as an assumption with its reason"
+    )
 
 
 def edited_requirements(current, edits):
@@ -460,7 +520,7 @@ async def set_case(
         if not retries:
             raise
         raise ToolError(
-            str(error), code=error.code, path=error.path, suggestions=retries
+            shown_message(error), code=error.code, path=error.path, suggestions=retries
         ) from error
     return {"case": data, "version": version}
 

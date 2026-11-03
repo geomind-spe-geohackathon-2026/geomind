@@ -91,4 +91,4 @@ async def test_a_page_read_twice_in_one_run_is_a_short_note():
     assert (earlier["start"], earlier["end"]) == (0, len(once["text"]))
     assert session.artifacts[earlier["reference"]]["text"] == once["text"]
     forced = (await call(read_document, {**first, "force": True}, session, "p")).output
-    assert forced["text"] == once["text"]
+    assert "text" not in forced and forced["already_read"] == again["already_read"]

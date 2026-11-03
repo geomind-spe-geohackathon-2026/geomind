@@ -6,6 +6,17 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.20] - 2026-11-03
+
+What the third live run showed (run 9bc9e7b7), each pinned by a test on its recorded calls. Runs on gemini 0.5.13 (wheel sha256 `cc598bef…387c510`, image `gemini-sandbox:0.5.13`), whose only change is the optional series key `time_zone`.
+
+- Fix: an `invalid_unit` beside missing values kept its code and path (it became `case_incomplete` at `demand.heating.power`, and the corrected field was lost); the missing paths follow in one suggestion.
+- Requirements of another shape give one suggestion with the shape from gemini's schema instead of a `requirements[i].on` and `.quantity` path per requirement.
+- gemini errors are shown with each path once, and the same problem on many rows of a file as one line with the count and the first and last row (730 lines became 2). Codes, paths and gemini's text are unchanged.
+- `read_document`: nested runs share what the run tree read, and once a document was read whole, `force=true` no longer reads it again (the run read the PDF about 60 times).
+- A series takes gemini's `time_zone` (an IANA name) through `set_case`; geomind has no zone of its own and rewrites no value. gemini's "has no offset" error (one summarised line per file) suggests the exact retry with `time_zone` on each series, the zone chosen by the model, the one `time.start` is meant in, and recorded as an assumption; the Analyst and Designer prompts say so.
+- CI, lint and the release run only Python 3.12, the backend image's, during the hackathon; the other Pythons are commented out ("disabled during hackathon, re-enable after (Sahand 2026-11-03)"). `requires-python` and the classifiers are unchanged.
+
 ## [0.4.19] - 2026-11-03
 
 What the second live run showed (run f90f3e12), each pinned by a test on its recorded calls.

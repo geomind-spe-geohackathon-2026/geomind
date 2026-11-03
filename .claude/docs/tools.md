@@ -409,6 +409,26 @@ From the second live run (`tests/integration/test_live_regressions_b.py`, record
 - `build_plant` without a header: `old_format`, with the smallest plant file of
   `gm.plants.schema()` last in `suggestions` (`plant_skeleton`, `geomind/tools/gemini/skeleton.py`).
 - A nested run that passed the model's window: the delegate answers `context_exceeded`.
+
+From the third live run (`tests/integration/test_live_regressions_c.py`, recording
+`tests/fixtures/live/recording_c.jsonl`):
+
+- A rejected unit beside missing values stays `invalid_unit` with gemini's path and the corrected
+  field; the missing paths follow as one `case_incomplete: also missing ...` suggestion. Only an
+  error about missing values (or a missing header) becomes `case_incomplete`.
+- Requirements of another shape: the `requirements[i].on` and `.quantity` paths are one suggestion,
+  `requirements={'<name>': {...}}`, the fields and their options from `gm.Case.schema()`
+  (`requirement_shape`).
+- `shown_message` (`geomind/tools/gemini/explain.py`) shows a gemini error's problems with each path
+  once, and the same problem on many rows of a file as one line: the first row's message, the
+  number of rows and the first and last row. gemini's codes, paths and text are unchanged.
+- `read_document`: the reads of a run tree are one memory (`reads_of`, on the root session), so a
+  later designer round sees what an earlier one read; a read of another run counts only when its
+  result was stored. Once the whole document was read, every page is `already_read`, `force` too.
+- A CSV time without an offset stays gemini's error; geomind rewrites no value. A series takes
+  gemini's `time_zone` (gemini 0.5.13) through `set_case`, and the error suggests the retry with
+  `time_zone: <IANA zone of time.start>` on each series (`zone_retry`): the model chooses the zone
+  and records it as an assumption; geomind has no zone.
 - `read_document` remembers what the run read: a page read again is `already_read`, with the
   `reference` of the stored earlier result, unless `force`.
 - `geomind run --loop design` takes a project with files and no `case.json`.

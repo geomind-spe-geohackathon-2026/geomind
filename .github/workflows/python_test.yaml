@@ -21,7 +21,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.11", "3.12", "3.13", "3.14"]
+        python: ["3.12"]
+        # disabled during hackathon, re-enable after (Sahand 2026-11-03)
+        # python: ["3.11", "3.12", "3.13", "3.14"]
     steps:
     - uses: actions/checkout@v5
     - uses: astral-sh/setup-uv@v7
@@ -43,7 +45,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.11", "3.12", "3.13", "3.14"]
+        python: ["3.12"]
+        # disabled during hackathon, re-enable after (Sahand 2026-11-03)
+        # python: ["3.11", "3.12", "3.13", "3.14"]
         shard: [0, 1, 2, 3, 4]
     steps:
     - uses: actions/checkout@v5

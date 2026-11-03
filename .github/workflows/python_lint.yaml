@@ -8,9 +8,10 @@ jobs:
     steps:
     - uses: actions/checkout@v5
     - uses: astral-sh/setup-uv@v7
-    - name: Install Python 3.11 and the lint tools
+    # disabled during hackathon, re-enable after (Sahand 2026-11-03): lint ran on Python 3.11
+    - name: Install Python 3.12 and the lint tools
       run: |
-        uv venv --python 3.11
+        uv venv --python 3.12
         uv pip install --group lint
         echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
     - name: Lint with flake8 black isort

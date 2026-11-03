@@ -101,3 +101,22 @@ def test_searchable_leaves_cover_the_ranges_of_the_plant():
     assert numeric_leaves({"a": {"value": 1, "unit": "m"}, "b": {"c": {"value": True}}}) == {
         "a": "m"
     }
+
+
+def test_the_same_problem_on_many_rows_is_one_line():
+    """Three rows of one file with the same problem: one line, the count and the row span."""
+    import gemini as gm
+
+    from geomind.tools.gemini.explain import shown_message
+
+    problems = [
+        {
+            "path": "f",
+            "code": "invalid_value",
+            "message": f"f: a.csv row {row} t = '{row}' bad",
+            "suggestions": [],
+        }
+        for row in (2, 3, 7)
+    ]
+    message = shown_message(gm.errors.ValidationError.of(problems))
+    assert message == "f: a.csv row 2 t = '2' bad (the same on 3 rows, rows 2 to 7)"

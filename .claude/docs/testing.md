@@ -13,7 +13,7 @@ Every test belongs to one automatically marked folder tier:
 - `tests/fixtures/contracts/shared.md` is a copy of the shared contract, `backend/docs/app-build/contracts.md`
   version 52 (backend commit `7f0bc92`): `tests/unit/types/test_events.py` checks the event table,
   `study.recorded` included, against it. Copy it again when the contract changes.
-- `tests/fixtures/gemini_examples/` is a copy of gemini's two example projects from tag v0.5.5 (the same in v0.5.10): the
+- `tests/fixtures/gemini_examples/` is a copy of gemini's two example projects from tag v0.5.5 (the same in v0.5.13): the
   published wheel ships no examples, and tests never read a sibling gemini folder. Refresh the copy
   when the gemini pin moves and the examples change.
 
@@ -107,7 +107,10 @@ default.
 ## CI
 
 `.github/workflows/python_lint.yaml` runs Flake8, Black and isort. `python_test.yaml` runs on pushes
-to `dev` and `main` and on pull requests, on the Pythons `pyproject.toml` declares (3.11 to 3.14),
+to `dev` and `main` and on pull requests. During the hackathon it runs only Python 3.12, the
+backend image's (`python:3.12-slim`), as lint and the release do; the other Pythons
+`pyproject.toml` declares (3.11 to 3.14) stay in a comment, "disabled during hackathon, re-enable
+after (Sahand 2026-11-03)", and `requires-python` and the classifiers are unchanged. It runs
 in the release profile, since a shared runner is no measure of the one-second budget. Job `fast`
 runs the fast tier and e2e (`-m "not slow and not docker"`) on every event; job `slow` runs the slow
 tier in five shards (`--shard i/5`) on everything but a push to `dev`. Every job uses `-n auto`, has
