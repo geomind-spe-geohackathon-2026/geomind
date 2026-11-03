@@ -7,8 +7,8 @@ from tests.unit.agents.structure import check_complete
 TOOLS = [
     "geoscientist",
     "list_files",
-    "read_document",
-    "search_documents",
+    "rag_read",
+    "rag_search",
     "read_case",
     "set_case",
     "save_profile",
@@ -34,7 +34,7 @@ def test_only_the_formulator_sets_the_case():
     """The design lead reads the case and never sets it or reads the files."""
     design_lead = set(DesignLead().tools())
     assert "set_case" in CaseLead().tools() and "read_case" in design_lead
-    assert not design_lead & {"set_case", "save_profile", "list_files", "read_document"}
+    assert not design_lead & {"set_case", "save_profile", "list_files", "rag_read"}
 
 
 def test_its_model_is_its_own_required_setting(monkeypatch):

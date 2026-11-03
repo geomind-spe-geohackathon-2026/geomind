@@ -24,7 +24,7 @@ class Explainer(Agent):
         self.read_study = tools.gemini.read_study
         self.compute_kpis = tools.gemini.compute_kpis
         self.estimate_costs = tools.gemini.estimate_costs
-        self.search_documents = tools.search_documents
+        self.rag_search = tools.rag_search
         self.search_knowledge = tools.search_knowledge
         self.finish = tools.finish
 

@@ -16,7 +16,7 @@ def test_it_declares_the_tools_it_needs():
     assert list(AnalysisLead().tools()) == [
         "economist",
         "list_files",
-        "read_document",
+        "rag_read",
         "read_case",
         "set_case",
         "list_modules",
@@ -32,7 +32,7 @@ def test_it_declares_the_tools_it_needs():
         "list_studies",
         "read_study",
         "compute_kpis",
-        "search_documents",
+        "rag_search",
         "update_state",
         "read_skill",
         "read_stored",

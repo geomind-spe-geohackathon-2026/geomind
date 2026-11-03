@@ -10,8 +10,8 @@ from tests.unit.agents.structure import check_complete
 
 TOOLS = [
     "list_files",
-    "read_document",
-    "search_documents",
+    "rag_read",
+    "rag_search",
     "read_case",
     "read_stored",
     "search_memory",
@@ -46,7 +46,7 @@ def test_it_is_complete():
 def test_it_proposes_and_never_sets_the_case():
     """Only the case lead sets the case; the geoscientist reads files and the case."""
     tools = set(Geoscientist().tools())
-    assert "read_document" in tools and "read_case" in tools
+    assert "rag_read" in tools and "read_case" in tools
     assert not tools & {"set_case", "save_profile", "update_state", "ask_user"}
 
 

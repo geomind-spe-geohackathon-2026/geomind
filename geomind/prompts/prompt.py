@@ -24,7 +24,7 @@ KNOWLEDGE = (
     "## Knowledge\n\n"
     "`search_knowledge` searches the shared knowledge base, documents such as cost catalogues, "
     "standards and reports, and returns passages with their document, title and page; "
-    "`read_document` reads a whole one as `knowledge/<document>`. A value from it is cited with "
+    "`rag_read` reads a whole one as `knowledge/<document>`. A value from it is cited with "
     "its document and page, and a value that enters the case is confirmed by the user, as any "
     "value no project file gives. Never take a value from memory where knowledge or a file "
     "gives one."

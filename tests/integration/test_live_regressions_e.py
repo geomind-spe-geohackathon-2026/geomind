@@ -8,7 +8,7 @@ from pathlib import Path
 
 from geomind.stores import MemoryWorkspace
 from geomind.tools.gemini.case import set_case
-from geomind.tools.gemini.results import search_documents
+from geomind.tools.gemini.results import rag_search
 from tests.fixtures.calls import call
 from tests.fixtures.sessions import StubSession
 
@@ -33,7 +33,7 @@ def session_with(files):
 async def test_a_search_without_a_match_says_the_files_do_not_state_it():
     """The run searched 147 times for prices the brief does not give; ``[]`` told it nothing."""
     session = session_with({**FILES, "brief.md": BRIEF.encode()})
-    found = (await call(search_documents, recorded(3, "search_documents"), session, "p")).output
+    found = (await call(rag_search, recorded(3, "search_documents"), session, "p")).output
     assert found["matches"] == []
     assert "assumption" in found["note"] and "ask_user" in found["note"]
 
@@ -42,8 +42,8 @@ async def test_a_search_made_again_says_so():
     """The same words again: the note says it was searched, with the same matches."""
     session = session_with({"brief.md": BRIEF.encode()})
     query = {"query": "district heating network"}
-    first = (await call(search_documents, query, session, "p")).output
-    again = await call(search_documents, {"query": "Network heating district"}, session, "p")
+    first = (await call(rag_search, query, session, "p")).output
+    again = await call(rag_search, {"query": "Network heating district"}, session, "p")
     assert (
         again.output["matches"] == first["matches"] and "already searched" in again.output["note"]
     )
@@ -52,7 +52,7 @@ async def test_a_search_made_again_says_so():
 async def test_a_file_name_alone_is_no_match():
     """A passage whose words do not match is not found by the name of its file."""
     session = session_with({"heating_demand.csv": b"time,value\n2027-01-01T00:00Z,1\n"})
-    found = (await call(search_documents, {"query": "heating demand"}, session, "p")).output
+    found = (await call(rag_search, {"query": "heating demand"}, session, "p")).output
     assert found["matches"] == []
 
 
@@ -111,7 +111,7 @@ def test_replay_needs_its_steps(capsys):
 async def test_a_table_is_not_searched_as_text():
     """Test 6 got rows of the demand CSVs as matches for words of the brief."""
     session = session_with({**FILES, "brief.md": BRIEF.encode()})
-    found = (await call(search_documents, {"query": "2027 heating"}, session, "p")).output
+    found = (await call(rag_search, {"query": "2027 heating"}, session, "p")).output
     assert [match["name"] for match in found["matches"]] == ["brief.md"]
 
 

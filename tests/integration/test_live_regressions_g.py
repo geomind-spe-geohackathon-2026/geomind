@@ -124,13 +124,13 @@ async def test_a_document_read_stays_whole_in_the_history():
     """The case lead re-read a 3.6k brief 16 times: its page left the history after one step."""
     from geomind.engine import Context
     from geomind.stores import MemoryWorkspace
-    from geomind.tools import dispatch, read_document, read_stored
+    from geomind.tools import dispatch, rag_read, read_stored
     from tests.fixtures.sessions import StubSession
 
     session = StubSession()
     session.workspace = MemoryWorkspace(files={"p": {"brief.md": ("word " * 1000).encode()}})
-    page = ToolCall(id="r1", name="read_document", input={"name": "brief.md"})
-    result = await dispatch(read_document, page, Context(project="p", session=session))
+    page = ToolCall(id="r1", name="rag_read", input={"name": "brief.md"})
+    result = await dispatch(rag_read, page, Context(project="p", session=session))
     assert result.reference is not None and len(result.output["text"]) == 5000
     await session.save_artifact("result-9", {"text": "x" * 5000})
     part = ToolCall(id="r2", name="read_stored", input={"reference": "result-9"})
@@ -172,7 +172,7 @@ def test_a_kept_result_stays_whole_for_the_kept_turns_then_shrinks():
     from geomind.engine import Context
     from tests.fixtures.runs import Worker
 
-    page = ToolCall(id="r1", name="read_document", input={"name": "brief.md"})
+    page = ToolCall(id="r1", name="rag_read", input={"name": "brief.md"})
     messages = [
         Message(role="user", content="go"),
         Message(role="assistant", tool_calls=(page,)),
@@ -185,9 +185,9 @@ def test_a_kept_result_stays_whole_for_the_kept_turns_then_shrinks():
         def __init__(self):
             """Add the document tool."""
             super().__init__()
-            self.read_document = read_document
+            self.rag_read = rag_read
 
-    from geomind.tools import read_document
+    from geomind.tools import rag_read
 
     agent = Reader()
     context = Context(messages=list(messages), stored={"r1": "outline of the page"})

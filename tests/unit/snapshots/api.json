@@ -724,13 +724,13 @@
       },
       "Workspace": {
         "case": "(self, project_id)",
-        "documents": "(self, project_id, query)",
         "file": "(self, project_id, name)",
         "files": "(self, project_id)",
         "knowledge_file": "(self, name)",
         "knowledge_files": "(self)",
         "knowledge_search": "(self, query)",
-        "plants": "(self, project_id)"
+        "plants": "(self, project_id)",
+        "rag": "(self, project_id, query)"
       }
     },
     "runlog": {
@@ -1077,5 +1077,5 @@
       "step_limit": "failed"
     }
   },
-  "version": "0.4.22.dev35"
+  "version": "0.4.22.dev36"
 }

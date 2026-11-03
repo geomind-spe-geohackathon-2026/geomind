@@ -33,7 +33,7 @@ def test_memory_workspace_keeps_projects_apart():
     """Values belong to one project."""
     workspace = MemoryWorkspace({"a": {"P": {"kind": "plant"}}}, {"a": DOCUMENTS})
     assert workspace.plants("a") == {"P": {"kind": "plant"}} and workspace.plants("b") == {}
-    assert workspace.documents("b", "heat") == []
+    assert workspace.rag("b", "heat") == []
 
 
 def test_file_workspace_reads_text_files(tmp_path):
@@ -43,7 +43,7 @@ def test_file_workspace_reads_text_files(tmp_path):
     (folder / "a.md").write_text("heat")
     (folder / "b.txt").write_text("heat")
     (folder / "c.bin").write_text("heat")
-    found = FileWorkspace(tmp_path).documents("p", "heat")
+    found = FileWorkspace(tmp_path).rag("p", "heat")
     assert sorted(item["id"] for item in found) == ["a.md", "b.txt"]
 
 

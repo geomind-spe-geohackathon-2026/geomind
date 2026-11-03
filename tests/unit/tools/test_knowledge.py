@@ -1,8 +1,8 @@
-"""``search_knowledge`` and ``read_document`` of ``knowledge/<name>``."""
+"""``search_knowledge`` and ``rag_read`` of ``knowledge/<name>``."""
 
 from geomind.stores import MemoryWorkspace
 from geomind.stores.knowledge import MemoryKnowledge
-from geomind.tools import read_document, search_knowledge
+from geomind.tools import rag_read, search_knowledge
 from tests.fixtures.calls import call
 from tests.fixtures.sessions import StubSession
 
@@ -34,7 +34,7 @@ async def test_no_knowledge_base_is_knowledge_unavailable():
 async def test_read_document_reads_a_document_of_the_knowledge_base():
     """``knowledge/<name>`` reads the knowledge base's document; another name lists them."""
     session = session_with(MemoryKnowledge({"report.md": REPORT}))
-    page = (await call(read_document, {"name": "knowledge/report.md"}, session)).output
+    page = (await call(rag_read, {"name": "knowledge/report.md"}, session)).output
     assert page["text"].startswith("Drilling report")
-    missing = (await call(read_document, {"name": "knowledge/none.md"}, session)).output
+    missing = (await call(rag_read, {"name": "knowledge/none.md"}, session)).output
     assert "knowledge/report.md" in missing["error"]["message"]

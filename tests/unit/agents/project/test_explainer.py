@@ -18,7 +18,7 @@ def test_it_is_complete():
             "read_study",
             "compute_kpis",
             "estimate_costs",
-            "search_documents",
+            "rag_search",
             "search_knowledge",
             "finish",
         ],

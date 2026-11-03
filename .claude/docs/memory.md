@@ -8,7 +8,7 @@ Documents such as cost catalogues, standards and reports, searched for cited val
 (`geomind/stores/knowledge.py`). A document is cut into passages (a PDF by its pages, a text into
 paragraphs, a table into runs of rows each with its header), and `search_knowledge(query)` ranks
 them by the words of the query, rarer words counting more: deterministic, no model, no
-embedding. Each passage is `{id, document, title, page, text, score}`; `read_document` reads a
+embedding. Each passage is `{id, document, title, page, text, score}`; `rag_read` reads a
 whole document as `knowledge/<name>`. A value taken from knowledge is cited with its document
 and page and confirmed by the user before it enters the case, as any value no project file
 gives.

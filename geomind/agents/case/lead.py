@@ -32,8 +32,8 @@ class CaseLead(Agent):
         # Tools
         self.geoscientist = Delegate(Geoscientist(), max_summary_tokens=FINDINGS_TOKENS)
         self.list_files = tools.list_files
-        self.read_document = tools.read_document
-        self.search_documents = tools.search_documents
+        self.rag_read = tools.rag_read
+        self.rag_search = tools.rag_search
         self.read_case = tools.gemini.read_case
         self.set_case = tools.gemini.set_case
         self.save_profile = tools.gemini.save_profile

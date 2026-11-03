@@ -628,33 +628,7 @@
       ],
       "name": "patch_plant"
     },
-    "read_case": {
-      "description": "Return the case of the problem state, one of its sections, its economics or the schema.",
-      "effect": "read",
-      "idempotent": true,
-      "input_schema": {
-        "additionalProperties": false,
-        "properties": {
-          "section": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Section"
-          }
-        },
-        "title": "read_case_input",
-        "type": "object"
-      },
-      "late_schemas": [],
-      "name": "read_case"
-    },
-    "read_document": {
+    "rag_read": {
       "description": "Read a project file, or a document of the knowledge base as ``knowledge/<name>``, as text.",
       "effect": "read",
       "idempotent": true,
@@ -691,13 +665,60 @@
         "required": [
           "name"
         ],
-        "title": "read_document_input",
+        "title": "rag_read_input",
         "type": "object"
       },
       "late_schemas": [
         "name"
       ],
-      "name": "read_document"
+      "name": "rag_read"
+    },
+    "rag_search": {
+      "description": "Search the documents and the files of the project; return ``{matches, note}``, best first.",
+      "effect": "read",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "title": "Query",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "rag_search_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "rag_search"
+    },
+    "read_case": {
+      "description": "Return the case of the problem state, one of its sections, its economics or the schema.",
+      "effect": "read",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "section": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Section"
+          }
+        },
+        "title": "read_case_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "read_case"
     },
     "read_memory": {
       "description": "Return one experience entry by the id ``search_memory`` gave.",
@@ -1186,27 +1207,6 @@
       "late_schemas": [],
       "name": "save_profile"
     },
-    "search_documents": {
-      "description": "Search the documents and the files of the project; return ``{matches, note}``, best first.",
-      "effect": "read",
-      "idempotent": true,
-      "input_schema": {
-        "additionalProperties": false,
-        "properties": {
-          "query": {
-            "title": "Query",
-            "type": "string"
-          }
-        },
-        "required": [
-          "query"
-        ],
-        "title": "search_documents_input",
-        "type": "object"
-      },
-      "late_schemas": [],
-      "name": "search_documents"
-    },
     "search_knowledge": {
       "description": "Search the shared knowledge base for passages that state a value, with their citation.",
       "effect": "read",
@@ -1611,5 +1611,5 @@
       "name": "write_lesson"
     }
   },
-  "version": "0.4.22.dev35"
+  "version": "0.4.22.dev36"
 }

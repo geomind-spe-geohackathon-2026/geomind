@@ -29,7 +29,7 @@ class Workspace(Protocol):
         names, such as ``data/demand.csv`` and ``economics.json``, by their path in the project.
         """
 
-    def documents(self, project_id, query):
+    def rag(self, project_id, query):
         """Return matching documents as ``[{id, title, text, score}]``, best first."""
 
     def files(self, project_id):
@@ -103,7 +103,7 @@ class MemoryWorkspace:
         """Return the case of a project, or ``None``."""
         return self.cases.get(project_id)
 
-    def documents(self, project_id, query):
+    def rag(self, project_id, query):
         """Search the documents of a project."""
         return search(self.project_documents.get(project_id, ()), query)
 
@@ -155,7 +155,7 @@ class FileWorkspace:
         data = read_json(path)
         return data, named_files(data, lambda name: read_bytes(folder / name))
 
-    def documents(self, project_id, query):
+    def rag(self, project_id, query):
         """Search the text files of a project."""
         folder = self.root / project_id / "documents"
         paths = sorted(path for path in folder.glob("*") if path.suffix in DOCUMENT_SUFFIXES)

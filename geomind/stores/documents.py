@@ -14,7 +14,7 @@ PDF_START = b"%PDF-"
 
 def not_text(name, reason):
     """Return the error of a file that gives no text."""
-    return ToolError(f"read_document: {name!r} {reason}", code="not_text", path="name")
+    return ToolError(f"rag_read: {name!r} {reason}", code="not_text", path="name")
 
 
 def laid_out(text):

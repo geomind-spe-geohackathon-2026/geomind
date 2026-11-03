@@ -87,7 +87,7 @@ def test_section_three_protocols_are_frozen(frozen):
     assert set(protocols["RunStore"]) == set(RUN_STORE_METHODS)
     assert set(protocols["Workspace"]) == {
         "plants",
-        "documents",
+        "rag",
         "case",
         "files",
         "file",

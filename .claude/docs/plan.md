@@ -126,7 +126,7 @@ check it before writing a tool, because gemini's names change.
 | S2 | `step.finished.text`; `text.delta` not stored | `51a8f9b` | done |
 | S2 | `ProblemState` and `update_state` | `ad60954` | done |
 | S2 | Compaction and skills; the 50-turn test compacts once and still answers turn 3 | `b0ec535` | done |
-| S2 | `read_result`, `search_documents` | `aa4b01e` | done |
+| S2 | `read_result`, `rag_search` | `aa4b01e` | done |
 | S2 | `AnalysisLead` (complete sample, the default agent without a sandbox), `Summarizer`; skeletons of `Coordinator`, `DesignLead`, `Reviewer`, `Economist`, `Explainer`, each with a six-heading prompt file | `ad01b96` | done |
 | S2 | `geomind chat` and the eval runner | `55296c1` | done |
 | S2b | `FileWorkspace.plant` through `gm.plants.from_dict` | `957c119` | done |

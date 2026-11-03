@@ -11,6 +11,7 @@ from geomind.engine.compaction import compact_history
 from geomind.engine.state import Stop, is_cancel
 from geomind.errors import OutputError, ToolError, UnknownNameError
 from geomind.tools import dispatch
+from geomind.tools.base import with_old_names
 from geomind.tools.dispatch import error_output
 from geomind.types import RULE_MODEL, Completion, Deny, Finish, Request, ToolResult
 from geomind.types.events import (
@@ -191,7 +192,7 @@ def _runs_together(tool):
 async def _run_calls(session, agent):
     """Decide and run the open calls: read and compute tools together, others in order."""
     state = session.state
-    tools = agent.tools()
+    tools = with_old_names(agent.tools())
     calls = [call for call in state.calls if call.id not in state.results]
     is_together = all(call.name in tools and _runs_together(tools[call.name]) for call in calls)
     admitted = []
@@ -341,7 +342,7 @@ async def settle_interrupted(session, agent):
     nobody knows how far it got.
     """
     state = session.state
-    tools = agent.tools()
+    tools = with_old_names(agent.tools())
     for call in state.calls:
         tool = tools.get(call.name)
         is_open = call.id in state.started and call.id not in state.results

@@ -26,7 +26,7 @@ class AnalysisLead(Agent):
         # Tools
         self.economist = Delegate(Economist(), max_summary_tokens=ECONOMIST_TOKENS)
         self.list_files = tools.list_files
-        self.read_document = tools.read_document
+        self.rag_read = tools.rag_read
         self.read_case = tools.gemini.read_case
         self.set_case = tools.gemini.set_case
         self.list_modules = tools.gemini.list_modules
@@ -42,7 +42,7 @@ class AnalysisLead(Agent):
         self.list_studies = tools.gemini.list_studies
         self.read_study = tools.gemini.read_study
         self.compute_kpis = tools.gemini.compute_kpis
-        self.search_documents = tools.search_documents
+        self.rag_search = tools.rag_search
         self.update_state = tools.update_state
         self.read_skill = tools.read_skill
         self.read_stored = tools.read_stored

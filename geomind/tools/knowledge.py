@@ -1,7 +1,7 @@
 """The knowledge base: shared documents searched for cited values (``search_knowledge``).
 
 A workspace gives it through the optional ``knowledge_search``, ``knowledge_files`` and
-``knowledge_file``; ``read_document`` reads a whole document as ``knowledge/<name>``. A
+``knowledge_file``; ``rag_read`` reads a whole document as ``knowledge/<name>``. A
 workspace without them, or with no document, answers ``knowledge_unavailable``.
 """
 
@@ -11,7 +11,7 @@ from geomind.tools.base import tool
 SHOWN_PASSAGES = 8
 """The most passages one search returns, best first."""
 PREFIX = "knowledge/"
-"""How ``read_document`` names a document of the knowledge base."""
+"""How ``rag_read`` names a document of the knowledge base."""
 
 
 def has_knowledge(workspace):
@@ -39,7 +39,7 @@ def search_knowledge(context, query: str):
     Returns ``passages`` best first, each ``{id, document, title, page, text, score}``. A value
     taken from a passage is cited with its document, title and page, and goes into the case only
     after the user confirms it, as any value no project file gives. Read a whole document with
-    ``read_document`` as ``knowledge/<document>``.
+    ``rag_read`` as ``knowledge/<document>``.
     """
     workspace = knowledge_workspace(context, "search_knowledge")
     return {"passages": list(workspace.knowledge_search(query))[:SHOWN_PASSAGES]}

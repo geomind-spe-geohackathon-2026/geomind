@@ -20,7 +20,7 @@ from geomind.tools.gemini.plants import (
     read_plant,
     set_ranges,
 )
-from geomind.tools.gemini.results import read_result, search_documents
+from geomind.tools.gemini.results import rag_search, read_result
 from geomind.tools.gemini.runs import list_profiles, read_profile, simulate
 from geomind.tools.gemini.studies import list_studies, read_study
 from geomind.tools.gemini.study import (
@@ -59,7 +59,7 @@ __all__ = [
     "run_study",
     "sample_uncertainty",
     "save_profile",
-    "search_documents",
+    "rag_search",
     "sensitivity",
     "set_case",
     "set_ranges",

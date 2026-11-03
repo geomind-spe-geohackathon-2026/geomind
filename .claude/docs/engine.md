@@ -233,7 +233,7 @@ engine today. `design/<name>` and `study/<name>` are written once: the same cont
 An artifact key of `FileRunStore` is one safe name, or a [reference](tools.md#references) of the
 form `design/<name>`, `study/<name>`, `result/<id>` or `case/<file name>`; any other `/` raises `RunError`.
 
-`Workspace` has `plants(project_id)`, `case(project_id)` and `documents(project_id, query)`.
+`Workspace` has `plants(project_id)`, `case(project_id)` and `rag(project_id, query)`.
 `MemoryWorkspace(plants, documents, cases)` holds values; `FileWorkspace(root)` reads gemini's
 project folder `<root>/<project id>/`: the plant files `plants/*.json` as dicts by file stem, and
 text files in `documents/`, searched by keyword count.

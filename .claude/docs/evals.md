@@ -38,7 +38,7 @@ answers: ["2100 m"]
 criteria:
   - {kind: number, value: 2100, tolerance: 1, unit: m}
   - {kind: tool, tool: update_state}
-  - {kind: tool, tool: search_documents, called: false}
+  - {kind: tool, tool: rag_search, called: false}
   - {kind: question, contains: depth}
   - {kind: state, path: /goal}
 ```

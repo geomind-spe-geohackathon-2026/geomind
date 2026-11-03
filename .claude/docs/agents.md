@@ -143,14 +143,14 @@ frozen; the tools themselves are in [tools.md](tools.md#catalogue). Every agent 
 
 | Agent | Tools |
 |---|---|
-| `AnalysisLead` | `list_files`, `read_document`, `read_case`, `set_case`, `list_modules`, `describe_module`, `evaluate_module`, `list_plants`, `read_plant`, `list_profiles`, `read_profile`, `save_profile`, `simulate`, `read_result`, `list_studies`, `read_study`, `compute_kpis`, `search_documents`, `update_state`, `read_skill`, `search_memory`, `read_memory`, `search_knowledge`, `ask_user`, `finish` |
+| `AnalysisLead` | `list_files`, `rag_read`, `read_case`, `set_case`, `list_modules`, `describe_module`, `evaluate_module`, `list_plants`, `read_plant`, `list_profiles`, `read_profile`, `save_profile`, `simulate`, `read_result`, `list_studies`, `read_study`, `compute_kpis`, `rag_search`, `update_state`, `read_skill`, `search_memory`, `read_memory`, `search_knowledge`, `ask_user`, `finish` |
 | `Coordinator` | none: it answers with a `Route` |
-| `Geoscientist` | `list_files`, `read_document`, `search_documents`, `read_case`, `read_stored`, `search_memory`, `read_memory`, `search_knowledge`, `finish` |
-| `CaseLead` | `geoscientist`, `list_files`, `read_document`, `search_documents`, `read_case`, `set_case`, `save_profile`, `list_profiles`, `read_profile`, `read_stored`, `search_memory`, `read_memory`, `search_knowledge`, `update_state`, `ask_user`, `finish` |
+| `Geoscientist` | `list_files`, `rag_read`, `rag_search`, `read_case`, `read_stored`, `search_memory`, `read_memory`, `search_knowledge`, `finish` |
+| `CaseLead` | `geoscientist`, `list_files`, `rag_read`, `rag_search`, `read_case`, `set_case`, `save_profile`, `list_profiles`, `read_profile`, `read_stored`, `search_memory`, `read_memory`, `search_knowledge`, `update_state`, `ask_user`, `finish` |
 | `DesignLead` | `process_engineer`, `integration_engineer`, `reservoir_engineer`, `well_engineer`, `energy_systems_engineer`, `merge_designs`, `read_case`, `list_plants`, `read_plant`, `list_modules`, `describe_module`, `evaluate_module`, `build_plant`, `patch_plant`, `set_ranges`, `size_plant`, `list_profiles`, `read_profile`, `simulate`, `read_result`, `list_studies`, `read_study`, `check_results`, `optimize`, `run_study`, `update_state`, `read_skill`, `read_stored`, `search_memory`, `read_memory`, `search_knowledge`, `ask_user`, `finish` |
 | `Reviewer` | `check_results`, `case_changes`, `read_case`, `compute_kpis`, `read_result`, `update_state`, `read_skill`, `read_stored`, `search_knowledge`, `finish` |
 | `Economist` | `compute_kpis`, `estimate_costs`, `compare`, `run_study`, `sample_uncertainty`, `sensitivity`, `read_result`, `list_studies`, `read_study`, `update_state`, `read_skill`, `read_stored`, `search_memory`, `read_memory`, `search_knowledge`, `finish` |
-| `Explainer` | `read_case`, `case_changes`, `read_plant`, `read_result`, `list_studies`, `read_study`, `compute_kpis`, `estimate_costs`, `search_documents`, `search_knowledge`, `finish` |
+| `Explainer` | `read_case`, `case_changes`, `read_plant`, `read_result`, `list_studies`, `read_study`, `compute_kpis`, `estimate_costs`, `rag_search`, `search_knowledge`, `finish` |
 | `Summarizer` | none |
 
 Package code holds no engineering default; an agent's decision is not a default. The DesignLead

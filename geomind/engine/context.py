@@ -7,6 +7,7 @@ from geomind.context import ProblemState, render
 from geomind.context.skills import skill_listing
 from geomind.errors import RunError
 from geomind.prompts.prompt import KNOWLEDGE, MEMORY, STORED_RESULTS
+from geomind.tools.base import with_old_names
 from geomind.tools.stored import is_long, shortened
 from geomind.types import Message
 
@@ -139,7 +140,7 @@ def kept_calls(messages, agent):
     """Return the ids of the calls whose tool keeps its results, of ``agent``'s tools."""
     if agent is None:
         return set()
-    tools = agent.tools()
+    tools = with_old_names(agent.tools())
     return {
         call.id
         for item in messages

@@ -21,9 +21,9 @@ READ_UNITS = {
 
 
 PASSAGE_CHARACTERS = 1500
-"""The characters of one passage of a project file that ``search_documents`` returns."""
+"""The characters of one passage of a project file that ``rag_search`` returns."""
 SHOWN_MATCHES = 8
-"""The most matches ``search_documents`` returns, best first."""
+"""The most matches ``rag_search`` returns, best first."""
 NO_MATCH = (
     "no document or file of the project has these words, so it does not state this: choose a "
     "value and record it as an assumption with its reason, or ask_user; another wording finds "
@@ -58,21 +58,21 @@ def read_result(
 
 
 @tool(effect="read")
-def search_documents(context, query: str):
+def rag_search(context, query: str):
     """Search the documents and the files of the project; return ``{matches, note}``, best first.
 
     A document match has ``id``, ``title``, ``text`` and ``score``. A file match is a passage of a
-    file that reads as text, such as a PDF: ``name``, ``start`` (for ``read_document``), ``text``
+    file that reads as text, such as a PDF: ``name``, ``start`` (for ``rag_read``), ``text``
     and ``score``; a file's name alone matches nothing. No match means the project does not state
     these words, and the ``note`` says what to do instead; the same words again are noted too.
     """
     workspace = context.session.workspace
     if workspace is None or context.project is None:
         raise ToolError(
-            "search_documents: this run has no project; expected a workspace and one",
+            "rag_search: this run has no project; expected a workspace and one",
             code="not_allowed",
         )
-    found = list(workspace.documents(context.project, query))
+    found = list(workspace.rag(context.project, query))
     passages = search(file_passages(context), query)
     found += [{key: value for key, value in item.items() if key != "title"} for item in passages]
     matches = sorted(found, key=lambda item: item["score"], reverse=True)[:SHOWN_MATCHES]
@@ -97,7 +97,7 @@ def file_passages(context):
     """Return the passages of the project's files that read as text, ``PASSAGE_CHARACTERS`` each.
 
     A passage is ``{name, start, title, text}`` with an empty ``title``, so the file name is no
-    match. A table (CSV, TSV) holds data, not text to search: ``read_document`` shows its columns.
+    match. A table (CSV, TSV) holds data, not text to search: ``rag_read`` shows its columns.
     """
     workspace = context.session.workspace
     files = workspace.files(context.project) if hasattr(workspace, "files") else []

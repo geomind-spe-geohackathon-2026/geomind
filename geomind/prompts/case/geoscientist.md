@@ -16,15 +16,15 @@ never set the case and never fill a gap with a typical value.
 Each tool's description says its arguments.
 
 - `list_files`: the project's files.
-- `read_document`: read one report.
-- `search_documents`: search the reports for a word.
+- `rag_read`: read one report.
+- `rag_search`: search the reports for a word.
 - `read_case`: the case as it stands.
 - `finish`: hand your findings to the case lead.
 
 ## Rules
 
-- Read each report whole, once, with `read_document`: text, tables and figure captions. Use
-  `search_documents` only for a word you did not find.
+- Read each report whole, once, with `rag_read`: text, tables and figure captions. Use
+  `rag_search` only for a word you did not find.
 - Take every value the reports give for: depth and thickness of the reservoir, its temperature
   and the temperature gradient, surface temperature, pressure, porosity, permeability and
   transmissivity, net-to-gross, the brine's density, viscosity, salinity and heat capacity, and

@@ -8,8 +8,8 @@ from geomind.tools.base import EFFECTS, Tool, tool
 from geomind.tools.builtins import ask_user, finish
 from geomind.tools.delegate import Delegate
 from geomind.tools.dispatch import dispatch
-from geomind.tools.files import list_files, read_document
-from geomind.tools.gemini import read_result, search_documents
+from geomind.tools.files import list_files, rag_read
+from geomind.tools.gemini import rag_search, read_result
 from geomind.tools.knowledge import search_knowledge
 from geomind.tools.memory import read_memory, search_memory, write_lesson
 from geomind.tools.skills import read_skill
@@ -25,7 +25,7 @@ __all__ = [
     "finish",
     "gemini",
     "list_files",
-    "read_document",
+    "rag_read",
     "read_result",
     "read_skill",
     "read_stored",
@@ -33,7 +33,7 @@ __all__ = [
     "search_knowledge",
     "search_memory",
     "write_lesson",
-    "search_documents",
+    "rag_search",
     "tool",
     "update_state",
 ]

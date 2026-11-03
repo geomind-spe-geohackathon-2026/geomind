@@ -11,6 +11,14 @@ from geomind.utils.strings import did_you_mean, join_names
 
 EFFECTS = ("read", "compute", "write", "execute", "external")
 PURE_EFFECTS = ("read", "compute")
+RENAMED_TOOLS = {"read_document": "rag_read", "search_documents": "rag_search"}
+"""The name a tool had in an older log or recording, by its name now (0.4.22.dev36)."""
+
+
+def with_old_names(tools):
+    """Return ``{name: tool}`` that also answers to a renamed tool's old name, for old logs."""
+    old = {former: tools[now] for former, now in RENAMED_TOOLS.items() if now in tools}
+    return {**old, **tools}
 
 
 def takes_context(function):

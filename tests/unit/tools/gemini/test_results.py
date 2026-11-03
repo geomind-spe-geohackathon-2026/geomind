@@ -6,7 +6,7 @@ import geomind as gd
 from geomind.engine import Context
 from geomind.errors import ToolError
 from geomind.stores import MemoryWorkspace
-from geomind.tools import search_documents
+from geomind.tools import rag_search
 from tests.fixtures.calls import call
 from tests.fixtures.cases import EXAMPLES, example_names
 from tests.fixtures.sessions import StubSession
@@ -99,7 +99,7 @@ def context(workspace=None, project="p1"):
 def test_search_documents_searches_the_project():
     """The workspace of the run answers."""
     documents = {"p1": [{"id": "a", "title": "Pumps", "text": "the pump runs at 50 Hz"}]}
-    output = search_documents.function(context(MemoryWorkspace(documents=documents)), "pump")
+    output = rag_search.function(context(MemoryWorkspace(documents=documents)), "pump")
     assert output["matches"][0]["id"] == "a"
 
 
@@ -108,9 +108,9 @@ def test_search_documents_needs_a_project(options):
     """A run without one gets an error result, not a crash."""
     arguments = {"workspace": MemoryWorkspace(), "project": "p1", **options}
     with pytest.raises(ToolError, match="no project"):
-        search_documents.function(context(**arguments), "pump")
+        rag_search.function(context(**arguments), "pump")
 
 
 def test_both_only_read():
     """Reading needs no approval, and a replay reads again."""
-    assert (TOOLS.read_result.effect, search_documents.effect) == ("read", "read")
+    assert (TOOLS.read_result.effect, rag_search.effect) == ("read", "read")

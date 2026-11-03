@@ -6,6 +6,15 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### Documents are "rag" (contract v3 names, 0.4.22.dev36)
+
+**Contract changes for the backend (renames; the backend keeps its old methods until this release):**
+
+- `Workspace.documents(project_id, query)` is `Workspace.rag(project_id, query)`. `files`, `file`, `memory` and the `knowledge_*` methods are unchanged.
+- The tool `search_documents` is `rag_search`, and `read_document` is `rag_read` (it also reads `knowledge/<name>`): tool calls, `tool.started`/`tool.finished` and the runlog name the new ones.
+- An older log or recording that names `read_document` or `search_documents` still replays and resumes: the engine finds the renamed tool by its old name (`RENAMED_TOOLS`).
+- Prompts and docs use the new names.
+
 ### Knowledge is a document base (retrieval); memory is experience only (0.4.22.dev35)
 
 Contract v2 with the backend: knowledge and memory are never mixed.

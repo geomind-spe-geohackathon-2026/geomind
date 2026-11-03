@@ -105,3 +105,12 @@ def test_the_offered_schema_has_no_title_annotations_but_keeps_a_property_named_
     offered = titled.schema()["input_schema"]
     assert "title" in offered["properties"] and "title" not in offered
     assert all("title" not in value for value in offered["properties"].values())
+
+
+def test_a_renamed_tool_answers_to_its_old_name_for_old_logs():
+    """``read_document`` of an older log finds ``rag_read``; old names stay replayable."""
+    from geomind.tools import rag_read
+    from geomind.tools.base import with_old_names
+
+    tools = with_old_names({"rag_read": rag_read})
+    assert tools["read_document"] is rag_read and "search_documents" not in tools
