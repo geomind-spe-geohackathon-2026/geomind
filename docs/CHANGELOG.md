@@ -6,6 +6,13 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.10] - 2026-11-03
+
+CI and tests only; the package is unchanged.
+
+- CI is split into a `fast` job (fast tier and e2e, every event) and a `slow` job in four shards (everything but a `dev` push). Every job runs `-n auto`, with `timeout-minutes` and `fail-fast: false`. Before, the full suite took 25 to 42 minutes per Python in one job, and a dying runner ended it at 98 %.
+- `--shard i/n` balances the slow tests by the measured times in `tests/fixtures/shard_times.json`: about 420 s of serial work each.
+
 ## [0.4.9] - 2026-11-03
 
 Additive.

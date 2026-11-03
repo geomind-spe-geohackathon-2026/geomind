@@ -9,22 +9,20 @@ on:
 permissions:
   contents: read
 
+env:
+  NPY_DISABLE_CPU_FEATURES: X86_V4 AVX512_ICL AVX512_SPR AVX512F AVX512CD AVX512_SKX AVX512_CLX AVX512_CNL
+
 jobs:
-  test:
-    name: Python ${{ matrix.python }}
+  fast:
+    name: Fast tier, Python ${{ matrix.python }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
         python: ["3.11", "3.12", "3.13", "3.14"]
-    env:
-      NPY_DISABLE_CPU_FEATURES: X86_V4 AVX512_ICL AVX512_SPR AVX512F AVX512CD AVX512_SKX AVX512_CLX AVX512_CNL
-      TIER: >-
-        ${{ (github.event_name == 'push' && github.ref == 'refs/heads/dev' && 'fast') || 'full' }}
     steps:
     - uses: actions/checkout@v5
-      with:
-        fetch-depth: 0
     - uses: astral-sh/setup-uv@v7
     - name: Install Python ${{ matrix.python }} and the dependencies
       run: |
@@ -33,9 +31,30 @@ jobs:
         .venv/bin/python scripts/project_dependencies.py | uv pip install -r -
         uv pip install --group test
         echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
-    - name: Run the fast tier
-      if: env.TIER == 'fast'
-      run: python -m pytest -m "not slow and not docker" --profile=release --durations=20
-    - name: Run the full suite
-      if: env.TIER == 'full'
-      run: python -m pytest -n auto -m "not docker" --profile=release --durations=20
+    - name: Run the fast tier and e2e
+      run: python -m pytest -n auto -m "not slow and not docker" --profile=release --durations=20
+
+  slow:
+    name: Slow tier ${{ matrix.shard }}/4, Python ${{ matrix.python }}
+    if: github.event_name != 'push' || github.ref != 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12", "3.13", "3.14"]
+        shard: [0, 1, 2, 3]
+    steps:
+    - uses: actions/checkout@v5
+    - uses: astral-sh/setup-uv@v7
+    - name: Install Python ${{ matrix.python }} and the dependencies
+      run: |
+        uv venv --python "${{ matrix.python }}"
+        uv pip install -r requirements/gemini.txt
+        .venv/bin/python scripts/project_dependencies.py | uv pip install -r -
+        uv pip install --group test
+        echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+    - name: Run shard ${{ matrix.shard }} of the slow tier
+      run: >-
+        python -m pytest -n auto -m "slow and not docker" --profile=release
+        --shard ${{ matrix.shard }}/4 --durations=20
