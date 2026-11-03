@@ -134,9 +134,13 @@ to each feasible family, the `Verifier` checks it once and gemini's verdict sets
 recommended design, the `Explainer` writes the comparison, and `show --format md` prints the table.
 
 `Delegate(..., runs_beside=True)` lets the delegate calls of one step run together, and
-`total_usage` counts a sibling still running, so a budget or time limit covers the whole loop. A
-model call in flight counts when it returns, so runs side by side can pass a cap by those calls. A
-stop answers with the finished alternatives. `StudyCompareLoop` (driver `CompareDriver`, name
+`total_usage` counts a sibling still running and the worst case of every other call in flight, so
+a budget covers the whole loop. A bounded call (`TokenBudget(bound_input=True)`, a priced
+`CostBudget`, `ProjectBudget`) holds its input bound plus the output tokens it may use, priced
+where a price is known (`RunSession.reserve`), until it returns or fails; a call that would pass
+the cap with what others hold is not sent, and the run stops with the budget code and a partial
+answer. An unbounded cap only refuses once it is reached, as before. A time limit cannot hold an
+in-flight call back: it stops the next one. A stop answers with the finished alternatives. `StudyCompareLoop` (driver `CompareDriver`, name
 `compare`) is the loop up to 0.4.5: logs and recordings of it run on it, and `loop_for` picks it from
 the stored driver class.
 

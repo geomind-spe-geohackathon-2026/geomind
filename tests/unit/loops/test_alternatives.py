@@ -379,6 +379,32 @@ async def test_runs_side_by_side_share_the_cap(verdicts):
     assert sum(event.type == "llm.completed" for event in events) < 5
 
 
+class Metered(Routed):
+    """Charge every call a fixed usage, its output cut to the call's ``max_tokens``."""
+
+    async def complete(self, messages, tools, *, model, settings, on_text=None):
+        """Answer as ``Routed``, charging the input bound and up to 40 output tokens."""
+        completion = await super().complete(messages, tools, model=model, settings=settings)
+        text = "".join(message.model_dump_json() for message in messages) + json.dumps(tools)
+        output = min(40, settings.get("max_tokens") or 40)
+        usage = Usage(input_tokens=len(text) // 2, output_tokens=output, cost=0.0)
+        return completion.model_copy(update={"usage": usage})
+
+
+@pytest.mark.parametrize("cap", [60_000, 80_000, 100_000])
+async def test_runs_side_by_side_never_end_above_the_cap(verdicts, cap):
+    """Each call holds its worst case until it returns, so calls in flight cannot pass the cap."""
+    plain = parallel_llm()
+    llm = Metered(plain.completions, plain.families.scripts)
+    budget = TokenBudget(cap, bound_input=True)
+    engine = Engine(llm=llm, permissions=Permissions(mode="auto"), hooks=[budget])
+    start = context("Compare alternatives for the case.", problem=ProblemState(case=CASE))
+    result = await CompareLoop(Designer(), Verifier(), concurrency=3).run(engine, start)
+    events = engine.store.load_events(start.run_id)
+    assert result.usage.input_tokens + result.usage.output_tokens <= cap
+    assert sum(event.type == "llm.completed" for event in events) > 2
+
+
 def test_the_table_has_a_row_for_every_family():
     """Verdict and reason come straight from the state; a missing value stays empty."""
     table = alternatives_table({"alternatives": [entry("alpha", "verified"), {"family": "b"}]})

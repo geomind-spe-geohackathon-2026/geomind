@@ -199,10 +199,13 @@ def recommended(design):
 def economist_comparison_task(context):
     """Return the economist's task: compare every verified design with gemini."""
     design = context.problem.design or {}
-    runs = ", ".join(item["result"] for item in with_verdict(design, VERIFIED))
+    runs = ", ".join(
+        f"{item['family']} {item['result']}" for item in with_verdict(design, VERIFIED)
+    )
     return (
-        f"The request:\n\n{request_of(context)}\n\nCompare the verified designs on their results "
-        f"{runs} with compare, by the objectives the request names, else design.search. Record "
+        f"The request:\n\n{request_of(context)}\n\n"
+        "Compare the verified designs, family and result: "
+        f"{runs}, with compare, by the objectives the request names, else design.search. Record "
         "/design/comparison: {by, ranking: [{family, rank, pareto}], recommended}, gemini's "
         "ranking and Pareto set, recommended the family you recommend. Run sample_uncertainty or "
         "sensitivity only when the request asks for them, and then only on the top designs."

@@ -107,7 +107,7 @@ none is added here.
 
 A folder of `SUITES` in `evals/run.py` runs its tasks through a loop instead of one agent:
 `python -m evals.run --agent challenge2` runs `evals/tasks/challenge2/` through the `DesignLoop`;
-`--agent compare` runs `evals/tasks/compare/` through the `StudyCompareLoop`, the loop its recording was made on. The `challenge2` tasks:
+`--agent compare` runs `evals/tasks/compare/` through the `StudyCompareLoop`, the loop its recording was made on, and `--agent alternatives` runs `evals/tasks/alternatives/` through the `CompareLoop`. The report's `CompareLoop` table is the 0.4.6 loop. The `challenge2` tasks:
 
 | Task | Project | What it checks, and what fails when it is ignored |
 |---|---|---|
@@ -118,6 +118,16 @@ A folder of `SUITES` in `evals/run.py` runs its tasks through a loop instead of 
 | `verifier` | `shallow_district` | the Verifier's part on a second example: `check_results` is called, `/verification/result` is set, the design is verified |
 | `economist` | `higher_gas` | the Economist's part: `estimate_costs` and `sample_uncertainty` are called, the LCTS in the answer is the one on the higher gas price (`number`), `/results/costs` is recorded |
 | `tight_budget` | `hackathon` | `max_steps: 7`: the Designer cannot reach `optimize`, so the loop ends without a design and says so; `optimize` and `estimate_costs` are not called |
+
+### The alternatives task
+
+`alternatives/three_families` (project `hackathon`) runs through the `CompareLoop` of 0.4.6: three
+of the project's plants, each sized, simulated, checked, optimised (lcts, 20 evaluations, seed 0)
+and checked again in its own nested run, the verified ones compared on lcts and co2. Its recording
+is scripted: the model's moves are code, written once offline, and every tool result is gemini's.
+gemini finds the heating-only plant infeasible (it gives no cooling), so the table keeps it with
+that reason. Criteria: `compare` and `optimize` are called, `/design/alternatives` and
+`/design/comparison` are set, and `verified` holds. It replays in the slow tier.
 
 ### The compare task
 

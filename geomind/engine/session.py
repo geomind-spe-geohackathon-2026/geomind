@@ -67,6 +67,7 @@ class RunSession:
         self.waiting_child = None
         self.child_usage = None
         self.running = set()
+        self.reserved = {}
         self._index_lock = asyncio.Lock()
         self.child_limit = None
         self._sandbox = None
@@ -238,7 +239,11 @@ class RunSession:
     async def complete(self, agent, messages):
         """Call the provider and log the completion before anything acts on it."""
         started = perf_counter()
-        completion = await self._call_provider(agent, messages, self.on_text)
+        try:
+            completion = await self._call_provider(agent, messages, self.on_text)
+        except BaseException:
+            self.release()
+            raise
         held, self._held_text = self._held_text, ""
         self._stream(held)
         await self.log.flush()
@@ -249,6 +254,7 @@ class RunSession:
             messages=tuple(messages),
             duration=perf_counter() - started,
         )
+        self.release()
         return event.completion
 
     def _hooks_for(self, point):
@@ -262,9 +268,12 @@ class RunSession:
         """Return the hook decision of an LLM call, unless the user approved it."""
         hooks = self._hooks_for("llm")
         self._output_limit = None
+        self.release()
         decision, _ = await ask_hooks(
             hooks, "before_llm_call", self.context(), agent, tuple(messages)
         )
+        if decision is not None:
+            self.release()
         return decision
 
     async def before_finish(self, agent, action):
@@ -419,10 +428,12 @@ class RunSession:
         """Return the usage of the whole run so far: this run's and that of every run above it.
 
         A nested run's usage joins its parent's when it ends, so nothing is counted twice. A
-        sibling running beside this run counts too, so runs side by side share a cap; a model
-        call still in flight counts only when it returns.
+        sibling running beside this run counts too, and so does the worst case another run's
+        call in flight holds (``reserve``), so runs side by side share a cap.
         """
         total = self.state.usage + (self.child_usage or Usage())
+        for session, usage in self.root_session.reserved.items():
+            total = total if session is self else total + usage
         if self.parent is None:
             return total
         for sibling in self.parent.running - {self}:
@@ -440,6 +451,24 @@ class RunSession:
         if result.request is not None:
             self.waiting_child = result.run_id
         return result
+
+    @property
+    def root_session(self):
+        """Return the session of the root run of this tree."""
+        return self.parent.root_session if self.parent is not None else self
+
+    def reserve(self, usage):
+        """Hold the worst usage of this run's next call until it returns; hooks merge theirs."""
+        held = self.root_session.reserved.get(self, Usage())
+        self.root_session.reserved[self] = Usage(
+            input_tokens=max(held.input_tokens, usage.input_tokens),
+            output_tokens=max(held.output_tokens, usage.output_tokens),
+            cost=max(held.cost, usage.cost),
+        )
+
+    def release(self):
+        """Drop what this run's call held: it returned, failed or was not sent."""
+        self.root_session.reserved.pop(self, None)
 
     def add_child_usage(self, usage):
         """Keep the usage of a nested run until a tool result carries it; runs may end together."""

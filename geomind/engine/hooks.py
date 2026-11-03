@@ -7,7 +7,7 @@ from time import monotonic
 
 from geomind.engine.callbacks import call_maybe_async
 from geomind.errors import BudgetError
-from geomind.types import RULE_MODEL, Allow, Cancel, Deny, Request
+from geomind.types import RULE_MODEL, Allow, Cancel, Deny, Request, Usage
 from geomind.verify.design import verify_design
 
 CHARACTERS_PER_TOKEN_BOUND = 2
@@ -83,6 +83,24 @@ def cost_room(cap, spent, held, tokens_in, price):
     return math.inf if price[1] <= 0 else math.floor(left / price[1])
 
 
+def tokens_worst(tokens_in):
+    """Return the worst usage of a call at a number of output tokens, in tokens."""
+    return lambda output: Usage(input_tokens=tokens_in, output_tokens=output)
+
+
+def cost_worst(tokens_in, price):
+    """Return the worst usage of a call at a number of output tokens, in cost; none unpriced."""
+    if price is None:
+        return None
+    return lambda output: Usage(cost=tokens_in * price[0] + output * price[1])
+
+
+def both_worst(tokens_in, price):
+    """Return the worst usage of a call in tokens and, when priced, in cost."""
+    cost = cost_worst(tokens_in, price)
+    return lambda output: tokens_worst(tokens_in)(output) + (cost(output) if cost else Usage())
+
+
 def price_of(prices, model):
     """Return ``(input, output)`` per token of a model from a mapping or function, else ``None``."""
     if prices is None:
@@ -119,8 +137,12 @@ class Capped(Hook):
             return 0
         return self.answer_reserve
 
-    def _fit(self, context, agent, room, reason):
-        """Deny a call that has no room, else lower its ``max_tokens`` to what fits."""
+    def _fit(self, context, agent, room, reason, worst=None):
+        """Deny a call that has no room, else lower its ``max_tokens`` and hold its worst case.
+
+        ``worst`` gives the usage of the call at a number of output tokens. A bounded call holds
+        it until it returns (``RunSession.reserve``), so calls side by side cannot pass the cap.
+        """
         session = context.session
         if room < 1:
             session.note_limit(reason)
@@ -129,6 +151,9 @@ class Capped(Hook):
         is_call = self.bounds_input and agent.model.resolved_name() != RULE_MODEL
         if is_call and room != math.inf and (ceiling is None or room < ceiling):
             session.limit_output(int(room))
+        output = min(item for item in (room, ceiling or math.inf))
+        if is_call and worst is not None and output != math.inf:
+            session.reserve(worst(int(output)))
         return None
 
     def _tokens_in(self, agent, messages):
@@ -162,7 +187,7 @@ class TokenBudget(Capped):
         reason = f"token budget: used {used} of {self.max_tokens}"
         if used < self.max_tokens:
             reason += f"; the next call needs about {tokens_in} input tokens and {held} are kept"
-        return self._fit(context, agent, room, reason)
+        return self._fit(context, agent, room, reason, worst=tokens_worst(tokens_in))
 
 
 class CostBudget(Capped):
@@ -189,7 +214,7 @@ class CostBudget(Capped):
         reason = f"cost budget: used {cost} of {self.max_cost}"
         if cost < self.max_cost:
             reason += f"; the next call needs about {tokens_in} input tokens and {held} is kept"
-        return self._fit(context, agent, room, reason)
+        return self._fit(context, agent, room, reason, worst=cost_worst(tokens_in, price))
 
 
 class TimeLimit(Hook):
@@ -265,15 +290,16 @@ class ProjectBudget(Capped):
         tokens_in = self._tokens_in(agent, messages)
         held = self._held(context, agent)
         rooms = []
+        price = price_of(self.prices, agent.model.resolved_name())
         if self.max_tokens is not None:
             room = token_room(self.max_tokens, used, held, tokens_in)
             rooms.append((room, self._reason("token", used, self.max_tokens)))
         if self.max_cost is not None:
-            price = price_of(self.prices, agent.model.resolved_name())
             room = cost_room(self.max_cost, usage.cost, held, tokens_in, price)
             rooms.append((room, self._reason("cost", usage.cost, self.max_cost)))
         room, reason = min(rooms, key=lambda item: item[0])
-        return self._fit(context, agent, room, reason)
+        worst = both_worst(tokens_in, price)
+        return self._fit(context, agent, room, reason, worst=worst)
 
     def _reason(self, kind, used, cap):
         """Return the denial text that names the project, the cap and what was spent."""
