@@ -48,3 +48,11 @@ def test_values_no_file_gives_are_confirmed_in_one_question():
     assert "ONE confirmation question" in text
     assert "`approve all`, `change some` and `stop`" in text
     assert "confirmed: true" in text and "price year" in text
+
+
+def test_the_case_is_set_in_parts():
+    """The test run sent the whole case five times; the prompt and set_case say to send parts."""
+    from geomind.tools.gemini.case import set_case
+
+    assert "never send the whole case again" in Formulator().prompt.render()
+    assert "send only" in set_case.description or "send only" in set_case.function.__doc__

@@ -131,10 +131,10 @@ async def test_a_document_read_stays_whole_in_the_history():
     session.workspace = MemoryWorkspace(files={"p": {"brief.md": ("word " * 1000).encode()}})
     page = ToolCall(id="r1", name="read_document", input={"name": "brief.md"})
     result = await dispatch(read_document, page, Context(project="p", session=session))
-    assert result.reference is None and len(result.output["text"]) == 5000
+    assert result.reference is not None and len(result.output["text"]) == 5000
     await session.save_artifact("result-9", {"text": "x" * 5000})
     part = ToolCall(id="r2", name="read_stored", input={"reference": "result-9"})
-    assert (await dispatch(read_stored, part, Context(session=session))).reference is None
+    assert (await dispatch(read_stored, part, Context(session=session))).reference == "result-9"
 
 
 async def test_a_part_too_long_to_show_names_the_deeper_paths():
@@ -164,3 +164,41 @@ async def test_a_path_with_slashes_reads_as_dots():
     await session.save_artifact("result-9", {"properties": {"site": {"a": 1}}})
     tool_input = {"reference": "result-9", "path": "properties/site"}
     assert (await dispatched(read_stored, tool_input, session)).output == {"a": 1}
+
+
+def test_a_kept_result_stays_whole_for_the_kept_turns_then_shrinks():
+    """A document page stays whole while it is recent, then shrinks to its outline, stored."""
+    from geomind import runtime
+    from geomind.engine import Context
+    from tests.fixtures.runs import Worker
+
+    page = ToolCall(id="r1", name="read_document", input={"name": "brief.md"})
+    messages = [
+        Message(role="user", content="go"),
+        Message(role="assistant", tool_calls=(page,)),
+        Message(role="tool", tool_call_id="r1", content="the whole page"),
+    ]
+
+    class Reader(Worker):
+        """A worker that also reads documents."""
+
+        def __init__(self):
+            """Add the document tool."""
+            super().__init__()
+            self.read_document = read_document
+
+    from geomind.tools import read_document
+
+    agent = Reader()
+    context = Context(messages=list(messages), stored={"r1": "outline of the page"})
+
+    def shown():
+        history = context.messages_for(agent)
+        return next(item.content for item in history if item.tool_call_id == "r1")
+
+    with runtime.settings(compaction_keep_turns=2):
+        context.messages.append(Message(role="assistant", content="step 2"))
+        assert shown() == "the whole page"
+        context.messages.append(Message(role="assistant", content="step 3"))
+        context.messages.append(Message(role="assistant", content="step 4"))
+        assert shown() == "outline of the page"

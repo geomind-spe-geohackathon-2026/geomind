@@ -516,7 +516,9 @@ async def set_case(
     project files (``list_files``): their bytes go to gemini, under the same name, so a data file
     is given to the case and never retyped: name it in ``changes``, as the ``file`` of a series.
     ``columns`` renames header names of those files, such as ``{"demand.csv": {"date": "time"}}``:
-    gemini reads a series' times from a column named ``time``. The sections are
+    gemini reads a series' times from a column named ``time``. Once a case is stored, send only
+    the keys that change: ``changes`` merges into it, and a rejected call stores nothing. The
+    sections are
     in ``read_case(section="schema")``, the exact schema. gemini validates the result: a rejected
     case comes back with the path and message to fix, and nothing is stored; a case with values
     missing is ``case_incomplete``, every missing path in ``suggestions``. The project's case, or

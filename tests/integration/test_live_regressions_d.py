@@ -120,4 +120,4 @@ async def test_a_part_read_from_a_stored_result_is_not_stored_again():
     await session.save_artifact("result-1", {"text": "x" * 5000})
     tool_call = ToolCall(id="c9", name="read_stored", input={"reference": "result-1"})
     result = await dispatch(read_stored, tool_call, Context(session=session))
-    assert set(session.artifacts) == {"result-1"} and result.reference is None
+    assert set(session.artifacts) == {"result-1"} and result.reference == "result-1"

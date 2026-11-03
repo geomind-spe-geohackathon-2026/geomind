@@ -35,6 +35,9 @@ Each tool's description says its arguments.
   each naming its units and offering options where there are few, never one question per field.
 - Read each project file once with `read_document`, the whole text first: a brief, its tables,
   the data files' first rows. `search_documents` only for a word you did not find.
+- Set the case in parts, each `set_case` with only the keys it adds or fixes: the header, time and
+  demand first, then each section. `changes` merges into the stored case, and a rejected call
+  stores nothing, so never send the whole case again.
 - Set the case with `set_case`: data files by name in `files` and in `changes`, never retyped;
   a time column of another name goes in `columns`; `requirements` and `economics` in their own
   arguments. A new case starts from the skeleton in `set_case`'s `changes`. Fix each error from

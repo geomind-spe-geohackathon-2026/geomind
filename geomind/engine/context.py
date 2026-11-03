@@ -2,6 +2,7 @@
 
 from uuid import uuid4
 
+from geomind import runtime
 from geomind.context import ProblemState, render
 from geomind.context.skills import skill_listing
 from geomind.errors import RunError
@@ -95,19 +96,26 @@ class Context:
         parts += (state,) if state else ()
         return tuple(Message(role="system", content=part) for part in parts)
 
-    def _history(self):
+    def _history(self, agent=None):
         """Return the messages, with the results the model has already read in their short form.
 
         A result stored whole is shown whole in the step after its call. From the next step on its
         message is the reference and an outline (``self.stored``), so the history stops carrying
-        what the model has used; ``read_stored`` or the tool itself gives it again. A message
-        changes once, when its result becomes old, and never again, so the prefix before it stays
-        the same for the provider's cache.
+        what the model has used; ``read_stored`` or the tool itself gives it again. The result of
+        a tool that keeps its results (``Tool.keeps_result``, a document page) stays whole for the
+        last ``compaction_keep_turns`` turns, then shrinks the same way. A message changes once,
+        when its result becomes old, and never again, so the prefix before it stays the same for
+        the provider's cache.
         """
-        last = max(
-            (n for n, item in enumerate(self.messages) if item.role == "assistant"), default=-1
-        )
-        return [self._aged(item) if n < last else item for n, item in enumerate(self.messages)]
+        turns = [n for n, item in enumerate(self.messages) if item.role == "assistant"]
+        last = turns[-1] if turns else -1
+        kept = kept_calls(self.messages, agent)
+        window = runtime.get("compaction_keep_turns") if kept else 0
+        history = []
+        for n, item in enumerate(self.messages):
+            recent = item.tool_call_id in kept and sum(turn > n for turn in turns) <= window
+            history.append(self._aged(item) if n < last and not recent else item)
+        return history
 
     def _aged(self, message):
         """Return an older message, its stored result or its long call inputs in short form."""
@@ -121,4 +129,18 @@ class Context:
 
     def messages_for(self, agent):
         """Return the messages of one LLM call."""
-        return (*self._prefix(agent), *self._history(), *self._dynamic())
+        return (*self._prefix(agent), *self._history(agent), *self._dynamic())
+
+
+def kept_calls(messages, agent):
+    """Return the ids of the calls whose tool keeps its results, of ``agent``'s tools."""
+    if agent is None:
+        return set()
+    tools = agent.tools()
+    return {
+        call.id
+        for item in messages
+        if item.role == "assistant"
+        for call in item.tool_calls
+        if getattr(tools.get(call.name), "keeps_result", False)
+    }

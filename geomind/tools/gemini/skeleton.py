@@ -111,9 +111,15 @@ def case_tree():
     """Return the case's key tree from gemini's public ``Case.schema()``, as prompt text."""
     import gemini as gm
 
-    lines = [line for line in schema_tree(gm.Case.schema()) if not line.endswith("about: object")]
+    case = [line for line in schema_tree(gm.Case.schema()) if not line.endswith("about: object")]
+    economics = [
+        line
+        for line in schema_tree(gm.case.Economics.schema())
+        if not line.endswith("about: object")
+    ]
     note = (
-        "## Case keys\n\nThe keys of the case, from gemini's schema: * marks a required key, "
-        "every {value, unit} also takes range and uncertainty, and every section takes about."
+        "## Case keys\n\nThe keys of the case and of its economics, from gemini's schemas: these "
+        "are all the keys, so never read the schema. * marks a required key, every {value, unit} "
+        "also takes range and uncertainty, and every section takes about."
     )
-    return "\n".join([note, *lines])
+    return "\n".join([note, *case, "", "Economics (set_case economics=...):", *economics])

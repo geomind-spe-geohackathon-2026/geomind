@@ -35,7 +35,7 @@ def test_the_case_tree_is_read_from_gemini_s_schema(monkeypatch):
     monkeypatch.setattr(gm.Case, "schema", classmethod(lambda cls: schema))
     renamed = case_tree()
     assert "site.ground.geothermal_gradient:" in renamed and "site.ground.gradient:" not in renamed
-    assert len(tree) < 6000
+    assert "capex.drilling: {value, unit} in" in tree and len(tree) < 9000
 
 
 def test_the_formulator_prompt_carries_the_case_keys():
@@ -43,3 +43,13 @@ def test_the_formulator_prompt_carries_the_case_keys():
     from geomind.agents import Formulator
 
     assert "## Case keys" in Formulator().prompt.render()
+
+
+def test_the_economics_keys_are_in_the_tree():
+    """The formulator drilled the economics schema 15 times: its keys were not in the tree."""
+    import gemini as gm
+
+    from geomind.tools.gemini.skeleton import case_tree, schema_tree
+
+    economics = schema_tree(gm.case.Economics.schema())
+    assert all(line in case_tree() for line in economics if not line.endswith("about: object"))

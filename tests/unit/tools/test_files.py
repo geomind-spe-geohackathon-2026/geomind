@@ -141,12 +141,12 @@ async def test_a_negative_start_is_refused():
     assert (await read("note.md", start=-1))["error"]["path"] == "start"
 
 
-async def test_a_long_read_stays_whole_and_unstored():
-    """A page up to the result limit is source material: it stays whole in the history."""
+async def test_a_long_read_is_stored_by_reference():
+    """A read over the store limit is kept as an artifact, so old reads need not stay whole."""
     session = session_with()
     result = await call(read_document, {"name": "long.txt"}, session, "p")
-    assert result.reference is None and session.artifacts == {}
-    assert len(result.output["text"]) == 20000
+    assert result.reference is not None and len(result.output["text"]) == 20000
+    assert session.artifacts[result.reference]["text"] == result.output["text"]
 
 
 def test_the_name_argument_has_a_pattern_and_an_example():
