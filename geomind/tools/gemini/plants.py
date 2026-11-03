@@ -143,14 +143,36 @@ def as_quantity(value):
     return value
 
 
+CASE_SECTIONS = ("site.", "demand.", "utilities.", "time.", "economics.", "requirements")
+"""The paths of a case: a value there belongs to the case, never to the plant file."""
+
+
+def routed_issue(issue):
+    """Return an issue at a case path with the suggestion to ask for a case change.
+
+    A designer never sets the case: a value the case lacks is named in its answer as
+    ``case change needed: <path>: <why>``, which the design loop routes to the formulator.
+    """
+    path = issue.get("path") or ""
+    if not path.startswith(CASE_SECTIONS):
+        return issue
+    hint = (
+        f"a value of the case, not of the plant file: hand over with 'case change needed: "
+        f"{path}: <why>' in your answer"
+    )
+    return {**issue, "suggestions": [hint, *(issue.get("suggestions") or [])]}
+
+
 def issue_dict(issue):
     """Return an ``Issue`` of gemini as plain data: its problem with its kind and accepted units."""
-    return {
-        **issue.problem(),
-        "kind": issue.kind,
-        "quantity": issue.quantity,
-        "accepted": list(issue.accepted),
-    }
+    return routed_issue(
+        {
+            **issue.problem(),
+            "kind": issue.kind,
+            "quantity": issue.quantity,
+            "accepted": list(issue.accepted),
+        }
+    )
 
 
 def plant_issues(context, plant):

@@ -238,3 +238,15 @@ async def test_a_completion_cut_at_the_limit_is_retried_with_a_note():
     assert (result.status, result.answer) == ("done", "short answer")
     notes = [e for e in events if e.type == "tool.result" and e.feedback == "length"]
     assert notes and "output limit" in str(notes[0].output)
+
+
+async def test_a_missing_case_value_in_a_plant_s_issues_says_how_to_get_it():
+    """The designer tried 12 times to put a case value in the plant; the issue now says where it
+    goes: a case change for the formulator."""
+    from geomind.tools.gemini.plants import routed_issue
+
+    issue = {"path": "site.air.pressure", "code": "missing_value", "message": "missing"}
+    routed = routed_issue(issue)
+    assert "case change needed: site.air.pressure" in routed["suggestions"][0]
+    plant_issue = {"path": "d0.drainage_radius", "code": "missing_value", "message": "missing"}
+    assert routed_issue(plant_issue) == plant_issue
