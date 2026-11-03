@@ -100,9 +100,8 @@ same functions against its own.
 
 ## Docker
 
-The one `DockerSandbox` integration test has the `docker` marker and skips without a Docker
-daemon. Run it with `pytest -m docker -n 0`. It may pull the Python image, so it never runs by
-default.
+No test needs Docker since 0.4.22, when the code sandbox was removed. The `docker` marker stays
+for a test that would need a Docker daemon; such a test never runs by default.
 
 ## CI
 

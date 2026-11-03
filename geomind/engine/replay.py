@@ -392,7 +392,7 @@ async def replay_run(engine_class, store, run_id, *, replayed=None, workspace=No
         project=started.project,
         problem=ProblemState.model_validate(started.problem),
     )
-    with runtime.settings(**started.settings):
+    with runtime.settings(**runtime.stored(started.settings)):
         agent = agent_class(started)()
         agent.load_loop_state(started.loop_state)
         loop = _RecordedLoop(started) if started.loop else None

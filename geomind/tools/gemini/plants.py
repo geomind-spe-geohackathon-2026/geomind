@@ -18,7 +18,7 @@ def plant_schema():
     """Return the schema ``build_plant`` offers as the input ``plant``: gemini's top-level keys.
 
     Each key of ``gm.plants.schema()`` is named with its type (the classes are in the
-    designer's plant tree) and the header is required, so a model writes the file's keys
+    design_lead's plant tree) and the header is required, so a model writes the file's keys
     instead of an empty object; the nested parts are gemini's to validate, when the plant is
     built. ``read_plant`` gives a class's file.
     """
@@ -162,8 +162,8 @@ CASE_SECTIONS = ("site.", "demand.", "utilities.", "time.", "economics.", "requi
 def routed_issue(issue):
     """Return an issue at a case path with the suggestion to ask for a case change.
 
-    A designer never sets the case: a value the case lacks is named in its answer as
-    ``case change needed: <path>: <why>``, which the design loop routes to the formulator.
+    A design lead never sets the case: a value the case lacks is named in its answer as
+    ``case change needed: <path>: <why>``, which the design loop routes to the case lead.
     """
     path = issue.get("path") or ""
     if not path.startswith(CASE_SECTIONS):

@@ -27,7 +27,6 @@ from geomind.context import ProblemState
 from geomind.engine.callbacks import Callback
 from geomind.providers.base import LLM
 from geomind.run import AGENTS, LOOPS
-from geomind.sandbox.base import Sandbox, SandboxProvider
 from geomind.stores import RunStore, UsageLedger, Workspace
 from geomind.tools.delegate import DelegateInput
 from geomind.types import (
@@ -58,7 +57,7 @@ SHIPPED_HOOKS = (
     "Cancellation",
     "Verified",
 )
-PROTOCOLS = (RunStore, Workspace, UsageLedger, LLM, Sandbox, SandboxProvider)
+PROTOCOLS = (RunStore, Workspace, UsageLedger, LLM)
 
 
 def signature_of(function):

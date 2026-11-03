@@ -1,1 +1,1 @@
-"""Agents that answer questions about a plant."""
+"""The analysis team: results, sensitivity, uncertainty, comparison and costs."""

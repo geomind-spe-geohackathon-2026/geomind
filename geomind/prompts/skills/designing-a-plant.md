@@ -6,7 +6,7 @@ Reading the case:
   temperatures, the site, the utilities, the requirements gemini judges by name, and the
   uncertainty. `read_case(section="economics")` gives the prices (`economics.json`). The case is set
   before design, from the user's files and answers, by the case's owner (`set_case`, with
-  `save_profile` for a profile given as daily values); a designer only reads it. Never take the
+  `save_profile` for a profile given as daily values); a design lead only reads it. Never take the
   numbers of one case for another.
 - A requirement is a named limit of the case (`name`, `on`, `quantity`, `min`/`max`). A limit the
   case does not state is not checked; do not invent one. A case value the design needs and the
@@ -14,8 +14,8 @@ Reading the case:
   case's owner, who records it as an assumption or asks the user.
 - Tools worth knowing: `list_modules`, `describe_module` and `evaluate_module` (a module's
   parameters, ports, units; run one at one point, every inlet with its fluid); `list_profiles`,
-  `read_profile`; `read_result`; `read_study`; `write_module` and
-  `test_module` for a model gemini lacks (the skill `writing-a-gemini-module`).
+  `read_profile`; `read_result`; `read_study`. A model gemini lacks makes its family
+  `blocked`; no code is written.
 - Read the demand with `read_profile` before you size: the peak, the annual energy, and when
   heating and cooling overlap.
 

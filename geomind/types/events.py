@@ -351,22 +351,6 @@ class Retried(Event):
     delay: float
 
 
-class SandboxProvisioned(Event):
-    """A sandbox was created for this run."""
-
-    type: ClassVar[str] = "sandbox.provisioned"
-
-    provider: str
-
-
-class SandboxClosed(Event):
-    """The sandbox of this run was closed or lost."""
-
-    type: ClassVar[str] = "sandbox.closed"
-
-    is_lost: bool = False
-
-
 class ErrorRaised(Event):
     """An error the run survived or ended with: a callback, a tool bug, a provider failure."""
 
@@ -396,8 +380,6 @@ EVENT_CLASSES = {
         ToolRecorded,
         PermissionDecided,
         Retried,
-        SandboxProvisioned,
-        SandboxClosed,
         ErrorRaised,
     )
 }

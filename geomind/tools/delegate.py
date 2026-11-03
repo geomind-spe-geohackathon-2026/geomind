@@ -20,7 +20,7 @@ class DelegateInput(Record):
 class Delegate(Tool):
     """Run ``agent`` in a nested engine run with a clean context: the task text only.
 
-    The nested run has its own run id, its own sandbox and ``parent`` set on every event. The model
+    The nested run has its own run id and ``parent`` set on every event. The model
     reads only the answer, cut to ``max_summary_tokens``. NOTE: the effect is ``compute`` so that
     delegating needs no approval of its own, because the nested tools are decided one by one. It is
     still not pure: a nested run does not run again in a replay as a pure tool does, and after a

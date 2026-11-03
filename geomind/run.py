@@ -2,8 +2,8 @@
 
 import asyncio
 
-from geomind.agents import Analyst, CodeAssistant, Coordinator, Designer, Route, Verifier
-from geomind.agents.coordination.coordinator import Answer
+from geomind.agents import AnalysisLead, Coordinator, DesignLead, Reviewer, Route
+from geomind.agents.project.coordinator.agent import Answer
 from geomind.context import ProblemState, restore
 from geomind.engine import Context, Engine, Permissions
 from geomind.engine.context import new_run_id
@@ -18,7 +18,7 @@ from geomind.stores.run import MemoryRunStore
 from geomind.types import Message
 
 LOOPS = {"tool": ToolLoop, "design": DesignLoop, "compare": CompareLoop}
-AGENTS = {"analyst": Analyst, "code_assistant": CodeAssistant}
+AGENTS = {"analysis_lead": AnalysisLead}
 
 
 def _sync(coroutine):
@@ -37,7 +37,7 @@ def loop_of(route):
         return LOOPS["tool"](Answer(route.answer or ""))
     if route.loop == "tool":
         return LOOPS["tool"](AGENTS[route.agent]())
-    return LOOPS[route.loop](Designer(), Verifier())
+    return LOOPS[route.loop](DesignLead(), Reviewer())
 
 
 def loop_for(state):
@@ -47,7 +47,7 @@ def loop_for(state):
         agents = agent.tools()
         limit = {key: value for key, value in state.loop_state.items() if key == "max_rounds"}
         kind = StudyCompareLoop if isinstance(agent, CompareDriver) else LOOPS[state.loop]
-        return kind(agents["designer"].agent, agents["verifier"].agent, **limit)
+        return kind(agents["design_lead"].agent, agents["reviewer"].agent, **limit)
     return LOOPS["tool"](agent)
 
 
@@ -70,7 +70,6 @@ class Run:
         llm=None,
         store=None,
         workspace=None,
-        sandbox=None,
         permissions=None,
         callbacks=(),
         hooks=(),
@@ -88,13 +87,11 @@ class Run:
             callbacks,
             [*hooks, Cancellation(lambda: self._is_cancelled)],
             permissions or Permissions(mode="ask"),
-            sandbox,
             llm=llm if llm is not None else OpenRouter(),
             store=self.store,
             workspace=workspace,
         )
-        routed = AGENTS["code_assistant" if sandbox is not None else "analyst"]
-        self._loop = LOOPS["tool"](agent if agent is not None else routed())
+        self._loop = LOOPS["tool"](agent if agent is not None else AGENTS["analysis_lead"]())
         self._is_routed = agent is not None
 
     @property
@@ -144,7 +141,6 @@ class Run:
         llm=None,
         store=None,
         workspace=None,
-        sandbox=None,
         permissions=None,
         callbacks=(),
         hooks=(),
@@ -154,7 +150,6 @@ class Run:
             llm=llm,
             store=store,
             workspace=workspace,
-            sandbox=sandbox,
             permissions=permissions,
             callbacks=callbacks,
             hooks=hooks,

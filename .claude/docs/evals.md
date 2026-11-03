@@ -12,8 +12,8 @@ evals/
 ```
 
 ```bash
-python -m evals.run --agent analyst          # offline, from recordings
-python -m evals.run --agent analyst --live   # OpenRouter; writes the recording anew
+python -m evals.run --agent analysis lead          # offline, from recordings
+python -m evals.run --agent analysis lead --live   # OpenRouter; writes the recording anew
 python -m evals.run --report                 # offline: every task through three loops
 ```
 
@@ -62,16 +62,16 @@ task, whatever the criteria say.
 tracked), per task and in total: passed, steps, tool calls, tokens, cost and time, then every
 failure with its reason.
 
-`designer/project_plant` (project `hackathon`, recorded by script, no live call) lists the plants,
+`design lead/project_plant` (project `hackathon`, recorded by script, no live call) lists the plants,
 reads the project plant, stores it with `build_plant` and sizes `design/start`.
 
-`designer/missing_range` (scripted) has a plant without a range: the Designer records the question in
+`design lead/missing_range` (scripted) has a plant without a range: the DesignLead records the question in
 `questions` and calls `ask_user`; it never calls `set_ranges`.
 
 `python -m evals.run --report` writes the tracked `evals/reports/summary.md`: every task of every
 folder, offline from its recording, through `ToolLoop`, `DesignLoop` and `CompareLoop` (the
 `MakerCheckerLoop` is gone). One table per loop, a row per task and a total: criteria met, steps,
-tool calls, tokens, cost and time. `ToolLoop` runs the task's agent (the Designer alone for a suite).
+tool calls, tokens, cost and time. `ToolLoop` runs the task's agent (the DesignLead alone for a suite).
 A recording holds the decisions of one loop, so a loop whose agents ask for other steps meets a task
 it cannot finish: its criteria are unmet, and the table shows how many held. A loop that raises
 fails its task and does not stop the report. Time differs between runs, so
@@ -90,9 +90,9 @@ variant differs from its example in one thing.
 
 | Project | Holds | Used by |
 |---|---|---|
-| `hackathon` | the hackathon example with its six plant files | the `challenge2` tasks `hackathon`, `colder_reservoir`, `user_profile`, `tight_budget`; designer, coordinator |
+| `hackathon` | the hackathon example with its six plant files | the `challenge2` tasks `hackathon`, `colder_reservoir`, `user_profile`, `tight_budget`; design lead, coordinator |
 | `hackathon_plant` | the same, with the one plant file `HackathonPlant` | explainer; `examples/basics/general/05_case.py` |
-| `shallow_district` | the shallow-district example | `challenge2/verifier` |
+| `shallow_district` | the shallow-district example | `challenge2/reviewer` |
 | `more_cooling` | the case with the demand CSV's cooling column x 1.5 (15 MW peak), no plants | `challenge2/more_cooling` |
 | `colder_reservoir` | the case with `site.ground.gradient` 25 K/km, no plants | the variant as a project, for runs and tests |
 | `higher_gas` | the economics with `energy.gas` 70 EUR/MWh (the example's 39.92), no plants | `challenge2/economist` |
@@ -115,9 +115,9 @@ A folder of `SUITES` in `evals/run.py` runs its tasks through a loop instead of 
 | `more_cooling` | `more_cooling` | a 15 MW cooling peak: the unsized plant fails `cold_delivered` and `cooling_supply_temperature` (`verified`) |
 | `colder_reservoir` | `hackathon` | `set_case` changes `site.ground.gradient` to 25 K/km: the case state (`/case/site/ground/gradient/value`) and the LCTS of the 25 K/km design (`number`), not the 30 K/km one |
 | `user_profile` | `hackathon` | 30 January days of the user's demand: `set_case` cuts `time` and drops `running_time_limit`, `save_profile` twice (heating, cooling), the `/case` paths are the user's and the requirements hold |
-| `verifier` | `shallow_district` | the Verifier's part on a second example: `check_results` is called, `/verification/result` is set, the design is verified |
+| `reviewer` | `shallow_district` | the Reviewer's part on a second example: `check_results` is called, `/verification/result` is set, the design is verified |
 | `economist` | `higher_gas` | the Economist's part: `estimate_costs` and `sample_uncertainty` are called, the LCTS in the answer is the one on the higher gas price (`number`), `/results/costs` is recorded |
-| `tight_budget` | `hackathon` | `max_steps: 7`: the Designer cannot reach `optimize`, so the loop ends without a design and says so; `optimize` and `estimate_costs` are not called |
+| `tight_budget` | `hackathon` | `max_steps: 7`: the DesignLead cannot reach `optimize`, so the loop ends without a design and says so; `optimize` and `estimate_costs` are not called |
 
 ### The alternatives task
 
@@ -140,7 +140,7 @@ policy and the doublets (1 to 2) as the only range, compared with one `run_study
 `verified` holds (gemini's verdict on the recorded design). The recording is hand-written
 (`model: hand-written`, the task file says so): the decisions are by hand, the numbers in the tool
 results (the ranked table of the study, the references) come from real gemini runs, because it
-was written by answering each model call from the results the run already held. The Designer
+was written by answering each model call from the results the run already held. The DesignLead
 builds both plants from gemini's example files, since a project with several plants has no
 named-plant access. The live run replaces it.
 
@@ -149,19 +149,19 @@ A variant fails when the agents ignore its change: `tests/integration/test_evals
 case fails gemini's checks, repeats its failure and is rejected (`stop: repeated_failure`); the
 design that ignores 25 K/km passes the checks but fails the `/case` state and the LCTS number.
 
-The user's message of every `challenge2` task states what the Designer needs: the plant class
+The user's message of every `challenge2` task states what the DesignLead needs: the plant class
 (`HeatingHeatPumpCoolingPlant`), the backup policy (`peak`, which the plant file already holds),
 the objective (`lcts`), the ranges (the plant's own) and the evaluations (30, `seed 0`; gemini wants
 5 per variable). `answers` replies to the loop's first question (the run holds no case yet; the
-reply tells the Designer to use the project's case). A task that changes the project's case
+reply tells the DesignLead to use the project's case). A task that changes the project's case
 (`colder_reservoir`, `user_profile`) has a second answer, `approve`: verification fails with
 `case_changed` until the user approves a case that differs from the one they gave, so the loop asks
 once. Tasks state their criteria on `/case` paths.
 
-The recordings are hand-written decisions (`model: hand-written`): the Designer reads the plant
+The recordings are hand-written decisions (`model: hand-written`): the DesignLead reads the plant
 class, sets the case, builds the plant file, sizes it, simulates, checks, optimises, simulates and
 checks the best design, and records it. When the search finds no feasible design (the 15 MW case in
-30 evaluations) the Designer records the sized design instead, which passes. Every reference and
+30 evaluations) the DesignLead records the sized design instead, which passes. Every reference and
 number in the tool results is from a real gemini run, because the recordings were written by
 answering each model call from the results the run already held. The live run replaces them.
 
@@ -173,15 +173,15 @@ the task with `run: error`.
 
 ## Status
 
-`tasks/analyst/` holds five tasks on gemini's modules, with no project: the ESP discharge pressure at
+`tasks/analysis lead/` holds five tasks on gemini's modules, with no project: the ESP discharge pressure at
 60 Hz, its head at 45 Hz and 30 kg/s, the heat of an exchanger at 150 m3/h, a missing pipe diameter
 that needs `ask_user`, and a module lookup. The messages carry the module parameters, because a
 module takes every value of its own. Each number in a criterion is gemini's, from the same
 `evaluate_module` call as the recording, in display units (MW, Pa).
 `tests/integration/test_evals.py` runs them offline.
 
-`tasks/designer/`, `explainer/` and `coordinator/` hold one task each. The Verifier and the
-Economist have tasks of their own in `challenge2` (`verifier`, `economist`), because they cannot
+`tasks/design lead/`, `explainer/` and `coordinator/` hold one task each. The Reviewer and the
+Economist have tasks of their own in `challenge2` (`reviewer`, `economist`), because they cannot
 simulate or set a case and so run inside the design loop. Their recordings are hand-written
 (`model: hand-written`, no usage) until the first live run writes them anew.
 
@@ -189,9 +189,9 @@ simulate or set a case and so run inside the design loop. Their recordings are h
 
 `evals/runs/hackathon_scripted.jsonl` and `tests/fixtures/recordings/shallow_district_scripted.jsonl`
 are scripted recordings of the design loop on the hackathon project and on gemini's shallow-district
-example: hand-written decisions in the order the loop asks its agents (Designer: read the plant
+example: hand-written decisions in the order the loop asks its agents (DesignLead: read the plant
 class and the case, build, size, simulate, check, optimise, simulate and check the best, record;
-Verifier: check once; Economist; Explainer), with every reference and number from the real tools.
+Reviewer: check once; Economist; Explainer), with every reference and number from the real tools.
 `tests/e2e/test_scripted_design.py` runs `geomind run --loop design --project <project folder>
 --recording ...` on each, answers the loop's question, and replays the run. It checks the path to a
 verified design, not a model; the live run replaces it. A design run needs a project with a
@@ -218,8 +218,8 @@ geomind run "<the brief>" --loop design --project <case folder> --mode auto --ma
    anything is missing: the key (only "set" or "not set" is shown), a model id of any role (the
    resolved settings, `default_model` where a role has none) absent from OpenRouter's public model
    list, and the cap. Without network the list check is skipped with a message.
-2. A cheap Analyst question: `geomind run "<question about the project>" --loop tool --project
-   <folder> --mode auto --max-cost 1`. `--loop tool` is the Analyst's loop.
+2. A cheap AnalysisLead question: `geomind run "<question about the project>" --loop tool --project
+   <folder> --mode auto --max-cost 1`. `--loop tool` is the AnalysisLead's loop.
 3. The design loop with `--loop design --project <case folder> --mode auto --max-cost 20 --record
    evals/runs/official_brief_live.jsonl`. `--record` writes every completion of the run as a
    recording; `geomind run ... --recording FILE` and `geomind replay .runs/<id>` replay it offline.

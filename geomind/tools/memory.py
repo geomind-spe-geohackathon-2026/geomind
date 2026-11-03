@@ -1,4 +1,8 @@
-"""The memory tools every agent has: search, read and write the shared memory."""
+"""The memory tools: search, read and write the shared memory.
+
+The case, design and analysis teams have all of them; the reviewer and the explainer read the
+knowledge only, never experience (``search_knowledge``, ``read_knowledge``).
+"""
 
 from typing import Any, Literal
 
@@ -8,8 +12,8 @@ from geomind.stores.memory import (
     checked_knowledge,
     checked_section,
     search_experience,
-    search_knowledge,
 )
+from geomind.stores.memory import search_knowledge as search_knowledge_entries
 from geomind.tools.base import tool
 
 SHOWN_ENTRIES = 8
@@ -77,7 +81,7 @@ def search_memory(context, query: str, section: Literal["knowledge", "experience
     memory = memory_of(context, "search_memory")
     found = {}
     if section in (None, "knowledge"):
-        found["knowledge"] = search_knowledge(memory, query)[:SHOWN_ENTRIES]
+        found["knowledge"] = search_knowledge_entries(memory, query)[:SHOWN_ENTRIES]
     if section in (None, "experience"):
         features = state_features(context)
         threshold = runtime.get("memory_similarity")
@@ -100,6 +104,33 @@ def read_memory(context, section: Literal["knowledge", "experience"], id: str):
             return entry
     raise ToolError(
         f"read_memory: {section} has no entry {id!r}; expected an id that search_memory gave",
+        code="unknown_name",
+        path="id",
+    )
+
+
+@tool(effect="read")
+def search_knowledge(context, query: str):
+    """Search the shared memory's cited reference values only, never past designs.
+
+    Returns the entries that hold a word of ``query``, each with its source (title, publisher,
+    year, page or link, price year and currency for money) and ``status`` (``verified``,
+    ``secondary`` or ``placeholder``).
+    """
+    memory = memory_of(context, "search_knowledge")
+    return {"knowledge": search_knowledge_entries(memory, query)[:SHOWN_ENTRIES]}
+
+
+@tool(effect="read")
+def read_knowledge(context, id: str):
+    """Return one cited reference value of the memory's knowledge by its id."""
+    memory = memory_of(context, "read_knowledge")
+    for entry in memory.entries("knowledge"):
+        if entry.get("id") == id:
+            return entry
+    raise ToolError(
+        f"read_knowledge: knowledge has no entry {id!r}; expected an id that search_knowledge "
+        "gave",
         code="unknown_name",
         path="id",
     )

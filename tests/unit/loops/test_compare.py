@@ -1,7 +1,7 @@
-"""``StudyCompareLoop``: a design loop whose designer compares families with one ``run_study``.
+"""``StudyCompareLoop``: a design loop whose design_lead compares families with one ``run_study``.
 
-The loop runs once, offline, on the hackathon example with real tools: a scripted designer builds
-two feasible topologies, sizes and searches them, and records the study; the verifier, economist
+The loop runs once, offline, on the hackathon example with real tools: a scripted design_lead builds
+two feasible topologies, sizes and searches them, and records the study; the reviewer, economist
 and explainer steps follow.
 """
 
@@ -12,8 +12,8 @@ import re
 import pytest
 
 from geomind import runtime
-from geomind.agents import Designer, Verifier
-from geomind.agents.coordination.coordinator import Route
+from geomind.agents import DesignLead, Reviewer
+from geomind.agents.project.coordinator.agent import Route
 from geomind.context import ProblemState
 from geomind.engine import Engine, Permissions
 from geomind.engine.recovery import recover
@@ -87,7 +87,7 @@ def best_of(study):
 
 
 def assumptions():
-    """Return the update of the state that records what the designer chose itself."""
+    """Return the update of the state that records what the design lead chose itself."""
     chosen = [("peak backup keeps heat at a doublet outage", "peak"), ("search seed", 1)]
     return [
         {
@@ -100,7 +100,7 @@ def assumptions():
 
 
 def record(messages):
-    """Return the designer's update of the state: the final design, the start and the study."""
+    """Return the design lead's update of the state: the final design, the start and the study."""
     study = output_of(messages, "study")
     columns = ("design", "feasible", "ranks", "metrics")
     recorded = {"designs": ["design/ra", "design/rb"], "method": "minimize", **SEARCH}
@@ -119,7 +119,7 @@ def record(messages):
 
 
 def designer_script():
-    """Return the designer's completions: two families, a study, the best simulated and recorded."""
+    """Return the design lead's completions: two families, a study, the best run and recorded."""
     ranges = {"ranges": {"size.doublets": {"min": 1, "max": 2}}}
     both = ["design/ra", "design/rb"]
     return [
@@ -150,7 +150,7 @@ def designer_script():
 
 
 def verifier_script():
-    """Return the verifier's completions: check the recorded result once, record, report."""
+    """Return the reviewer's completions: check the recorded result once, record, report."""
 
     def check(messages):
         return step("check_results", "v1", reference=reference_of(messages))
@@ -186,7 +186,7 @@ async def run_compare():
     STORED.update(store=engine.store, chat=start.run_id)
     for file, content in files.items():
         engine.store.save_chat_artifact(start.run_id, f"case/{file}", content)
-    result = await StudyCompareLoop(Designer(), Verifier()).run(engine, start)
+    result = await StudyCompareLoop(DesignLead(), Reviewer()).run(engine, start)
     return result, engine.store.load_events(start.run_id)
 
 
@@ -205,14 +205,14 @@ def task_of(events, agent):
 
 def test_the_loop_is_a_named_design_loop():
     """It is a design loop of its own name, with a driver that asks for several families."""
-    loop = StudyCompareLoop(Designer(), Verifier())
+    loop = StudyCompareLoop(DesignLead(), Reviewer())
     assert isinstance(loop, DesignLoop) and loop.name == "compare"
     assert type(loop.agent).__name__ == "CompareDriver"
 
 
 def test_the_designer_is_asked_to_compare_families(compared):
     """The first task names the comparison and what to record."""
-    task = task_of(compared[1], "designer")
+    task = task_of(compared[1], "design_lead")
     assert "two or three materially different families" in task
     assert "run_study" in task and "design.study" in task
 
@@ -229,7 +229,7 @@ def test_the_study_ranks_the_families_and_the_best_is_verified(compared):
 
 
 def test_the_table_of_the_study_reaches_the_explainer(compared):
-    """The explainer's task carries the ranked table of the designer's study."""
+    """The explainer's task carries the ranked table of the design lead's study."""
     events = compared[1]
     table = study_table(recover(events).problem.design["study"])
     assert "| design | feasible | rank | lcts |" in table

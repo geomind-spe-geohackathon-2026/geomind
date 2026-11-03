@@ -22,7 +22,6 @@ from geomind.errors import GeomindError, RunError
 from geomind.export import models_by_agent, render_export
 from geomind.providers import FakeLLM, OpenRouter, Recorder, ReplayThenLive
 from geomind.run import LOOPS, Run, loop_of
-from geomind.sandbox import DockerSandbox, LocalSandbox
 from geomind.stores import FileUsageLedger, FileWorkspace
 from geomind.stores.casefiles import named_files
 from geomind.stores.run import FileRunStore
@@ -115,16 +114,11 @@ def _report(result):
     return 0 if result.status == "done" else 1
 
 
-def _sandbox(name):
-    """Return the chosen sandbox provider."""
-    return {"local": LocalSandbox, "docker": DockerSandbox, None: lambda: None}[name]()
-
-
 def _changes(args):
     """Return the runtime settings the options change."""
     changes = {}
     if args.model:
-        changes["default_model"] = args.model
+        changes.update({f"{role}_model": args.model for role in runtime.ROLES})
     if args.max_steps:
         changes["max_steps"] = args.max_steps
     if getattr(args, "concurrency", None):
@@ -335,7 +329,6 @@ def _command_run(args):
             llm=_run_provider(args),
             store=FileRunStore(RUNS_FOLDER),
             workspace=workspace,
-            sandbox=_sandbox(args.sandbox),
             permissions=Permissions(mode=args.mode),
             callbacks=[_Printer()],
             hooks=_budgets(args),
@@ -350,7 +343,7 @@ def _command_run(args):
 def _loop(args):
     """Return the loop of ``--loop``; with ``--agent``, the tool loop around that one agent.
 
-    ``--agent`` runs any shipped agent alone, such as ``formulator``, to try one step of a loop.
+    ``--agent`` runs any shipped agent alone, such as ``case_lead``, to try one step of a loop.
     """
     if args.agent is None:
         return loop_of(Route(kind="loop", loop=args.loop))
@@ -377,7 +370,6 @@ def _command_resume(args):
             llm=_run_provider(args),
             store=FileRunStore(RUNS_FOLDER),
             workspace=workspace,
-            sandbox=_sandbox(args.sandbox),
             permissions=Permissions(mode=args.mode),
             callbacks=[_Printer()],
             hooks=_budgets(args),
@@ -413,7 +405,7 @@ def _chat_provider(args):
 def _require_case(args, workspace, project):
     """Raise unless a design run has a project with a ``case.json`` or files that may hold one.
 
-    There is no fallback case; with files the design loop sends the designer to read them first.
+    There is no fallback case; with files the design loop sends the design lead to read them first.
     """
     if args.loop != "design":
         return
@@ -620,7 +612,6 @@ def _run_options(command):
     command.add_argument("--model")
     command.add_argument("--max-steps", type=int)
     command.add_argument("--mode", choices=["ask", "auto", "readonly", "plan"], default="ask")
-    command.add_argument("--sandbox", choices=["local", "docker"])
     command.add_argument("--project")
     command.add_argument("--recording")
     command.add_argument("--record")
@@ -663,7 +654,7 @@ def _parser():
     run = commands.add_parser("run", help="answer one message")
     run.add_argument("message")
     run.add_argument("--loop", choices=list(LOOPS))
-    run.add_argument("--agent", help="with --loop tool, the one agent to run, such as formulator")
+    run.add_argument("--agent", help="with --loop tool, the one agent to run, such as case_lead")
     _comparison_arguments(run)
     _run_options(run)
     run.set_defaults(function=_command_run)
@@ -679,7 +670,7 @@ def _parser():
     check.add_argument("--max-cost", type=float)
     check.set_defaults(function=_command_check_live)
     chat = commands.add_parser("chat", help="talk to one agent in the terminal")
-    chat.add_argument("--agent", default="analyst")
+    chat.add_argument("--agent", default="analysis_lead")
     chat.add_argument("--project")
     chat.add_argument("--live", action="store_true")
     chat.add_argument("--recording")

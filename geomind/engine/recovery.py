@@ -252,9 +252,35 @@ def recover(events, run_id=None):
     return state
 
 
+RENAMED_CLASSES = {
+    "geomind.agents.analysis.analyst:Analyst": "geomind.agents.analysis.lead.agent:AnalysisLead",
+    "geomind.agents.formulation.formulator:Formulator": "geomind.agents.case.lead.agent:CaseLead",
+    "geomind.agents.design.designer:Designer": "geomind.agents.design.lead.agent:DesignLead",
+    "geomind.agents.verification.verifier:Verifier": (
+        "geomind.agents.project.reviewer.agent:Reviewer"
+    ),
+    "geomind.agents.economics.economist:Economist": (
+        "geomind.agents.analysis.economist.agent:Economist"
+    ),
+    "geomind.agents.reporting.explainer:Explainer": (
+        "geomind.agents.project.explainer.agent:Explainer"
+    ),
+    "geomind.agents.coordination.coordinator:Coordinator": (
+        "geomind.agents.project.coordinator.agent:Coordinator"
+    ),
+    "geomind.agents.coordination.coordinator:Answer": (
+        "geomind.agents.project.coordinator.agent:Answer"
+    ),
+    "geomind.agents.general.summarizer:Summarizer": (
+        "geomind.agents.support.summarizer.agent:Summarizer"
+    ),
+}
+"""The class path a log of 0.4.22.dev23 or earlier names, by the path of that agent now."""
+
+
 def agent_class(state):
-    """Return the class of the agent a run names."""
+    """Return the class of the agent a run names; a renamed agent is found by its new path."""
     try:
-        return import_class(state.agent_class)
+        return import_class(RENAMED_CLASSES.get(state.agent_class, state.agent_class))
     except ImportError as error:
         raise RunError(f"recover: {error}") from error

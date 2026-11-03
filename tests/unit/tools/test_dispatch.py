@@ -6,7 +6,7 @@ import pytest
 
 from geomind import runtime
 from geomind.engine import Context
-from geomind.errors import NotImplementedYet, SandboxError, ToolError, UnknownNameError
+from geomind.errors import NotImplementedYet, ToolError, UnknownNameError
 from geomind.tools import ask_user, dispatch, finish, tool
 from geomind.tools.dispatch import error_output, is_reported_error
 from geomind.types import TOOL_ERROR_CODES, Finish, Request, ToolCall
@@ -132,7 +132,6 @@ async def test_gemini_error_is_a_result(session, context):
     [
         (NotImplementedYet("list_modules comes in S2b"), "not_implemented"),
         (UnknownNameError("no such skill"), "unknown_name"),
-        (SandboxError("no sandbox is configured"), "not_allowed"),
         (ToolError("bad field", code="unknown_name", path="name"), "unknown_name"),
     ],
 )

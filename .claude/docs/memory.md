@@ -12,13 +12,15 @@ The agents share one memory with two sections (`geomind/stores/memory.py`).
   the design and its result, the KPIs, the verdict, the families and the lessons of the rejected
   rounds. It holds lessons, not a project's numbers as rules. A replay writes nothing.
 
-Tools for every agent (`geomind/tools/memory.py`, shared, so prompts do not list them):
-`search_memory(query, section=None)`, `read_memory(section, id)`, `write_memory(entry)`. With the
+Tools (`geomind/tools/memory.py`, shared, so prompts do not list them): the case, design and
+analysis teams have `search_memory(query, section=None)`, `read_memory(section, id)` and
+`write_memory(entry)`; the reviewer and the explainer have `search_knowledge(query)` and
+`read_knowledge(id)`, the knowledge only, never experience, with the prompt section `KNOWLEDGE`. With the
 memory off they answer `not_allowed`. `search_memory` finds knowledge by words and experience by
 `similarity` to the state's case, only at or above `memory_similarity`, each with its score. The
 shared prompt section `MEMORY` says a past design is a starting point: simulate, check and
-optimise again, and try at least one option that differs from it. The Verifier checks from
-scratch. The Formulator searches knowledge before it proposes a value no file gives, and its
+optimise again, and try at least one option that differs from it. The Reviewer checks from
+scratch. The CaseLead searches knowledge before it proposes a value no file gives, and its
 confirmation question shows the entry's source and status, a placeholder named as one.
 
 Storage is a protocol (`entries`, `add`): `FileMemory(root)` keeps `<root>/<section>.jsonl` for

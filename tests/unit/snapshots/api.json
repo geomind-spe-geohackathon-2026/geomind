@@ -187,11 +187,11 @@
     },
     "Permissions": "(self, mode='ask', allow=(), ask=(), deny=())",
     "Run": {
-      "__init__": "(self, message=None, *, chat=None, project=None, history=(), llm=None, store=None, workspace=None, sandbox=None, permissions=None, callbacks=(), hooks=(), agent=None)",
+      "__init__": "(self, message=None, *, chat=None, project=None, history=(), llm=None, store=None, workspace=None, permissions=None, callbacks=(), hooks=(), agent=None)",
       "aresume": "(self, request_id=None, answer=None)",
       "astart": "(self)",
       "cancel": "(self)",
-      "load": "(cls, run_id, *, llm=None, store=None, workspace=None, sandbox=None, permissions=None, callbacks=(), hooks=())",
+      "load": "(cls, run_id, *, llm=None, store=None, workspace=None, permissions=None, callbacks=(), hooks=())",
       "resume": "(self, request_id=None, answer=None)",
       "start": "(self)"
     },
@@ -428,7 +428,6 @@
       "providers",
       "runlog",
       "runtime",
-      "sandbox",
       "stores",
       "testing",
       "tool",
@@ -577,20 +576,6 @@
         ],
         "is_public": true
       },
-      "sandbox.closed": {
-        "class": "SandboxClosed",
-        "data": [
-          "is_lost"
-        ],
-        "is_public": false
-      },
-      "sandbox.provisioned": {
-        "class": "SandboxProvisioned",
-        "data": [
-          "provider"
-        ],
-        "is_public": false
-      },
       "state.changed": {
         "class": "StateChanged",
         "data": [
@@ -733,15 +718,6 @@
         "save_chat_artifact": "(self, chat_id, key, data)",
         "save_event": "(self, run_id, event)",
         "save_state": "(self, chat_id, state)"
-      },
-      "Sandbox": {
-        "close": "(self)",
-        "execute": "(self, command, *, timeout)",
-        "read": "(self, path)",
-        "write": "(self, path, data)"
-      },
-      "SandboxProvider": {
-        "provision": "(self, manifest)"
       },
       "UsageLedger": {
         "spent": "(self, project_id)"
@@ -1098,5 +1074,5 @@
       "step_limit": "failed"
     }
   },
-  "version": "0.4.22.dev23"
+  "version": "0.4.22.dev24"
 }

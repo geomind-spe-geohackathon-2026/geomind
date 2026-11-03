@@ -12,7 +12,7 @@ HANDOVER = "Case set; build_plant hc_start stored; site values still missing."
 
 
 async def test_a_question_on_the_last_step_leaves_a_step_for_its_answer():
-    """The designer asked on its last step; after the answer it had no step and ended."""
+    """The design lead asked on its last step; after the answer it had no step and ended."""
     script = [uses(call("ask_user", "q1", question="Which site values?")), says("used them")]
     result, engine, _ = await run(script, max_steps=1)
     assert result.status == "waiting"
@@ -31,7 +31,7 @@ def test_the_round_after_a_failed_verification_gets_the_handover():
     """Round 2 of segment 7 started from nothing although round 1 had built a plant."""
     messages = [
         Message(role="user", content="Design it"),
-        Message(role="assistant", tool_calls=(ToolCall(id="d1", name="designer", input={}),)),
+        Message(role="assistant", tool_calls=(ToolCall(id="d1", name="design_lead", input={}),)),
         Message(role="tool", tool_call_id="d1", content=HANDOVER),
     ]
     found = {"failures": [], "passed": False}
@@ -40,7 +40,7 @@ def test_the_round_after_a_failed_verification_gets_the_handover():
 
 
 async def test_a_run_waiting_in_a_nested_run_reports_the_nested_usage():
-    """Segment 7 printed 0.033 USD while its calls cost 0.093: the waiting designer was left out."""
+    """Segment 7 printed 0.033 USD while its calls cost 0.093: the waiting lead was left out."""
     from tests.fixtures.runs import Lead
 
     script = [
@@ -121,7 +121,7 @@ async def test_a_run_without_max_steps_refuses_to_start(monkeypatch):
 
 
 async def test_a_document_read_stays_whole_in_the_history():
-    """The formulator re-read a 3.6k brief 16 times: its page left the history after one step."""
+    """The case lead re-read a 3.6k brief 16 times: its page left the history after one step."""
     from geomind.engine import Context
     from geomind.stores import MemoryWorkspace
     from geomind.tools import dispatch, read_document, read_stored
@@ -138,7 +138,7 @@ async def test_a_document_read_stays_whole_in_the_history():
 
 
 async def test_a_part_too_long_to_show_names_the_deeper_paths():
-    """The formulator read the schema's ``properties`` 7 times; now the part names its keys."""
+    """The case lead read the schema's ``properties`` 7 times; now the part names its keys."""
     from geomind import runtime
     from geomind.tools import read_stored
     from tests.fixtures.calls import call as dispatched
@@ -241,7 +241,7 @@ async def test_a_completion_cut_at_the_limit_is_retried_with_a_note():
 
 
 async def test_a_missing_case_value_in_a_plant_s_issues_says_how_to_get_it():
-    """The designer tried 12 times to put a case value in the plant; now the issue routes it."""
+    """The design lead tried 12 times to put a case value in the plant; now the issue routes it."""
     from geomind.tools.gemini.plants import routed_issue
 
     issue = {"path": "site.air.pressure", "code": "missing_value", "message": "missing"}
@@ -268,7 +268,7 @@ async def test_a_plant_s_issues_are_compact_enough_to_stay_in_the_history():
 
 async def test_the_same_failing_call_again_and_again_ends_the_agent_s_run():
     """Round 2 sent build_plant with an empty plant 35 times; the third identical failure stops."""
-    script = [uses(call("run_python", f"c{index}", code="print(1)")) for index in range(5)]
+    script = [uses(call("run_code", f"c{index}", code="print(1)")) for index in range(5)]
     script.append(says("never reached"))
     result, _, _ = await run(script)
     assert result.stop_reason == "error" and "same call failed 3 times" in result.message

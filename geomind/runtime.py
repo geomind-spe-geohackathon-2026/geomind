@@ -17,34 +17,38 @@ from geomind.utils.context import ContextSetting
 from geomind.utils.strings import did_you_mean
 
 ROLES = (
-    "analyst",
+    "analysislead",
+    "caselead",
     "coordinator",
-    "designer",
+    "designlead",
     "economist",
     "explainer",
-    "formulator",
+    "reviewer",
     "summarizer",
-    "verifier",
 )
-OWN_MODELS = {"formulator": "GEOMIND_FORMULATOR_MODEL"}
-"""Roles whose model is their own required setting, with no fallback to ``GEOMIND_MODEL``."""
+"""Every agent that calls a model, by its class name in lower case; each has its own setting."""
 _FIXED = {
     "request_timeout": 120.0,
     "prompt_caching": True,
     "tool_result_limit": 40_000,
     "delegate_summary_tokens": 500,
-    "sandbox_timeout": "10min",
-    "sandbox_memory": "1g",
-    "sandbox_disk": "1g",
-    "sandbox_cpu": 1,
     "compaction_threshold": 0.6,
     "compaction_keep_turns": 6,
-    "analyst_model": None,
-    "designer_model": None,
-    "economist_model": None,
-    "explainer_model": None,
-    "verifier_model": None,
 }
+REMOVED_SETTINGS = frozenset(
+    {
+        "default_model",
+        "sandbox_timeout",
+        "sandbox_memory",
+        "sandbox_disk",
+        "sandbox_cpu",
+        "analyst_model",
+        "designer_model",
+        "verifier_model",
+        "formulator_model",
+    }
+)
+"""Names a run stored by an earlier version may hold; a stored run with them still resumes."""
 ADDED_SETTINGS = frozenset(
     {
         "provider",
@@ -53,6 +57,7 @@ ADDED_SETTINGS = frozenset(
         "compare_concurrency",
         "compare_retries",
         "gemini_threads",
+        *(f"{role}_model" for role in ROLES),
     }
 )
 _settings = ContextVar("geomind_settings", default=None)
@@ -94,12 +99,18 @@ def _integer(name):
     return int(text) if text else None
 
 
+def model_variable(role):
+    """Return the environment variable that names the model of ``role``."""
+    return f"GEOMIND_{role.upper()}_MODEL"
+
+
 def _defaults():
     """Return the default settings; environment variables choose models and providers.
 
-    geomind holds no model id. ``GEOMIND_MODEL`` is the default model, ``GEOMIND_CHEAP_MODEL`` the
-    model of the coordinator and the summarizer; unset means ``None``, and a real provider refuses
-    to call. ``GEOMIND_PROVIDER`` lists the OpenRouter providers to try, ``GEOMIND_CONTEXT_WINDOW``
+    geomind holds no model id. Each role's model is its own ``GEOMIND_<ROLE>_MODEL``, such as
+    ``GEOMIND_DESIGNLEAD_MODEL``, with no fallback to another role's; unset means ``None``, and a
+    real provider refuses to call. ``GEOMIND_PROVIDER`` lists the OpenRouter providers to try,
+    ``GEOMIND_CONTEXT_WINDOW``
     sets the context window in tokens and ``GEOMIND_CACHE_MARKED_MODELS`` the model id prefixes
     that get cache breakpoints; unset means the provider's list, and none.
     ``GEOMIND_COMPARE_CONCURRENCY`` is how many families a comparison designs side by side; unset
@@ -110,13 +121,9 @@ def _defaults():
     no value for them, so a live run without them is refused, and a scripted provider, unset,
     makes one attempt.
     """
-    cheap = os.environ.get("GEOMIND_CHEAP_MODEL") or None
     return {
-        "default_model": os.environ.get("GEOMIND_MODEL") or None,
         **_FIXED,
-        "coordinator_model": cheap,
-        "summarizer_model": cheap,
-        **{f"{role}_model": os.environ.get(name) or None for role, name in OWN_MODELS.items()},
+        **{f"{role}_model": os.environ.get(model_variable(role)) or None for role in ROLES},
         "provider": _listed("GEOMIND_PROVIDER"),
         "context_window": _integer("GEOMIND_CONTEXT_WINDOW"),
         "cache_marked_models": _listed("GEOMIND_CACHE_MARKED_MODELS"),
@@ -135,22 +142,16 @@ def _defaults():
 
 def role_models():
     """Return the model id of each role from the settings; ``None`` where none is set."""
-    return {
-        role: get(f"{role}_model") or (None if role in OWN_MODELS else get("default_model"))
-        for role in ROLES
-    }
+    return {role: get(f"{role}_model") for role in ROLES}
 
 
 def model_problems():
     """Return one line per role without a model, naming the setting that would give it one."""
-    cheap_roles = ("coordinator", "summarizer")
-    lines = []
-    for role, model in role_models().items():
-        if model is None:
-            name = OWN_MODELS.get(role) or (
-                "GEOMIND_CHEAP_MODEL" if role in cheap_roles else "GEOMIND_MODEL"
-            )
-            lines.append(f"{role}: set {name} or {role}_model")
+    lines = [
+        f"{role}: set {model_variable(role)} or {role}_model"
+        for role, model in role_models().items()
+        if model is None
+    ]
     for setting, name in RETRY_SETTINGS.items():
         if get(setting) is None:
             lines.append(f"retries: set {name} or {setting}")
@@ -175,14 +176,7 @@ def memory_problems():
 
 def missing_model_settings():
     """Return the environment variables a live run lacks: a role's model, the retry settings."""
-    cheap_roles = ("coordinator", "summarizer")
-    missing = []
-    for role, model in role_models().items():
-        name = OWN_MODELS.get(role) or (
-            "GEOMIND_CHEAP_MODEL" if role in cheap_roles else "GEOMIND_MODEL"
-        )
-        if model is None and name not in missing:
-            missing.append(name)
+    missing = [model_variable(role) for role, model in role_models().items() if model is None]
     missing += [name for setting, name in RETRY_SETTINGS.items() if get(setting) is None]
     if get("memory") == "on":
         missing += [name for setting, name in MEMORY_SETTINGS.items() if get(setting) is None]
@@ -207,16 +201,23 @@ def get(name):
 def load_state(mapping):
     """Replace the settings with a mapping that ``state()`` returned.
 
-    A name this version added after the mapping was stored takes its default, so a run stored
-    by an older version still resumes; any other missing name or an unknown name raises.
+    A name this version added after the mapping was stored takes its default, and a name of
+    ``REMOVED_SETTINGS`` is dropped, so a run stored by an older version still resumes; any other
+    missing name or an unknown name raises.
     """
     defaults = _defaults()
+    mapping = {key: value for key, value in mapping.items() if key not in REMOVED_SETTINGS}
     missing = set(defaults) - set(mapping) - ADDED_SETTINGS
     if set(mapping) - set(defaults) or missing:
         raise UnknownNameError(
             f"runtime: settings = {sorted(mapping)}; expected every name of runtime.state()"
         )
     _settings.set({**defaults, **mapping})
+
+
+def stored(mapping):
+    """Return the settings a stored run names, without those this version removed."""
+    return {name: value for name, value in mapping.items() if name not in REMOVED_SETTINGS}
 
 
 def settings(**changes):

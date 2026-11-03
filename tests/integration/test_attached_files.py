@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from geomind.agents import Designer, Verifier
+from geomind.agents import DesignLead, Reviewer
 from geomind.context import ProblemState
 from geomind.engine import Engine
 from geomind.engine.recovery import recover
@@ -62,12 +62,12 @@ async def run_on_files():
     workspace = attached()
     engine = engine_for(SCRIPT, workspace=workspace)
     start = context("Design a plant from the attached files.", problem=ProblemState(), project="p")
-    result = await DesignLoop(Designer(), Verifier()).run(engine, start)
+    result = await DesignLoop(DesignLead(), Reviewer()).run(engine, start)
     return result, engine, workspace
 
 
 async def test_the_loop_fills_the_case_from_the_files_without_asking(passed):
-    """The designer reads both files, the case takes the CSV's bytes, and nobody is asked."""
+    """The design lead reads both files, the case takes the CSV's bytes, and nobody is asked."""
     result, engine, _ = await run_on_files()
     events = engine.store.load_events(result.run_id)
     assert result.status == "done"

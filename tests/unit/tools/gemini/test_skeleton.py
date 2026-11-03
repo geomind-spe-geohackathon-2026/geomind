@@ -41,14 +41,14 @@ def test_the_case_tree_is_read_from_gemini_s_schema(monkeypatch):
 
 
 def test_the_formulator_prompt_carries_the_case_keys():
-    """The tree is part of the formulator's system prompt, made when it is rendered."""
-    from geomind.agents import Formulator
+    """The tree is part of the case lead's system prompt, made when it is rendered."""
+    from geomind.agents import CaseLead
 
-    assert "## Case keys" in Formulator().prompt.render()
+    assert "## Case keys" in CaseLead().prompt.render()
 
 
 def test_the_economics_keys_are_in_the_tree():
-    """The formulator drilled the economics schema 15 times: its keys were not in the tree."""
+    """The case lead drilled the economics schema 15 times: its keys were not in the tree."""
     import gemini as gm
 
     from geomind.tools.gemini.skeleton import case_tree, schema_tree
@@ -58,16 +58,16 @@ def test_the_economics_keys_are_in_the_tree():
 
 
 def test_the_plant_tree_is_read_from_gemini_s_schema():
-    """The designer's prompt holds the plant file keys and every module type gemini has."""
+    """The design lead's prompt holds the plant file keys and every module type gemini has."""
     import gemini as gm
 
-    from geomind.agents import Designer
+    from geomind.agents import DesignLead
     from geomind.tools.gemini.skeleton import plant_tree
 
     tree = plant_tree()
     assert "connections[]:" in tree and 'kind*: "plant"' in tree
     assert all(name in tree for name in gm.modules.names())
-    assert "## Plant file keys" in Designer().prompt.render()
+    assert "## Plant file keys" in DesignLead().prompt.render()
 
 
 @pytest.mark.parametrize("name", ["case", "plant", "study"])
@@ -85,10 +85,10 @@ def test_each_tree_covers_every_top_level_key_of_its_schemas(name):
 
 
 def test_each_agent_gets_only_the_trees_of_its_tools():
-    """The formulator gets the case keys, the designer the plant and study keys."""
-    from geomind.agents import Designer, Economist, Formulator
+    """The case lead gets the case keys, the design lead the plant and study keys."""
+    from geomind.agents import CaseLead, DesignLead, Economist
 
-    formulator, designer = Formulator().prompt.render(), Designer().prompt.render()
-    assert "## Case keys" in formulator and "## Plant file keys" not in formulator
-    assert "## Plant file keys" in designer and "## Study keys" in designer
-    assert "## Case keys" not in designer and "## Study keys" in Economist().prompt.render()
+    case_lead, design_lead = CaseLead().prompt.render(), DesignLead().prompt.render()
+    assert "## Case keys" in case_lead and "## Plant file keys" not in case_lead
+    assert "## Plant file keys" in design_lead and "## Study keys" in design_lead
+    assert "## Case keys" not in design_lead and "## Study keys" in Economist().prompt.render()

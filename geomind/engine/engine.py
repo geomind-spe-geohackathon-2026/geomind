@@ -64,7 +64,7 @@ STEPS_POINT = "steps"
 class Engine:
     """Drives one agent over steps, with one log for the run and its nested runs.
 
-    ``callbacks``, ``hooks``, ``permissions`` and ``sandbox`` are as agreed. NOTE: ``llm``,
+    ``callbacks``, ``hooks`` and ``permissions`` are as agreed. NOTE: ``llm``,
     ``store`` and ``workspace`` are added keywords, since a run needs them and they are not
     arguments of ``run``. The ``recorded*`` attributes are used by replay, each keyed by run id:
     ``recorded`` and ``recorded_changes`` by run, then (step, call id), ``recorded_llms`` by run id,
@@ -78,7 +78,6 @@ class Engine:
         callbacks=None,
         hooks=None,
         permissions=None,
-        sandbox=None,
         *,
         llm=None,
         store=None,
@@ -91,7 +90,6 @@ class Engine:
         for hook in hooks or ():
             self.register_hook(hook)
         self.permissions = permissions or Permissions()
-        self.sandbox = sandbox
         self.llm = with_retries(llm) if llm is not None else None
         self.store = store if store is not None else MemoryRunStore()
         self.workspace = workspace
@@ -203,9 +201,8 @@ class Engine:
         return await session.pause(request, STEPS_POINT)
 
     async def end(self, session, stop):
-        """Close the sandbox and log the end, unless the run only pauses."""
+        """Log the end, unless the run only pauses."""
         await session.log.flush()
-        await session.close_sandbox()
         if stop.reason == "request":
             return run_result(session, stop)
         if is_limit_stop(session, stop):
@@ -240,7 +237,7 @@ class Engine:
             loop.load_state_dict(state.loop_state)
         agent = agent or agent_class(state)()
         agent.load_loop_state(state.loop_state)
-        with runtime.settings(**state.settings):
+        with runtime.settings(**runtime.stored(state.settings)):
             log = RunLog(self, state.root, state.sequence)
             session = RunSession(self, log, state, agent, loop)
             return await self.proceed(session, request_id, answer)

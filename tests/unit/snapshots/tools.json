@@ -627,26 +627,26 @@
       ],
       "name": "read_document"
     },
-    "read_file": {
-      "description": "Read a text file from the sandbox.",
-      "effect": "execute",
+    "read_knowledge": {
+      "description": "Return one cited reference value of the memory's knowledge by its id.",
+      "effect": "read",
       "idempotent": true,
       "input_schema": {
         "additionalProperties": false,
         "properties": {
-          "path": {
-            "title": "Path",
+          "id": {
+            "title": "Id",
             "type": "string"
           }
         },
         "required": [
-          "path"
+          "id"
         ],
-        "title": "read_file_input",
+        "title": "read_knowledge_input",
         "type": "object"
       },
       "late_schemas": [],
-      "name": "read_file"
+      "name": "read_knowledge"
     },
     "read_memory": {
       "description": "Return one entry of the memory by its section and id.",
@@ -923,27 +923,6 @@
       ],
       "name": "read_study"
     },
-    "run_python": {
-      "description": "Run Python code in the sandbox and return its exit code and output.",
-      "effect": "execute",
-      "idempotent": false,
-      "input_schema": {
-        "additionalProperties": false,
-        "properties": {
-          "code": {
-            "title": "Code",
-            "type": "string"
-          }
-        },
-        "required": [
-          "code"
-        ],
-        "title": "run_python_input",
-        "type": "object"
-      },
-      "late_schemas": [],
-      "name": "run_python"
-    },
     "run_study": {
       "description": "Run one study over several stored designs on the state's case and rank them.",
       "effect": "compute",
@@ -1185,6 +1164,27 @@
       },
       "late_schemas": [],
       "name": "search_documents"
+    },
+    "search_knowledge": {
+      "description": "Search the shared memory's cited reference values only, never past designs.",
+      "effect": "read",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "title": "Query",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "search_knowledge_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "search_knowledge"
     },
     "search_memory": {
       "description": "Search the shared memory: cited reference values, and designs that passed before.",
@@ -1520,40 +1520,6 @@
       ],
       "name": "size_plant"
     },
-    "test_module": {
-      "description": "Check a stored module with gemini's module check in the docker sandbox; return its report.",
-      "effect": "execute",
-      "idempotent": true,
-      "input_schema": {
-        "additionalProperties": false,
-        "properties": {
-          "example": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Example"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "name"
-        ],
-        "title": "test_module_input",
-        "type": "object"
-      },
-      "late_schemas": [],
-      "name": "test_module"
-    },
     "update_state": {
       "description": "Change the problem state with JSON Patch operations (add, replace, remove).",
       "effect": "write",
@@ -1581,32 +1547,6 @@
       ],
       "name": "update_state"
     },
-    "write_file": {
-      "description": "Write a text file in the sandbox.",
-      "effect": "write",
-      "idempotent": true,
-      "input_schema": {
-        "additionalProperties": false,
-        "properties": {
-          "path": {
-            "title": "Path",
-            "type": "string"
-          },
-          "text": {
-            "title": "Text",
-            "type": "string"
-          }
-        },
-        "required": [
-          "path",
-          "text"
-        ],
-        "title": "write_file_input",
-        "type": "object"
-      },
-      "late_schemas": [],
-      "name": "write_file"
-    },
     "write_memory": {
       "description": "Add a cited reference value to the memory's knowledge, for later runs.",
       "effect": "write",
@@ -1628,33 +1568,7 @@
       },
       "late_schemas": [],
       "name": "write_memory"
-    },
-    "write_module": {
-      "description": "Store a gemini module you wrote as the artifact ``module/<name>.py`` and return its name.",
-      "effect": "write",
-      "idempotent": true,
-      "input_schema": {
-        "additionalProperties": false,
-        "properties": {
-          "code": {
-            "title": "Code",
-            "type": "string"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "name",
-          "code"
-        ],
-        "title": "write_module_input",
-        "type": "object"
-      },
-      "late_schemas": [],
-      "name": "write_module"
     }
   },
-  "version": "0.4.22.dev23"
+  "version": "0.4.22.dev24"
 }

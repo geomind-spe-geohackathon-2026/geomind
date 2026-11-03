@@ -66,7 +66,7 @@ def run_and_replay(stored, agent, name):
 
 
 @pytest.mark.parametrize(
-    ("agent", "name"), tasks(["analyst", "designer", "explainer", "coordinator"])
+    ("agent", "name"), tasks(["analysis_lead", "design_lead", "explainer", "coordinator"])
 )
 @pytest.mark.usefixtures("gemini_loaded")
 def test_the_recording_of_a_single_agent_task_replays(stored, agent, name):

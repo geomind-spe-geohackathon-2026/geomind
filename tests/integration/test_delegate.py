@@ -1,4 +1,4 @@
-"""A nested run: its id, its events, its sandbox, its pause and its place in the log."""
+"""A nested run: its id, its events, its pause and its place in the log."""
 
 import pytest
 
@@ -7,7 +7,6 @@ from geomind import runtime
 from geomind.engine import Engine, Permissions
 from geomind.engine.recovery import recover
 from geomind.providers import FakeLLM
-from geomind.sandbox import LocalSandbox
 from geomind.stores.run import MemoryRunStore
 from tests.fixtures.runs import EXECUTED, Lead, call, context, of_type, says, stopped_at_limit, uses
 
@@ -64,23 +63,6 @@ async def test_usage_of_the_nested_run_adds_to_the_parent():
     """Three completions, three times the usage."""
     result, _, _ = await nested([uses(HELP), says("found"), says("end")])
     assert result.usage.input_tokens == 30
-
-
-async def test_nested_run_has_its_own_sandbox(tmp_path):
-    """Parent and child do not share a sandbox, and both close."""
-    _, _, events = await nested(
-        [
-            uses(call("run_python", "p1", code="print(1)")),
-            uses(HELP),
-            uses(call("run_python", "n1", code="print(2)")),
-            says("found"),
-            says("end"),
-        ],
-        sandbox=LocalSandbox(tmp_path),
-    )
-    runs = [event.run_id for event in of_type(events, "sandbox.provisioned")]
-    assert len(runs) == 2 and len(set(runs)) == 2
-    assert len(of_type(events, "sandbox.closed")) == 2
 
 
 async def test_failed_nested_run_is_an_error_result():

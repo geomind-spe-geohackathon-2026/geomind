@@ -4,7 +4,6 @@ from geomind.errors import (
     GeomindError,
     NotImplementedYet,
     ProviderError,
-    SandboxError,
     ToolError,
 )
 
@@ -18,7 +17,7 @@ def test_provider_error_carries_status_and_retry_advice():
 
 def test_classes_derive_from_their_builtin():
     """Each class is caught by ``RuntimeError``."""
-    assert issubclass(ToolError, RuntimeError) and issubclass(SandboxError, RuntimeError)
+    assert issubclass(ToolError, RuntimeError)
 
 
 def test_not_implemented_yet_is_both_kinds():

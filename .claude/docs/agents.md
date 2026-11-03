@@ -57,12 +57,17 @@ hook stopped the call, and then `action` is `None`. Agent code never constructs 
 
 ## Prompt, Model, Output
 
-`Prompt("assistant")` loads `prompts/general/assistant.md`: a role has one file, in the folder of its
-area. `Prompt.text(...)` holds inline text.
+`Prompt("design/lead")` loads `geomind/agents/design/lead/prompt.md`: a role has one file,
+`prompt.md`, beside its `agent.py` in `geomind/agents/<team>/<name>/`. Skills stay in
+`geomind/prompts/skills/`. `Prompt.text(...)` holds inline text. A role file has the headings
+Role, Inputs, Tools, Rules, Output and Examples, and holds engineering method only: every number
+comes from the case, the files, knowledge with its source, or a gemini tool.
 
 `Model(name=None, setting=None, temperature=0, max_tokens=None, fallbacks=())`: `setting` names the
-role setting in `gd.runtime`, such as `analyst_model`; with neither a name nor a set role, the model is
-`default_model`. `fallbacks` lists models tried in order when the provider keeps failing.
+role setting in `gd.runtime`, such as `designlead_model`, set by `GEOMIND_DESIGNLEAD_MODEL`. There
+is no default model and no fallback from one role to another: a role whose setting is unset has no
+model, and a real provider refuses to call. `fallbacks` lists models tried in order when the
+provider keeps failing.
 
 `Output(kind=str, max_retries=2)` is the type of the final answer, `str` or a Pydantic model. The
 answer of `finish` or of the last message is validated. A failure goes back to the model as
@@ -71,18 +76,26 @@ its JSON schema to the system prompt.
 
 ## Shipped agents
 
+The agents are a geothermal engineering team: one folder per team, each team head is `lead`, and
+each agent is `geomind/agents/<team>/<name>/agent.py` with its `prompt.md`; the tests mirror it
+under `tests/unit/agents/<team>/<name>/`. Class names stay whole and the import stays
+`gd.agents.<Class>`. Each model agent has its own required model setting,
+`GEOMIND_<CLASS>_MODEL` in capitals (`GEOMIND_CASELEAD_MODEL`).
+
 | Agent | Folder | Status | In `AGENTS` of `run.py` |
 |---|---|---|---|
-| `Analyst` | `analysis/` | complete, the sample, with the gemini tools of S2b | yes, the default route |
-| `Assistant`, `CodeAssistant` | `general/` | complete; `Run` uses `CodeAssistant` with a sandbox | `code_assistant` |
-| `Summarizer` | `general/` | complete; only compaction calls it | no |
-| `Coordinator` | `coordination/` | complete; answers with a `Route`, called by `Run.start` | no |
-| `Formulator` | `formulation/` | complete; formulates the case from the project's files and the user's answers, confirms every value no file gives in one question; `formulator_model` (`GEOMIND_FORMULATOR_MODEL`, required, no fallback) | no |
-| `Designer` | `design/` | complete; sizes, simulates, checks and optimises a design for the case, which it reads and never sets | no |
-| `FamilyDesigner` | `design/` | complete; a `Designer` without `ask_user`, for one family of a comparison |
-| `Verifier` | `verification/` | complete; checks the final design once with gemini | no |
-| `Economist` | `economics/` | complete; costs, compares, samples uncertainty | no |
-| `Explainer` | `reporting/` | complete; the explanation, from the state and the tools | no |
+| `Coordinator` | `project/coordinator/` | complete; answers with a `Route`, called by `Run.start` | no |
+| `Reviewer` | `project/reviewer/` | complete (the `Verifier` until 0.4.22); checks the final design once with gemini, reads knowledge only, never experience | no |
+| `Explainer` | `project/explainer/` | complete; the explanation, from the state and the tools; reads knowledge only, to cite sources | no |
+| `CaseLead` | `case/lead/` | complete (the `Formulator` until 0.4.22); sets the case from the project's files and the user's answers, confirms every value no file gives in one question | no |
+| `DesignLead` | `design/lead/` | complete (the `Designer` until 0.4.22); sizes, simulates, checks and optimises a design for the case, which it reads and never sets; a comparison runs one per family without `ask_user` | no |
+| `AnalysisLead` | `analysis/lead/` | complete (the `Analyst` until 0.4.22), the sample, with the gemini tools | yes, the default route |
+| `Economist` | `analysis/economist/` | complete; costs, compares, samples uncertainty | no |
+| `Summarizer` | `support/summarizer/` | complete; only compaction calls it | no |
+
+Removed in 0.4.22: `Assistant`, `CodeAssistant`, `FamilyDesigner` (a comparison's family run is a
+`DesignLead` without `ask_user`), `run_python`, `read_file`, `write_file`, `write_module`,
+`test_module` and the code sandbox. No code runs in geomind.
 
 All are exported from `gd.agents`. The skill `designing-a-plant` is general: how to read any case,
 choose families, size and optimise, the plant record, and what gemini can and cannot run today, as
@@ -98,38 +111,36 @@ frozen; the tools themselves are in [tools.md](tools.md#catalogue). Every agent 
 
 | Agent | Tools |
 |---|---|
-| `Analyst` | `list_files`, `read_document`, `read_case`, `set_case`, `list_modules`, `describe_module`, `evaluate_module`, `list_plants`, `read_plant`, `list_profiles`, `read_profile`, `save_profile`, `simulate`, `read_result`, `list_studies`, `read_study`, `compute_kpis`, `write_module`, `test_module`, `search_documents`, `update_state`, `read_skill`, `ask_user`, `finish` |
+| `AnalysisLead` | `list_files`, `read_document`, `read_case`, `set_case`, `list_modules`, `describe_module`, `evaluate_module`, `list_plants`, `read_plant`, `list_profiles`, `read_profile`, `save_profile`, `simulate`, `read_result`, `list_studies`, `read_study`, `compute_kpis`, `search_documents`, `update_state`, `read_skill`, the memory tools, `ask_user`, `finish` |
 | `Coordinator` | none: it answers with a `Route` |
-| `Formulator` | `list_files`, `read_document`, `search_documents`, `read_case`, `set_case`, `save_profile`, `list_profiles`, `read_profile`, `read_stored`, `update_state`, `ask_user`, `finish` |
-| `Designer` | `read_case`, `list_plants`, `read_plant`, `list_modules`, `describe_module`, `evaluate_module`, `build_plant`, `set_ranges`, `size_plant`, `list_profiles`, `read_profile`, `simulate`, `read_result`, `list_studies`, `read_study`, `check_results`, `optimize`, `run_study`, `write_module`, `test_module`, `update_state`, `read_skill`, `read_stored`, `ask_user`, `finish` |
-| `Verifier` | `check_results`, `case_changes`, `read_case`, `compute_kpis`, `read_result`, `update_state`, `read_skill`, `finish` |
-| `Economist` | `compute_kpis`, `estimate_costs`, `compare`, `run_study`, `sample_uncertainty`, `sensitivity`, `read_result`, `list_studies`, `read_study`, `update_state`, `read_skill`, `finish` |
-| `Explainer` | `read_case`, `case_changes`, `read_plant`, `read_result`, `list_studies`, `read_study`, `compute_kpis`, `estimate_costs`, `search_documents`, `finish` |
-| `CodeAssistant` | `ask_user`, `finish`, `run_python`, `read_file`, `write_file` |
-| `Assistant` | `ask_user`, `finish` |
+| `CaseLead` | `list_files`, `read_document`, `search_documents`, `read_case`, `set_case`, `save_profile`, `list_profiles`, `read_profile`, `read_stored`, the memory tools, `update_state`, `ask_user`, `finish` |
+| `DesignLead` | `read_case`, `list_plants`, `read_plant`, `list_modules`, `describe_module`, `evaluate_module`, `build_plant`, `patch_plant`, `set_ranges`, `size_plant`, `list_profiles`, `read_profile`, `simulate`, `read_result`, `list_studies`, `read_study`, `check_results`, `optimize`, `run_study`, `update_state`, `read_skill`, `read_stored`, the memory tools, `ask_user`, `finish` |
+| `Reviewer` | `check_results`, `case_changes`, `read_case`, `compute_kpis`, `read_result`, `update_state`, `read_skill`, `read_stored`, `search_knowledge`, `read_knowledge`, `finish` |
+| `Economist` | `compute_kpis`, `estimate_costs`, `compare`, `run_study`, `sample_uncertainty`, `sensitivity`, `read_result`, `list_studies`, `read_study`, `update_state`, `read_skill`, `read_stored`, the memory tools, `finish` |
+| `Explainer` | `read_case`, `case_changes`, `read_plant`, `read_result`, `list_studies`, `read_study`, `compute_kpis`, `estimate_costs`, `search_documents`, `search_knowledge`, `read_knowledge`, `finish` |
 | `Summarizer` | none |
 
-Package code holds no engineering default; an agent's decision is not a default. The Designer
+Package code holds no engineering default; an agent's decision is not a default. The DesignLead
 starts from a project plant when `list_plants` has `project_plants` (it builds another only when
 none fits, and says why in an assumption). Search ranges are never its choice: they come from the
 user or the case, and a missing one is asked with `ask_user` (recorded in `questions`). It also
 chooses the backup policy (`params.backup` of the plant), the objective, the ranges and options, the
 evaluations and the seed when the request gives none, and the Economist the `samples` and seed, each recorded as an assumption with `source:
-agent`, `confirmed: false` and a one-line reason, which the Verifier and the Explainer report. The
-Designer records the sized start's whole-year run as `design.start_result` and any other family it
+agent`, `confirmed: false` and a one-line reason, which the Reviewer and the Explainer report. The
+DesignLead records the sized start's whole-year run as `design.start_result` and any other family it
 simulated as `design.alternatives` (`[{family, design, result}]`). With two or more buildable
 families it compares them in one `run_study` (`minimize`, `prepare: ["size"]`) and records it as
 `design.study` (`{key, designs, method, objective, evaluations, seed, best, runs}`; `key` is the
 `study/<name>` the tool stored). Every study gets a name of its own and an answer cites the study key
-it relies on; `list_studies` and `read_study` (Designer, Economist, Analyst, Explainer) read the
+it relies on; `list_studies` and `read_study` (DesignLead, Economist, AnalysisLead, Explainer) read the
 chat's stored studies. The driver names
 those results and the study in the Economist's task, which compares only them, and puts the study's
 ranked table in the Explainer's task.
 
-The Designer optimises directly after its own `check_results`: the search counts only trials that
-`gm.evaluate.verdict` calls feasible, so no Verifier round comes before it, and when `optimize`
-returns `feasible: false` the Designer changes the ranges, the options or the topology itself.
-The Verifier calls `check_results` once, on the final design, and reviews what gemini cannot see:
+The DesignLead optimises directly after its own `check_results`: the search counts only trials that
+`gm.evaluate.verdict` calls feasible, so no Reviewer round comes before it, and when `optimize`
+returns `feasible: false` the DesignLead changes the ranges, the options or the topology itself.
+The Reviewer calls `check_results` once, on the final design, and reviews what gemini cannot see:
 the case changes since the user gave it (`case_changes`), a result that is not the design's whole
 year, and the assumptions the user has not confirmed. The driver hands its report to the
 Explainer. The verdict is still gemini's, through `verify_design`; on `case_changed` the driver
@@ -148,8 +159,8 @@ raises `NotImplementedYet` still ends the run with `stop_reason="not_implemented
 
 ## How to add or fill an agent
 
-The analyst is the worked example: `geomind/agents/analysis/analyst.py` and
-`geomind/prompts/analysis/analyst.md`.
+The analysis lead is the worked example: `geomind/agents/analysis/analysis lead.py` and
+`geomind/prompts/analysis/analysis lead.md`.
 
 1. **The folder.** A skeleton has its file already. A new agent goes in
    `geomind/agents/<area>/<name>.py`, exported from `geomind/agents/__init__.py`, with

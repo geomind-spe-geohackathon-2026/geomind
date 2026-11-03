@@ -13,9 +13,8 @@ from geomind.engine.delegation import run_child
 from geomind.engine.hooks import ask_hooks, input_bound
 from geomind.engine.recovery import apply
 from geomind.engine.state import Stop
-from geomind.errors import RunError, SandboxError, TimeLimitReached, ToolError
+from geomind.errors import RunError, TimeLimitReached, ToolError
 from geomind.providers import needs_models
-from geomind.sandbox import Manifest
 from geomind.stores.memory import FileMemory
 from geomind.types import Allow, Deny, Request, Usage
 from geomind.types.events import (
@@ -26,8 +25,6 @@ from geomind.types.events import (
     RequestMade,
     Retried,
     RunStarted,
-    SandboxClosed,
-    SandboxProvisioned,
     StateChanged,
     TextDelta,
 )
@@ -71,7 +68,6 @@ class RunSession:
         self.reserved = {}
         self._index_lock = asyncio.Lock()
         self.child_limit = None
-        self._sandbox = None
         self._held_text = ""
         self._output_limit = None
         self.limit_reached = None
@@ -447,30 +443,6 @@ class RunSession:
             message=str(error),
             where=where,
         )
-
-    async def sandbox(self):
-        """Return the sandbox of this run, provisioned on first use."""
-        if self._sandbox is not None:
-            return self._sandbox
-        provider = self.engine.sandbox
-        if provider is None:
-            raise SandboxError("sandbox: no sandbox is configured for this run")
-        self._sandbox = await provider.provision(Manifest.from_runtime())
-        await self.emit(SandboxProvisioned, provider=type(provider).__name__)
-        return self._sandbox
-
-    async def lose_sandbox(self):
-        """Forget a lost sandbox; the next code tool provisions a new one."""
-        self._sandbox = None
-        await self.emit(SandboxClosed, is_lost=True)
-
-    async def close_sandbox(self):
-        """Close the sandbox, at the end of a run and at a pause, as the process may exit."""
-        if self._sandbox is None:
-            return
-        sandbox, self._sandbox = self._sandbox, None
-        await sandbox.close()
-        await self.emit(SandboxClosed)
 
     @property
     def total_usage(self):

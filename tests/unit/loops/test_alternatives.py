@@ -1,11 +1,11 @@
-"""``CompareLoop``: one designer run per family, verified one by one, compared and explained."""
+"""``CompareLoop``: one design lead run per family, verified one by one, compared and explained."""
 
 import asyncio
 import json
 
 import pytest
 
-from geomind.agents import Designer, Verifier
+from geomind.agents import DesignLead, Reviewer
 from geomind.context import ProblemState
 from geomind.engine import Engine
 from geomind.engine.hooks import TokenBudget
@@ -42,7 +42,7 @@ def update(call_id, *changes):
 
 
 def plan(families=FAMILIES):
-    """Return the planning designer's completions: record the families, hand over."""
+    """Return the planning design lead's completions: record the families, hand over."""
     record = {"op": "add", "path": "/design/families", "value": families}
     search = {"op": "add", "path": "/design/search", "value": {"objective": "lcts"}}
     return [update("p1", record, search), says("planned")]
@@ -66,7 +66,7 @@ def family_run(family, verdict="feasible", reason=None):
 
 
 def verifier_run(family):
-    """Return the verifier's completions: record the verification of one family."""
+    """Return the reviewer's completions: record the verification of one family."""
     record = {"op": "add", "path": "/verification", "value": {"result": f"result/{family}"}}
     return [update(f"v-{family}", record), says("checked")]
 
@@ -110,7 +110,7 @@ async def run_loop(completions, **options):
     concurrency = options.pop("concurrency", None)
     engine = engine_for(completions, **options)
     start = context("Compare alternatives for the case.", problem=ProblemState(case=CASE))
-    loop = CompareLoop(Designer(), Verifier(), concurrency=concurrency)
+    loop = CompareLoop(DesignLead(), Reviewer(), concurrency=concurrency)
     result = await loop.run(engine, start)
     return result, engine, engine.store.load_events(start.run_id)
 
@@ -120,22 +120,31 @@ def alternatives(events):
     return recover(events).problem.design["alternatives"]
 
 
+def is_family_run(event):
+    """Tell whether a ``run.started`` is one family's design lead: its task designs one only."""
+    task = event.messages[0].content if event.messages else ""
+    return event.agent == "design_lead" and "Design one alternative only" in str(task)
+
+
 def agents_of(events):
-    """Return the agents the loop ran, in order."""
-    return [event.agent for event in of_type(events, "run.started")][1:]
+    """Return the agents the loop ran, in order; a family run as ``family_design_lead``."""
+    return [
+        "family_design_lead" if is_family_run(event) else event.agent
+        for event in of_type(events, "run.started")
+    ][1:]
 
 
 async def test_each_family_gets_its_own_designer_run(verdicts):
-    """A plan, one family run each, one verifier each feasible design, then the rest."""
+    """A plan, one family run each, one reviewer each feasible design, then the rest."""
     result, _, events = await run_loop(script())
     assert result.status == "done"
     assert agents_of(events) == [
-        "designer",
-        "family_designer",
-        "family_designer",
-        "family_designer",
-        "verifier",
-        "verifier",
+        "design_lead",
+        "family_design_lead",
+        "family_design_lead",
+        "family_design_lead",
+        "reviewer",
+        "reviewer",
         "economist",
         "explainer",
     ]
@@ -151,7 +160,7 @@ async def test_an_infeasible_family_keeps_its_reason_and_does_not_stop_the_other
 
 
 async def test_a_family_that_gemini_rejects_is_kept_with_the_failures(monkeypatch):
-    """The verifier's gate is gemini's: a failed design is rejected, the others stay."""
+    """The reviewer's gate is gemini's: a failed design is rejected, the others stay."""
     verdict = {"design/alpha_best": FAILED}
 
     def verify(found):
@@ -175,14 +184,14 @@ async def test_a_family_run_that_fails_is_recorded_and_the_others_go_on(verdicts
 
 
 async def test_a_blocked_family_is_in_the_table_without_a_run(verdicts):
-    """A family gemini cannot build is reported, with no designer run."""
+    """A family gemini cannot build is reported, with no design lead run."""
     blocked = {"id": "delta", "summary": "needs a missing model", "status": "blocked"}
     completions = script()
     completions[:2] = plan([*FAMILIES, blocked])
     _, _, events = await run_loop(completions)
     delta = next(item for item in alternatives(events) if item["family"] == "delta")
     assert delta["verdict"] == "blocked" and delta["reason"] == "needs a missing model"
-    assert agents_of(events).count("family_designer") == 3
+    assert agents_of(events).count("family_design_lead") == 3
 
 
 async def test_the_recommended_design_is_the_final_one(verdicts):
@@ -218,10 +227,10 @@ async def test_no_verified_design_still_explains_the_table(monkeypatch):
 
 
 async def test_no_families_stops_with_a_clear_answer(verdicts):
-    """A designer that records no family ends the comparison, naming the reason."""
+    """A design lead that records no family ends the comparison, naming the reason."""
     result, _, events = await run_loop([says("nothing to compare")])
     assert "stop: no_alternatives" in result.answer
-    assert "family_designer" not in agents_of(events)
+    assert "family_design_lead" not in agents_of(events)
 
 
 class ByTask(FakeLLM):
@@ -277,7 +286,7 @@ async def run_parallel(concurrency):
     llm = parallel_llm()
     engine = Engine(llm=llm, permissions=Permissions(mode="auto"))
     start = context("Compare alternatives for the case.", problem=ProblemState(case=CASE))
-    loop = CompareLoop(Designer(), Verifier(), concurrency=concurrency)
+    loop = CompareLoop(DesignLead(), Reviewer(), concurrency=concurrency)
     result = await loop.run(engine, start)
     return result, engine, engine.store.load_events(start.run_id), llm
 
@@ -319,7 +328,7 @@ async def test_a_parallel_run_replays(verdicts):
 
 async def test_a_new_loop_resumes_with_the_recorded_settings():
     """The logged limit and mode come back, as ``load_state_dict`` promises."""
-    loop = CompareLoop(Designer(), Verifier())
+    loop = CompareLoop(DesignLead(), Reviewer())
     loop.load_state_dict({"max_rounds": 2, "concurrency": 3, "asks": True})
     assert (loop.max_rounds, loop.concurrency, loop.asks) == (2, 3, True)
 
@@ -350,7 +359,7 @@ async def test_an_interactive_mode_runs_one_family_at_a_time(verdicts):
     """A permission question needs one pending run, so ``ask`` ignores the limit."""
     engine = engine_for(script())
     engine.permissions = Permissions(mode="ask", allow=("*",))
-    loop = CompareLoop(Designer(), Verifier(), concurrency=3)
+    loop = CompareLoop(DesignLead(), Reviewer(), concurrency=3)
     loop.guard(engine)
     assert loop.agent.batch_size() == 1
 
@@ -365,7 +374,7 @@ async def test_a_budget_stop_lists_the_finished_alternatives(verdicts):
     result, _, events = await run_loop(completions, hooks=[TokenBudget(500)])
     assert result.status != "done" or "partial" in result.answer
     assert "alpha" in result.answer
-    assert "family_designer" in agents_of(events)
+    assert "family_design_lead" in agents_of(events)
 
 
 async def test_runs_side_by_side_share_the_cap(verdicts):
@@ -373,7 +382,7 @@ async def test_runs_side_by_side_share_the_cap(verdicts):
     llm = parallel_llm()
     engine = Engine(llm=llm, permissions=Permissions(mode="auto"), hooks=[TokenBudget(30)])
     start = context("Compare alternatives for the case.", problem=ProblemState(case=CASE))
-    result = await CompareLoop(Designer(), Verifier(), concurrency=3).run(engine, start)
+    result = await CompareLoop(DesignLead(), Reviewer(), concurrency=3).run(engine, start)
     events = engine.store.load_events(start.run_id)
     assert "partial" in result.answer
     assert sum(event.type == "llm.completed" for event in events) < 5
@@ -399,7 +408,7 @@ async def test_runs_side_by_side_never_end_above_the_cap(verdicts, cap):
     budget = TokenBudget(cap, bound_input=True)
     engine = Engine(llm=llm, permissions=Permissions(mode="auto"), hooks=[budget])
     start = context("Compare alternatives for the case.", problem=ProblemState(case=CASE))
-    result = await CompareLoop(Designer(), Verifier(), concurrency=3).run(engine, start)
+    result = await CompareLoop(DesignLead(), Reviewer(), concurrency=3).run(engine, start)
     events = engine.store.load_events(start.run_id)
     assert result.usage.input_tokens + result.usage.output_tokens <= cap
     assert sum(event.type == "llm.completed" for event in events) > 2
@@ -443,13 +452,9 @@ async def test_a_rejected_family_is_designed_again_with_the_verifier_s_reason(mo
     rejecting_once(monkeypatch)
     engine = engine_for(retried_script())
     start = context("Compare alternatives for the case.", problem=ProblemState(case=CASE))
-    result = await CompareLoop(Designer(), Verifier(), retries=1).run(engine, start)
+    result = await CompareLoop(DesignLead(), Reviewer(), retries=1).run(engine, start)
     events = engine.store.load_events(start.run_id)
-    tasks = [
-        e.messages[0].content
-        for e in of_type(events, "run.started")
-        if e.agent == "family_designer"
-    ]
+    tasks = [e.messages[0].content for e in of_type(events, "run.started") if is_family_run(e)]
     assert len(tasks) == 4 and "unmet: 2 MW against 0 MW" in tasks[3]
     assert "alpha_r1_" in tasks[3]
     verdict = {item["family"]: item["verdict"] for item in alternatives(events)}
@@ -461,7 +466,7 @@ async def test_without_retries_a_rejected_family_stays_rejected(monkeypatch):
     rejecting_once(monkeypatch)
     completions = [*retried_script()[:10], *retried_script()[12:]]
     _, _, events = await run_loop(completions)
-    tasks = [e for e in of_type(events, "run.started") if e.agent == "family_designer"]
+    tasks = [e for e in of_type(events, "run.started") if is_family_run(e)]
     assert len(tasks) == 3
     alpha = next(item for item in alternatives(events) if item["family"] == "alpha")
     assert alpha["verdict"] == "rejected"
@@ -478,9 +483,9 @@ async def test_retries_are_bounded(monkeypatch):
     monkeypatch.setattr("geomind.engine.hooks.verify_design", lambda _: PASSED)
     engine = engine_for(retried_script())
     start = context("Compare alternatives for the case.", problem=ProblemState(case=CASE))
-    await CompareLoop(Designer(), Verifier(), retries=1).run(engine, start)
+    await CompareLoop(DesignLead(), Reviewer(), retries=1).run(engine, start)
     events = engine.store.load_events(start.run_id)
-    assert sum(e.agent == "family_designer" for e in of_type(events, "run.started")) == 4
+    assert sum(is_family_run(e) for e in of_type(events, "run.started")) == 4
     alpha = next(item for item in alternatives(events) if item["family"] == "alpha")
     assert alpha["verdict"] == "rejected"
 
@@ -490,8 +495,8 @@ def test_the_retries_come_from_the_settings(monkeypatch):
     from geomind import runtime
 
     with runtime.settings(compare_retries=2):
-        assert CompareLoop(Designer(), Verifier()).retries == 2
-    assert CompareLoop(Designer(), Verifier()).retries is None
+        assert CompareLoop(DesignLead(), Reviewer()).retries == 2
+    assert CompareLoop(DesignLead(), Reviewer()).retries is None
 
 
 def test_the_table_has_a_row_for_every_family():

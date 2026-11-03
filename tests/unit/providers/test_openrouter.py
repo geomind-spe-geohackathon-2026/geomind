@@ -155,7 +155,7 @@ def body_of(model, messages, **options):
 
 
 PROMPT = [
-    Message(role="system", content="You are the designer."),
+    Message(role="system", content="You are the design lead."),
     Message(role="user", content="Design it."),
     Message(role="system", content="Problem state, version 3"),
 ]
@@ -169,7 +169,7 @@ def test_a_marked_model_caches_the_system_prompt():
     body = body_of("vendor/model", PROMPT, **MARKED)
     first = body["messages"][0]
     assert first["content"] == [
-        {"type": "text", "text": "You are the designer.", "cache_control": {"type": "ephemeral"}}
+        {"type": "text", "text": "You are the design lead.", "cache_control": {"type": "ephemeral"}}
     ]
     assert body["messages"][1]["content"] == "Design it."
     assert body["messages"][2]["content"] == "Problem state, version 3"
@@ -183,14 +183,14 @@ def test_an_automatic_caching_model_and_the_setting_turned_off_send_no_hint():
         body_of("deepseek/deepseek-v4.1-flash-1017", PROMPT),
         body_of("vendor/model", PROMPT, prompt_caching=False, **MARKED),
     ):
-        assert body["messages"][0]["content"] == "You are the designer."
+        assert body["messages"][0]["content"] == "You are the design lead."
 
 
 async def test_a_call_without_a_model_is_refused_before_the_network(monkeypatch):
     """No model: the error names the setting, and the transport is never used."""
-    monkeypatch.delenv("GEOMIND_MODEL")
+    monkeypatch.delenv("GEOMIND_REVIEWER_MODEL")
     llm = provider(lambda request: pytest.fail("network used"))
-    with pytest.raises(ProviderError, match="GEOMIND_MODEL"):
+    with pytest.raises(ProviderError, match="GEOMIND_REVIEWER_MODEL"):
         await llm.complete([], [], model=None, settings=SETTINGS)
 
 

@@ -36,9 +36,7 @@ the problem state as `update_state` does.
 | `check_results` | `assessment.py` | `compute` | `reference` | gemini's verdict on the run's own case, in display units: `{feasible, reasons: [{kind, name, message, ...}], requirements: [check], failures: {total, groups}, metrics}` | built |
 | `compute_kpis` | `assessment.py` | `compute` | `reference, names=None` | `{name: Value}` in display units: `gm.evaluate.totals` and the metrics of `gm.evaluate.report`; an unknown name is `unknown_name` with a did-you-mean | built |
 | `estimate_costs` | `assessment.py` | `compute` | `reference` | `{capex, opex, annualised_cost, lcoh, lcoc, lcts, npv, payback, co2}` as Values in display units, from the case's `economics.json`; a cost whose figure is missing is `{error}` with gemini's `missing_assumption` and its path | built |
-| `write_module` | `modules.py` | `write` | `name, code` | `{module: "module/<name>.py", name}`; stores the code as that artifact; `name` must be a Python identifier (`invalid_input`, path `name`) | built |
-| `test_module` | `modules.py` | `execute` | `name, example=None` | `{name, passed, modules, problems, undecided}` from `gm.modules.check` on every module class of the stored file, run in a Docker container on `gemini-sandbox:<gm.__version__>` (no network, no package mounted, the sandbox limits); a problem is `{path: "<Class>.<check>" or "import", message}`, `undecided` the checks that need an `example` (the `gm.call` arguments); the local sandbox is `not_allowed`, an unstored name `unknown_name` | built |
-| `size_plant` | `study.py` | `compute` | `design, name`: the backup policy is the plant's `params.backup` (the Designer sets it and records the assumption); `name` names the design and `study/<name>` | `{design, study, sizing}`; `gm.study.size` on the state's case, the sized plant stored as `design/<name>`, `sizing` gemini's notes (`sized`, `unchanged`, `broken`, `simulation`) with quantities as `{value, unit}` | built |
+| `size_plant` | `study.py` | `compute` | `design, name`: the backup policy is the plant's `params.backup` (the DesignLead sets it and records the assumption); `name` names the design and `study/<name>` | `{design, study, sizing}`; `gm.study.size` on the state's case, the sized plant stored as `design/<name>`, `sizing` gemini's notes (`sized`, `unchanged`, `broken`, `simulation`) with quantities as `{value, unit}` | built |
 | `optimize` | `study.py` | `compute` | `design, objective, evaluations, seed, name`, all required: the variables are the design's ranges and options (`set_ranges`), the constraints the case's requirements; a design with none is gemini's error | `{best, feasible, trials, design, study}`; `best` is `Best.to_dict()` (display units, the plant inside), the best plant stored as `design/<name>` (the study is `study/<name>`); with no trial that ran there is no `design`; gemini's errors pass through | built |
 | `sample_uncertainty` | `study.py` | `compute` | `design, metrics, samples, seed, name`, all required | `{study}` and `Sample.to_dict()`: `samples` and `summary` per metric (`mean`, `p5`, `p50`, `p95`, `failed`); distributions only from the case's `uncertainty` (none is `missing_value`) | built |
 | `sensitivity` | `study.py` | `compute` | `design, metrics, name` | `{study}` and `Tornado.to_dict()`: `rows` sorted by effect, bounds from the case's `uncertainty` | built |
@@ -75,8 +73,6 @@ gemini's API is frozen from 0.5.0; a breaking gemini release needs a new geomind
 | `check_results` | `gm.evaluate.verdict`, `report`, `gm.Results.from_bytes` | real |
 | `compute_kpis` | `gm.evaluate.totals`, `gm.evaluate.report` | real |
 | `estimate_costs` | `gm.evaluate.capex`, `opex`, `annualised_cost`, `lcoh`, `lcoc`, `lcts`, `npv`, `payback`, `co2`, `report` | real |
-| `write_module` | none (stores text) | real |
-| `test_module` | `gm.modules.check`, `gm.__version__` (in the container) | real |
 | `size_plant` | `gm.study.size`, `Plant.sizing`, `Plant.to_dict` | real |
 | `optimize` | `gm.study.minimize`, `Best.to_dict` | real |
 | `sample_uncertainty` | `gm.study.sample`, `Sample.to_dict` | real |
@@ -247,7 +243,7 @@ schema comes from the signature through Pydantic and the description from the do
 | `read` | reads, changes nothing | without asking |
 | `compute` | calculates, changes nothing | without asking |
 | `write` | writes inside the run | after approval |
-| `execute` | runs sandbox code | after approval |
+| `execute` | runs code (no shipped tool does) | after approval |
 | `external` | network or anything outside the run | after approval |
 
 `idempotent` says a call may run again after a crash. `is_pure` (`read` or `compute`) says a call
@@ -304,7 +300,7 @@ A validation error takes `path` from the first input field that failed. Every ot
 | `invalid_input` | the input does not fit, or a `gd.errors` class says the call was wrong |
 | `unknown_name` | a name that does not exist, such as a tool, a skill or a result path |
 | `not_implemented` | the capability has its final signature and is not built yet; do not retry |
-| `not_allowed` | the run cannot do this: no sandbox, no project, or a path outside the sandbox |
+| `not_allowed` | the run cannot do this: no project, the memory is off, or a path outside the project |
 | `no_case` | the chat has no case: call `set_case` or ask the user |
 | `case_incomplete` | the case misses values gemini needs, to read it or for this plant; `path` is the first and `suggestions` lists every missing path, from `gm.case.missing` or gemini's check; the message stays gemini's |
 | `files_unavailable` | the workspace has no `files` and `file`: an older backend; the run goes on without them |
@@ -347,17 +343,15 @@ expected one; an open `dict[str, Any]` is not checked. The default rule of [perm
 
 `read_skill(name)` (`read`) returns one skill; see [context.md](context.md#skills).
 
-## Code tools
+## No code tools
 
-`run_python(code)` (`execute`, not idempotent), `write_file(path, text)` (`write`) and
-`read_file(path)` (`execute`, since it needs the sandbox) act inside the run's sandbox. Without a
-configured sandbox they return an error result saying so. A lost sandbox is an error result and the
-next tool provisions a new one. See [sandbox.md](sandbox.md).
+geomind runs no code: `run_python`, `write_file`, `read_file`, `write_module`, `test_module` and the
+sandbox they ran in were removed in 0.4.22. A model gemini lacks makes a family `blocked`.
 
 ## Delegate
 
 `Delegate(agent, max_summary_tokens=None)` runs the agent in a nested engine run through
-`context.session`, with a clean context (the task text only), a child run id, its own sandbox and `parent` set on
+`context.session`, with a clean context (the task text only), a child run id and `parent` set on
 every event. The model reads only the final answer, cut to the token limit at four characters per
 token (default: the `delegate_summary_tokens` setting). The effect is `compute`, so delegating
 needs no approval of its own: each nested tool is decided by the same permissions. It is not pure
@@ -376,7 +370,7 @@ gives project files to the case: `set_case` passes their bytes to gemini under t
 
 When a case misses values, `set_case` answers `case_incomplete` with every path in `suggestions`,
 from `gm.case.missing`, for one question to the user. The design loop asks for a missing case at
-its start only when the project has no files; with files the designer reads them first.
+its start only when the project has no files; with files the design lead reads them first.
 
 `compute_kpis` keeps gemini's report entries as they are, in the shape of 0.4.11: a cost gemini
 gives no value for is `{value: null, unit, reason}` or left out, as the report gives it. Beside them,
@@ -454,7 +448,7 @@ From the third live run (`tests/integration/test_live_regressions_c.py`, recordi
   once, and the same problem on many rows of a file as one line: the first row's message, the
   number of rows and the first and last row. gemini's codes, paths and text are unchanged.
 - `read_document`: the reads of a run tree are one memory (`reads_of`, on the root session), so a
-  later designer round sees what an earlier one read; a read of another run counts only when its
+  later design lead round sees what an earlier one read; a read of another run counts only when its
   result was stored. Once the whole document was read, every page is `already_read`, `force` too.
 - A CSV time without an offset stays gemini's error; geomind rewrites no value. A series takes
   gemini's `time_zone` (gemini 0.5.13) through `set_case`, and the error suggests the retry with
@@ -466,6 +460,8 @@ From the third live run (`tests/integration/test_live_regressions_c.py`, recordi
 
 ## Memory tools
 
-Every agent has `search_memory(query, section=None)`, `read_memory(section, id)` and
-`write_memory(entry)` (`geomind/tools/memory.py`); see [memory.md](memory.md). With the memory off
-they answer `not_allowed`.
+The case, design and analysis teams have `search_memory(query, section=None)`,
+`read_memory(section, id)` and `write_memory(entry)`; the reviewer and the explainer have
+`search_knowledge(query)` and `read_knowledge(id)`, the knowledge only, never experience
+(`geomind/tools/memory.py`); see [memory.md](memory.md). With the memory off they answer
+`not_allowed`.

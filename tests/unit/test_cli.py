@@ -34,8 +34,8 @@ def tool_call(name, arguments):
 
 
 def routed_answer():
-    """Return the coordinator's streamed route to the analyst."""
-    return answer(json.dumps({"kind": "loop", "loop": "tool", "agent": "analyst"}))
+    """Return the coordinator's streamed route to the analysis lead."""
+    return answer(json.dumps({"kind": "loop", "loop": "tool", "agent": "analysis_lead"}))
 
 
 @pytest.fixture
@@ -89,7 +89,7 @@ def test_run_passes_the_model(service, monkeypatch):
         cli, "OpenRouter", lambda: OpenRouter(api_key="sk-model-test", transport=transport)
     )
     cli.main(["run", "x", "--model", "a/b"])
-    assert seen == [runtime.get("coordinator_model"), "a/b"]
+    assert seen == ["a/b", "a/b"]
 
 
 def test_run_with_a_failing_service_reports_it(service, capsys):
@@ -135,7 +135,7 @@ def test_show_prints_prompts_answers_and_tokens(service, capsys):
     capsys.readouterr()
     assert cli.main(["show", run_folder(), "--format", "md"]) == 0
     output = capsys.readouterr().out
-    assert output.startswith("# Agent log") and "### Call 2: analyst" in output
+    assert output.startswith("# Agent log") and "### Call 2: analysis_lead" in output
     assert "Say hello" in output and "Hello" in output
     assert "Tokens: 7 in (0 cached), 3 out, cost 0.002" in output and "## Totals" in output
 
@@ -149,7 +149,7 @@ def test_show_md_has_token_tables_prompts_once_and_full_answers(service, capsys)
     cli.main(["show", run_folder(), "--format", "md"])
     output = capsys.readouterr().out
     assert "## Tokens by agent" in output and "## Tokens by step" in output
-    assert "| analyst | 1 | 7 | 0 | 3 | 0.002 |" in output
+    assert "| analysis_lead | 1 | 7 | 0 | 3 | 0.002 |" in output
     assert "| coordinator | 1 | 7 | 0 | 3 | 0.002 |" in output
     assert "| Total | 2 | 14 | 0 | 6 | 0.004 |" in output
     assert "## Appendix: system prompts" in output and output.count("## Role") == 2
@@ -212,7 +212,7 @@ def test_run_writes_a_manifest_beside_its_log(service, gm, capsys):
     assert manifest["inputs"] == {}
     assert manifest["models"] == {
         "coordinator": [runtime.get("coordinator_model")],
-        "analyst": [runtime.get("default_model")],
+        "analysis_lead": [runtime.get("analysislead_model")],
     }
     assert manifest["seeds"]["temperature"] == 0
     assert manifest["run"]["id"] == Path(run_folder()).name
@@ -258,10 +258,10 @@ def test_a_design_run_takes_a_project_with_attached_files_and_no_case(service):
     )
 
 
-def test_sandbox_choice():
-    """The option picks a provider."""
-    assert cli._sandbox(None) is None
-    assert type(cli._sandbox("docker")).__name__ == "DockerSandbox"
+def test_there_is_no_sandbox_option():
+    """No code runs in geomind, so ``run`` has no ``--sandbox``."""
+    with pytest.raises(SystemExit):
+        cli._parser().parse_args(["run", "x", "--sandbox", "docker"])
 
 
 def test_show_marks_a_nested_step():
@@ -320,7 +320,7 @@ def test_chat_shows_text_tools_and_the_state_after_a_turn(tmp_path, monkeypatch,
     typed(monkeypatch, "What is the flow?", "/quit")
     assert cli.main(["chat", "--recording", recording(tmp_path, *script)]) == 0
     output = capsys.readouterr().out
-    assert "[analyst] update_state" in output and "Noted" in output
+    assert "[analysis_lead] update_state" in output and "Noted" in output
     assert "Goal: Find the flow" in output
 
 
@@ -384,7 +384,7 @@ def test_chat_needs_a_provider(capsys):
 def test_chat_refuses_an_unknown_agent(capsys):
     """A wrong name is a message, not a traceback."""
     assert cli.main(["chat", "--agent", "analist", "--live"]) == 1
-    assert "did you mean 'analyst'" in capsys.readouterr().err
+    assert "did you mean 'analysis_lead'" in capsys.readouterr().err
 
 
 def test_run_stops_at_the_spending_cap(service, capsys):
@@ -429,12 +429,7 @@ def test_a_live_cost_cap_bounds_calls_with_the_prices_of_the_list(monkeypatch):
     """A live run's cost cap carries the fetched prices; a recording fetches none."""
     prices = {"fake/model": (1e-6, 2e-6)}
     args = cli._parser().parse_args(["run", "x", "--max-cost", "1"])
-    with runtime.settings(
-        default_model="fake/model",
-        coordinator_model="fake/model",
-        summarizer_model="fake/model",
-        formulator_model="fake/model",
-    ):
+    with runtime.settings(**{f"{role}_model": "fake/model" for role in runtime.ROLES}):
         budget = cli._budgets(args, fetcher=lambda: prices)[0]
     assert budget.prices == prices and budget.bounds_input
     offline = cli._parser().parse_args(["run", "x", "--max-cost", "1", "--recording", "r"])
@@ -480,12 +475,12 @@ def test_the_cli_reads_the_repository_s_env_file(tmp_path, monkeypatch):
 
 
 def test_run_runs_one_agent_alone(tmp_path, monkeypatch, capsys):
-    """``--loop tool --agent formulator`` runs that agent only, to try one step of a loop."""
+    """``--loop tool --agent case_lead`` runs that agent only, to try one step of a loop."""
     monkeypatch.chdir(tmp_path)
     path = recording(tmp_path, says("case set"))
     assert (
         cli.main(
-            ["run", "Set the case", "--loop", "tool", "--agent", "formulator", "--recording", path]
+            ["run", "Set the case", "--loop", "tool", "--agent", "case_lead", "--recording", path]
         )
         == 0
     )
@@ -493,15 +488,13 @@ def test_run_runs_one_agent_alone(tmp_path, monkeypatch, capsys):
     started = next(
         e for e in FileRunStore(".runs").load_events(run.name) if e.type == "run.started"
     )
-    assert started.agent == "formulator"
+    assert started.agent == "case_lead"
 
 
 def test_an_agent_needs_the_tool_loop(capsys):
     """``--agent`` with another loop is refused."""
     assert (
-        cli.main(
-            ["run", "x", "--loop", "design", "--agent", "formulator", "--recording", "r.jsonl"]
-        )
+        cli.main(["run", "x", "--loop", "design", "--agent", "case_lead", "--recording", "r.jsonl"])
         == 1
     )
     assert "--loop tool" in capsys.readouterr().err

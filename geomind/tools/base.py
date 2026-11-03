@@ -21,7 +21,7 @@ def takes_context(function):
 class Tool:
     """One action a model can call.
 
-    ``effect`` says what a call touches: ``read``, ``compute``, ``write``, ``execute`` (sandbox
+    ``effect`` says what a call touches: ``read``, ``compute``, ``write``, ``execute`` (running
     code) or ``external`` (network or anything outside the run). ``idempotent`` says a call may run
     again after a crash. A function whose first parameter is ``context`` receives the run's context;
     the schema never shows it, and other tools stay plain functions. ``runs_alone`` keeps a pure

@@ -16,7 +16,6 @@ ORDER = [
     ("geomind.prompts",),
     ("geomind.context",),
     ("geomind.providers",),
-    ("geomind.sandbox",),
     ("geomind.tools",),
     ("geomind.verify",),
     ("geomind.agents",),

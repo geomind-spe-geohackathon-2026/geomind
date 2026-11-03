@@ -1,1 +1,1 @@
-"""Agents tested by tasks: ``python -m evals.run --agent analyst [--live]``."""
+"""Agents tested by tasks: ``python -m evals.run --agent analysis_lead [--live]``."""

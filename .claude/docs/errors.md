@@ -49,8 +49,6 @@ A permission denial is a tool result, not an exception.
 - `ToolError(RuntimeError)`: a tool failed deliberately, timed out or was interrupted by a crash.
   It becomes a tool result. `code` is one of the [error codes](tools.md#error-results), default
   `invalid_input`, and `path` the input field at fault.
-- `SandboxError(RuntimeError)`: a sandbox is missing, lost or asked for a path outside itself. It
-  becomes a tool result the model can recover from.
 - `NotImplementedYet(NotImplementedError)`: a capability has its final signature and is not built
   yet; the message names its phase, as in `simulate comes in S2b`. In a tool it becomes an error
   result with `code: "not_implemented"`, so the model does not retry. In a loop or a hook it ends the

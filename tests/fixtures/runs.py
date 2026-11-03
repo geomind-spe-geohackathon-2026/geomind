@@ -6,9 +6,10 @@ import math
 
 from geomind.agents import Agent, Model
 from geomind.engine import Context, Engine, Permissions
+from geomind.errors import ToolError
 from geomind.prompts import Prompt
 from geomind.providers import FakeLLM
-from geomind.tools import Delegate, ask_user, finish, run_python, tool
+from geomind.tools import Delegate, ask_user, finish, tool
 from geomind.types import Completion, Message, ToolCall, Usage
 from geomind.types.events import LLM_EVENTS
 
@@ -41,6 +42,13 @@ def save_note(text: str):
     return f"saved {text}"
 
 
+@tool(effect="execute")
+def run_code(code: str):
+    """Run code: a stand-in for a tool that executes, which refuses, as no code runs here."""
+    EXECUTED.append("run_code")
+    raise ToolError("run_code: no code runs in geomind", code="not_allowed")
+
+
 @tool(effect="write")
 def save_again(text: str):
     """Save a note; running this twice does no harm."""
@@ -63,7 +71,7 @@ class Worker(Agent):
         self.add = add
         self.save_note = save_note
         self.save_again = save_again
-        self.run_python = run_python
+        self.run_code = run_code
         self.ask_user = ask_user
         self.finish = finish
 
@@ -88,7 +96,7 @@ class Lead(Agent):
         # Tools
         self.helper = Delegate(self.helper_agent, max_summary_tokens=10)
         self.lookup = lookup
-        self.run_python = run_python
+        self.run_code = run_code
 
         # Model
         self.model = Model("fake/model")
@@ -168,10 +176,10 @@ def of_type(events, kind):
     return [event for event in events if event.type == kind]
 
 
-def routed(loop="tool", agent="analyst", **route):
+def routed(loop="tool", agent="analysis_lead", **route):
     """Return the coordinator's completion that routes a run to a loop and an agent."""
     return says(json.dumps({"kind": "loop", "loop": loop, "agent": agent, **route}))
 
 
 ROUTE = routed()
-"""The route of a plain question: the tool loop with the analyst."""
+"""The route of a plain question: the tool loop with the analysis lead."""

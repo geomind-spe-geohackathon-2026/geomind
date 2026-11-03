@@ -124,7 +124,7 @@ def test_the_next_round_gets_what_the_last_round_handed_over():
     handover = "Read the brief; set_case failed on demand.heating.column (older shape)."
     messages = [
         Message(role="user", content="Design it"),
-        Message(role="assistant", tool_calls=(ToolCall(id="d1", name="designer", input={}),)),
+        Message(role="assistant", tool_calls=(ToolCall(id="d1", name="design_lead", input={}),)),
         Message(role="tool", tool_call_id="d1", content=handover),
     ]
     from tests.fixtures.sessions import StubSession

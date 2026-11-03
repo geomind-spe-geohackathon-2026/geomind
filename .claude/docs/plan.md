@@ -65,7 +65,7 @@ frontend (React + Vite) -> backend (FastAPI, Celery) -> geomind (agents) -> gemi
 
 Each decision is settled; change one only with Sahand. The layers are prompt ⊂ context ⊂ harness ⊂
 loop: the prompt is one agent's instructions, the context everything sent in one LLM call, the
-harness the engine, tools, permissions, hooks, sandbox and log, and a loop decides which run comes
+harness the engine, tools, permissions, hooks and log, and a loop decides which run comes
 next and when the goal is met. geomind copies gemini's structure on purpose, so one mental model
 covers both: see [the gemini parallels](../../AGENTS.md#the-gemini-parallels).
 
@@ -76,7 +76,7 @@ covers both: see [the gemini parallels](../../AGENTS.md#the-gemini-parallels).
 | 3 | LLM calls and tool calls are the only side effects | Everything else is deterministic over the log, so a durable executor could wrap them later | [engine.md](engine.md#harness-principles) |
 | 4 | Context is explicit: a tool whose first parameter is `context` gets the run; `runtime.py` holds settings only | No hidden active-run variable | [tools.md](tools.md#dispatch) |
 | 5 | Hooks and permissions are separate; every tool declares an effect; every decision is a `permission` event | Hooks are code, rules are data, and both must be auditable | [hooks.md](hooks.md), [permissions.md](permissions.md) |
-| 6 | Model-written code runs only in a sandbox, never in the harness process | Credentials and the harness stay out of its reach | [sandbox.md](sandbox.md) |
+| 6 | No code runs in geomind: no code tools and no sandbox (removed in 0.4.22); a model gemini lacks makes a family `blocked` | The agents engineer with gemini's modules; written code was never usable in a plant run | [tools.md](tools.md#no-code-tools) |
 | 7 | Few generic tools, not one per gemini module; errors are results | About 45 modules as 45 tools is the bloated-tool-set failure; a model can fix its call from a result | [tools.md](tools.md) |
 | 8 | The problem state lives outside the messages, is written only through `update_state`, and is rendered last | The cached prefix stays stable and compaction never touches it | [context.md](context.md#problem-state) |
 | 9 | Past 60 % of the model window, older turns become one summary; skills load on demand | The context stays small, and a chat compacts once | [context.md](context.md#long-conversations) |
@@ -127,20 +127,20 @@ check it before writing a tool, because gemini's names change.
 | S2 | `ProblemState` and `update_state` | `ad60954` | done |
 | S2 | Compaction and skills; the 50-turn test compacts once and still answers turn 3 | `b0ec535` | done |
 | S2 | `read_result`, `search_documents` | `aa4b01e` | done |
-| S2 | `Analyst` (complete sample, the default agent without a sandbox), `Summarizer`; skeletons of `Coordinator`, `Designer`, `Verifier`, `Economist`, `Explainer`, each with a six-heading prompt file | `ad01b96` | done |
+| S2 | `AnalysisLead` (complete sample, the default agent without a sandbox), `Summarizer`; skeletons of `Coordinator`, `DesignLead`, `Reviewer`, `Economist`, `Explainer`, each with a six-heading prompt file | `ad01b96` | done |
 | S2 | `geomind chat` and the eval runner | `55296c1` | done |
 | S2b | `FileWorkspace.plant` through `gm.plants.from_dict` | `957c119` | done |
 | Freeze | Every interface below, pinned by snapshots; the tool catalogue and the loops as stubs; see [CHANGELOG.md](../../docs/CHANGELOG.md) | `fab5524`, `09096d8` | done |
 | S2b.1 | `list_modules`, `describe_module`, `evaluate_module` over `gm.modules` and `gm.evaluate` | `599a660` | done |
 | S2b.2 | `list_plants`, `read_plant`, `build_plant` over `gm.plants`; a plant file builds with `Plant.from_dict` and is stored with its issues | `2d3efa1` | done |
 | S2b.3 | `list_profiles`, `read_profile`, `simulate` (`gm.schedule` and `gm.simulate`, failed days recorded) | `f4732aa` | done |
-| S2b.4 | the `Analyst` with the gemini tools, its prompt, and the `gemini-units` skill checked against `gm.units.names()` | `05dd940` | done |
-| S2b.5 | five analyst eval tasks on the example doublet, passing offline; recordings written by hand until S2b.6 | `40a8d72` | done |
+| S2b.4 | the `AnalysisLead` with the gemini tools, its prompt, and the `gemini-units` skill checked against `gm.units.names()` | `05dd940` | done |
+| S2b.5 | five analysis lead eval tasks on the example doublet, passing offline; recordings written by hand until S2b.6 | `40a8d72` | done |
 | S2b.6 | one live run, recorded, with its token cost | none | **open**: needs `OPENROUTER_API_KEY` and a cap; `geomind check-live` checks the models first |
 | S3.1 | `gd.verify.verify`, `check_results`, `compute_kpis`: gemini's report on the run's case, with failure domains | `7afb1d0` | done |
 | S3.2 | the `Verified` hook: gemini's checks run again on the design's stored run before any answer | `8ee1444` | done |
 | S3.3 | `estimate_costs`: gemini's economics with the assumptions used, and LCTS | `cf07cdc` | done |
-| S3.4 | `Designer`, `Verifier`, `Economist`, `Explainer`, `Coordinator` filled, with the `designing-a-plant` skill and one offline task each (hand-written recordings); `read_plant` reads examples and templates (`253bf05`); co-produced gas check (`e7719f4`) | `ef7c64b` | done |
+| S3.4 | `DesignLead`, `Reviewer`, `Economist`, `Explainer`, `Coordinator` filled, with the `designing-a-plant` skill and one offline task each (hand-written recordings); `read_plant` reads examples and templates (`253bf05`); co-produced gas check (`e7719f4`) | `ef7c64b` | done |
 | S3.5 | `DesignLoop`: a rule-based driver delegates design, verification, costs and explanation in one root run, routes failures by domain, and replays offline (nested state changes and artifacts reused) | `4fc16ed` | done |
 | S3.7 | Routing: `Run.start` asks the `Coordinator` (a nested run logged first) and follows its `Route`; `geomind run --loop/--project/--recording/--record` | `27f3161` | done |
 | S3 e2e | the official case through `geomind run --loop design`, offline from a scripted recording, replays | `b1c9cd3` | done; the live run waits for `OPENROUTER_API_KEY` |
@@ -149,7 +149,7 @@ check it before writing a tool, because gemini's names change.
 | Replay | parallel calls matched by their place in the step; nested state changes by the call that started them | `55632cc` | done |
 | Usage | `RunResult.usage` counts every nested run, the routing call included, after a resume too | `4971938` | done |
 | Case | the problem as data: a `gm.Case` in the problem state (`set_case`, `read_case`), its files stored as `case/<file name>`; `save_profile` adds a user's demand to the case; the design loop asks the user when there is no case or no demand | `7e74274`, `164eb62`, adaptation | done |
-| Skill | `designing-a-plant` general for any case, with no challenge number in the package; Designer and Explainer prompts without the hand-found answer | `fb93b32` | done |
+| Skill | `designing-a-plant` general for any case, with no challenge number in the package; DesignLead and Explainer prompts without the hand-found answer | `fb93b32` | done |
 | Evals | `challenge2`: the hackathon case and three variants through the design loop, offline; the `verified` criterion | `6cf623c` | done |
 | Caching | OpenRouter prompt caching on the system prompt of Anthropic models; `Usage.cached_tokens` | `7286e6d` | done |
 | Spending cap | `geomind run --max-tokens/--max-cost`; budgets count the whole run, nested runs included | `65c576a` | done |
@@ -157,7 +157,7 @@ check it before writing a tool, because gemini's names change.
 | gemini 0.5 | geomind 0.3.0 on gemini `>=0.5,<0.6`: project folder case with `economics.json`, verdict, ranges and `run_study`, `Workspace.plants`, chat-scoped artifacts, `write_module`/`test_module` in the gemini sandbox, `CompareLoop`, the competition export, `check-live`, the loop report ([CHANGELOG.md](../../docs/CHANGELOG.md)) | merged sections A to P | done |
 | Log and replay | geomind 0.3.1: `run.started` records the geomind, gemini and python versions and the export reads them; the export header shows the run's own request; a replay runs every nested run again with its own completions and compares every run | merged sections V and R | done |
 | Studies, budget, replays | geomind 0.4.0: every study tool stores `study/<name>` (gemini's study and result form) and emits `study.recorded`; `list_studies`, `read_study`; `ProjectBudget` with `UsageLedger`; replay matches results by step and call id, and a log of another geomind version checks decisions, not tool outputs; every eval recording replays in a test | merged sections P, S and B | done |
-| Released on the wheel | geomind 0.4.2 on the gemini 0.5.5 release wheel: shorter context, Designer asks for a missing range, no model id in the package, tests read a copy of gemini's examples; `README.md` and `docs/` for people | `v0.4.2` | done |
+| Released on the wheel | geomind 0.4.2 on the gemini 0.5.5 release wheel: shorter context, DesignLead asks for a missing range, no model id in the package, tests read a copy of gemini's examples; `README.md` and `docs/` for people | `v0.4.2` | done |
 | Real comparison | geomind 0.4.6: `CompareLoop` designs each family in its own nested run, side by side up to `compare_concurrency`, verifies each, compares and explains; `StudyCompareLoop` keeps the old form | `v0.4.6` | done |
 
 No live OpenRouter run has been made yet. It needs `OPENROUTER_API_KEY` in geomind's own
@@ -181,25 +181,34 @@ mirrored `tests/unit/...` file that already exists for the stub.
 
 Done on `dev` (0.4.22.dev23), each with tests; 41 bugs of the live loop found and fixed:
 
-- [x] Formulator: one agent sets the case, from the chat and any files; the project's
+- [x] CaseLead: one agent sets the case, from the chat and any files; the project's
   `case.json` is loaded by rule; values no file gives are confirmed by the user in one question
   with their source or reason and kept as assumptions with a citation.
-- [x] The Designer reads the case and never sets it; a case it lacks goes back as
+- [x] The DesignLead reads the case and never sets it; a case it lacks goes back as
   `case change needed: <path>: <why>`.
 - [x] Key trees from gemini's public schemas in the system prompts: case and economics
-  (Formulator), plant file and study (Designer), study (Economist); compact `describe_module`.
+  (CaseLead), plant file and study (DesignLead), study (Economist); compact `describe_module`.
 - [x] Shared memory: `knowledge` (cited values; gemini's cost catalogue copied into
   `data/knowledge/` and loaded with `geomind memory seed`) and `experience` (verified designs,
   written by the loop in code, recalled only above `memory_similarity`).
 - [x] Step limit asks to continue; `geomind resume`; replay then live (`--replay`).
 - [x] Required settings with no default: `GEOMIND_MAX_STEPS`, `GEOMIND_MAX_OUTPUT_TOKENS`,
-  `GEOMIND_MEMORY` (with its folder and similarity), `GEOMIND_FORMULATOR_MODEL`, the retries.
+  `GEOMIND_MEMORY` (with its folder and similarity), `GEOMIND_CASELEAD_MODEL`, the retries.
 - [x] `patch_plant`: a plant built in small checked steps, one module's values at a time.
 
-Open, in order:
+Open, in order (the team layout agreed with Sahand on 2026-11-03, started on his word at 16:11):
 
-1. [ ] The plant design team: the layout of agents modelled on a geothermal systems
-   engineering team, with the Designer as lead engineer and reviewer (Sahand decides the roles).
+1. [ ] The engineering team ([agents.md](agents.md#shipped-agents)), each step its own commit:
+   - [x] 1. Renames, removals and the folder layout `agents/<team>/<name>/{agent.py,prompt.md}`
+     (`Formulator` to `CaseLead`, `Designer` to `DesignLead`, `Verifier` to `Reviewer`, `Analyst`
+     to `AnalysisLead`; `Assistant`, `CodeAssistant`, `FamilyDesigner`, the code tools and the
+     sandbox removed; one required `GEOMIND_<ROLE>_MODEL` per agent; knowledge-only memory for the
+     Reviewer and the Explainer).
+   - [ ] 2. `Geoscientist` in `case/`.
+   - [ ] 3. The design team (`process`, `integration`, `reservoir`, `well`, `energy`) with parallel
+     `patch_plant`.
+   - [ ] 4. `ProjectLead`, `SupportLead`, `Curator`.
+   - [ ] 5. Each agent tested alone on a fixed input from earlier runs, then end to end.
 2. [ ] A live run to a verified, costed and explained design, with replay from each failure.
 3. [ ] One full run from the start, the memory off, then the full suite, the release (an
    annotated tag) and the version for the backend.
@@ -221,15 +230,10 @@ Open geomind items:
 - **The live run.** It needs `OPENROUTER_API_KEY` in geomind's environment and a spending cap
   (`--max-tokens`, `--max-cost`); run `geomind check-live` first. Unknown role model ids fall back
   to the default model.
-- **Plant runs with an agent-written module.** `test_module` checks a module in the sandbox, but
-  `build_plant` and `simulate` cannot load it: a plant run with it needs `simulate` in the sandbox.
-  The Designer records such a family as blocked.
 - **Replay of a run with a project, without `--project`** reuses its nested runs (their answer
   and state changes), as the log holds no workspace; with the folder every nested run runs again.
 - **Versions of a 0.3.0 log are not in the event log**; the export reads them from
   `run_manifest.json` (runs from 0.3.1 record them on `run.started`).
-- The Docker tests of the module sandbox need the `gemini-sandbox:<gemini version>` image
-  (`make sandbox-image` pulls it); they passed on 2026-11-03 with `gemini-sandbox:0.5.13`.
 - **A log of another geomind version** replays with recorded tool results (pure tools are not run
   again), so it checks the agents' decisions, not the tools' outputs.
 - **`ProjectBudget`** reads the ledger once per run: runs of one project running at the same time
@@ -283,15 +287,15 @@ gemini.
    - Done when: a `simulate` of `HackathonPlant` stores a result that `read_result` reads, with the
      numbers equal to gemini's own run (`test_simulate_stores_what_read_result_reads_with_gemini_s_numbers`);
      the example doublet's failed days are gemini's problems in the summary.
-4. **The Analyst.** Done. Added the tools to `geomind/agents/analysis/analyst.py` and its prompt, and update
+4. **The AnalysisLead.** Done. Added the tools to `geomind/agents/analysis/analysis lead.py` and its prompt, and update
    the `gemini-units` skill to the units gemini accepts.
    - Tests: `tests/unit/agents/analysis/test_analyst.py`.
    - Done when: `test_its_prompt_names_only_tools_it_has` passes with the new tools.
-5. **First eval tasks.** Done; the recordings are hand-written until S2b.6. On the example doublet, in `evals/tasks/analyst/`: the operating point, heat
+5. **First eval tasks.** Done; the recordings are hand-written until S2b.6. On the example doublet, in `evals/tasks/analysis lead/`: the operating point, heat
    delivered at 150 m³/h, a missing parameter that needs `ask_user`, a module lookup, and the ESP at
    another frequency.
-   - Done when: `python -m evals.run --agent analyst` passes offline from recordings.
-6. **One live run.** `geomind chat --agent analyst --live`, recorded, with the token cost reported.
+   - Done when: `python -m evals.run --agent analysis lead` passes offline from recordings.
+6. **One live run.** `geomind chat --agent analysis lead --live`, recorded, with the token cost reported.
 
 ### S3: design agents and verified loops (Challenge 2)
 
@@ -305,11 +309,11 @@ gemini.
 2. **The `Verified` hook.** Done. Replaced the stub in `geomind/engine/hooks.py`.
    - Tests: `tests/unit/engine/test_hooks.py`.
    - Done when: `before_finish` refuses to finish while the last verification failed, so **no design
-     reaches the user without passing every verifier**.
+     reaches the user without passing every reviewer**.
 3. **Costs.** Done; see [tools.md](tools.md#costs). Replaced the stub `estimate_costs` in `geomind/tools/gemini/assessment.py`.
    - Done when: capex, opex, LCOH, LCOC, LCTS, NPV, payback and CO₂ come back as Values from the case's assumptions.
 4. **Fill the skeleton agents.** Done. of [agents.md](agents.md#shipped-agents): prompts, tools and eval
-   tasks. `Designer` proposes configurations and sizes, `Verifier` runs the checks and reviews,
+   tasks. `DesignLead` proposes configurations and sizes, `Reviewer` runs the checks and reviews,
    `Economist` gives the costs, `Explainer` writes the explanation, and `Coordinator` routes.
    - Done when: each agent's status in the table is complete, with its tasks passing offline.
 5. **`DesignLoop`.** Done. Replaced the stub in `geomind/loops/design.py`: propose, simulate, verify, write
@@ -320,15 +324,14 @@ gemini.
    - Done when: `geomind run --loop design <request>` returns a verified design with capacities, a
      description of the schematic, the numbers and an explanation, for the official case
      (`tests/e2e/test_official_brief.py`, offline; the live run waits for the key).
-6. **`MakerCheckerLoop`.** Removed: the design loop already has a maker (Designer) and a checker
-   (Verifier), and `CompareLoop` is built on it.
+6. **`MakerCheckerLoop`.** Removed: the design loop already has a maker (DesignLead) and a checker
+   (Reviewer), and `CompareLoop` is built on it.
 7. **Routing.** Done. `Run.astart` calls the `Coordinator` and follows its `Route` with `loop_of` in
    `geomind/run.py`. A stub loop already gives `stop_reason="not_implemented"`.
    - Tests: `tests/unit/test_run.py`.
    - Done when: the backend starts a design run without naming a loop or an agent.
-8. **Agent-written modules (Challenge 1).** Done. `write_module` stores the module and
-   `test_module` runs `gm.modules.check` in the gemini sandbox
-   ([sandbox.md](sandbox.md#dockersandbox)); the `writing-a-gemini-module` skill teaches the flow.
+8. **Agent-written modules (Challenge 1).** Built, then removed in 0.4.22 with the code sandbox:
+   no code runs in geomind.
    Open: a plant run with the module (see the open items above).
 
 ### S4: compare, uncertainty, evals and export
@@ -339,7 +342,7 @@ gemini.
    `geomind/tools/gemini/study.py`.
 3. **Uncertainty (bonus).** Done: `sample_uncertainty`, `sensitivity` and `compare` in `study.py`,
    with the distributions of the case's `uncertainty`.
-4. **Evals.** Done: `evals/tasks/` holds the `challenge2`, `compare`, analyst, designer, verifier and
+4. **Evals.** Done: `evals/tasks/` holds the `challenge2`, `compare`, analysis lead, design lead, reviewer and
    economist tasks, passing offline, and `python -m evals.run --report` writes
    `evals/reports/summary.md` ([evals.md](evals.md#suites)).
 5. **Export.** Done. `geomind show <run> --format md` writes the competition export: every LLM call
@@ -354,7 +357,7 @@ gemini.
 - A server's tools are named with the server's name in front (`<server>.<tool>`), so they never
   clash with geomind's tools.
 - A value from an MCP tool is handled like a knowledge entry: shown with its origin (server, tool,
-  time) in the Formulator's confirmation question and set in the case only after the user
+  time) in the CaseLead's confirmation question and set in the case only after the user
   confirms it, recorded as an assumption with that citation.
 
 ## 8. How to work in this repository
@@ -368,11 +371,11 @@ gemini.
 - **Stop and say so** when something is missing or risky. Never guess a gemini name.
 - **Never change** `gemini/`, `backend/`, `frontend/`, `infrastructure/` or `docs/contracts.md` from
   this repository. Report what they need to Sahand.
-- **Credentials** never go into prompts, events, logs, the sandbox or memory.
+- **Credentials** never go into prompts, events, logs or memory.
 - **Testing an agent:** by hand with `geomind chat` ([api.md](api.md#command-line)), by tasks with
   `python -m evals.run` ([evals.md](evals.md)).
 - **Adding or filling an agent:** follow [agents.md](agents.md#how-to-add-or-fill-an-agent). The
-  `Analyst` is the worked example.
+  `AnalysisLead` is the worked example.
 
 ## 9. Open questions (ask Sahand)
 

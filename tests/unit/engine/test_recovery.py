@@ -94,3 +94,21 @@ def test_a_result_stored_whole_keeps_its_short_form_and_an_old_one_does_not():
     for event in (whole, old, plain):
         _remember_stored(state, event)
     assert list(state.stored) == ["a"] and "result-1" in state.stored["a"]
+
+
+def test_a_log_naming_a_renamed_agent_finds_its_new_class():
+    """A log of 0.4.22.dev23 names ``geomind.agents.design.designer:Designer``: it is DesignLead."""
+    from geomind.agents import DesignLead
+    from geomind.engine.recovery import agent_class
+    from geomind.engine.state import RunState
+
+    state = RunState(agent_class="geomind.agents.design.designer:Designer")
+    assert agent_class(state) is DesignLead
+
+
+def test_every_renamed_class_path_imports():
+    """Each new path of ``RENAMED_CLASSES`` names a class that exists."""
+    from geomind.engine.recovery import RENAMED_CLASSES
+    from geomind.utils.imports import import_class
+
+    assert all(isinstance(import_class(path), type) for path in RENAMED_CLASSES.values())

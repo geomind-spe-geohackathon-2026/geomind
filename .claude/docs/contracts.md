@@ -52,9 +52,7 @@ and to read one back `event_from_dict`.
 | `Completion`, `Usage`, `Message` | `geomind/types/messages.py` | `tests/unit/types/test_messages.py` |
 | `RunStore`, all seven methods, `load_events` included | `geomind/stores/run.py` | `tests/unit/testing/test_conformance.py` |
 | `Workspace` | `geomind/stores/workspace.py` | `tests/unit/testing/test_conformance.py` |
-| `SandboxProvider`, `Sandbox` | `geomind/sandbox/base.py` | `tests/unit/sandbox/test_base.py` |
-| `gd.sandbox.LocalSandbox` | `geomind/sandbox/local.py` | `tests/unit/sandbox/test_local.py` |
-| `gd.sandbox.DockerSandbox` | `geomind/sandbox/docker.py` | `tests/unit/sandbox/test_docker.py` |
+| No `SandboxProvider`, `Sandbox`, `gd.sandbox` or `sandbox=` since 0.4.22 (no code runs in geomind; the shared contract's section 3 still lists them) | `geomind/run.py` | `tests/unit/test_contract_map.py` |
 | `gd.providers.OpenRouter` | `geomind/providers/openrouter.py` | `tests/unit/providers/test_openrouter.py` |
 | `gd.providers.FakeLLM` | `geomind/providers/fake.py` | `tests/unit/providers/test_fake.py` |
 | Memory and file stores | `geomind/stores/run.py` | `tests/unit/stores/test_run.py` |
@@ -86,8 +84,8 @@ and to read one back `event_from_dict`.
 - `load_history` is read-only in the contract, so `check_run_store` takes `seed_history(store,
   chat_id, messages)` to fill a chat.
 - `gd.Run` gets no `queued` status: that one is the backend's, before `start`.
-- Pass `sandbox` and `permissions` again to `Run.load`, like hooks and callbacks; a run does not
-  store them.
+- Pass `permissions` again to `Run.load`, like hooks and callbacks; a run does not store them.
+  `Run` and `Run.load` take no `sandbox` since 0.4.22.
 - `event.to_dict()` holds every field a store must keep, and `event_from_dict` restores it.
 - **Chat artifacts (an addition).** `save_chat_artifact(chat_id, key, data)` and
   `load_chat_artifact(chat_id, key)` keep the artifacts the problem state can name in the chat's

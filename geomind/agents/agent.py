@@ -22,11 +22,12 @@ from geomind.utils.strings import did_you_mean, first_paragraph, join_names, joi
 
 
 class Model(Record):
-    """Which model an agent wants; ``name=None`` means a model of ``gd.runtime``.
+    """Which model an agent wants; ``name=None`` means the model its role's setting names.
 
-    ``setting`` names the runtime setting of an agent's role, such as ``analyst_model``. Unset, or
-    set to ``None``, it means the default model. ``fallbacks`` lists models tried in order when the
-    provider keeps failing.
+    ``setting`` names the runtime setting of an agent's role, such as ``designlead_model``, set
+    by ``GEOMIND_DESIGNLEAD_MODEL``. There is no default model: a role whose setting is unset has
+    no model, and a real provider refuses to call. ``fallbacks`` lists models tried in order when
+    the provider keeps failing.
     """
 
     name: str | None = None
@@ -41,8 +42,7 @@ class Model(Record):
 
     def resolved_name(self):
         """Return the name to call the provider with."""
-        role = runtime.get(self.setting) if self.setting else None
-        return self.name or role or runtime.get("default_model")
+        return self.name or (runtime.get(self.setting) if self.setting else None)
 
     def settings(self):
         """Return the settings a provider receives."""
@@ -107,7 +107,7 @@ class Agent:
     """
 
     def __init__(self):
-        """Start with no tools, no children, no prompt, a text output and the default model."""
+        """Start with no tools, no children, no prompt, a text output and no model."""
         for name, value in (
             ("_tools", {}),
             ("_children", {}),

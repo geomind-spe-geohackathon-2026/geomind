@@ -83,7 +83,7 @@ names and the files of the demand series.
   case. `verify_design` fails a design with `case_changed` while any difference is left, so no
   agent passes by weakening the case. The design loop then asks the user: `approve` runs
   `accept_case` (only the driver holds it), which makes the current case the origin; `restore`
-  sends the designer back to `set_case(source="origin")`.
+  sends the design lead back to `set_case(source="origin")`.
 - **Who reads it.** `read_case(section=None)` returns the case, a section, `economics` (the
   parsed content of the economics file) or `schema` (`gm.Case.schema()` with
   `gm.case.Economics.schema()` under `economics_schema`). The gemini tools read the case through

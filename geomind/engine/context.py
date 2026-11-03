@@ -6,7 +6,7 @@ from geomind import runtime
 from geomind.context import ProblemState, render
 from geomind.context.skills import skill_listing
 from geomind.errors import RunError
-from geomind.prompts.prompt import MEMORY, STORED_RESULTS
+from geomind.prompts.prompt import KNOWLEDGE, MEMORY, STORED_RESULTS
 from geomind.tools.stored import is_long, shortened
 from geomind.types import Message
 
@@ -27,7 +27,7 @@ class Context:
 
     ``call_id`` is the id of the tool call the context was made for, ``None`` outside a call.
     ``session`` is the run this context belongs to. Agents, tools and hooks receive the context, so
-    they reach the provider, the store and the sandbox through it.
+    they reach the provider, and the store through it.
     """
 
     def __init__(
@@ -86,6 +86,7 @@ class Context:
         parts.append(skill_listing() if "read_skill" in agent.tools() else "")
         parts.append(STORED_RESULTS if "read_stored" in agent.tools() else "")
         parts.append(MEMORY if "search_memory" in agent.tools() else "")
+        parts.append(KNOWLEDGE if "search_knowledge" in agent.tools() else "")
         text = "\n\n".join(part for part in parts if part)
         return (Message(role="system", content=text),) if text else ()
 

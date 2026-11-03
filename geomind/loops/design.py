@@ -3,7 +3,7 @@
 import json
 
 from geomind import runtime, tools
-from geomind.agents import Designer, Economist, Explainer, Formulator, Verifier
+from geomind.agents import CaseLead, DesignLead, Economist, Explainer, Reviewer
 from geomind.agents.agent import Agent, Model
 from geomind.engine.hooks import Verified
 from geomind.loops.loop import Loop
@@ -17,7 +17,7 @@ MARK = "design loop: "
 DESIGN_TOKENS = 1000
 EXPLANATION_TOKENS = 6000
 CASE_CHANGE = "case change needed:"
-"""How a designer's answer names a change of the case, one per line, for the formulator."""
+"""How a design lead's answer names a change of the case, one per line, for the case lead."""
 APPROVE = "approve"
 RESTORE = "restore"
 CASE_OPTIONS = (
@@ -47,7 +47,7 @@ def failure_lines(found, domain):
 
 
 def routed_task(round_number, max_rounds, design, result, found):
-    """Return the designer's task for the next round: the failures, routed by their domain."""
+    """Return the design lead's task for the next round: the failures, routed by their domain."""
     parts = [
         f"Round {round_number} of at most {max_rounds}. The last design {design} ({result}) failed "
         "gemini's checks."
@@ -91,20 +91,20 @@ def act(note, index, name, **tool_input):
 
 
 class DesignDriver(Agent):
-    """Drive one design by rule: the designer optimises, the verifier checks, gemini decides.
+    """Drive one design by rule: the design lead optimises, the reviewer checks, gemini decides.
 
     NOTE: every decision is code over the run's own history and store, so a resumed or replayed
     run makes the same moves; the agents it delegates to are the only model calls.
     """
 
-    def __init__(self, designer=None, verifier=None, max_rounds=5):
+    def __init__(self, design_lead=None, reviewer=None, max_rounds=5):
         """Declare the four delegated agents, the state, the answer and a rule model."""
         super().__init__()
 
         # Tools
-        self.formulator = Delegate(Formulator(), max_summary_tokens=DESIGN_TOKENS)
-        self.designer = Delegate(designer or Designer(), max_summary_tokens=DESIGN_TOKENS)
-        self.verifier = Delegate(verifier or Verifier(), max_summary_tokens=DESIGN_TOKENS)
+        self.case_lead = Delegate(CaseLead(), max_summary_tokens=DESIGN_TOKENS)
+        self.design_lead = Delegate(design_lead or DesignLead(), max_summary_tokens=DESIGN_TOKENS)
+        self.reviewer = Delegate(reviewer or Reviewer(), max_summary_tokens=DESIGN_TOKENS)
         self.economist = Delegate(Economist(), max_summary_tokens=DESIGN_TOKENS)
         self.explainer = Delegate(Explainer(), max_summary_tokens=EXPLANATION_TOKENS)
         self.update_state = tools.update_state
@@ -131,13 +131,13 @@ class DesignDriver(Agent):
         name, output = calls[-1]
         if name == "set_case":
             return self.after_loading(context, note, index)
-        if name == "formulator":
+        if name == "case_lead":
             return self.after_formulation(context, note, index, calls)
-        if name == "designer":
+        if name == "design_lead":
             return self.after_design(context, note, index, output, calls)
         if name == "ask_user":
             return self.after_question(context, note, index, output)
-        if name in ("verifier", "accept_case"):
+        if name in ("reviewer", "accept_case"):
             return await self.after_verification(context, calls)
         if name == "economist":
             return act(note, index, "explainer", task=explainer_task(context, calls))
@@ -147,22 +147,22 @@ class DesignDriver(Agent):
         return act(note, index, "finish", answer=stop_answer(notes(context.messages)[-1]))
 
     def begin(self, context, note, index):
-        """Set a missing case first: the project's case file by rule, else the formulator.
+        """Set a missing case first: the project's case file by rule, else the case lead.
 
-        The formulator works from the chat and any files.
+        The case lead works from the chat and any files.
         """
         missing = missing_case(context.problem)
         if missing is None:
-            return act(note, index, "designer", task=self.first_task(context))
+            return act(note, index, "design_lead", task=self.first_task(context))
         if has_project_case(context):
             return act(note, index, "set_case", source="project")
-        return act(note, index, "formulator", task=formulation_task(context))
+        return act(note, index, "case_lead", task=formulation_task(context))
 
     def after_loading(self, context, note, index):
-        """After the project's case is loaded, design; else the formulator completes the case."""
+        """After the project's case is loaded, design; else the case lead completes the case."""
         if missing_case(context.problem) is None:
-            return act(note, index, "designer", task=self.first_task(context))
-        return act(note, index, "formulator", task=formulation_task(context))
+            return act(note, index, "design_lead", task=self.first_task(context))
+        return act(note, index, "case_lead", task=formulation_task(context))
 
     def after_formulation(self, context, note, index, calls):
         """Design once the case is set; ask the user once for a case still missing, then stop."""
@@ -176,14 +176,16 @@ class DesignDriver(Agent):
             answer = f"No design was verified: the problem state has {missing}. {MARK}stop: no_case"
             return act({**note, "stop": "no_case"}, index, "finish", answer=answer)
         if rounds(calls) == 0:
-            return act(note, index, "designer", task=self.first_task(context))
+            return act(note, index, "design_lead", task=self.first_task(context))
         if any(item.get("restore") for item in notes(context.messages)):
-            return act(note, index, "designer", task=restored_task(context, note["round"] + 1))
+            return act(note, index, "design_lead", task=restored_task(context, note["round"] + 1))
         task = f"Round {note['round'] + 1} of at most {self._max_rounds}.{handover_text(context)}"
-        return act(note, index, "designer", task=f"{task}\n\nThe case was changed: design for it.")
+        return act(
+            note, index, "design_lead", task=f"{task}\n\nThe case was changed: design for it."
+        )
 
     def first_task(self, context):
-        """Return the designer's first task: the request, the project's plants and the rounds."""
+        """Return the design lead's first task: the request, the project's plants and the rounds."""
         request = request_of(context)
         return (
             f"{request}{project_plants_text(context)}\n\n"
@@ -193,32 +195,32 @@ class DesignDriver(Agent):
         )
 
     def after_design(self, context, note, index, output, calls):
-        """Verify the design, or send a missing case or a change the designer names onward.
+        """Verify the design, or send a missing case or a change the design lead names onward.
 
-        The formulator takes either while rounds are left.
+        The case lead takes either while rounds are left.
         """
         missing = missing_case(context.problem)
         changes = case_changes_named(output)
         if missing is None and not changes:
-            return act(note, index, "verifier", task=verifier_task(context))
+            return act(note, index, "reviewer", task=verifier_task(context))
         if missing is None and note["round"] >= self._max_rounds:
-            return act(note, index, "verifier", task=verifier_task(context))
+            return act(note, index, "reviewer", task=verifier_task(context))
         if note["round"] >= self._max_rounds:
             answer = (
                 f"No design was verified: the problem state has {missing}. {MARK}stop: no_case "
                 f"after round {note['round']}."
             )
             return act({**note, "stop": "no_case"}, index, "finish", answer=answer)
-        return act(note, index, "formulator", task=change_task(context, missing, changes))
+        return act(note, index, "case_lead", task=change_task(context, missing, changes))
 
     def after_question(self, context, note, index, answer):
         """Act on the user's answer: on a changed case, accept or restore it; else set the case."""
         asked = notes(context.messages)[-1]
         if not asked.get("case_changed"):
-            return act(note, index, "formulator", task=answered_task(context, answer))
+            return act(note, index, "case_lead", task=answered_task(context, answer))
         if answer.strip() == APPROVE:
             return act({**note, "approved": True}, index, "accept_case")
-        return act({**note, "restore": True}, index, "formulator", task=restore_task(context))
+        return act({**note, "restore": True}, index, "case_lead", task=restore_task(context))
 
     async def after_verification(self, context, calls):
         """Check the design again with gemini, then cost it, route its failures, or stop."""
@@ -244,7 +246,7 @@ class DesignDriver(Agent):
         if should_stop_repeated([*history, failed], design):
             return stop(context, {**note, "stop": "repeated_failure"}, index)
         task = routed_task_of(context, round_number + 1, self._max_rounds, design, result, found)
-        return act(note, index, "designer", task=task)
+        return act(note, index, "design_lead", task=task)
 
 
 def remember_design(context, found):
@@ -315,7 +317,7 @@ def project_files_text(context):
 
 
 def has_project_case(context):
-    """Tell whether the run's project holds a case file the formulator can load."""
+    """Tell whether the run's project holds a case file the case lead can load."""
     workspace = context.session.workspace
     if workspace is None or context.project is None or not hasattr(workspace, "case"):
         return False
@@ -323,7 +325,7 @@ def has_project_case(context):
 
 
 def formulation_task(context):
-    """Return the formulator's task: the request, the project's case file and its files."""
+    """Return the case lead's task: the request, the project's case file and its files."""
     own = (
         "\n\nThe project holds a case file: start from set_case(source='project'), then add what "
         "it lacks."
@@ -336,12 +338,12 @@ def formulation_task(context):
 
 
 def case_changes_named(output):
-    """Return the lines of a designer's answer that name a change of the case."""
+    """Return the lines of a design lead's answer that name a change of the case."""
     return [line.strip() for line in str(output).splitlines() if CASE_CHANGE in line]
 
 
 def change_task(context, missing, changes):
-    """Return the formulator's task when a round found the case missing or naming a change."""
+    """Return the case lead's task when a round found the case missing or naming a change."""
     lines = [f"The problem state has {missing}." if missing else "", *changes]
     shown = "\n".join(line for line in lines if line)
     return (
@@ -352,7 +354,7 @@ def change_task(context, missing, changes):
 
 
 def restore_task(context):
-    """Return the formulator's task after the user refused a change of the case."""
+    """Return the case lead's task after the user refused a change of the case."""
     return (
         f"{request_of(context)}\n\nThe user did not approve the changes of the case. Call "
         "set_case(source='origin') to restore the case the user gave."
@@ -380,7 +382,7 @@ def question_of(missing):
 
 
 def answered_task(context, answer):
-    """Return the designer's task after the user answered the driver's question on the case.
+    """Return the design lead's task after the user answered the driver's question on the case.
 
     The last round's answer goes with it, at most ``HANDOVER_CHARACTERS``: what it read, set and
     failed on, so the new round goes on from there instead of reading everything again.
@@ -392,7 +394,7 @@ def answered_task(context, answer):
     )
 
 
-def handover_text(context, agent="designer"):
+def handover_text(context, agent="design_lead"):
     """Return the last answer of ``agent`` for the next task, or ``""`` before it ran."""
     designed = [output for name, output in driver_calls(context.messages) if name == agent]
     if not designed:
@@ -442,7 +444,7 @@ def changed_question(failure):
 
 
 def restored_task(context, round_number):
-    """Return the designer's task after the user refused a change of the case."""
+    """Return the design lead's task after the user refused a change of the case."""
     return (
         f"{request_of(context)}\n\nRound {round_number}. The user did not approve the changes of "
         "the case, so the case the user gave is restored. Never ask to change it again, and design "
@@ -452,16 +454,16 @@ def restored_task(context, round_number):
 
 
 def rounds(calls):
-    """Return the number of the current round: each round starts with a designer call."""
-    return sum(name == "designer" for name, _ in calls)
+    """Return the number of the current round: each round starts with a design lead call."""
+    return sum(name == "design_lead" for name, _ in calls)
 
 
 def verifier_task(context):
-    """Return the verifier's task: check the result the designer recorded for its design."""
+    """Return the reviewer's task: check the result the design lead recorded for its design."""
     design = context.problem.design_state
     if design.reference is None or design.result is None:
         return (
-            "The designer recorded no design.reference and design.result. Report that no design "
+            "The design lead recorded no design.reference and design.result. Report that no design "
             "can be verified."
         )
     return (
@@ -478,12 +480,12 @@ def economist_task(design, result, problem):
     compared = [reference for reference in (start, *others) if reference]
     against = (
         f"compare it with {', '.join(compared)} (the sized start and the alternatives the "
-        "designer simulated)"
+        "design_lead simulated)"
         if compared
         else "there is no sized start or alternative in the state to compare it with; say so"
     )
     ranked = (
-        " The designer's ranking of the families is in design.study: report it beside yours."
+        " The design lead's ranking of the families is in design.study: report it beside yours."
         if problem.design.get("study")
         else ""
     )
@@ -498,7 +500,7 @@ def metric_text(value):
 
 
 def study_table(study):
-    """Return the designer's study as a Markdown table, one row per design, or ``""``."""
+    """Return the design lead's study as a Markdown table, one row per design, or ``""``."""
     runs = (study or {}).get("runs") or ()
     if not runs:
         return ""
@@ -521,19 +523,21 @@ def study_table(study):
 
 
 def explainer_task(context, calls):
-    """Return the explainer's task: the request, the verified design and the verifier's report.
+    """Return the explainer's task: the request, the verified design and the reviewer's report.
 
-    A study the designer recorded (``design.study``) is added as a ranked table.
+    A study the design lead recorded (``design.study``) is added as a ranked table.
     """
     request = request_of(context)
     design = context.problem.design_state.reference
-    report = next((output for name, output in reversed(calls) if name == "verifier"), "")
+    report = next((output for name, output in reversed(calls) if name == "reviewer"), "")
     task = (
         f"Explain the verified design {design} for this request:\n\n{request}\n\nThe "
-        f"verifier's report:\n\n{report}"
+        f"reviewer's report:\n\n{report}"
     )
     table = study_table(context.problem.design.get("study"))
-    return f"{task}\n\nThe designer's ranked study of the families:\n\n{table}" if table else task
+    return (
+        f"{task}\n\nThe design_lead's ranked study of the families:\n\n{table}" if table else task
+    )
 
 
 def stop(context, note, index):
@@ -559,29 +563,29 @@ def stop_answer(note):
 
 
 class DesignLoop(Loop):
-    """Let ``designer`` propose and ``verifier`` check, for at most ``max_rounds`` rounds.
+    """Let ``design_lead`` propose and ``reviewer`` check, for at most ``max_rounds`` rounds.
 
     A rule-based ``DesignDriver`` runs the rounds in one root run: each delegated agent is a nested
-    run in the same log. The ``Designer`` sizes, simulates, checks and optimises; the ``Verifier``
+    run in the same log. The ``DesignLead`` sizes, simulates, checks and optimises; the ``Reviewer``
     checks its final design once; only a failure sends it back. A design that passes is costed by
     the ``Economist`` and explained by the ``Explainer``. The loop stops when gemini's checks pass,
     at ``max_rounds``, when one round fails exactly as the one before, or when an agent asks the
     user; a token or cost budget is a hook of the run. Each stop is written in the driver's step
     text and in the answer as ``stop: <reason>``.
     A design run needs a case with a demand in the problem state: when it has none the driver asks
-    the user before designing and hands the answer to the designer, and stops with ``no_case`` at
-    ``max_rounds`` when the designer still leaves none.
+    the user before designing and hands the answer to the design lead, and stops with ``no_case`` at
+    ``max_rounds`` when the design lead still leaves none.
     """
 
     name = "design"
     driver = DesignDriver
 
-    def __init__(self, designer, verifier, max_rounds=5):
-        """Keep the two agents and the limit; a run starts with the designer."""
-        self.designer = designer
-        self.verifier = verifier
+    def __init__(self, design_lead, reviewer, max_rounds=5):
+        """Keep the two agents and the limit; a run starts with the design lead."""
+        self.design_lead = design_lead
+        self.reviewer = reviewer
         self.max_rounds = max_rounds
-        self.agent = self.driver(designer, verifier, max_rounds)
+        self.agent = self.driver(design_lead, reviewer, max_rounds)
 
     def guard(self, engine):
         """Register the ``Verified`` hook once, so no design reaches the user unverified."""

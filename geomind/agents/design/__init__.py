@@ -1,1 +1,1 @@
-"""Agents that propose configurations."""
+"""The design team: the plant, its modules, connections and values."""

@@ -33,7 +33,6 @@ EXPECTED = (
     "hooks",
     "callbacks",
     "providers",
-    "sandbox",
     "stores",
     "testing",
     "runtime",

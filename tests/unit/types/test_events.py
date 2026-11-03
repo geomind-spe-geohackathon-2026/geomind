@@ -16,8 +16,6 @@ from geomind.types.events import (
     Retried,
     RunFinished,
     RunStarted,
-    SandboxClosed,
-    SandboxProvisioned,
     StateChanged,
     StepFinished,
     StepStarted,
@@ -111,8 +109,6 @@ INTERNAL_EVENTS = [
     ToolRecorded(**BASE, index=1, call_id="c1", tool="t", output={"a": 1}),
     PermissionDecided(**BASE, index=1, decision="allow", rule="mode:auto"),
     Retried(**BASE, attempt=1, model="m", error="busy", delay=0.5),
-    SandboxProvisioned(**BASE, provider="LocalSandbox"),
-    SandboxClosed(**BASE),
     ErrorRaised(**BASE, error_class="ValueError", message="m", where="callback"),
 ]
 CONTRACT_TYPES = {

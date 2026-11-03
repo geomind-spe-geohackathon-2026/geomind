@@ -16,7 +16,7 @@ from geomind.errors.run import (
     StateError,
     TimeLimitReached,
 )
-from geomind.errors.services import NotImplementedYet, ProviderError, SandboxError, ToolError
+from geomind.errors.services import NotImplementedYet, ProviderError, ToolError
 
 __all__ = [
     "GeomindError",
@@ -32,6 +32,5 @@ __all__ = [
     "TimeLimitReached",
     "ProviderError",
     "ToolError",
-    "SandboxError",
     "NotImplementedYet",
 ]

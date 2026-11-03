@@ -150,7 +150,7 @@ def check_export(run):
     assert positions == sorted(positions)
     assert f"gemini version: {manifest['gemini']['version']}" in text
     assert text.count("### Call ") == text.count("Tokens: ") == 19
-    for agent in ("designer", "verifier", "economist", "explainer"):
+    for agent in ("design_lead", "reviewer", "economist", "explainer"):
         assert text.count(f"### {agent}\n") == 1
     assert "- build_plant(" in text and "(0 cached)" in text
     return text

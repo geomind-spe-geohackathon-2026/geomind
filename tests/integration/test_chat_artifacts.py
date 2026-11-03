@@ -24,7 +24,7 @@ PLANT_FILE = "plants/HeatingHeatPumpCoolingPlant.json"
 CASE_FILE = "case/data/demand.csv"
 
 
-class Designer(Agent):
+class DesignLead(Agent):
     """Uses the tools that keep case files, designs and results."""
 
     def __init__(self):
@@ -62,7 +62,7 @@ def message(store, completions, chat="chat"):
         store=store,
         workspace=workspace(),
         permissions=Permissions("auto"),
-        agent=Designer(),
+        agent=DesignLead(),
     )
     with runtime.settings(max_steps=STEPS):
         run.start()
@@ -164,7 +164,7 @@ def test_a_run_without_a_chat_is_the_chat_of_its_root_run():
         store=store,
         workspace=workspace(),
         permissions=Permissions("auto"),
-        agent=Designer(),
+        agent=DesignLead(),
     )
     run.start()
     assert store.load_chat_artifact(run.id, CASE_FILE)

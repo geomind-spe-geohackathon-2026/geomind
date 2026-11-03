@@ -74,8 +74,6 @@ Stored and used by recovery, replay and the log; never streamed. `data()` holds 
 | `tool.result` | `ToolRecorded` | `index`, `call_id`, `tool`, `input`, `output`, `is_error`, `is_validation`, `is_finish`, `duration`, `source`, `reference`, `feedback`, `usage` |
 | `permission` | `PermissionDecided` | `index`, `decision`, `rule`, `point`, `call_id`, `tool`, `reason`, `input`, `request`, `child`, `call` |
 | `retry` | `Retried` | `attempt`, `model`, `error`, `delay` |
-| `sandbox.provisioned` | `SandboxProvisioned` | `provider` |
-| `sandbox.closed` | `SandboxClosed` | `is_lost` |
 | `error` | `ErrorRaised` | `error_class`, `message`, `where` |
 
 `tool.result` with `call_id` `null` is feedback to the model about its final answer, shown as a

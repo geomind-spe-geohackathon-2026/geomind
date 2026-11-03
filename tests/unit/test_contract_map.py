@@ -16,7 +16,6 @@ RUN_KEYWORDS = (
     "llm",
     "store",
     "workspace",
-    "sandbox",
     "permissions",
     "callbacks",
     "hooks",
@@ -39,8 +38,6 @@ INTERNAL_EVENTS = (
     "tool.result",
     "permission",
     "retry",
-    "sandbox.provisioned",
-    "sandbox.closed",
     "error",
     "compaction",
 )
@@ -80,7 +77,7 @@ def test_section_two_events_are_frozen(frozen):
 
 
 def test_section_three_protocols_are_frozen(frozen):
-    """``RunStore``, ``Workspace``, ``LLM`` and ``SandboxProvider``, as of 0.3.0.
+    """``RunStore``, ``Workspace`` and ``LLM``, as of 0.3.0; ``SandboxProvider`` left in 0.4.22.
 
     0.3.0 added the chat artifacts of ``RunStore`` and ``Workspace.plants``, and the files of
     ``Workspace.case``; 0.4.4 the optional ``Workspace.files`` and ``Workspace.file``.
@@ -91,7 +88,7 @@ def test_section_three_protocols_are_frozen(frozen):
     assert (
         protocols["LLM"]["complete"] == "(self, messages, tools, *, model, settings, on_text=None)"
     )
-    assert set(protocols["SandboxProvider"]) == {"provision"}
+    assert "SandboxProvider" not in protocols and "Sandbox" not in protocols
 
 
 def test_section_three_run_is_frozen(frozen):
@@ -99,8 +96,9 @@ def test_section_three_run_is_frozen(frozen):
     methods = frozen["Run"]
     assert {"__init__", "start", "astart", "load", "resume", "aresume", "cancel"} == set(methods)
     assert [word for word in RUN_KEYWORDS if f"{word}=" not in methods["__init__"]] == []
-    missing = {"llm", "store", "workspace", "sandbox", "permissions", "callbacks", "hooks"}
+    missing = {"llm", "store", "workspace", "permissions", "callbacks", "hooks"}
     assert [word for word in missing if f"{word}=" not in methods["load"]] == []
+    assert "sandbox=" not in methods["__init__"] and "sandbox=" not in methods["load"]
 
 
 def test_section_three_result_is_frozen(frozen):

@@ -1,39 +1,35 @@
-"""``Agent`` and the shipped agents.
+"""``Agent`` and the shipped agents, one folder per team: ``<team>/<name>/agent.py``.
 
 Imports ``tools`` and everything to its left; never the engine.
 """
 
 from geomind.agents.agent import Agent, AgentResult, Model, Output
-from geomind.agents.analysis.analyst import Analyst
-from geomind.agents.coordination.coordinator import Coordinator, Route
-from geomind.agents.design.designer import Designer, FamilyDesigner
-from geomind.agents.economics.economist import Economist
-from geomind.agents.formulation.formulator import Formulator
-from geomind.agents.general.assistant import Assistant, CodeAssistant
-from geomind.agents.general.summarizer import Summarizer
-from geomind.agents.reporting.explainer import Explainer
-from geomind.agents.verification.verifier import Verifier
+from geomind.agents.analysis.economist.agent import Economist
+from geomind.agents.analysis.lead.agent import AnalysisLead
+from geomind.agents.case.lead.agent import CaseLead
+from geomind.agents.design.lead.agent import DesignLead
+from geomind.agents.project.coordinator.agent import Coordinator, Route
+from geomind.agents.project.explainer.agent import Explainer
+from geomind.agents.project.reviewer.agent import Reviewer
+from geomind.agents.support.summarizer.agent import Summarizer
 from geomind.errors import UnknownNameError
 from geomind.utils.strings import did_you_mean, snake_case
 
 __all__ = [
     "Agent",
     "AgentResult",
-    "Analyst",
-    "Assistant",
-    "CodeAssistant",
+    "AnalysisLead",
+    "CaseLead",
     "Coordinator",
-    "Designer",
+    "DesignLead",
     "Economist",
     "Explainer",
-    "FamilyDesigner",
     "Model",
     "Output",
     "named",
+    "Reviewer",
     "Route",
-    "Formulator",
     "Summarizer",
-    "Verifier",
 ]
 
 

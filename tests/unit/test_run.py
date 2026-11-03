@@ -7,14 +7,14 @@ import pytest
 
 import geomind as gd
 from geomind import runtime
-from geomind.agents import Analyst, Assistant, CodeAssistant, Route
+from geomind.agents import AnalysisLead, Route
 from geomind.engine.recovery import recover
 from geomind.errors import ProviderError, RequestError, RunError
 from geomind.loops import DesignLoop
 from geomind.providers import FakeLLM
 from geomind.run import LOOPS, loop_of
 from geomind.stores import MemoryRunStore
-from tests.fixtures.runs import ROUTE, call, of_type, routed, says, uses
+from tests.fixtures.runs import ROUTE, Worker, call, of_type, routed, says, uses
 
 
 @pytest.fixture(autouse=True)
@@ -62,7 +62,7 @@ def test_run_started_reports_the_tool_loop():
     run = run_of([says()], store=store, chat="c1", project="p1")
     run.start()
     event = of_type(store.load_events(run.id), "run.started")[-1]
-    assert event.data() == {"run": run.id, "loop": "tool", "agent": "analyst", "parent": None}
+    assert event.data() == {"run": run.id, "loop": "tool", "agent": "analysis_lead", "parent": None}
     assert (event.chat, event.project) == ("c1", "p1")
 
 
@@ -73,10 +73,9 @@ def test_default_llm_is_openrouter(monkeypatch):
         gd.Run(message="x")
 
 
-def test_a_sandbox_chooses_the_code_assistant(tmp_path):
-    """Without a sandbox the model is not offered code tools."""
-    assert type(run_of([]).loop.agent) is Analyst
-    assert type(run_of([], sandbox=gd.sandbox.LocalSandbox(tmp_path)).loop.agent) is CodeAssistant
+def test_an_unrouted_run_starts_with_the_analysis_lead():
+    """Before the coordinator routes it, a run's tool loop holds the analysis lead."""
+    assert type(run_of([]).loop.agent) is AnalysisLead
 
 
 def question_script():
@@ -138,16 +137,19 @@ def test_resume_of_a_dead_run_continues_from_its_events():
     assert paused.status == "waiting"
 
 
-def test_load_takes_the_contract_keywords(tmp_path):
-    """Sandbox and permissions are passed again, as hooks and callbacks are."""
+def test_load_takes_the_contract_keywords():
+    """Permissions are passed again, as hooks and callbacks are."""
     permissions = gd.Permissions(mode="readonly")
-    sandbox = gd.sandbox.LocalSandbox(tmp_path)
     run = run_of(question_script())
     run.start()
-    fresh = gd.Run.load(
-        run.id, llm=FakeLLM([]), store=run.store, sandbox=sandbox, permissions=permissions
-    )
-    assert fresh.engine.permissions is permissions and fresh.engine.sandbox is sandbox
+    fresh = gd.Run.load(run.id, llm=FakeLLM([]), store=run.store, permissions=permissions)
+    assert fresh.engine.permissions is permissions
+
+
+def test_run_and_load_take_no_sandbox():
+    """The code sandbox is gone: no code runs in geomind, so neither takes ``sandbox``."""
+    with pytest.raises(TypeError):
+        gd.Run(message="x", llm=FakeLLM([]), sandbox=object())
 
 
 def test_cancel_stops_at_the_next_hook_point():
@@ -176,19 +178,19 @@ def test_answering_twice_raises():
 def test_an_agent_replaces_the_routing():
     """One agent can be tried by hand, and it is the one a loaded run rebuilds."""
     store = MemoryRunStore()
-    run = run_of([says()], agent=Assistant(), store=store)
+    run = run_of([says()], agent=Worker(), store=store)
     result = run.start()
-    assert type(gd.Run.load(result.run_id, llm=FakeLLM([]), store=store).loop.agent) is Assistant
+    assert type(gd.Run.load(result.run_id, llm=FakeLLM([]), store=store).loop.agent) is Worker
 
 
 def test_a_loaded_design_run_keeps_its_round_limit():
     """``Run.load`` rebuilds the design loop with the ``max_rounds`` it started with."""
-    from geomind.agents import Designer, Verifier
+    from geomind.agents import DesignLead, Reviewer
     from geomind.run import loop_for
 
     store = MemoryRunStore()
     run = run_of([], store=store)
-    run.loop = DesignLoop(Designer(), Verifier(), max_rounds=2)
+    run.loop = DesignLoop(DesignLead(), Reviewer(), max_rounds=2)
     run.start()
     state = recover(store.load_events(run.id), run.id)
     assert loop_for(state).max_rounds == 2
@@ -196,13 +198,13 @@ def test_a_loaded_design_run_keeps_its_round_limit():
 
 def test_run_load_rebuilds_the_compare_loop():
     """A stored compare run comes back as a compare loop, not as a design loop."""
-    from geomind.agents import Designer, Verifier
+    from geomind.agents import DesignLead, Reviewer
     from geomind.loops import CompareLoop
     from geomind.run import loop_for
 
     store = MemoryRunStore()
     run = run_of([], store=store)
-    run.loop = CompareLoop(Designer(), Verifier(), max_rounds=3)
+    run.loop = CompareLoop(DesignLead(), Reviewer(), max_rounds=3)
     run.start()
     loaded = loop_for(recover(store.load_events(run.id), run.id))
     assert (type(loaded), loaded.max_rounds) == (CompareLoop, 3)
@@ -210,8 +212,8 @@ def test_run_load_rebuilds_the_compare_loop():
 
 def test_a_route_to_the_tool_loop_runs_its_agent():
     """The table names the agent."""
-    loop = loop_of(Route(kind="loop", agent="code_assistant"))
-    assert isinstance(loop.agent, CodeAssistant)
+    loop = loop_of(Route(kind="loop", agent="analysis_lead"))
+    assert isinstance(loop.agent, AnalysisLead)
 
 
 def test_the_tables_hold_only_loops_that_are_built():
@@ -230,7 +232,7 @@ def test_a_run_without_an_agent_is_routed_by_the_coordinator():
     assert (result.status, result.answer) == ("done", "the answer")
     assert [(event.agent, event.parent) for event in started] == [
         ("coordinator", result.run_id),
-        ("analyst", None),
+        ("analysis_lead", None),
     ]
     sequences = [event.sequence for event in events]
     assert sequences == sorted(set(sequences))
@@ -254,5 +256,5 @@ def test_a_short_answer_route_ends_the_run_with_it():
 def test_a_loop_set_by_hand_is_not_routed():
     """``--loop`` and tests choose the loop; the coordinator is not asked."""
     run = gd.Run(message="hello", llm=FakeLLM([says("hi")]))
-    run.loop = loop_of(Route(kind="loop", loop="tool", agent="analyst"))
+    run.loop = loop_of(Route(kind="loop", loop="tool", agent="analysis_lead"))
     assert run.start().answer == "hi"

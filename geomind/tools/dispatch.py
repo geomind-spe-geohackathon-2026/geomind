@@ -11,7 +11,6 @@ from geomind import runtime
 from geomind.errors import (
     GeomindError,
     NotImplementedYet,
-    SandboxError,
     ToolError,
     UnknownNameError,
 )
@@ -21,7 +20,6 @@ from geomind.utils.json import to_jsonable
 
 CODE_OF_ERROR = {
     NotImplementedYet: "not_implemented",
-    SandboxError: "not_allowed",
     UnknownNameError: "unknown_name",
 }
 

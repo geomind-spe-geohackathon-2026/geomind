@@ -1,8 +1,7 @@
 {
   "items": {
     "AGENTS": [
-      "analyst",
-      "code_assistant"
+      "analysis_lead"
     ],
     "Agent": {
       "__call__": "(self, context)",
@@ -17,13 +16,13 @@
       "tools": "(self, recurse=False)"
     },
     "LOOPS": {
-      "compare": "(self, designer, verifier, max_rounds=5, concurrency=None, retries=None)",
-      "design": "(self, designer, verifier, max_rounds=5)",
+      "compare": "(self, design_lead, reviewer, max_rounds=5, concurrency=None, retries=None)",
+      "design": "(self, design_lead, reviewer, max_rounds=5)",
       "tool": "(self, agent, max_steps=None)"
     },
     "Model": {
       "additionalProperties": false,
-      "description": "Which model an agent wants; ``name=None`` means a model of ``gd.runtime``.\n\n``setting`` names the runtime setting of an agent's role, such as ``analyst_model``. Unset, or\nset to ``None``, it means the default model. ``fallbacks`` lists models tried in order when the\nprovider keeps failing.",
+      "description": "Which model an agent wants; ``name=None`` means the model its role's setting names.\n\n``setting`` names the runtime setting of an agent's role, such as ``designlead_model``, set\nby ``GEOMIND_DESIGNLEAD_MODEL``. There is no default model: a role whose setting is unset has\nno model, and a real provider refuses to call. ``fallbacks`` lists models tried in order when\nthe provider keeps failing.",
       "properties": {
         "fallbacks": {
           "default": [],
@@ -93,11 +92,8 @@
       "description": "Where a message goes: a short direct answer, or a loop with an agent.\n\n``loop`` and ``agent`` name rows of ``LOOPS`` and ``AGENTS`` in ``run.py``, which sits to the\nright of this package, so a test keeps the two lists equal. The delegate reads the user's\nmessage itself, never a retelling of it.",
       "properties": {
         "agent": {
-          "default": "analyst",
-          "enum": [
-            "analyst",
-            "code_assistant"
-          ],
+          "const": "analysis_lead",
+          "default": "analysis_lead",
           "title": "Agent",
           "type": "string"
         },
@@ -149,7 +145,7 @@
         "chat": {
           "--agent": {
             "choices": null,
-            "default": "analyst"
+            "default": "analysis_lead"
           },
           "--answer-retries": {
             "choices": null,
@@ -272,13 +268,6 @@
             "choices": null,
             "default": null
           },
-          "--sandbox": {
-            "choices": [
-              "local",
-              "docker"
-            ],
-            "default": null
-          },
           "run": {
             "choices": null,
             "default": null
@@ -360,13 +349,6 @@
           },
           "--retries": {
             "choices": null,
-            "default": null
-          },
-          "--sandbox": {
-            "choices": [
-              "local",
-              "docker"
-            ],
             "default": null
           },
           "message": {
@@ -694,5 +676,5 @@
       "Model"
     ]
   },
-  "version": "0.4.22.dev23"
+  "version": "0.4.22.dev24"
 }

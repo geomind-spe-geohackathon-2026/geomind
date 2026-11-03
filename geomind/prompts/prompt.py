@@ -6,7 +6,15 @@ from geomind.errors import UnknownNameError
 from geomind.utils.strings import did_you_mean
 
 FOLDER = Path(__file__).parent
-SHARED_TOOLS = ("read_stored", "search_memory", "read_memory", "write_memory")
+AGENTS = FOLDER.parent / "agents"
+SHARED_TOOLS = (
+    "read_stored",
+    "search_memory",
+    "read_memory",
+    "write_memory",
+    "search_knowledge",
+    "read_knowledge",
+)
 STORED_RESULTS = (
     "## Stored results\n\n"
     "A long result is whole for one step, then only its `reference`, small values and an outline. "
@@ -23,18 +31,27 @@ MEMORY = (
     "at least one option that differs from it. `write_memory` adds a cited value to knowledge; "
     "a value without its source is never written."
 )
+KNOWLEDGE = (
+    "## Knowledge\n\n"
+    "`search_knowledge` reads the shared memory's cited reference values when it is on, each with "
+    "its source and `status` (`verified`, `secondary`, `placeholder`); `read_knowledge` reads one "
+    "by its id. Cite a value from it with its source and status, and name a `placeholder` as one. "
+    "Past designs are not yours to read: judge and explain this run's design from its own results."
+)
 
 
 def role_files():
-    """Return the prompt file of each role; ``skills/`` holds skills, not roles."""
-    paths = FOLDER.glob("*/*.md")
-    return {path.stem: path for path in paths if path.parent.name != "skills"}
+    """Return the prompt file of each role by ``<team>/<name>``, beside the role's agent."""
+    return {
+        f"{path.parent.parent.name}/{path.parent.name}": path
+        for path in sorted(AGENTS.glob("*/*/prompt.md"))
+    }
 
 
 class Prompt:
-    """The system prompt of an agent; ``Prompt("analyst")`` loads ``<folder>/analyst.md``.
+    """The system prompt of an agent; ``Prompt("design/lead")`` loads its ``prompt.md``.
 
-    A role has one file, in the folder of its area, as its agent has.
+    A role has one file, ``geomind/agents/<team>/<name>/prompt.md``, beside its ``agent.py``.
     """
 
     def __init__(self, role, appendix=None):

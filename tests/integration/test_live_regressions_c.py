@@ -100,7 +100,7 @@ async def test_a_forced_read_of_a_document_read_whole_is_a_note():
 
 
 async def test_a_later_round_sees_what_an_earlier_round_read():
-    """Each designer round is a nested run; the reads of the tree are one memory."""
+    """Each design lead round is a nested run; the reads of the tree are one memory."""
     root = session_with_files()
     child = session_with_files()
     child.root_session = root

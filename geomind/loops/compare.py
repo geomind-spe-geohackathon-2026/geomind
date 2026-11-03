@@ -3,7 +3,7 @@
 import json
 
 from geomind import runtime
-from geomind.agents import FamilyDesigner
+from geomind.agents import DesignLead
 from geomind.loops.design import (
     DESIGN_TOKENS,
     MARK,
@@ -32,14 +32,14 @@ TABLE_COLUMNS = ("family", "verdict", "design", "result", "reason")
 
 
 class CompareDriver(DesignDriver):
-    """Drive a design whose designer compares two or three families with one ``run_study``.
+    """Drive a design whose design_lead compares two or three families with one ``run_study``.
 
     NOTE: the driver of ``StudyCompareLoop``, kept so a log and a recording of it still run. New
     comparisons use ``ComparisonDriver``.
     """
 
     def first_task(self, context):
-        """Return the designer's first task: the request, and the comparison it must run."""
+        """Return the design lead's first task: the request, and the comparison it must run."""
         return (
             f"{request_of(context)}{project_files_text(context)}\n\n"
             f"Round 1 of at most {self._max_rounds}. Read the case, then "
@@ -53,7 +53,7 @@ class CompareDriver(DesignDriver):
 class StudyCompareLoop(DesignLoop):
     """Design by comparing families in one study: the ``compare`` loop up to 0.4.5.
 
-    It is a ``DesignLoop`` whose designer is asked for two or three families and compares them
+    It is a ``DesignLoop`` whose design_lead is asked for two or three families and compares them
     with one ``run_study``. NOTE: a log and a recording of 0.4.5 and before name this driver, so
     they run on it; a new run takes ``CompareLoop``.
     """
@@ -63,7 +63,7 @@ class StudyCompareLoop(DesignLoop):
 
 
 def plan_instructions(asks):
-    """Return what the planning designer does; a run with a user confirms what it proposes."""
+    """Return what the planning design lead does; a run with a user confirms what it proposes."""
     proposal = (
         "confirm them with one ask_user before you hand over"
         if asks
@@ -81,7 +81,7 @@ def plan_instructions(asks):
 
 
 def plan_task(context, asks):
-    """Return the first designer's task: the request, the project and the plan."""
+    """Return the first design lead's task: the request, the project and the plan."""
     project = f"{project_plants_text(context)}{project_files_text(context)}"
     return f"{request_of(context)}{project}\n\n{plan_instructions(asks)}"
 
@@ -233,6 +233,17 @@ def explanation_task(context):
     )
 
 
+def family_design_lead():
+    """Return a design lead for one family's run beside the others: it asks nobody.
+
+    NOTE: the case is set before the families run and a family's design lead never sets it, so
+    this run records why it could not go on instead of asking.
+    """
+    agent = DesignLead()
+    del agent._tools["ask_user"]
+    return agent
+
+
 class ComparisonDriver(DesignDriver):
     """Drive a comparison: plan, one nested run per family, one check per design, then the rest.
 
@@ -242,13 +253,13 @@ class ComparisonDriver(DesignDriver):
     each family it verifies, then to the recommended one, so the ``Verified`` hook judges that.
     """
 
-    def __init__(self, designer=None, verifier=None, max_rounds=5):
+    def __init__(self, design_lead=None, reviewer=None, max_rounds=5):
         """Declare the agents of the design loop and the run of one family."""
-        super().__init__(designer, verifier, max_rounds)
+        super().__init__(design_lead, reviewer, max_rounds)
 
         # Tools
-        self.family_designer = Delegate(
-            FamilyDesigner(), max_summary_tokens=DESIGN_TOKENS, runs_beside=True
+        self.family_design_lead = Delegate(
+            family_design_lead(), max_summary_tokens=DESIGN_TOKENS, runs_beside=True
         )
 
         self._concurrency = None
@@ -267,7 +278,7 @@ class ComparisonDriver(DesignDriver):
         return 1 if self._asks or not self._concurrency else self._concurrency
 
     def first_task(self, context):
-        """Return the first designer's task: the plan of the comparison."""
+        """Return the first design lead's task: the plan of the comparison."""
         return plan_task(context, self._asks)
 
     async def forward(self, context):
@@ -280,12 +291,12 @@ class ComparisonDriver(DesignDriver):
         name, output = calls[-1]
         if name == "ask_user":
             task = f"{answered_task(context, output)}\n\n{plan_instructions(self._asks)}"
-            return act(note, index, "designer", task=task)
-        if name == "designer":
+            return act(note, index, "design_lead", task=task)
+        if name == "design_lead":
             return self.after_plan(context, note, index)
-        if name == "verifier":
+        if name == "reviewer":
             return await self.after_check(context, note, index)
-        if name == "family_designer":
+        if name == "family_design_lead":
             return self.after_batch(context, calls, note, index)
         return self.next_move(context, calls, note, index)
 
@@ -360,7 +371,7 @@ class ComparisonDriver(DesignDriver):
         calls = tuple(
             ToolCall(
                 id=f"loop-{index}-family-{position}",
-                name="family_designer",
+                name="family_design_lead",
                 input={"task": family_task(request, family)},
             )
             for position, family in enumerate(families)
@@ -388,7 +399,7 @@ class ComparisonDriver(DesignDriver):
             f"Verify {item['design']}: run check_results once on its result {item['result']} and "
             "record the verification."
         )
-        return act({**note, "checking": family}, index, "verifier", task=task)
+        return act({**note, "checking": family}, index, "reviewer", task=task)
 
     async def after_check(self, context, note, index):
         """Record gemini's verdict on the family just checked, or set it aside for a retry."""
@@ -416,7 +427,7 @@ class ComparisonDriver(DesignDriver):
         )
         task = family_task(request_of(context), family, last["failed"], last["attempt"])
         call = ToolCall(
-            id=f"loop-{index}-family-retry", name="family_designer", input={"task": task}
+            id=f"loop-{index}-family-retry", name="family_design_lead", input={"task": task}
         )
         text = MARK + json.dumps({**note, "batch": [family["id"]]})
         return Action(text=text, tool_calls=(call,))
@@ -449,11 +460,11 @@ class ComparisonDriver(DesignDriver):
 class CompareLoop(DesignLoop):
     """Compare families: plan, design each alone, verify each, compare, explain.
 
-    The families come from the request or the case, else the ``Designer`` proposes them, and a
+    The families come from the request or the case, else the ``DesignLead`` proposes them, and a
     user confirms them unless the run is ``auto``, where they are unconfirmed assumptions. One
-    ``FamilyDesigner`` nested run per family designs it, ``concurrency`` of them side by side
+    family's ``DesignLead`` nested run per family designs it, ``concurrency`` of them side by side
     (the setting ``compare_concurrency``; unset, one at a time); a failed or infeasible family
-    stops nothing and keeps its reason. The ``Verifier`` checks each feasible design; one gemini
+    stops nothing and keeps its reason. The ``Reviewer`` checks each feasible design; one gemini
     rejects runs again, told why, up to ``retries`` times (setting ``compare_retries``; unset, no
     retry). The
     ``Economist`` compares the verified ones and the ``Explainer`` writes the comparison.
@@ -464,9 +475,9 @@ class CompareLoop(DesignLoop):
     name = "compare"
     driver = ComparisonDriver
 
-    def __init__(self, designer, verifier, max_rounds=5, concurrency=None, retries=None):
+    def __init__(self, design_lead, reviewer, max_rounds=5, concurrency=None, retries=None):
         """Keep the agents and the limits; the settings give what is not given."""
-        super().__init__(designer, verifier, max_rounds)
+        super().__init__(design_lead, reviewer, max_rounds)
         self.concurrency = concurrency or runtime.get("compare_concurrency")
         self.retries = retries if retries is not None else runtime.get("compare_retries")
         self.asks = False

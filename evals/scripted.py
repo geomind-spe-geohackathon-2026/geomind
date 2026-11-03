@@ -73,7 +73,7 @@ def say(text):
 
 
 def plan(turn):
-    """Return the planning designer's move: the plants and the case, then the families."""
+    """Return the planning design lead's move: the plants and the case, then the families."""
     if turn == 0:
         return calls(("list_plants", {}), ("set_case", {"source": "project"}))
     if turn > 1:
@@ -142,8 +142,8 @@ def family(key, messages):
     return moves.get(last, lambda: say(f"{key}: recorded."))()
 
 
-def verifier(task, turn, done):
-    """Return the verifier's move: check the result named in the task, then record it."""
+def reviewer(task, turn, done):
+    """Return the reviewer's move: check the result named in the task, then record it."""
     result = re.search(r"result/\w+", task).group(0)
     if turn == 0:
         return calls(("check_results", {"reference": result}))
@@ -202,8 +202,8 @@ class ComparePolicy:
             return plan(turn)
         if found:
             return family(found.group(1), messages)
-        if "You are the verifier" in system or task.startswith("Verify "):
-            return verifier(task, turn, results(messages))
+        if "You are the reviewer" in system or task.startswith("Verify "):
+            return reviewer(task, turn, results(messages))
         if "Compare the verified designs" in task:
             return economist(task, turn, results(messages))
         if "Write the comparison" in task:

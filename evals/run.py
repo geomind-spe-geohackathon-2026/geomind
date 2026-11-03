@@ -1,4 +1,4 @@
-"""Run the tasks of one agent and report: ``python -m evals.run --agent analyst [--live]``.
+"""Run the tasks of one agent and report: ``python -m evals.run --agent analysis_lead [--live]``.
 
 Offline by default, from ``recordings/``. ``--live`` calls OpenRouter and writes the recording.
 Criteria are checked by code, never by an LLM. A suite of ``SUITES`` (``challenge2``) runs its
@@ -21,6 +21,7 @@ from geomind import runtime
 from geomind.agents import Route
 from geomind.context import ProblemState
 from geomind.engine import Context
+from geomind.engine.engine import STEP_OPTIONS
 from geomind.providers import FakeLLM, OpenRouter, Recorder
 from geomind.run import loop_of
 from geomind.stores import FileWorkspace, MemoryRunStore
@@ -30,7 +31,7 @@ ROOT = Path(__file__).parent
 CHAT = "eval"
 SUITES = {"challenge2": "design", "compare": "study_compare", "alternatives": "compare"}
 """Task folders run through a loop rather than one agent: the folder name and its loop."""
-SUITE_AGENT = "designer"
+SUITE_AGENT = "design_lead"
 """The agent that runs a suite's task alone, through the ``ToolLoop``."""
 REPORT_LOOPS = {"tool": "ToolLoop", "design": "DesignLoop", "compare": "CompareLoop"}
 LOOP_SUITES = ("design", "study_compare", "compare")
@@ -76,12 +77,27 @@ def _workspace(task):
     return FileWorkspace(folder.parent), folder.name
 
 
+def is_step_limit(request):
+    """Tell whether a request is the question a run asks at its step limit."""
+    options = [option.value for option in request.options or ()]
+    return options == list(STEP_OPTIONS)
+
+
 def _drive(run, answers):
-    """Start the run and reply to its questions; a question with no reply left ends it."""
+    """Start the run and reply to its questions; a question with no reply left ends it.
+
+    A task's ``max_steps`` is its limit: the question at the step limit is answered ``stop``,
+    and the task's replies go to the other questions.
+    """
     replies = list(answers)
     result = run.start()
-    while result.status == "waiting" and replies:
-        result = run.resume(result.request.id, {"text": replies.pop(0)})
+    while result.status == "waiting":
+        if is_step_limit(result.request):
+            result = run.resume(result.request.id, {"text": "stop"})
+        elif replies:
+            result = run.resume(result.request.id, {"text": replies.pop(0)})
+        else:
+            break
     return result
 
 
@@ -125,7 +141,7 @@ def new_run(task, agent_name, llm, store, loop=None):
         agent=None if loop in LOOP_SUITES else gd.agents.named(agent_name),
     )
     if loop == "study_compare":
-        run.loop = gd.loops.StudyCompareLoop(gd.agents.Designer(), gd.agents.Verifier())
+        run.loop = gd.loops.StudyCompareLoop(gd.agents.DesignLead(), gd.agents.Reviewer())
     if loop in ("design", "compare"):
         run.loop = loop_of(Route(kind="loop", loop=loop))
     return run
@@ -258,7 +274,7 @@ def report(root=ROOT, workers=None):
     ``workers`` runs the cells (one task through one loop) in that many processes, each on its
     own recording and store, so the table is the same; unset, one after another.
 
-    Every task runs from its own recording through ``ToolLoop`` (the task's agent, or the Designer
+    Every task runs from its own recording through ``ToolLoop`` (the task's agent, or the DesignLead
     alone for a suite), ``DesignLoop`` and ``CompareLoop``. The recording is the decisions of one
     loop, so a loop whose agents ask for different steps meets a task it cannot finish: its
     criteria are unmet, which is what the table shows.
