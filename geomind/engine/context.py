@@ -108,10 +108,11 @@ class Context:
         A result stored whole is shown whole in the step after its call. From the next step on its
         message is the reference and an outline (``self.stored``), so the history stops carrying
         what the model has used; ``read_stored`` or the tool itself gives it again. The result of
-        a tool that keeps its results (``Tool.keeps_result``, a document page) stays whole for the
-        last ``compaction_keep_turns`` turns, then shrinks the same way. A message changes once,
-        when its result becomes old, and never again, so the prefix before it stays the same for
-        the provider's cache.
+        a tool that keeps its results (``Tool.keeps_result``) stays whole for the last
+        ``compaction_keep_turns`` turns, then shrinks the same way; one that keeps them for the
+        run (``"run"``, a document page the agent works from) stays whole until compaction. A
+        message changes once, when its result becomes old, and never again, so the prefix before
+        it stays the same for the provider's cache.
         """
         turns = [n for n, item in enumerate(self.messages) if item.role == "assistant"]
         last = turns[-1] if turns else -1
@@ -119,7 +120,8 @@ class Context:
         window = runtime.get("compaction_keep_turns") if kept else 0
         history = []
         for n, item in enumerate(self.messages):
-            recent = item.tool_call_id in kept and sum(turn > n for turn in turns) <= window
+            keeps = kept.get(item.tool_call_id)
+            recent = keeps == "run" or (keeps and sum(turn > n for turn in turns) <= window)
             history.append(self._aged(item) if n < last and not recent else item)
         return history
 
@@ -139,12 +141,12 @@ class Context:
 
 
 def kept_calls(messages, agent):
-    """Return the ids of the calls whose tool keeps its results, of ``agent``'s tools."""
+    """Return ``{call id: keeps_result}`` of the calls whose tool keeps its results."""
     if agent is None:
-        return set()
+        return {}
     tools = with_old_names(agent.tools())
     return {
-        call.id
+        call.id: getattr(tools.get(call.name), "keeps_result", False)
         for item in messages
         if item.role == "assistant"
         for call in item.tool_calls

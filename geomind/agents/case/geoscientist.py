@@ -75,13 +75,14 @@ class Geoscientist(Agent):
         super().__init__()
 
         # Prompt
-        self.prompt = Prompt("case/geoscientist", appendix=trees("case"))
+        self.prompt = Prompt("case/geoscientist", appendix=trees("case_compact"))
 
         # Tools
         self.list_files = tools.list_files
         self.read_rag = tools.read_rag
         self.search_rag = tools.search_rag
         self.read_case = tools.gemini.read_case
+        self.describe_case = tools.gemini.describe_case
         self.read_stored = tools.read_stored
         self.search_memory = tools.search_memory
         self.read_memory = tools.read_memory

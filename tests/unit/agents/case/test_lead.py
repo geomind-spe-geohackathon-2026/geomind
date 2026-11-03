@@ -10,6 +10,7 @@ TOOLS = [
     "read_rag",
     "search_rag",
     "read_case",
+    "describe_case",
     "set_case",
     "save_profile",
     "list_profiles",
@@ -55,7 +56,7 @@ def test_the_case_is_set_in_parts():
     """The test run sent the whole case five times; the prompt and set_case say to send parts."""
     from geomind.tools.gemini.case import set_case
 
-    assert "never send the whole case again" in CaseLead().prompt.render()
+    assert "never the whole case again" in " ".join(CaseLead().prompt.render().split())
     assert "send only" in set_case.description or "send only" in set_case.function.__doc__
 
 
@@ -96,9 +97,13 @@ def test_it_knows_the_case_format_s_traps():
 
 
 def test_its_key_tree_says_what_each_field_means():
-    """The case keys carry their meaning, the derived ones, and every requirement option."""
+    """The case keys carry their source, the derived ones, and every requirement option.
+
+    The meanings come from ``describe_case``, on demand (Track A).
+    """
     text = CaseLead().prompt.render()
-    assert "site.reservoir.temperature" in text and "derived from the ground" in text
+    assert "site.reservoir.temperature: {value, unit} [derived]" in text
+    assert "`describe_case(path)`" in text
     assert "duration: the total time of the steps" in text and "count: how many units" in text
 
 
@@ -106,3 +111,11 @@ def test_a_change_reports_the_value_before_as_the_case_showed_it():
     """#62: the case lead said a cap was 200 while the case held 300; it reads before and after."""
     text = " ".join(CaseLead().prompt.content.split())
     assert "before and after it with `read_case`" in text and "never from memory" in text
+
+
+def test_it_reads_once_asks_once_and_copies_digits():
+    """Track A: 12 read_stored calls, three questions for the same values, rounded prices."""
+    text = " ".join(CaseLead().prompt.content.split())
+    assert "never read it again" in text and "Never ask for it again" in text
+    assert "digit for digit" in text and "as few `set_case` calls as you can" in text
+    assert "read once with `columns`" in text

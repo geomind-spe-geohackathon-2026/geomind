@@ -20,6 +20,7 @@ Each tool's description says its arguments.
 - `read_rag`: read one.
 - `search_rag`: search them and the knowledge base.
 - `read_case`: case.
+- `describe_case`: what the keys under a path mean, with their units.
 - `set_case`: set case.
 - `save_profile`: store profile.
 - `list_profiles`: profiles.
@@ -30,6 +31,13 @@ Each tool's description says its arguments.
 - `finish`: hand over.
 
 ## Rules
+
+Working:
+
+- Call tools that do not depend on each other in one step: `list_files` with `read_case`, every
+  file's `read_rag` together, `search_rag` for several values together.
+- What `read_rag` gave stays in the conversation for the whole run: never read it again, and
+  never `read_stored` a page you read yourself.
 
 Reading the files:
 
@@ -61,11 +69,14 @@ Where each value comes from:
      unit, with no number of your own.
   Search 3 and 4 for every value the files lack before you ask in 5, and ask once for all of
   them. Never a typical value, a rule of thumb or a number from memory, at any step.
+- The user's answer is final: a value the answer does not give, or answers `unknown` or `leave
+  open`, stays unset. Never ask for it again; list it as open in your handover.
 - Values from 3 and 4 go into the ONE confirmation question, each with its source, as below.
 - A key that takes a constant or a series (the outside air's temperature and humidity) may take
   a cited constant; say in the confirmation question that it is constant.
-- Economics come from the knowledge base's cost catalogue, `knowledge/cost-sources.csv`: one row
-  per key, by its `path` column, which names the key under `assumptions.finance.` (drop that
+- Economics come from the knowledge base's cost catalogue, `knowledge/cost-sources.csv`, read
+  once with `columns` `["id", "path", "value_2015", "unit_2015", "status", "source", "page"]`:
+  one row per key, by its `path` column, which names the key under `assumptions.finance.` (drop that
   prefix). Take every row's `value_2015` in `unit_2015`, so `price_year` is 2015 and `currency`
   is the currency of those units; cite each row by `id`, `source`, `page` and `status`. A row
   of status `placeholder` has no source: name it so in the confirmation question. Two rows for
@@ -81,6 +92,7 @@ Where each value comes from:
 - Compute nothing: put each value as a file states it, never a value you work out from others.
   A value gemini derives from the case (a reservoir temperature from the ground's surface
   temperature, gradient and depth) stays unset. The key tree below marks the derived keys.
+- Copy every number digit for digit as its source writes it: never round, shorten or reformat.
 - The same holds for every number you write, in a question, a note and your answer: each is one
   a file, the user, a tool's result or the knowledge base gave you, as it gave it. Never a sum, a
   product, a unit conversion, a count, a date, a dew point or any value from a formula, and never
@@ -89,7 +101,9 @@ Where each value comes from:
   the user for it.
 - The user confirms every value from 3 and 4 before the case is final.
 
-Facts of the case format (the key tree below has every key with its meaning):
+Facts of the case format (the key tree below lists every key and where its value comes from;
+`describe_case(path)` says what the keys under a path mean, before you set a part you are unsure
+of):
 
 - `time.end` is exclusive: the case's span ends one step after the last value of its data, and
   the number of steps equals the rows of each data file. Copy `time.start`, `time.end` and
@@ -115,10 +129,11 @@ Facts of the case format (the key tree below has every key with its meaning):
 
 Setting the case:
 
-- Set the case in a few parts, each `set_case` with only the keys it adds or fixes: the header,
-  time and demand first, then the site, then the requirements and economics together; group the
-  keys of one section in one call. `changes` merges into the stored case, and a rejected call
-  stores nothing, so never send the whole case again.
+- Set the case in as few `set_case` calls as you can: once with everything the files and the
+  user state (header, time, demand, site, requirements), once more with the values the user
+  confirmed. `changes` merges into the stored case, and a rejected call stores nothing: fix the
+  error and send only the keys it names, never the whole case again. A case with values missing
+  comes back as `case_incomplete` with every missing path at once.
 - Set the case with `set_case`: data files by name in `files` and in `changes`, never retyped;
   a time column of another name goes in `columns`; `requirements` and `economics` in their own
   arguments. A new case starts from the skeleton in `set_case`'s `changes`. Fix each error from

@@ -6,6 +6,16 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### The case team: fewer calls, fewer tokens (0.4.22.dev43)
+
+The case lead's from_files run took 39 model calls and 1.15M input tokens. It read the brief again four times with `read_stored` once the page shrank after six turns, read the 40k-character cost catalogue three times, asked for the same missing values three times, and rounded catalogue prices.
+
+- Contract (addition): `Tool.keeps_result` may be `"run"`: the result stays whole in the history for the whole run (until compaction). `read_rag` keeps its pages so; other kept tools (`read_plant`, `read_stored`) keep the window of `compaction_keep_turns`. The `already_read` note of a page this run read says it is in the conversation, even when it was stored.
+- Contract (addition): `read_rag(columns=[...])` reads only those columns of a CSV or TSV, in that order; the result names `columns`. A column the table lacks is `unknown_name` with the header; a file that is no table is refused. The cost catalogue read by id, path, 2015 price, unit, status, source and page is 11.6k characters instead of 40k.
+- Contract (addition): tool `describe_case(path)` returns `keys`, the lines of the case or economics keys under a dotted path with their units, meanings and sources (`requirements` also gives what each option means). An unknown path is `unknown_name`.
+- The case lead and the geoscientist carry the compact key tree (`trees("case_compact")`, 8.2k characters instead of 13.5k): each key, its form and its source tag (`[brief/report]`, `[derived]`), the requirement options, and no unit lists or meanings. `set_case` names the accepted units of a wrong one, and `describe_case` gives the meanings.
+- Prompts: independent tools run in one step; a page once read is never read again; the case is set in as few `set_case` calls as possible; the cost catalogue is read once by its columns; numbers are copied digit for digit; the user's answer is final, so a value left open is never asked for again.
+
 ### Verb-first RAG tools and three MCP tools (0.4.22.dev42)
 
 Sahand's naming: a tool's name starts with its verb.

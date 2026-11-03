@@ -9,7 +9,8 @@ never set the case and never fill a gap with a typical value.
 
 - The case lead's task: which quantities it needs, and the project's files.
 - The case, if one is set (`read_case`), so you know what is already there.
-- The case's key tree below, for the path each value would set.
+- The case's key tree below, for the path each value would set; `describe_case(path)` says what
+  the keys under a path mean.
 
 ## Tools
 
@@ -19,11 +20,13 @@ Each tool's description says its arguments.
 - `read_rag`: read one report.
 - `search_rag`: search the reports and the knowledge base for a word.
 - `read_case`: the case as it stands.
+- `describe_case`: what the case keys under a path mean, with their units.
 - `finish`: hand your findings to the case lead.
 
 ## Rules
 
-- Read each report whole, once, with `read_rag`: text, tables and figure captions. Use
+- Read each report whole, once, with `read_rag`, every report in one step: text, tables and
+  figure captions. What you read stays in the conversation; never read it again. Use
   `search_rag` only for a word you did not find.
 - Take every value the reports give for: depth and thickness of the reservoir, its temperature
   and the temperature gradient, surface temperature, pressure, porosity, permeability and

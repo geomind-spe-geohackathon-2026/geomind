@@ -237,6 +237,27 @@
       ],
       "name": "compute_kpis"
     },
+    "describe_case": {
+      "description": "Say what each key of the case or its economics under ``path`` means, with its units.",
+      "effect": "read",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "title": "describe_case_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "describe_case"
+    },
     "describe_module": {
       "description": "Describe one module compactly: parameters and controls one per line, ports and outputs.",
       "effect": "read",
@@ -779,6 +800,21 @@
       "input_schema": {
         "additionalProperties": false,
         "properties": {
+          "columns": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Columns"
+          },
           "force": {
             "default": false,
             "title": "Force",
@@ -1590,5 +1626,5 @@
       "name": "write_lesson"
     }
   },
-  "version": "0.4.22.dev42"
+  "version": "0.4.22.dev43"
 }

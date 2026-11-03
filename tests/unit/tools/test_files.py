@@ -192,3 +192,31 @@ async def test_a_csv_of_times_gives_the_case_span_with_an_exclusive_end():
 def test_the_span_is_one_step_past_the_last_row_or_none(rows, span):
     """Uneven steps or a column that is not times give no span."""
     assert span_of(rows) == span
+
+
+async def test_columns_read_only_those_columns_of_a_table():
+    """A wide cost table read by its id and price costs a third of the tokens (Track A)."""
+    output = await read("demand.csv", columns=["heat_mw"])
+    assert output["text"].startswith("heat_mw\n5\n") and output["columns"] == ["heat_mw"]
+    assert output["name"] == "demand.csv" and output["table"]["columns"] == ["heat_mw"]
+
+
+async def test_unknown_columns_name_the_table_s_columns():
+    """A column the table has not is ``unknown_name`` with the header."""
+    error = (await read("demand.csv", columns=["heat"]))["error"]
+    assert error["code"] == "unknown_name" and "heat_mw" in error["message"]
+    assert "heat_mw" in error["suggestions"]
+
+
+async def test_columns_of_a_file_that_is_no_table_are_refused():
+    """Only a CSV or TSV has columns."""
+    assert "no CSV or TSV" in (await read("note.md", columns=["a"]))["error"]["message"]
+
+
+async def test_a_page_this_run_read_is_in_its_conversation():
+    """The run's own stored page stays whole for the run: the note says so, not ``read_stored``."""
+    session = session_with()
+    await call(read_rag, {"name": "demand.csv"}, session, "p")
+    session.documents_read["demand.csv"][0]["reference"] = "stored"
+    again = (await call(read_rag, {"name": "demand.csv"}, session, "p")).output
+    assert again["note"].startswith("already read in this run: its text is in the conversation")

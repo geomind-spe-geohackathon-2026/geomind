@@ -9,7 +9,7 @@ from geomind.tools.gemini.assessment import (
     compute_kpis,
     estimate_costs,
 )
-from geomind.tools.gemini.case import read_case, save_profile, set_case
+from geomind.tools.gemini.case import describe_case, read_case, save_profile, set_case
 from geomind.tools.gemini.catalogue import describe_module, evaluate_module, list_modules
 from geomind.tools.gemini.origin import accept_case, case_changes
 from geomind.tools.gemini.plants import (
@@ -51,6 +51,7 @@ __all__ = [
     "list_studies",
     "merge_designs",
     "optimize",
+    "describe_case",
     "read_case",
     "read_plant",
     "read_profile",

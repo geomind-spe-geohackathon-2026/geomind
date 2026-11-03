@@ -1,6 +1,7 @@
 """The smallest case and plant file of gemini's public schemas, for a model that lacks a header."""
 
 import json
+import re
 
 from geomind.errors import UnknownNameError
 
@@ -126,7 +127,7 @@ def schemas_of(name):
     """Return ``[(label, schema)]`` of one tree: gemini's public schemas, read now."""
     import gemini as gm
 
-    if name == "case":
+    if name in ("case", "case_compact"):
         return [
             ("", gm.Case.schema()),
             ("Economics (set_case economics=...):", gm.case.Economics.schema()),
@@ -135,7 +136,9 @@ def schemas_of(name):
         return [("", gm.plants.schema())]
     if name == "study":
         return [("", gm.study.Study.schema())]
-    raise UnknownNameError(f"key tree: name = {name!r}; expected case, plant or study")
+    raise UnknownNameError(
+        f"key tree: name = {name!r}; expected case, case_compact, plant or study"
+    )
 
 
 TREE_HEADINGS = {
@@ -145,6 +148,15 @@ TREE_HEADINGS = {
         "also takes range and uncertainty, and every section takes about. After each key: what "
         "it means and where its value comes from (brief, data, report, user, economics); "
         "derived means gemini computes it, so leave it unset."
+    ),
+    "case_compact": (
+        "## Case keys\n\nThe keys of the case and of its economics, from gemini's schemas: these "
+        "are all the keys, so never read the schema. * marks a required key, every {value, unit} "
+        "also takes range and uncertainty, and every section takes about; a wrong unit comes "
+        "back from `set_case` with the accepted ones. After each key, in brackets: where its "
+        "value comes from (brief, data, report, user, economics); derived "
+        "means gemini computes it, so leave it unset. `describe_case(path)` gives what each key "
+        "under a path means, such as `site.air`, `demand.cooling` or `economics.capex`."
     ),
     "plant": (
         "## Plant file keys\n\nThe keys of a plant file, from gemini's schema; "
@@ -182,21 +194,66 @@ def described(lines, fields):
     return shown
 
 
+SOURCE_TAGS = ("brief", "report", "data", "user", "economics", "econ")
+"""The words that say where a case value comes from, at the end of a field's meaning."""
+
+
+def source_tag(meaning_text):
+    """Return where a field's value comes from, from its meaning: ``brief/report``, ``derived``.
+
+    ``None`` when the meaning names no source.
+    """
+    if not meaning_text:
+        return None
+    if "derived" in meaning_text:
+        return "derived"
+    last = meaning_text.rsplit(";", 1)[-1].split("(")[0].strip()
+    words = last.split("/")
+    return last if last and all(word in SOURCE_TAGS for word in words) else None
+
+
+UNIT_LIST = re.compile(r" in [^ ]+")
+"""The accepted units of a form, `` in K/km|K/m``: ``describe_case`` and ``set_case`` give them."""
+
+
+def compact(lines):
+    """Return described lines with each meaning cut to its source tag and no unit lists."""
+    shown = []
+    for line in lines:
+        key, _, meaning_text = line.partition(" — ")
+        key = UNIT_LIST.sub("", key)
+        tag = source_tag(meaning_text)
+        shown.append(f"{key} [{tag}]" if tag else key)
+    return shown
+
+
+def described_tree(name):
+    """Return ``[(label, lines)]`` of a tree, each case and economics line with its meaning."""
+    from geomind.tools.gemini.fields import CASE_FIELDS, ECONOMICS_FIELDS
+
+    found = []
+    for label, schema in schemas_of(name):
+        tree = key_tree(schema)
+        if name in ("case", "case_compact"):
+            tree = described(tree, ECONOMICS_FIELDS if label else CASE_FIELDS)
+        found.append((label, tree))
+    return found
+
+
 def tree_text(name):
     """Return one key tree as prompt text: its heading and the lines of each of its schemas.
 
     The case's tree says what each field means and where its value comes from, and what each
-    option of the requirements means (``geomind/tools/gemini/fields.py``).
+    option of the requirements means (``geomind/tools/gemini/fields.py``). ``case_compact`` says
+    only where each value comes from; ``describe_case`` gives the meanings of one part.
     """
-    from geomind.tools.gemini.fields import CASE_FIELDS, ECONOMICS_FIELDS, options_text
+    from geomind.tools.gemini.fields import options_text
 
     lines = [TREE_HEADINGS[name]]
-    for label, schema in schemas_of(name):
-        tree = key_tree(schema)
-        if name == "case":
-            tree = described(tree, ECONOMICS_FIELDS if label else CASE_FIELDS)
+    for label, tree in described_tree(name):
+        tree = compact(tree) if name == "case_compact" else tree
         lines.extend([*([""] if label else []), *([label] if label else []), *tree])
-    if name == "case":
+    if name in ("case", "case_compact"):
         lines.extend(["", options_text()])
     if name == "plant":
         import gemini as gm
@@ -265,3 +322,32 @@ def module_tree(description):
         },
         "note": "* marks a parameter with no default: the plant file gives it",
     }
+
+
+def lines_under(tree, wanted):
+    """Return the lines of a tree whose key starts with ``wanted``, a list with its fields."""
+    found, parent_wanted = [], False
+    for line in tree:
+        if not line.startswith("  "):
+            parent_wanted = line.startswith(wanted)
+        if parent_wanted:
+            found.append(line)
+    return found
+
+
+def keys_under(path):
+    """Return the described lines of the case tree under ``path``, with their units.
+
+    ``economics.<key>`` reads the economics part; ``requirements`` adds what each option means.
+    """
+    from geomind.tools.gemini.fields import options_text
+
+    economics = path == "economics" or path.startswith("economics.")
+    wanted = path.removeprefix("economics").removeprefix(".")
+    lines = []
+    for label, tree in described_tree("case"):
+        if bool(label) == economics:
+            lines += lines_under(tree, wanted)
+    if path.startswith("requirements"):
+        lines.append(options_text())
+    return lines

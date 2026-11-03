@@ -128,6 +128,34 @@ def span_of(rows):
     return {"start": rows[0][0], "end": _time_text(end, rows[-1][0]), "step": _step(seconds)}
 
 
+def only_columns(name, text, columns):
+    """Return a table's text with only ``columns``, in that order; another file is an error."""
+    delimiter = TABLE_SUFFIXES.get(Path(name).suffix.lower())
+    if delimiter is None:
+        raise ToolError(
+            f"read_rag: columns = {columns!r}; expected none for {name!r}, which is no CSV or TSV",
+            path="columns",
+        )
+    rows = [row for row in csv.reader(io.StringIO(text), delimiter=delimiter) if row]
+    header = rows[0] if rows else []
+    unknown = [column for column in columns if column not in header]
+    if unknown or not columns:
+        raise ToolError(
+            f"read_rag: columns = {columns!r}; expected some of {join_names(header)}",
+            code="unknown_name",
+            path="columns",
+            suggestions=[
+                match for item in unknown for match in difflib.get_close_matches(item, header)
+            ],
+        )
+    picked = [header.index(column) for column in columns]
+    out = io.StringIO()
+    writer = csv.writer(out, delimiter=delimiter, lineterminator="\n")
+    for row in rows:
+        writer.writerow([row[index] if index < len(row) else "" for index in picked])
+    return out.getvalue()
+
+
 def table_of(name, text):
     """Return ``{columns, rows, first_rows, last_row, span}`` of a CSV or TSV, else ``None``.
 
@@ -160,7 +188,10 @@ def list_files(context):
 
 PAGE_NOTE = "already read in this run: read_stored a reference, or pass force=true"
 WHOLE_NOTE = "the whole document was already read in this run: read_stored the references"
-IN_CONVERSATION = "already read in this run: its text is in the conversation above"
+IN_CONVERSATION = (
+    "already read in this run: its text is in the conversation above, kept whole for the run; "
+    "after a compaction, read_stored a reference"
+)
 
 
 def reads_of(context):
@@ -218,8 +249,15 @@ def document_bytes(context, name):
     return project_file(context, "read_rag", name)
 
 
-@tool(effect="read", late_schemas={"name": file_name_schema}, keeps_result=True)
-def read_rag(context, name: str, start: int = 0, length: int | None = None, force: bool = False):
+@tool(effect="read", late_schemas={"name": file_name_schema}, keeps_result="run")
+def read_rag(
+    context,
+    name: str,
+    start: int = 0,
+    length: int | None = None,
+    force: bool = False,
+    columns: list[str] | None = None,
+):
     """Read a project file, or a document of the knowledge base as ``knowledge/<name>``, as text.
 
     CSV, TSV, JSON, Markdown and text files read as they are, and a PDF as its extracted text with
@@ -229,32 +267,33 @@ def read_rag(context, name: str, start: int = 0, length: int | None = None, forc
     end). The first page of a CSV or TSV also has ``table``: ``columns``, the number of ``rows``,
     the ``first_rows``, the ``last_row`` and the ``span`` its first column covers as a case's
     time: ``start``, ``end`` (exclusive, one step after the last row) and ``step``, or ``null``
-    when that column is not evenly spaced times. A page this run already read comes back as
-    ``already_read`` with a ``note`` instead of its text; ``force`` reads it again, until the
-    whole document was read:
+    when that column is not evenly spaced times. ``columns`` reads only those columns of a CSV or
+    TSV, in that order, such as the ``id``, ``path`` and price of a cost table: a wide table costs
+    far fewer tokens so. A page this run already read comes back as ``already_read`` with a
+    ``note`` instead of its text; ``force`` reads it again, until the whole document was read:
     then every page is ``already_read``, with the references of the stored results. Nested runs
     share what the run tree read.
     """
     if start < 0:
         raise ToolError(f"read_rag: start = {start}; expected 0 or more", path="start")
     text = document_text(name, document_bytes(context, name))
+    key = name
+    if columns is not None:
+        text = only_columns(name, text, columns)
+        key = f"{name}#{','.join(columns)}"
     size = min(length or PAGE_CHARACTERS, PAGE_CHARACTERS)
     end = min(start + size, len(text))
-    whole = read_before(context, name, 0, len(text))
-    earlier = whole or (None if force else read_before(context, name, start, end))
+    whole = read_before(context, key, 0, len(text))
+    earlier = whole or (None if force else read_before(context, key, start, end))
+    shown = {"name": name, **({"columns": columns} if columns is not None else {})}
     if earlier is not None:
         note = WHOLE_NOTE if whole else PAGE_NOTE
-        if all(read["reference"] is None for read in earlier):
+        this_run = context.session.state.run_id
+        if all(read["reference"] is None or read["run"] == this_run for read in earlier):
             note = IN_CONVERSATION
-        return {
-            "name": name,
-            "start": start,
-            "total": len(text),
-            "already_read": earlier,
-            "note": note,
-        }
-    remember_read(context, name, start, end)
-    page = {"name": name, "start": start, "total": len(text), "text": text[start:end]}
+        return {**shown, "start": start, "total": len(text), "already_read": earlier, "note": note}
+    remember_read(context, key, start, end)
+    page = {**shown, "start": start, "total": len(text), "text": text[start:end]}
     page["next"] = end if end < len(text) else None
     table = table_of(name, text) if start == 0 else None
     return page if table is None else {**page, "table": table}

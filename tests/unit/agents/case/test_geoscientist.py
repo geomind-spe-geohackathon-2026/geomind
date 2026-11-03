@@ -13,6 +13,7 @@ TOOLS = [
     "read_rag",
     "search_rag",
     "read_case",
+    "describe_case",
     "read_stored",
     "search_memory",
     "read_memory",

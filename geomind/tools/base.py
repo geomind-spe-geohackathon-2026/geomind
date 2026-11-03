@@ -47,8 +47,8 @@ class Tool:
     a package too slow to import with geomind. ``stored_input`` names the input that is the
     reference of a stored result the tool reads: its own long result is a part of that one, so it
     is not stored again and carries that reference. ``keeps_result`` keeps a result up to
-    ``tool_result_limit`` whole in the history, unstored, for source material the model reads
-    again and again, such as a document page.
+    ``tool_result_limit`` whole in the history for a few turns, for source material the model
+    reads again and again; ``"run"`` keeps it whole for the whole run, such as a document page.
     NOTE: the class is shaped like a protocol, so tools from other sources fit without changes.
     """
 

@@ -166,13 +166,12 @@ async def test_a_path_with_slashes_reads_as_dots():
     assert (await dispatched(read_stored, tool_input, session)).output == {"a": 1}
 
 
-def test_a_kept_result_stays_whole_for_the_kept_turns_then_shrinks():
-    """A document page stays whole while it is recent, then shrinks to its outline, stored."""
-    from geomind import runtime
+def _kept_page_history(tool):
+    """Return a reader agent with ``tool`` and a context whose call ``r1`` read one page."""
     from geomind.engine import Context
     from tests.fixtures.runs import Worker
 
-    page = ToolCall(id="r1", name="read_rag", input={"name": "brief.md"})
+    page = ToolCall(id="r1", name=tool.name, input={"name": "brief.md"})
     messages = [
         Message(role="user", content="go"),
         Message(role="assistant", tool_calls=(page,)),
@@ -185,23 +184,42 @@ def test_a_kept_result_stays_whole_for_the_kept_turns_then_shrinks():
         def __init__(self):
             """Add the document tool."""
             super().__init__()
-            self.read_rag = read_rag
+            setattr(self, tool.name, tool)
 
-    from geomind.tools import read_rag
+    return Reader(), Context(messages=list(messages), stored={"r1": "outline of the page"})
 
-    agent = Reader()
-    context = Context(messages=list(messages), stored={"r1": "outline of the page"})
 
-    def shown():
-        history = context.messages_for(agent)
-        return next(item.content for item in history if item.tool_call_id == "r1")
+def _shown(agent, context):
+    """Return what the model sees of call ``r1``'s result now."""
+    history = context.messages_for(agent)
+    return next(item.content for item in history if item.tool_call_id == "r1")
 
+
+def test_a_kept_result_stays_whole_for_the_kept_turns_then_shrinks():
+    """A plant read stays whole while it is recent, then shrinks to its outline, stored."""
+    from geomind import runtime
+    from geomind.tools.gemini import read_plant
+
+    agent, context = _kept_page_history(read_plant)
     with runtime.settings(compaction_keep_turns=2):
         context.messages.append(Message(role="assistant", content="step 2"))
-        assert shown() == "the whole page"
+        assert _shown(agent, context) == "the whole page"
         context.messages.append(Message(role="assistant", content="step 3"))
         context.messages.append(Message(role="assistant", content="step 4"))
-        assert shown() == "outline of the page"
+        assert _shown(agent, context) == "outline of the page"
+
+
+def test_a_document_page_stays_whole_for_the_whole_run():
+    """The case lead read the brief, then read_stored it four times as it shrank (Track A)."""
+    from geomind import runtime
+    from geomind.tools import read_rag
+
+    agent, context = _kept_page_history(read_rag)
+    assert read_rag.keeps_result == "run"
+    with runtime.settings(compaction_keep_turns=2):
+        for step in range(10):
+            context.messages.append(Message(role="assistant", content=f"step {step}"))
+        assert _shown(agent, context) == "the whole page"
 
 
 async def test_one_call_s_output_is_bounded_by_its_setting():

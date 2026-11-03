@@ -14,6 +14,7 @@ case.
 """
 
 import copy
+import difflib
 import hashlib
 import io
 import json
@@ -576,6 +577,30 @@ def economics_of(context, data):
             path="section",
         )
     return json.loads(content)
+
+
+@tool(effect="read")
+def describe_case(path: str):
+    """Say what each key of the case or its economics under ``path`` means, with its units.
+
+    ``path`` is a dotted key or a part of one, such as ``site.air``, ``demand.cooling``,
+    ``requirements`` (also what each option means) or ``economics.capex``. Returns ``keys``, one
+    line each: the key, its form and units, its meaning and where its value comes from.
+    """
+    from geomind.tools.gemini.skeleton import keys_under
+
+    lines = keys_under(path)
+    if lines:
+        return {"keys": lines}
+    parts = ["format", "kind", "name", "time", "site", "demand", "utilities", "requirements"]
+    parts += ["economics"]
+    raise ToolError(
+        f"describe_case: path = {path!r}; expected a key or a part of one, such as "
+        f"{', '.join(parts)}",
+        code="unknown_name",
+        path="path",
+        suggestions=difflib.get_close_matches(path.split(".")[0], parts),
+    )
 
 
 @tool(effect="read")

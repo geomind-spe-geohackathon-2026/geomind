@@ -27,7 +27,7 @@ class CaseLead(Agent):
         super().__init__()
 
         # Prompt
-        self.prompt = Prompt("case/lead", appendix=trees("case"))
+        self.prompt = Prompt("case/lead", appendix=trees("case_compact"))
 
         # Tools
         self.geoscientist = Delegate(Geoscientist(), max_summary_tokens=FINDINGS_TOKENS)
@@ -35,6 +35,7 @@ class CaseLead(Agent):
         self.read_rag = tools.read_rag
         self.search_rag = tools.search_rag
         self.read_case = tools.gemini.read_case
+        self.describe_case = tools.gemini.describe_case
         self.set_case = tools.gemini.set_case
         self.save_profile = tools.gemini.save_profile
         self.list_profiles = tools.gemini.list_profiles
