@@ -15,8 +15,10 @@ Every test belongs to one automatically marked folder tier:
   when the gemini pin moves and the examples change.
 
 The registered markers are `unit`, `integration`, `e2e`, `slow` and `docker`, with strict marker
-checking. Default options run in parallel with `-n auto --dist loadgroup` and select
-`not e2e and not slow and not docker`. Async tests need no marker: `asyncio_mode = "auto"`.
+checking. Default options run in parallel with `-n 8 --dist loadgroup` and select
+`not e2e and not slow and not docker`. Eight workers, not `-n auto`: on a 32-thread laptop the suite
+is faster with eight, and with all 32 tests that take 0.3 s alone cross the one-second budget. Async
+tests need no marker: `asyncio_mode = "auto"`.
 
 ## Test profiles
 
@@ -41,7 +43,7 @@ and of every module that imports a changed module, directly or transitively:
 4. a changed numbered example selects `tests/e2e/test_examples.py`;
 5. any other changed file selects the tests (or `conftest.py` scopes) whose source names its path.
 
-It prints what it chose and why, then runs `pytest -n auto -m "not slow and not docker"
+It prints what it chose and why, then runs `pytest -n 8 -m "not slow and not docker"
 --profile=development` on the selection. The budget is **300 s** wall time: a session-end guard in
 the root `conftest.py` fails a development-profile run over 300 s and prints the 10 slowest test
 phases.
@@ -59,7 +61,7 @@ meet the budget.
 
 ## Parallel-test rules
 
-The suite must remain safe under `pytest -n auto`:
+The suite must remain safe under parallel workers:
 
 - write only below `tmp_path` locations; temporary files and reports go to `.tmp/`, CLI runs to
   `.runs/` (both git-ignored);

@@ -9,6 +9,9 @@ from geomind.engine import Engine
 from geomind.stores import FileRunStore
 from tests.integration.test_evals import gemini_loaded  # noqa: F401
 
+GEMINI_WORK = {"project_plant", "missing_range"}
+"""Single-agent tasks whose recording sizes a plant or searches 30 evaluations for real."""
+
 
 @pytest.fixture
 def stored(monkeypatch, tmp_path):
@@ -37,10 +40,18 @@ async def replay_all(made):
     return count
 
 
-def tasks(agents, marks=()):
-    """Return one test parameter per task file of the task folders ``agents``."""
+def tasks(agents):
+    """Return one test parameter per task file of the task folders ``agents``.
+
+    A task that sizes or searches with gemini runs in the slow tier.
+    """
     return [
-        pytest.param(agent, path.stem, id=f"{agent}-{path.stem}", marks=marks)
+        pytest.param(
+            agent,
+            path.stem,
+            id=f"{agent}-{path.stem}",
+            marks=[pytest.mark.slow] if path.stem in GEMINI_WORK else [],
+        )
         for agent in agents
         for path in sorted((evals.ROOT / "tasks" / agent).glob("*.yaml"))
     ]

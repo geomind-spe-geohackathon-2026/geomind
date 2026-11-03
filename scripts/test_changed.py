@@ -205,7 +205,7 @@ def pytest_command(selected, extra):
         "-m",
         "pytest",
         "-n",
-        "auto",
+        "8",
         "-m",
         "not slow and not docker",
         "--profile=development",

@@ -56,7 +56,7 @@ pythonpath = "."
 testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-addopts = "--import-mode=importlib -n auto --dist loadgroup --strict-markers -m 'not e2e and not slow and not docker'"
+addopts = "--import-mode=importlib -n 8 --dist loadgroup --strict-markers -m 'not e2e and not slow and not docker'"
 markers = [
     "unit: isolated tests mirroring one source unit",
     "integration: tests combining multiple runtime components",
