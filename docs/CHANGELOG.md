@@ -6,6 +6,18 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.19] - 2026-11-03
+
+What the second live run showed (run f90f3e12), each pinned by a test on its recorded calls.
+
+**Required settings (backend):** `GEOMIND_RETRY_COUNT` and `GEOMIND_RETRY_DELAY` have no default any more. A live run and `geomind check-live` refuse while either is unset; set them next to `GEOMIND_MODEL`, `GEOMIND_CHEAP_MODEL` and `GEOMIND_CONTEXT_WINDOW` (the old values were 3 and 0.5). A scripted or fake provider needs neither.
+
+- Fix: a call's `max_tokens` is at most the model's window less the input bound, so a budget's room no longer asks for more than fits (the run asked OpenRouter for 1,598,258 output tokens and four designer rounds got a 400).
+- OpenRouter's 400 for a too long call is `ProviderError(code="context_exceeded")`; a run it ends keeps the message, and a delegate answers with the tool error `context_exceeded` (new in `TOOL_ERROR_CODES`) instead of `internal`.
+- `set_case`: a series naming a file not passed gets the retry with `files=[...]`; `invalid_unit` gets the field corrected and the accepted units; `requirements` inside `changes` gets the call with `requirements={...}`.
+- `build_plant` without a header: `old_format` with the smallest plant file of `gm.plants.schema()` in `suggestions`.
+- `read_stored` with a path on a text says to read it without a path.
+
 ## [0.4.18] - 2026-11-03
 
 Additive: what the first live run showed, each pinned by a test on its recorded calls.

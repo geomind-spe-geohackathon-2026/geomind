@@ -14,6 +14,7 @@ from geomind.utils.strings import join_names
 
 UNIT_GIVEN = re.compile(r"unit = '([^']*)'")
 UNIT_LISTED = ("accepted units", "expected a unit of")
+UNIT_QUANTITY = re.compile(r"a unit of ([a-z_]+)")
 RANGE_SUFFIX = ".range"
 SHOWN_LEAVES = 12
 ASK = (
@@ -202,6 +203,67 @@ def explained(error, quantity=None):
         problem = {**problem, "code": "case_incomplete", "path": gaps[0], "suggestions": gaps}
     text = unit_text(error, quantity)
     return {**problem, "message": text} if text else problem
+
+
+def unit_guess(given, units):
+    """Return the accepted unit whose letters come in order in ``given``, the longest, or ``None``.
+
+    ``day`` gives ``d``, ``minutes`` gives ``min`` and ``year`` gives ``yr``: a name the model
+    spelled out, mapped to the name gemini knows, never a conversion.
+    """
+
+    def inside(unit):
+        letters = iter(given.lower())
+        return all(letter in letters for letter in unit.lower())
+
+    found = sorted((unit for unit in units if unit and inside(unit)), key=len, reverse=True)
+    return found[0] if found else None
+
+
+def number_of(value):
+    """Return ``value`` as a number when it is a number written as text, else unchanged."""
+    if not isinstance(value, str):
+        return value
+    try:
+        number = float(value)
+    except ValueError:
+        return value
+    return int(number) if number.is_integer() else number
+
+
+def field_of(data, path):
+    """Return the value at the dotted ``path`` of ``data``, or ``None``."""
+    for part in path.split("."):
+        if not isinstance(data, dict):
+            return None
+        data = data.get(part)
+    return data
+
+
+def unit_retry(error, data):
+    """Return the suggestions of a rejected unit: the field corrected and the units accepted.
+
+    The field is the one the model sent, its unit replaced by the accepted name its letters spell
+    and its value made a number, such as ``time.step = {'value': 1, 'unit': 'd'}``.
+    """
+    import gemini as gm
+
+    problems = [problem for problem in error.problems if problem["code"] == "invalid_unit"]
+    suggestions = []
+    for problem in problems or [error.to_dict()]:
+        quantity = UNIT_QUANTITY.search(problem["message"])
+        given = UNIT_GIVEN.search(problem["message"])
+        if quantity is None or given is None or not problem["path"].endswith(".unit"):
+            continue
+        units = list(gm.units.names(quantity[1]))
+        field = problem["path"].removesuffix(".unit")
+        sent = field_of(data, field)
+        guess = unit_guess(given[1], units)
+        if isinstance(sent, dict) and guess is not None:
+            corrected = {**sent, "value": number_of(sent.get("value")), "unit": guess}
+            suggestions.append(f"{field} = {corrected!r}")
+        suggestions.append(f"accepted units: {join_names(units)}")
+    return suggestions
 
 
 def unit_error(error, quantity):

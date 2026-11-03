@@ -36,6 +36,7 @@ def test_the_codes_are_the_fixed_list():
         "files_unavailable",
         "not_text",
         "nested_stopped",
+        "context_exceeded",
         "timeout",
         "budget",
     }

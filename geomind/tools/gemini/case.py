@@ -25,7 +25,8 @@ from geomind.errors import ToolError
 from geomind.stores.casefiles import case_files, is_safe_name, named_files
 from geomind.tools.base import tool
 from geomind.tools.files import file_names_schema, project_file
-from geomind.tools.gemini.explain import unit_error
+from geomind.tools.gemini.explain import unit_error, unit_retry
+from geomind.tools.gemini.skeleton import case_skeleton
 from geomind.utils.strings import did_you_mean, join_names
 
 CASE_FILE = "case/"
@@ -138,27 +139,6 @@ def readable_case(data, files):
         raise ToolError(
             str(error), code="case_incomplete", path=missing[0], suggestions=missing + skeleton
         ) from error
-
-
-def skeleton_of(schema, name):
-    """Return the smallest value of a JSON Schema: its constant, its required keys, or a name."""
-    if "const" in schema:
-        return schema["const"]
-    if schema.get("type") == "object" and schema.get("required"):
-        properties = schema.get("properties", {})
-        return {key: skeleton_of(properties.get(key, {}), key) for key in schema["required"]}
-    return f"<{name}>"
-
-
-def case_skeleton():
-    """Return the smallest case gemini's public schema accepts the shape of, from ``Case.schema``.
-
-    Its constants are gemini's own (``format``, ``kind``) and every other required leaf is named,
-    such as ``"<start>"``: the model fills them, geomind invents no value.
-    """
-    import gemini as gm
-
-    return skeleton_of(gm.Case.schema(), "case")
 
 
 def changes_schema():
@@ -317,15 +297,57 @@ def base_case(context, source):
     )
 
 
-def checked_changes(changes):
-    """Return ``changes`` if it leaves ``requirements`` and ``economics`` to their own argument."""
+def unpassed_files(changes, files):
+    """Return ``files`` with the files a series of ``changes`` names that ``files`` lacks."""
+    passed = list(files or [])
+    return passed + sorted(set(case_files(changes)) - set(passed))
+
+
+def by_name(requirements):
+    """Return a requirement list as ``{name: requirement}``, the form of the argument."""
+    if not isinstance(requirements, list):
+        return requirements
+    return {
+        item.get("name"): {key: value for key, value in item.items() if key != "name"}
+        for item in requirements
+        if isinstance(item, dict)
+    }
+
+
+def own_argument_retry(changes, key, files):
+    """Return the ``set_case`` call that moves ``key`` out of ``changes`` to its own argument."""
+    value = by_name(changes[key]) if key == "requirements" else changes[key]
+    retry = f"set_case(changes=<the same changes without {key!r}>, {key}={value!r}"
+    needed = unpassed_files(changes, files)
+    return retry + (f", files={needed!r})" if needed != list(files or []) else ")")
+
+
+def checked_changes(changes, files):
+    """Return ``changes`` if it leaves ``requirements`` and ``economics`` to their own argument.
+
+    The error's suggestion is the call that moves it, with ``files`` naming every file a series
+    of the changes needs.
+    """
     for key, form in OWN_ARGUMENTS.items():
         if key in changes:
             raise ToolError(
                 f"set_case: changes has {key!r}; expected the argument {key!r}: {form}",
                 path=f"changes.{key}",
+                suggestions=[own_argument_retry(changes, key, files)],
             )
     return changes
+
+
+def case_retries(error, data, supplied, files, columns, changes):
+    """Return the next calls a rejected case suggests: renamed columns, files, a unit."""
+    retries = [column_retry(error, supplied, files or [], changes)]
+    needed = unpassed_files(changes or {}, files)
+    if needed != list(files or []) and not set(needed) <= supplied.keys():
+        shown = f", columns={columns!r}" if columns else ""
+        retries.append(f"set_case(files={needed!r}{shown}, changes=<the same changes>)")
+    if error.code == "invalid_unit":
+        retries.extend(unit_retry(error, data))
+    return [retry for retry in retries if retry is not None]
 
 
 def edited_requirements(current, edits):
@@ -426,7 +448,7 @@ async def set_case(
     if files:
         given = await runtime.in_gemini_thread(project_files_of, context, files, columns)
         supplied = {**supplied, **given}
-    data = merge_patch(base, checked_changes(changes or {}))
+    data = merge_patch(base, checked_changes(changes or {}, files))
     if requirements:
         data["requirements"] = edited_requirements(data.get("requirements"), requirements)
     contents = edited_economics(context, data, supplied, economics) if economics else supplied
@@ -434,11 +456,11 @@ async def set_case(
     try:
         version = await store_case(context, data, contents, origin)
     except gm.errors.ValidationError as error:
-        retry = column_retry(error, supplied, files or [], changes)
-        if retry is None:
+        retries = case_retries(error, data, supplied, files, columns, changes)
+        if not retries:
             raise
         raise ToolError(
-            str(error), code=error.code, path=error.path, suggestions=[retry]
+            str(error), code=error.code, path=error.path, suggestions=retries
         ) from error
     return {"case": data, "version": version}
 

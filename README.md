@@ -118,7 +118,7 @@ geomind has no built-in model: a run on a real provider stops at the start until
 | `GEOMIND_COMPARE_CONCURRENCY` | How many families a comparison designs side by side; unset, one at a time |
 | `GEOMIND_COMPARE_RETRIES` | How often a comparison designs a rejected family again; unset, never |
 | `GEOMIND_GEMINI_THREADS` | The threads gemini work runs in; unset, asyncio's default executor |
-| `GEOMIND_RETRY_COUNT`, `GEOMIND_RETRY_DELAY` | Retries of a failed provider call and the first delay in seconds, doubled each time (3 and 0.5 unless set) |
+| `GEOMIND_RETRY_COUNT`, `GEOMIND_RETRY_DELAY` | Required for a live run: retries of a failed provider call and the first delay in seconds, doubled each time; no default |
 
 A long-running host, such as a backend worker, should also set `MALLOC_ARENA_MAX=2`: gemini runs
 in worker threads, and without it each process grows about twice as large.

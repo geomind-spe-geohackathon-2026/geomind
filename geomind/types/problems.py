@@ -12,6 +12,7 @@ TOOL_ERROR_CODES = (
     "files_unavailable",
     "not_text",
     "nested_stopped",
+    "context_exceeded",
     "timeout",
     "budget",
     "internal",

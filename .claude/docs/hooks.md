@@ -33,7 +33,9 @@ so they are passed again when a run resumes in another process.
   under what a provider counts) times the input price, plus the call's `max_tokens` times the
   output price. If that passes the cap the hook lowers the call's `max_tokens` to what fits, through
   the session (`limit_output`, used once); if even the input does not fit, the call is denied. A run
-  then ends at or below its cap. A token budget does the same with `bound_input=True`. Both are off
+  then ends at or below its cap. A token budget does the same with `bound_input=True`. Every call's
+  `max_tokens` is also at most the model's window (`context_window`) less the input bound, so a
+  budget's room never asks a provider for more than fits. Both are off
   when unset (a call is then refused only once the cap is reached), and a model without a price, or
   a rule step, is not estimated. geomind has no price table: prices come from OpenRouter's public
   model list (`GET /models`), fetched once per process in `geomind/utils/models.py` together with

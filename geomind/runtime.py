@@ -54,8 +54,8 @@ def _listed(name):
     return items or None
 
 
-RETRY_COUNT = 3
-RETRY_DELAY_S = 0.5
+RETRY_SETTINGS = {"retry_count": "GEOMIND_RETRY_COUNT", "retry_delay": "GEOMIND_RETRY_DELAY"}
+"""The retry settings a live run needs, by the environment variable that sets each."""
 """The retries of a failed provider call and the first delay, doubled each time, unless set."""
 
 
@@ -83,7 +83,9 @@ def _defaults():
     means one at a time. ``GEOMIND_COMPARE_RETRIES`` is how often a family gemini rejects is
     designed again; unset means never. ``GEOMIND_GEMINI_THREADS`` is the size of the thread pool
     gemini work runs in; unset means asyncio's default executor. ``GEOMIND_RETRY_COUNT`` and
-    ``GEOMIND_RETRY_DELAY`` (seconds) set the backoff of a failed provider call.
+    ``GEOMIND_RETRY_DELAY`` (seconds) set the backoff of a failed provider call; geomind holds
+    no value for them, so a live run without them is refused, and a scripted provider, unset,
+    makes one attempt.
     """
     cheap = os.environ.get("GEOMIND_CHEAP_MODEL") or None
     return {
@@ -97,8 +99,8 @@ def _defaults():
         "compare_concurrency": _integer("GEOMIND_COMPARE_CONCURRENCY"),
         "compare_retries": _integer("GEOMIND_COMPARE_RETRIES"),
         "gemini_threads": _integer("GEOMIND_GEMINI_THREADS"),
-        "retry_count": _integer("GEOMIND_RETRY_COUNT") or RETRY_COUNT,
-        "retry_delay": _number("GEOMIND_RETRY_DELAY") or RETRY_DELAY_S,
+        "retry_count": _integer("GEOMIND_RETRY_COUNT"),
+        "retry_delay": _number("GEOMIND_RETRY_DELAY"),
     }
 
 
@@ -115,18 +117,21 @@ def model_problems():
         if model is None:
             name = "GEOMIND_CHEAP_MODEL" if role in cheap_roles else "GEOMIND_MODEL"
             lines.append(f"{role}: set {name} or {role}_model")
+    for setting, name in RETRY_SETTINGS.items():
+        if get(setting) is None:
+            lines.append(f"retries: set {name} or {setting}")
     return lines
 
 
 def missing_model_settings():
-    """Return the environment variables whose absence leaves a role without a model."""
+    """Return the environment variables a live run lacks: a role's model, the retry settings."""
     cheap_roles = ("coordinator", "summarizer")
     missing = []
     for role, model in role_models().items():
         name = "GEOMIND_CHEAP_MODEL" if role in cheap_roles else "GEOMIND_MODEL"
         if model is None and name not in missing:
             missing.append(name)
-    return missing
+    return missing + [name for setting, name in RETRY_SETTINGS.items() if get(setting) is None]
 
 
 def state():

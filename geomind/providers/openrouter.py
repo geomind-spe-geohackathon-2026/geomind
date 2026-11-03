@@ -141,14 +141,25 @@ class _Stream:
         )
 
 
+CONTEXT_LENGTH = "maximum context length"
+"""How OpenRouter says a call is longer than the model's window."""
+
+
+def code_of(status, text):
+    """Return the stable code of a provider failure: ``context_exceeded``, else ``None``."""
+    return "context_exceeded" if status == 400 and CONTEXT_LENGTH in text else None
+
+
 def _raise_api_error(error):
     """Raise the error a stream or a response body reports."""
     status = error.get("code")
     is_status = isinstance(status, int)
+    text = error.get("message", "unknown error")
     raise ProviderError(
-        f"OpenRouter: status = {status}; {error.get('message', 'unknown error')}",
+        f"OpenRouter: status = {status}; {text}",
         status=status if is_status else None,
         is_retryable=is_status and is_retryable_status(status),
+        code=code_of(status, text),
     )
 
 
@@ -194,7 +205,8 @@ class OpenRouter:
     @staticmethod
     def _missing():
         """Return the settings to set, for the refusal of a call without a model."""
-        return " and ".join(runtime.missing_model_settings()) or "a model for the agent"
+        models = [name for name in runtime.missing_model_settings() if name.endswith("MODEL")]
+        return " and ".join(models) or "a model for the agent"
 
     async def complete(self, messages, tools, *, model, settings, on_text=None):
         """Return the completion of one streamed call."""
@@ -232,4 +244,5 @@ class OpenRouter:
             f"OpenRouter: status = {response.status_code}; {text[:500]}",
             status=response.status_code,
             is_retryable=is_retryable_status(response.status_code),
+            code=code_of(response.status_code, text),
         )

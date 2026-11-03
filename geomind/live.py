@@ -33,10 +33,11 @@ def _role_lines():
 
 
 def role_problems():
-    """Return the roles without a model, with the setting to set, and the Anthropic models."""
+    """Return the roles without a model, the live settings unset, and the Anthropic models."""
     problems = []
     for name in runtime.missing_model_settings():
-        problems.append(f"model not set: {name}")
+        kind = "model" if name.endswith("MODEL") else "setting"
+        problems.append(f"{kind} not set: {name}")
     for role, model in role_models().items():
         if model and model.startswith(FORBIDDEN_PREFIX):
             problems.append(f"model not allowed: {model} (role {role})")
