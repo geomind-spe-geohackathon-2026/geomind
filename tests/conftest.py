@@ -163,6 +163,7 @@ def deployment_settings(monkeypatch):
     monkeypatch.setenv("GEOMIND_RETRY_DELAY", TEST_RETRY_DELAY)
     monkeypatch.setenv("GEOMIND_MAX_STEPS", TEST_MAX_STEPS)
     monkeypatch.setenv("GEOMIND_MEMORY", "off")
+    monkeypatch.setenv("GEOMIND_MAX_OUTPUT_TOKENS", "16000")
 
 
 @pytest.fixture(autouse=True)

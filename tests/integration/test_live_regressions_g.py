@@ -202,3 +202,39 @@ def test_a_kept_result_stays_whole_for_the_kept_turns_then_shrinks():
         context.messages.append(Message(role="assistant", content="step 3"))
         context.messages.append(Message(role="assistant", content="step 4"))
         assert shown() == "outline of the page"
+
+
+async def test_one_call_s_output_is_bounded_by_its_setting():
+    """One runaway completion wrote 103,404 tokens: the per-call output limit bounds every call."""
+    from geomind import runtime
+    from geomind.engine import Engine, Permissions
+    from geomind.engine.hooks import TokenBudget
+    from tests.fixtures.runs import Worker, context
+    from tests.integration.test_live_regressions_b import Settings
+
+    llm = Settings([says("done")])
+    engine = Engine(llm=llm, permissions=Permissions(mode="auto"), hooks=[TokenBudget(10**7)])
+    with runtime.settings(max_output_tokens=4000):
+        await engine.run(Worker(), context())
+    assert llm.settings[0]["max_tokens"] == 4000
+
+
+def test_the_output_limit_is_a_required_live_setting(monkeypatch):
+    """No built-in limit: a live run names GEOMIND_MAX_OUTPUT_TOKENS when it is unset."""
+    from geomind import runtime
+
+    monkeypatch.delenv("GEOMIND_MAX_OUTPUT_TOKENS", raising=False)
+    assert runtime.get("max_output_tokens") is None
+    assert "GEOMIND_MAX_OUTPUT_TOKENS" in runtime.missing_model_settings()
+
+
+async def test_a_completion_cut_at_the_limit_is_retried_with_a_note():
+    """A call that stops at the output limit is no answer: the model is told and asked again."""
+    from geomind.types import Completion
+    from tests.fixtures.runs import USAGE
+
+    cut = Completion(text="", usage=USAGE, model="fake/model", raw={"finish_reason": "length"})
+    result, _, events = await run([cut, says("short answer")])
+    assert (result.status, result.answer) == ("done", "short answer")
+    notes = [e for e in events if e.type == "tool.result" and e.feedback == "length"]
+    assert notes and "output limit" in str(notes[0].output)

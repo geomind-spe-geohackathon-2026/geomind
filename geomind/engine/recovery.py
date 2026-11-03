@@ -49,6 +49,8 @@ def _llm_completed(state, event):
         Message(role="assistant", content=completion.text, tool_calls=completion.tool_calls)
     )
     state.action = Action(text=completion.text, tool_calls=completion.tool_calls)
+    raw = completion.raw if isinstance(completion.raw, dict) else {}
+    state.is_cut = raw.get("finish_reason") == "length"
     state.calls = list(completion.tool_calls)
     state.usage += completion.usage
     state.step_usage += completion.usage

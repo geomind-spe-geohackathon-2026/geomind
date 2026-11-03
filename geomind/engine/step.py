@@ -6,6 +6,7 @@ yet. So a step continues from any point, after a pause or a crash, without a sec
 
 import asyncio
 
+from geomind import runtime
 from geomind.engine.compaction import compact_history
 from geomind.engine.state import Stop, is_cancel
 from geomind.errors import OutputError, ToolError, UnknownNameError
@@ -281,6 +282,10 @@ async def run_step(session, agent):
         stop = await _think(session, agent)
         if stop is not None:
             return stop
+    if state.is_cut and not state.results:
+        await _retry_cut(session, agent)
+        await close_step(session)
+        return None
     stop = await _run_calls(session, agent)
     if stop is None and state.has_answer:
         stop = Stop(state.stop_reason, answer=state.answer)
@@ -290,6 +295,33 @@ async def run_step(session, agent):
         return stop
     await close_step(session)
     return stop
+
+
+CUT_NOTE = (
+    "Your last answer stopped at the output limit of one call ({limit} tokens) and was cut, so "
+    "nothing of it ran. Answer again, shorter: think less, and make one small tool call."
+)
+"""What a model reads after a completion the output limit cut."""
+
+
+async def _retry_cut(session, agent):
+    """Tell the model its cut completion did not run; each cut call gets the note as its result."""
+    limit = runtime.get("max_output_tokens")
+    note = CUT_NOTE.format(limit=limit)
+    calls = session.state.calls
+    if not calls:
+        await session.emit(
+            ToolRecorded,
+            index=session.state.step,
+            output=note,
+            is_error=True,
+            source="denied",
+            feedback="length",
+        )
+        return
+    for call in calls:
+        result = text_result(call, note, is_error=True)
+        await record_result(session, call, result, source="denied", feedback="length")
 
 
 async def settle_interrupted(session, agent):

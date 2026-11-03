@@ -228,12 +228,14 @@ class RunSession:
     def _call_settings(self, agent, messages):
         """Return the agent's settings with the output limit of this call, used once.
 
-        The limit is the least of what a hook set, the agent's ``max_tokens`` and what the
-        model's window leaves after the input bound, so no call asks for more than fits.
+        The limit is the least of what a hook set, the agent's ``max_tokens``, the
+        ``max_output_tokens`` setting and what the model's window leaves after the input bound,
+        so no call asks for more than fits and no single completion can run away.
         """
         settings = agent.model.settings()
         limit, self._output_limit = self._output_limit, None
-        limits = [item for item in (limit, settings.get("max_tokens")) if item is not None]
+        bound = runtime.get("max_output_tokens")
+        limits = [item for item in (limit, settings.get("max_tokens"), bound) if item is not None]
         window = context_window(agent.model.resolved_name())
         if window is not None and limits:
             limits.append(max(1, window - input_bound(agent, messages)))

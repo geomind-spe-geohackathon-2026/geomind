@@ -68,6 +68,7 @@ RETRY_SETTINGS = {
     "retry_count": "GEOMIND_RETRY_COUNT",
     "retry_delay": "GEOMIND_RETRY_DELAY",
     "max_steps": "GEOMIND_MAX_STEPS",
+    "max_output_tokens": "GEOMIND_MAX_OUTPUT_TOKENS",
     "memory": "GEOMIND_MEMORY",
 }
 """The settings a live run needs beside its models, by the environment variable that sets each.
@@ -123,6 +124,7 @@ def _defaults():
         "compare_retries": _integer("GEOMIND_COMPARE_RETRIES"),
         "gemini_threads": _integer("GEOMIND_GEMINI_THREADS"),
         "max_steps": _integer("GEOMIND_MAX_STEPS"),
+        "max_output_tokens": _integer("GEOMIND_MAX_OUTPUT_TOKENS"),
         "memory": os.environ.get("GEOMIND_MEMORY") or None,
         "memory_dir": os.environ.get("GEOMIND_MEMORY_DIR") or None,
         "memory_similarity": _number("GEOMIND_MEMORY_SIMILARITY"),
