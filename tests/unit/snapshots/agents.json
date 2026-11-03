@@ -193,6 +193,10 @@
           }
         },
         "run": {
+          "--concurrency": {
+            "choices": null,
+            "default": null
+          },
           "--loop": {
             "choices": [
               "tool",
@@ -578,5 +582,5 @@
       "Model"
     ]
   },
-  "version": "0.4.6"
+  "version": "0.4.7"
 }

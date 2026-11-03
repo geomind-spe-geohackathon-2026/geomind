@@ -211,6 +211,19 @@ def test_the_challenge2_cases_pass_offline_through_the_design_loop(gemini_loaded
 
 
 @pytest.mark.slow
+def test_the_alternatives_task_passes_offline_through_the_new_compare_loop(gemini_loaded):
+    """Three families, one infeasible by gemini's own check: the others are verified and ranked.
+
+    NOTE: slow, because each family is sized, optimised and simulated for a whole year.
+    """
+    [outcome] = evals.run_agent("alternatives")
+    assert outcome.problems == []
+    verdicts = {item["family"]: item["verdict"] for item in outcome.state["design"]["alternatives"]}
+    assert verdicts == {"heat_only": "infeasible", "chiller": "verified", "heat_pump": "verified"}
+    assert "| heat_only | infeasible |" in outcome.answer
+
+
+@pytest.mark.slow
 def test_the_compare_task_passes_offline_through_the_compare_loop(gemini_loaded):
     """Two topologies, one study: ``design.study``, ``design.reference`` and the verdict hold.
 

@@ -435,3 +435,14 @@ def test_prices_that_cannot_be_fetched_are_said(capsys):
 
     assert cli._fetch_prices(failing) is None
     assert "prices: not fetched" in capsys.readouterr().out
+
+
+def test_the_concurrency_of_a_comparison_is_a_setting_of_the_run():
+    """``--concurrency`` sets ``compare_concurrency``; without it the run keeps the setting's."""
+    from geomind import runtime
+
+    parsed = cli._parser().parse_args(["run", "x", "--concurrency", "3"])
+    assert cli._changes(parsed)["compare_concurrency"] == 3
+    unset = cli._parser().parse_args(["run", "x"])
+    assert "compare_concurrency" not in cli._changes(unset)
+    assert runtime.get("compare_concurrency") is None

@@ -1,0 +1,18 @@
+# Scripted recording: the model's moves are code, every tool result is gemini's own.
+message: 'Compare three alternatives for the project''s case, the project''s plants HeatingPlant,
+  HeatingCoolingPlant and HeatingHeatPumpCoolingPlant: size, simulate and check each, optimise each
+  on the levelised cost of thermal service (lcts) with 20 evaluations and seed 0, then compare the
+  verified ones on lcts and co2 and recommend one.'
+answers:
+- Use the project's case.
+plant: evals/projects/hackathon
+criteria:
+- kind: tool
+  tool: compare
+- kind: state
+  path: /design/alternatives
+- kind: state
+  path: /design/comparison
+- kind: tool
+  tool: optimize
+- kind: verified

@@ -146,13 +146,14 @@ async def test_costs_are_gemini_s_values_of_the_case_in_display_units():
     }
 
 
-async def test_a_cost_whose_assumption_is_missing_is_gemini_s_error_beside_the_others():
+async def test_a_cost_whose_assumption_is_missing_is_a_case_gap_beside_the_others():
     """The shallow economics gives no heat revenue: NPV and payback say so, capex is still there."""
     output = assessed("estimate_costs", "shallow_district", "base")
     assert output["capex"]["unit"] == "MEUR" and output["lcts"]["unit"] == "EUR/MWh"
     for name in ("npv", "payback"):
-        assert output[name]["error"]["code"] == "missing_assumption"
+        assert output[name]["error"]["code"] == "case_incomplete"
         assert output[name]["error"]["path"] == "economics.revenue.heat"
+        assert output[name]["error"]["suggestions"] == ["economics.revenue.heat"]
 
 
 def test_costs_follow_the_cooling_demand():

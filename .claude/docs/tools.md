@@ -231,7 +231,7 @@ requirement of the problem state is one too: `Requirement.case_requirement` name
 `npv`, `payback` and `co2` on the run's plant and case and shows them in display units (MEUR,
 MEUR/yr, EUR/MWh, kt, yr) through a gemini `Report` of the values. Prices, discount rate, analysis
 period and cost factors are the case's `economics.json`; geomind passes none and fills none. A cost
-whose figure is missing is `{"error": {path, code: "missing_assumption", message}}` beside the
+whose figure is missing is `{"error": {path, code: "case_incomplete", message, suggestions}}` beside the
 others, and a case from which no cost can be computed fails the call with gemini's error. The
 agent asks the user or sets it in the case's economics.
 

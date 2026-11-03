@@ -78,6 +78,8 @@ def _changes(args):
         changes["default_model"] = args.model
     if args.max_steps:
         changes["max_steps"] = args.max_steps
+    if getattr(args, "concurrency", None):
+        changes["compare_concurrency"] = args.concurrency
     return changes
 
 
@@ -470,6 +472,15 @@ def _add_project_caps(run):
     )
 
 
+def _comparison_arguments(run):
+    """Add the options of a comparison to the ``run`` command."""
+    run.add_argument(
+        "--concurrency",
+        type=int,
+        help="families a comparison designs side by side; unset, one at a time",
+    )
+
+
 def _parser():
     """Return the argument parser."""
     parser = argparse.ArgumentParser(prog="geomind", description=__doc__)
@@ -481,6 +492,7 @@ def _parser():
     run.add_argument("--mode", choices=["ask", "auto", "readonly", "plan"], default="ask")
     run.add_argument("--sandbox", choices=["local", "docker"])
     run.add_argument("--loop", choices=list(LOOPS))
+    _comparison_arguments(run)
     run.add_argument("--project")
     run.add_argument("--recording")
     run.add_argument("--record")

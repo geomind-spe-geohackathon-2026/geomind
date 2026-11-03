@@ -75,7 +75,7 @@ def test_the_recording_of_a_single_agent_task_replays(stored, agent, name):
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize(("agent", "name"), tasks(["challenge2", "compare"]))
+@pytest.mark.parametrize(("agent", "name"), tasks(["challenge2", "compare", "alternatives"]))
 @pytest.mark.usefixtures("gemini_loaded")
 def test_the_recording_of_a_loop_task_replays(stored, agent, name):
     """The task runs through its loop into a store, and that run replays.

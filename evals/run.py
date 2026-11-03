@@ -26,12 +26,17 @@ from geomind.types import Usage
 
 ROOT = Path(__file__).parent
 CHAT = "eval"
-SUITES = {"challenge2": "design", "compare": "compare"}
+SUITES = {"challenge2": "design", "compare": "study_compare", "alternatives": "compare"}
 """Task folders run through a loop rather than one agent: the folder name and its loop."""
 SUITE_AGENT = "designer"
 """The agent that runs a suite's task alone, through the ``ToolLoop``."""
 REPORT_LOOPS = {"tool": "ToolLoop", "design": "DesignLoop", "compare": "CompareLoop"}
-"""The loops of the report: the name in ``LOOPS`` and the class."""
+LOOP_SUITES = ("design", "study_compare", "compare")
+"""The loops of the report: the name in ``LOOPS`` and the class.
+
+NOTE: ``compare`` is the loop of 0.4.6; the ``compare`` suite's own recording was made on
+``StudyCompareLoop``, which its own runs (``--agent compare``) use.
+"""
 
 
 @dataclass
@@ -115,11 +120,11 @@ def new_run(task, agent_name, llm, store, loop=None):
         store=store,
         workspace=workspace,
         permissions=gd.Permissions(mode="auto"),
-        agent=None if loop in ("design", "compare") else gd.agents.named(agent_name),
+        agent=None if loop in LOOP_SUITES else gd.agents.named(agent_name),
     )
-    if loop == "compare":
+    if loop == "study_compare":
         run.loop = gd.loops.StudyCompareLoop(gd.agents.Designer(), gd.agents.Verifier())
-    if loop == "design":
+    if loop in ("design", "compare"):
         run.loop = loop_of(Route(kind="loop", loop=loop))
     return run
 

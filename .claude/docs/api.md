@@ -49,10 +49,11 @@ the routing, for testing one agent by hand, and so does a `run.loop` set before 
 ## Command line
 
 - `geomind run "<message>" [--model ID] [--max-steps N] [--mode ask|auto|readonly|plan]
-  [--sandbox local|docker] [--loop tool|design|compare] [--project PATH]
+  [--sandbox local|docker] [--loop tool|design|compare] [--concurrency N] [--project PATH]
   [--recording FILE] [--record FILE] [--max-tokens N] [--max-cost USD]` runs with `OpenRouter` and
   `FileRunStore(".runs")`, prints text as it streams, asks in the terminal when a request pauses the
-  run, then resumes. `--loop` chooses the loop instead of the coordinator; `--recording` runs from
+  run, then resumes. `--concurrency` sets `compare_concurrency`, the families a comparison designs
+  side by side (unset, one at a time). `--loop` chooses the loop instead of the coordinator; `--recording` runs from
   recorded completions, offline; `--record` writes the completions of this run for that.
   `--project-max-tokens` and `--project-max-cost` (only with `--project`) cap the project over all
   its finished runs in `.runs` (`ProjectBudget`); they do not satisfy the `--mode auto` rule below.

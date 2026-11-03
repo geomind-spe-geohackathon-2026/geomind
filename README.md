@@ -94,7 +94,8 @@ python -m geomind replay <run>
 python -m geomind check-live
 ```
 
-`python -m geomind <command> --help` lists the options of each command.
+`python -m geomind <command> --help` lists the options of each command. `run --concurrency N` lets a
+comparison design N families side by side.
 
 ## Configure the models
 

@@ -6,6 +6,16 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.7] - 2026-11-03
+
+Additive, with one changed code.
+
+- No overshoot with runs side by side: a bounded call holds its worst case (input bound plus the output it may use, priced when a price is known) until it returns, `total_usage` counts what other calls hold, and a call that would pass the cap is not sent.
+- New eval `alternatives/three_families` for the `CompareLoop`: a scripted model, every tool real. gemini rejects the heating-only plant, and the other two are verified and ranked. It replays in the slow tier. `--agent compare` keeps running its recording on `StudyCompareLoop`; the report's `CompareLoop` table is the new loop, so old tasks meet fewer criteria there.
+- `geomind run --concurrency N` sets `compare_concurrency`.
+- `estimate_costs`: a cost missing a case value is `case_incomplete` (it was `missing_assumption`), with the path in `suggestions`, as other tools do.
+- The Economist's comparison task names each family beside its result.
+
 ## [0.4.6] - 2026-11-03
 
 Additive: `compare` is a real comparison. Old logs and recordings keep their loop.

@@ -2,6 +2,7 @@
 
 from geomind.errors import ToolError
 from geomind.tools.base import tool
+from geomind.tools.gemini.explain import explained
 from geomind.tools.gemini.references import reference_schema
 from geomind.tools.gemini.stored import load_run
 from geomind.tools.gemini.verification import METRIC_EXCLUDED, assess, displayed
@@ -97,5 +98,5 @@ def estimate_costs(context, reference: str):
         raise next(iter(errors.values()))
     shown = displayed(gm.evaluate.report(plant, case, results), values)
     return {
-        name: shown[name] if name in shown else {"error": errors[name].to_dict()} for name in COSTS
+        name: shown[name] if name in shown else {"error": explained(errors[name])} for name in COSTS
     }
