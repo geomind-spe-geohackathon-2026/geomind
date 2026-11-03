@@ -6,6 +6,14 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.9] - 2026-11-03
+
+Additive.
+
+- A replay of a stopped run ends as the run did: a waiting run waits on the same request, a budget or time limit stop has the same reason and partial answer, a cancelled run is cancelled. Before, each ended `cancelled`.
+- `CompareLoop(retries=N)` (setting `compare_retries`, `GEOMIND_COMPARE_RETRIES`): a family gemini rejects is designed again, told the reason, up to N times; unset means no retry. Mode `ask` stays one family at a time.
+- The eval report runs its cells in processes (`--workers N`), one task through one loop each: the report test takes under three minutes instead of 11.5, with the same table.
+
 ## [0.4.8] - 2026-11-03
 
 Additive.

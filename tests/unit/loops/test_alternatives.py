@@ -405,6 +405,95 @@ async def test_runs_side_by_side_never_end_above_the_cap(verdicts, cap):
     assert sum(event.type == "llm.completed" for event in events) > 2
 
 
+def retried_script():
+    """Return a run whose first alpha design gemini rejects and whose second passes."""
+    return [
+        *plan(),
+        *family_run("alpha"),
+        *family_run("beta"),
+        *family_run("gamma", "infeasible", "no trial met the cooling peak"),
+        *verifier_run("alpha"),
+        *family_run("alpha"),
+        *verifier_run("beta"),
+        *verifier_run("alpha"),
+        *economist_run(),
+        says("the comparison"),
+    ]
+
+
+def rejecting_once(monkeypatch):
+    """Let gemini reject the first check of alpha and pass every other one."""
+    seen = []
+
+    def verify(found):
+        reference = found.problem.design["reference"]
+        seen.append(reference)
+        return (
+            FAILED
+            if seen.count("design/alpha_best") == 1 and reference.startswith("design/alpha")
+            else PASSED
+        )
+
+    monkeypatch.setattr("geomind.loops.compare.verify_design", verify)
+    monkeypatch.setattr("geomind.engine.hooks.verify_design", lambda _: PASSED)
+
+
+async def test_a_rejected_family_is_designed_again_with_the_verifier_s_reason(monkeypatch):
+    """With one retry, alpha runs again, told why it failed, and passes."""
+    rejecting_once(monkeypatch)
+    engine = engine_for(retried_script())
+    start = context("Compare alternatives for the case.", problem=ProblemState(case=CASE))
+    result = await CompareLoop(Designer(), Verifier(), retries=1).run(engine, start)
+    events = engine.store.load_events(start.run_id)
+    tasks = [
+        e.messages[0].content
+        for e in of_type(events, "run.started")
+        if e.agent == "family_designer"
+    ]
+    assert len(tasks) == 4 and "unmet: 2 MW against 0 MW" in tasks[3]
+    assert "alpha_r1_" in tasks[3]
+    verdict = {item["family"]: item["verdict"] for item in alternatives(events)}
+    assert verdict["alpha"] == "verified" and result.status == "done"
+
+
+async def test_without_retries_a_rejected_family_stays_rejected(monkeypatch):
+    """No setting, no retry: the reason stays in the table."""
+    rejecting_once(monkeypatch)
+    completions = [*retried_script()[:10], *retried_script()[12:]]
+    _, _, events = await run_loop(completions)
+    tasks = [e for e in of_type(events, "run.started") if e.agent == "family_designer"]
+    assert len(tasks) == 3
+    alpha = next(item for item in alternatives(events) if item["family"] == "alpha")
+    assert alpha["verdict"] == "rejected"
+
+
+async def test_retries_are_bounded(monkeypatch):
+    """A family rejected every time runs once more per retry, then stays rejected."""
+    monkeypatch.setattr(
+        "geomind.loops.compare.verify_design",
+        lambda found: (
+            FAILED if found.problem.design["reference"].startswith("design/alpha") else PASSED
+        ),
+    )
+    monkeypatch.setattr("geomind.engine.hooks.verify_design", lambda _: PASSED)
+    engine = engine_for(retried_script())
+    start = context("Compare alternatives for the case.", problem=ProblemState(case=CASE))
+    await CompareLoop(Designer(), Verifier(), retries=1).run(engine, start)
+    events = engine.store.load_events(start.run_id)
+    assert sum(e.agent == "family_designer" for e in of_type(events, "run.started")) == 4
+    alpha = next(item for item in alternatives(events) if item["family"] == "alpha")
+    assert alpha["verdict"] == "rejected"
+
+
+def test_the_retries_come_from_the_settings(monkeypatch):
+    """``compare_retries`` gives the limit when the loop is given none."""
+    from geomind import runtime
+
+    with runtime.settings(compare_retries=2):
+        assert CompareLoop(Designer(), Verifier()).retries == 2
+    assert CompareLoop(Designer(), Verifier()).retries is None
+
+
 def test_the_table_has_a_row_for_every_family():
     """Verdict and reason come straight from the state; a missing value stays empty."""
     table = alternatives_table({"alternatives": [entry("alpha", "verified"), {"family": "b"}]})

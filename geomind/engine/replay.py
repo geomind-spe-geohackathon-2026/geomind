@@ -32,6 +32,28 @@ class _Script:
             for e in events
             if e.type == "tool.result" and e.call_id is None and e.feedback == "finish"
         }
+        self.finished = next((e for e in events if e.type == "run.finished"), None)
+        pending = [e for e in events if e.type == "request"]
+        self.pending = pending[-1] if pending and self.finished is None else None
+
+    def end(self, point, call=None):
+        """Return how the recorded run ended at this point: its request, its stop, or ``None``.
+
+        A run that waited asks the same request again; one that a limit or a hook denied, or that
+        was cancelled, stops with the same reason, so the replay ends as the run did.
+        """
+        pending = self.pending
+        if pending is not None and pending.point == point:
+            if call is None or pending.call is None or pending.call.id == call.id:
+                return pending.request
+        finished = self.finished
+        if finished is None or point != "llm":
+            return None
+        if finished.stop_reason == "denied":
+            return Deny(reason=finished.message)
+        if finished.stop_reason == "cancelled":
+            return Cancel(reason=finished.message)
+        return None
 
 
 class _Recording(Hook):
@@ -67,13 +89,19 @@ class _Recording(Hook):
         script = self._script(context)
         if type(agent).forward is not Agent.forward:
             return None
-        return None if len(script.llm.calls) < script.scripted else Cancel(reason=END_OF_RECORDING)
+        if len(script.llm.calls) < script.scripted:
+            return None
+        end = script.end("llm")
+        if isinstance(end, Deny) and script.finished.answer is not None:
+            context.session.note_limit(end.reason)
+        return end or Cancel(reason=END_OF_RECORDING)
 
     def before_tool_call(self, context, agent, call):
         """Use the recorded input, or end the replay at a call without a result."""
-        recorded = self._script(context).results.get((context.session.state.step, call.id))
+        script = self._script(context)
+        recorded = script.results.get((context.session.state.step, call.id))
         if recorded is None:
-            return Cancel(reason=END_OF_RECORDING)
+            return script.end("tool", call) or Cancel(reason=END_OF_RECORDING)
         return Allow(input=recorded.input) if recorded.input != call.input else None
 
     def before_finish(self, context, agent, action):

@@ -34,7 +34,7 @@ _FIXED = {
     "verifier_model": None,
 }
 ADDED_SETTINGS = frozenset(
-    {"provider", "context_window", "cache_marked_models", "compare_concurrency"}
+    {"provider", "context_window", "cache_marked_models", "compare_concurrency", "compare_retries"}
 )
 _settings = ContextVar("geomind_settings", default=None)
 
@@ -60,7 +60,8 @@ def _defaults():
     sets the context window in tokens and ``GEOMIND_CACHE_MARKED_MODELS`` the model id prefixes
     that get cache breakpoints; unset means the provider's list, and none.
     ``GEOMIND_COMPARE_CONCURRENCY`` is how many families a comparison designs side by side; unset
-    means one at a time.
+    means one at a time. ``GEOMIND_COMPARE_RETRIES`` is how often a family gemini rejects is
+    designed again; unset means never.
     """
     cheap = os.environ.get("GEOMIND_CHEAP_MODEL") or None
     return {
@@ -72,6 +73,7 @@ def _defaults():
         "context_window": _integer("GEOMIND_CONTEXT_WINDOW"),
         "cache_marked_models": _listed("GEOMIND_CACHE_MARKED_MODELS"),
         "compare_concurrency": _integer("GEOMIND_COMPARE_CONCURRENCY"),
+        "compare_retries": _integer("GEOMIND_COMPARE_RETRIES"),
     }
 
 
