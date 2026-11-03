@@ -21,11 +21,12 @@ class Delegate(Tool):
     The nested run has its own run id, its own sandbox and ``parent`` set on every event. The model
     reads only the answer, cut to ``max_summary_tokens``. NOTE: the effect is ``compute`` so that
     delegating needs no approval of its own, because the nested tools are decided one by one. It is
-    still not pure: a nested run neither runs beside others nor runs again in a replay, and after a
-    crash it is not repeated.
+    still not pure: a nested run does not run again in a replay as a pure tool does, and after a
+    crash it is not repeated. ``runs_beside`` lets the calls of one step run together, for agents
+    that never wait for a user: ``is_pure`` stays false, so a replay still runs them again.
     """
 
-    def __init__(self, agent, max_summary_tokens=None):
+    def __init__(self, agent, max_summary_tokens=None, runs_beside=False):
         """Offer ``agent`` as a tool named after it."""
         super().__init__(
             agent.name,
@@ -38,6 +39,7 @@ class Delegate(Tool):
         )
         self.agent = agent
         self.max_summary_tokens = max_summary_tokens
+        self.runs_beside = runs_beside
 
     @property
     def is_pure(self):

@@ -3,9 +3,9 @@
 Imports ``engine`` and everything to its left.
 """
 
-from geomind.loops.compare import CompareLoop
+from geomind.loops.compare import CompareLoop, StudyCompareLoop
 from geomind.loops.design import DesignLoop
 from geomind.loops.loop import Loop
 from geomind.loops.tool import ToolLoop
 
-__all__ = ["CompareLoop", "DesignLoop", "Loop", "ToolLoop"]
+__all__ = ["CompareLoop", "DesignLoop", "Loop", "StudyCompareLoop", "ToolLoop"]

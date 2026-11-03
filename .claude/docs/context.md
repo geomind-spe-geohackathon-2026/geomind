@@ -7,7 +7,7 @@ LLM call or an event stays in the engine.
 
 The `design` section is typed by `DesignState` (`context/state.py`; `ProblemState.design_state`):
 `reference`, `result` and `start_result` are reference strings (`design/<name>`, `result/<id>`; the
-pattern is advertised, not enforced) and `alternatives` is a list of `{family, design, result}`;
+pattern is advertised, not enforced) and `alternatives` is a list of `{family, design, result, verdict, reason}` (the last two since 0.4.6);
 other keys are free. `update_state` refuses an object where a reference belongs. A stored 0.4.x state
 with one loads: an object carrying a `reference` is converted, any other is kept under
 `design.unreadable`.

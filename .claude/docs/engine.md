@@ -120,9 +120,27 @@ stop is written as `stop: <reason>` in the driver's step text and the answer. A 
 without a pass moves the design to `design.rejected` before it answers, so it never presents it. It
 registers the `Verified` hook.
 
-`CompareLoop(designer, verifier, max_rounds=5)` is a `DesignLoop` (name `compare`) whose driver
-asks the designer for two or three families and one `run_study` over them; the study is recorded as
-`design.study` and its ranked table goes to the economist's and the explainer's tasks. A loop whose
+`CompareLoop(designer, verifier, max_rounds=5, concurrency=None)` (name `compare`, driver
+`ComparisonDriver`) compares families. The `Designer` plans: the families come from the request or
+the case, else it proposes them from `list_plants`, confirmed with `ask_user` or, in an `auto` run,
+recorded as unconfirmed assumptions. It records `design.families` and `design.search`. One
+`FamilyDesigner` nested run per family designs it (no `set_case`, `save_profile` or `ask_user`) and
+adds its entry at `/design/alternatives/-`. `concurrency` (else the setting `compare_concurrency`,
+unset meaning one at a time) is how many run in one driver step; a run that may wait for a user,
+mode `ask`, always takes one at a time, since a run holds one pending request. A family that
+fails or is infeasible keeps its reason and stops nothing. The driver then moves the state's design
+to each feasible family, the `Verifier` checks it once and gemini's verdict sets `verified` or
+`rejected`. The `Economist` compares the verified ones (`design.comparison`), the driver names the
+recommended design, the `Explainer` writes the comparison, and `show --format md` prints the table.
+
+`Delegate(..., runs_beside=True)` lets the delegate calls of one step run together, and
+`total_usage` counts a sibling still running, so a budget or time limit covers the whole loop. A
+model call in flight counts when it returns, so runs side by side can pass a cap by those calls. A
+stop answers with the finished alternatives. `StudyCompareLoop` (driver `CompareDriver`, name
+`compare`) is the loop up to 0.4.5: logs and recordings of it run on it, and `loop_for` picks it from
+the stored driver class.
+
+A loop whose
 `run` raises `NotImplementedYet` is turned by `Run.astart` into `Engine.decline(loop, context,
 error)`: a run that starts and ends in the log, with `stop_reason="not_implemented"`. `loop_of(route)` in `run.py` builds the loop a `Route` names.
 

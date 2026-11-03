@@ -28,7 +28,7 @@ Loops:
 
 - `ToolLoop` runs one agent over its tools.
 - `DesignLoop` drives a design to a verified result.
-- `CompareLoop` compares designs.
+- `CompareLoop` designs each alternative on its own, verifies each, then compares them.
 
 ## Requirements
 
@@ -108,5 +108,6 @@ geomind has no built-in model: a run on a real provider stops at the start until
 | `GEOMIND_PROVIDER` | The OpenRouter providers to try |
 | `GEOMIND_CONTEXT_WINDOW` | The context window in tokens; unset, it is read from the provider |
 | `GEOMIND_CACHE_MARKED_MODELS` | The model id prefixes that get cache breakpoints |
+| `GEOMIND_COMPARE_CONCURRENCY` | How many families a comparison designs side by side; unset, one at a time |
 
 The team uses DeepSeek models. `python -m geomind check-live` shows what a live run would use.

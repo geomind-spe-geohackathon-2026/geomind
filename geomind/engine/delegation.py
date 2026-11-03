@@ -32,7 +32,11 @@ async def run_child(session, agent, task):
         parent_step=state.step,
         root=state.root,
     )
-    result = await session.engine.drive(child)
+    session.running.add(child)
+    try:
+        result = await session.engine.drive(child)
+    finally:
+        session.running.discard(child)
     session.child_limit = child.limit_reached
     return result
 
@@ -66,7 +70,7 @@ async def answer_child(session, pending, request_id, answer):
             child, *((None, None) if state.pending is None else (request_id, answer))
         )
         session.child_limit = child.limit_reached
-    session.child_usage = result.usage
+    session.add_child_usage(result.usage)
     return await _finish_delegate(session, pending, tool, result)
 
 
@@ -97,4 +101,4 @@ async def end_orphans(session):
             await session.engine.end(
                 session.spawn(orphan, None), Stop("error", "interrupted by a crash")
             )
-            session.child_usage = orphan.usage
+            session.add_child_usage(orphan.usage)

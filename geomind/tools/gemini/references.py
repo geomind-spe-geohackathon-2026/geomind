@@ -49,10 +49,12 @@ def reference_schema(kind, *, many=False, optional=False):
 async def index_reference(context, kind, reference):
     """Add ``reference`` to the index of its kind, which ``stored_references`` lists from."""
     key = INDEXES[kind]
-    kept = context.session.load_artifact(key) or {"references": []}
-    if reference in kept["references"]:
-        return
-    await context.session.save_artifact(key, {"references": [*kept["references"], reference]})
+    async with context.session.index_lock:
+        kept = context.session.load_artifact(key) or {"references": []}
+        if reference in kept["references"]:
+            return
+        references = [*kept["references"], reference]
+        await context.session.save_artifact(key, {"references": references})
 
 
 def studied_designs(context):

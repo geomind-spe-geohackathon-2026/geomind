@@ -117,7 +117,9 @@ def new_run(task, agent_name, llm, store, loop=None):
         permissions=gd.Permissions(mode="auto"),
         agent=None if loop in ("design", "compare") else gd.agents.named(agent_name),
     )
-    if loop in ("design", "compare"):
+    if loop == "compare":
+        run.loop = gd.loops.StudyCompareLoop(gd.agents.Designer(), gd.agents.Verifier())
+    if loop == "design":
         run.loop = loop_of(Route(kind="loop", loop=loop))
     return run
 

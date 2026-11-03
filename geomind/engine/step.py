@@ -172,15 +172,17 @@ async def _refuse_unknown(session, agent, call):
     return Stop("error", f"{call.name}: unknown tool") if failures >= MAX_UNKNOWN_CALLS else None
 
 
+def _runs_together(tool):
+    """Tell whether a tool runs beside the other calls of its step."""
+    return (tool.is_pure or getattr(tool, "runs_beside", False)) and not tool.runs_alone
+
+
 async def _run_calls(session, agent):
     """Decide and run the open calls: read and compute tools together, others in order."""
     state = session.state
     tools = agent.tools()
     calls = [call for call in state.calls if call.id not in state.results]
-    is_together = all(
-        call.name in tools and tools[call.name].is_pure and not tools[call.name].runs_alone
-        for call in calls
-    )
+    is_together = all(call.name in tools and _runs_together(tools[call.name]) for call in calls)
     admitted = []
     for call in calls:
         if call.name not in tools:

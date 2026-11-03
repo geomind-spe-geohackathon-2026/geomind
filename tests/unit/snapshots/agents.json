@@ -17,7 +17,7 @@
       "tools": "(self, recurse=False)"
     },
     "LOOPS": {
-      "compare": "(self, designer, verifier, max_rounds=5)",
+      "compare": "(self, designer, verifier, max_rounds=5, concurrency=None)",
       "design": "(self, designer, verifier, max_rounds=5)",
       "tool": "(self, agent, max_steps=None)"
     },
@@ -578,5 +578,5 @@
       "Model"
     ]
   },
-  "version": "0.4.5"
+  "version": "0.4.6"
 }

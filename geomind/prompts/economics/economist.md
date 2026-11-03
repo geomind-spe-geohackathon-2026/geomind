@@ -47,6 +47,8 @@ uncertainty. You compute nothing yourself.
   simulated. Without `design.start_result` or alternatives, say there is nothing to compare with.
   Where `design.study` holds the designer's ranking, report its `ranks` and `best` and say whether
   your comparison agrees. State which is better on each metric and by how much, with the unit.
+- A task to compare verified designs comes first: `compare` them, record `design.comparison`
+  as the task says, and run uncertainty only where the task allows it.
 - For the uncertainty call `sample_uncertainty(design, metrics, samples, seed)` and
   `sensitivity(design, metrics)` on the verified design, with the metrics the task gives, else the
   costs you reported. Use the `samples` and `seed` the task gives; where it gives none, choose them

@@ -66,6 +66,8 @@ class RunSession:
         self.parent = parent
         self.waiting_child = None
         self.child_usage = None
+        self.running = set()
+        self._index_lock = asyncio.Lock()
         self.child_limit = None
         self._sandbox = None
         self._held_text = ""
@@ -416,11 +418,16 @@ class RunSession:
     def total_usage(self):
         """Return the usage of the whole run so far: this run's and that of every run above it.
 
-        A nested run's usage joins its parent's when it ends, so nothing is counted twice; a
-        sibling still running is not counted yet.
+        A nested run's usage joins its parent's when it ends, so nothing is counted twice. A
+        sibling running beside this run counts too, so runs side by side share a cap; a model
+        call still in flight counts only when it returns.
         """
-        above = self.parent.total_usage if self.parent is not None else Usage()
-        return above + self.state.usage
+        total = self.state.usage + (self.child_usage or Usage())
+        if self.parent is None:
+            return total
+        for sibling in self.parent.running - {self}:
+            total = total + sibling.state.usage
+        return self.parent.total_usage + total
 
     def spawn(self, state, agent):
         """Return the session of a nested run on the same log."""
@@ -429,10 +436,19 @@ class RunSession:
     async def delegate(self, agent, task):
         """Run a nested agent and keep what the parent needs of its result."""
         result = await run_child(self, agent, task)
-        self.child_usage = result.usage
+        self.add_child_usage(result.usage)
         if result.request is not None:
             self.waiting_child = result.run_id
         return result
+
+    def add_child_usage(self, usage):
+        """Keep the usage of a nested run until a tool result carries it; runs may end together."""
+        self.child_usage = (self.child_usage or Usage()) + usage
+
+    @property
+    def index_lock(self):
+        """Return the lock of the chat's index artifacts, shared by the runs of a tree."""
+        return self.parent.index_lock if self.parent is not None else self._index_lock
 
     def take_child_usage(self):
         """Return the usage of the nested run that just ended, once."""

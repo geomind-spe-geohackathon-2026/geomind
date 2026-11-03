@@ -1,4 +1,4 @@
-"""``CompareLoop``: a design loop whose designer compares families with one ``run_study``.
+"""``StudyCompareLoop``: a design loop whose designer compares families with one ``run_study``.
 
 The loop runs once, offline, on the hackathon example with real tools: a scripted designer builds
 two feasible topologies, sizes and searches them, and records the study; the verifier, economist
@@ -16,7 +16,7 @@ from geomind.agents.coordination.coordinator import Route
 from geomind.context import ProblemState
 from geomind.engine import Engine, Permissions
 from geomind.engine.recovery import recover
-from geomind.loops import CompareLoop, DesignLoop
+from geomind.loops import CompareLoop, DesignLoop, StudyCompareLoop
 from geomind.loops.design import study_table
 from geomind.providers import FakeLLM
 from geomind.run import LOOPS, loop_of
@@ -185,7 +185,7 @@ async def run_compare():
     STORED.update(store=engine.store, chat=start.run_id)
     for file, content in files.items():
         engine.store.save_chat_artifact(start.run_id, f"case/{file}", content)
-    result = await CompareLoop(Designer(), Verifier()).run(engine, start)
+    result = await StudyCompareLoop(Designer(), Verifier()).run(engine, start)
     return result, engine.store.load_events(start.run_id)
 
 
@@ -203,7 +203,7 @@ def task_of(events, agent):
 
 def test_the_loop_is_a_named_design_loop():
     """It is a design loop of its own name, with a driver that asks for several families."""
-    loop = CompareLoop(Designer(), Verifier())
+    loop = StudyCompareLoop(Designer(), Verifier())
     assert isinstance(loop, DesignLoop) and loop.name == "compare"
     assert type(loop.agent).__name__ == "CompareDriver"
 

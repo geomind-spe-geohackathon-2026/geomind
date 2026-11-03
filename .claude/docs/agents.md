@@ -78,6 +78,7 @@ its JSON schema to the system prompt.
 | `Summarizer` | `general/` | complete; only compaction calls it | no |
 | `Coordinator` | `coordination/` | complete; answers with a `Route`, called by `Run.start` | no |
 | `Designer` | `design/` | complete; sizes, simulates, checks and optimises a design for the case | no |
+| `FamilyDesigner` | `design/` | complete; a `Designer` without `set_case`, `save_profile` and `ask_user`, for one family of a comparison |
 | `Verifier` | `verification/` | complete; checks the final design once with gemini | no |
 | `Economist` | `economics/` | complete; costs, compares, samples uncertainty | no |
 | `Explainer` | `reporting/` | complete; the explanation, from the state and the tools | no |
