@@ -159,14 +159,16 @@ def test_public_types_are_the_ten_of_the_contract_and_the_study_event():
 
 
 SHARED_CONTRACT = ROOT / "tests" / "fixtures" / "contracts" / "shared.md"
-"""A copy of the shared contract, ``backend/docs/app-build/contracts.md`` version 51."""
+"""A copy of the shared contract, ``backend/docs/app-build/contracts.md`` version 52."""
 
 
 def test_contract_table_lists_the_same_types():
     """The test table matches the table of the shared document."""
     document = SHARED_CONTRACT
     section = document.read_text().split("## 2. Live run events")[1].split("## 3.")[0]
-    assert set(re.findall(r"^\| `([a-z.]+)` \|", section, re.MULTILINE)) == CONTRACT_TYPES
+    assert set(re.findall(r"^\| `([a-z.]+)` \|", section, re.MULTILINE)) == (
+        CONTRACT_TYPES | {"study.recorded"}
+    )
 
 
 def table_fields():
@@ -185,9 +187,7 @@ def table_fields():
     ("event", "expected"), PUBLIC_EVENTS, ids=lambda item: getattr(item, "type", "")
 )
 def test_public_data_fits_the_table_of_the_contract(event, expected):
-    """Every row of the shared table holds for the JSON pinned above, the study event aside."""
-    if event.type == "study.recorded":
-        pytest.skip("the shared contract has no row for study.recorded yet")
+    """Every row of the shared table holds for the JSON pinned above."""
     required, optional = table_fields()[event.type]
     assert required <= set(expected) <= required | optional
 
