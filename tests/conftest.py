@@ -10,7 +10,7 @@ TIER_MARKERS = {
     "integration": pytest.mark.integration,
     "e2e": pytest.mark.e2e,
 }
-ROOT = Path(__file__).parent
+ROOT = Path(__file__).parents[1]
 TEST_BUDGET_S = 1.0
 SESSION_BUDGET_S = 300.0
 

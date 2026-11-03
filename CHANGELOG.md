@@ -6,6 +6,7 @@ the list of frozen interfaces are in [.claude/docs/api.md](.claude/docs/api.md#f
 
 ## [Unreleased]
 
+- The root `conftest.py` moves to `tests/conftest.py`.
 - Tests: the designer tasks that size a plant or run a real search (`designer/project_plant`, `designer/missing_range`, the designer's shipped tasks) move to the slow tier. Eight xdist workers replace `-n auto`: the fast tier takes half the wall time here and no test nears the one-second budget.
 - Designer prompt: "Choices" is reworded to "Decisions", the name gemini removed stays out of the package.
 - Tests run on the published gemini wheel: it ships no examples, so `tests/fixtures/gemini_examples/` holds gemini's `hackathon_2026` and `shallow_district` from tag v0.5.5, and `example_folder` reads them there.

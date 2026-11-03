@@ -10,7 +10,7 @@ Usage::
 Selection rules, applied to the changed files:
 
 1. A changed test file runs itself; a changed ``conftest.py`` runs every test below it.
-2. ``pyproject.toml``, the root ``conftest.py`` select every test.
+2. ``pyproject.toml`` and ``tests/conftest.py`` select every test.
 3. Every Python module that imports a changed module, directly or transitively (importing
    ``a.b.c`` also imports the packages ``a`` and ``a.b``), is affected. Affected test files run,
    and every affected ``geomind/<path>/<name>.py`` runs its mirror
@@ -34,7 +34,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGES = ("geomind", "examples", "tests", "scripts", "evals")
-SELECT_ALL = {"pyproject.toml", "conftest.py"}
+SELECT_ALL = {"pyproject.toml", "tests/conftest.py"}
 EXAMPLE_SCRIPT = re.compile(r"^examples/.*/\d\d_[^/]+\.py$")
 EXAMPLES_TEST = "tests/e2e/test_examples.py"
 CACHE = ROOT / ".tmp/test_changed/imports.json"
