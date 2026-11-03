@@ -247,6 +247,17 @@ def test_a_design_run_needs_a_project_with_a_case(service, capsys):
     assert "case.json" in capsys.readouterr().err
 
 
+def test_a_design_run_takes_a_project_with_attached_files_and_no_case(service):
+    """Files may hold the case: the design loop reads them first, as a routed run does."""
+    folder = Path("site/p2/files")
+    folder.mkdir(parents=True)
+    (folder / "demand.csv").write_text("time,heat\n")
+    workspace, project = cli._project("site/p2")
+    cli._require_case(
+        cli._parser().parse_args(["run", "x", "--loop", "design"]), workspace, project
+    )
+
+
 def test_sandbox_choice():
     """The option picks a provider."""
     assert cli._sandbox(None) is None

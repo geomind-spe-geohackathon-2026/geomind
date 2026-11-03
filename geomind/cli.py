@@ -289,8 +289,13 @@ def _chat_provider(args):
 
 
 def _require_case(args, workspace, project):
-    """Raise unless a design run has a project with a ``case.json``: there is no fallback case."""
+    """Raise unless a design run has a project with a ``case.json`` or files that may hold one.
+
+    There is no fallback case; with files the design loop sends the designer to read them first.
+    """
     if args.loop != "design":
+        return
+    if workspace is not None and workspace.files(project):
         return
     if workspace is None or workspace.case(project) is None:
         raise GeomindError(

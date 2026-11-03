@@ -19,8 +19,6 @@ from geomind.utils.strings import did_you_mean
 ROLES = ("analyst", "coordinator", "designer", "economist", "explainer", "summarizer", "verifier")
 _FIXED = {
     "max_steps": 30,
-    "retry_count": 3,
-    "retry_delay": 0.5,
     "request_timeout": 120.0,
     "prompt_caching": True,
     "tool_result_limit": 40_000,
@@ -56,6 +54,17 @@ def _listed(name):
     return items or None
 
 
+RETRY_COUNT = 3
+RETRY_DELAY_S = 0.5
+"""The retries of a failed provider call and the first delay, doubled each time, unless set."""
+
+
+def _number(name):
+    """Return an environment variable as a number, or ``None`` when unset."""
+    text = os.environ.get(name)
+    return float(text) if text else None
+
+
 def _integer(name):
     """Return an environment variable as an integer, or ``None`` when unset."""
     text = os.environ.get(name)
@@ -73,7 +82,8 @@ def _defaults():
     ``GEOMIND_COMPARE_CONCURRENCY`` is how many families a comparison designs side by side; unset
     means one at a time. ``GEOMIND_COMPARE_RETRIES`` is how often a family gemini rejects is
     designed again; unset means never. ``GEOMIND_GEMINI_THREADS`` is the size of the thread pool
-    gemini work runs in; unset means asyncio's default executor.
+    gemini work runs in; unset means asyncio's default executor. ``GEOMIND_RETRY_COUNT`` and
+    ``GEOMIND_RETRY_DELAY`` (seconds) set the backoff of a failed provider call.
     """
     cheap = os.environ.get("GEOMIND_CHEAP_MODEL") or None
     return {
@@ -87,6 +97,8 @@ def _defaults():
         "compare_concurrency": _integer("GEOMIND_COMPARE_CONCURRENCY"),
         "compare_retries": _integer("GEOMIND_COMPARE_RETRIES"),
         "gemini_threads": _integer("GEOMIND_GEMINI_THREADS"),
+        "retry_count": _integer("GEOMIND_RETRY_COUNT") or RETRY_COUNT,
+        "retry_delay": _number("GEOMIND_RETRY_DELAY") or RETRY_DELAY_S,
     }
 
 

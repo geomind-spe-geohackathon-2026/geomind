@@ -139,3 +139,12 @@ async def test_the_result_and_the_error_come_back():
             assert await runtime.in_gemini_thread(divmod, 7, 2) == (3, 1)
             with pytest.raises(ValueError):
                 await runtime.in_gemini_thread(fails)
+
+
+def test_the_retries_of_a_provider_come_from_the_environment(monkeypatch):
+    """``GEOMIND_RETRY_COUNT`` and ``GEOMIND_RETRY_DELAY`` set the backoff of a failed call."""
+    from geomind import runtime
+
+    monkeypatch.setenv("GEOMIND_RETRY_COUNT", "6")
+    monkeypatch.setenv("GEOMIND_RETRY_DELAY", "2.5")
+    assert (runtime.get("retry_count"), runtime.get("retry_delay")) == (6, 2.5)

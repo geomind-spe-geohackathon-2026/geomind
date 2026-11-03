@@ -382,3 +382,18 @@ gives no value for is `{value: null, unit, reason}` or left out, as the report g
 `payback`, `co2`) to gemini's error for it, a missing case value being `case_incomplete` with the
 path in `suggestions`; without any, `errors` is left out. `names` keeps the errors of those names.
 
+## From the first live run
+
+The live run of 0.4.15 (`tests/fixtures/live/recording.jsonl`, model moves only) showed five gaps,
+each pinned in `tests/integration/test_live_regressions.py`:
+
+- A CSV whose time column has another name: `set_case(columns={file: {old: "time"}})` renames the
+  header before gemini reads the bytes (gemini has no public way to name the time column), and
+  gemini's `invalid_value` about the first column comes back with the exact retry call.
+- A case without its header: `case_incomplete` adds a minimal case from `gm.Case.schema()` as JSON
+  to `suggestions`, and the description of `set_case`'s `changes` shows it (`case_skeleton`).
+- `read_stored` with a wrong path lists the keys (or first indexes) there in `suggestions`.
+- `read_document` remembers what the run read: a page read again is `already_read`, with the
+  `reference` of the stored earlier result, unless `force`.
+- `geomind run --loop design` takes a project with files and no `case.json`.
+
