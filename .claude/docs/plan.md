@@ -283,6 +283,11 @@ Open requests to gemini (full text in the adaptation notes):
 9. `Plant.to_dict()` carrying `sizing` with quantities (geomind converts the sizing notes itself).
 10. Time units `day` and `hour`: `gm.units` accepts only `d` and `h`, so a `save_profile` step of
     `day` is refused (geomind adds the accepted units to the error).
+11. The plant check of a class plant (`HeatingHeatPumpCoolingPlant` built from its header) lists
+    inner doublet values as missing (`d0.reservoir.permeability`, `aquifer_thickness`, `top_depth`,
+    `skin`, `wellbore_radius`, the same under `d0.sink`) after the doublet's top-level values are
+    set and checked against a case that gives them, while the complete `HackathonPlant` needs none
+    of them; the engineers then copy case values into the plant by hand (found in run A2).
 
 ### S2b: gemini tools (the first job; the text below is the original plan)
 
