@@ -18,8 +18,9 @@ def plant_schema():
     """Return the schema ``build_plant`` offers as the input ``plant``: gemini's top-level keys.
 
     Each key of ``gm.plants.schema()`` is named with its type (the classes are in the
-    designer's plant tree) and the header is required, so a model writes the file's keys instead of an empty object; the nested parts
-    are gemini's to validate, when the plant is built. ``read_plant`` gives a class's file.
+    designer's plant tree) and the header is required, so a model writes the file's keys
+    instead of an empty object; the nested parts are gemini's to validate, when the plant is
+    built. ``read_plant`` gives a class's file.
     """
     import gemini as gm
 
