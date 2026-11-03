@@ -238,6 +238,7 @@ Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/C
 | 47 | A1, engineers | `evaluate_module` inlets sent in a wrong form | the description shows a whole inlet with gemini's fluid fields | `768f396` |
 | 48 | A1, explainer | a reference in quotes refused | read as the reference | `768f396` |
 | 49 | A1, explainer | a made-up reference asked for six times with another `path` each | the same bad value counts as the same failure | `768f396` |
+| 51 | A2, well engineer | a name stored with other content refused with no way on; its last steps lost | the refusal suggests a free name | this commit |
 | 50 | A1, all | models saw only the first paragraph of each tool's docstring | the whole docstring but its `NOTE:` paragraphs | `768f396` |
 
 ### The adaptation to gemini 0.5 (done) and what is open

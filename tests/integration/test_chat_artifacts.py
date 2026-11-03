@@ -151,6 +151,7 @@ def test_a_design_name_is_written_once(first, plant_file):
     results = message(store, script)[1]
     assert "error" not in results["f1"]
     assert "use a new name" in results["f2"]["error"]["message"]
+    assert results["f2"]["error"]["suggestions"] == ["start_2"]
 
 
 def test_a_run_without_a_chat_is_the_chat_of_its_root_run():

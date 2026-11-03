@@ -433,11 +433,20 @@ class RunSession:
         kept = self.load_artifact(key)
         if kept is not None and json.loads(json.dumps(kept)) != json.loads(json.dumps(data)):
             kind, _, name = key.partition("/")
+            free = self.free_name(kind, name)
             raise ToolError(
                 f"{kind}: name = {name!r}; a {kind} with this name is stored with other content;"
-                " use a new name",
+                f" use a new name, such as {free!r}, and send the same call with it",
                 path="name",
+                suggestions=(free,),
             )
+
+    def free_name(self, kind, name):
+        """Return ``name`` with the first number after it that names no stored ``kind``."""
+        number = 2
+        while self.load_artifact(f"{kind}/{name}_{number}") is not None:
+            number += 1
+        return f"{name}_{number}"
 
     def load_artifact(self, key):
         """Return a stored artifact of this chat; called by sync tools, in a worker thread."""

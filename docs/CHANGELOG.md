@@ -19,6 +19,7 @@ Every agent ran alone on a fixed input from the earlier runs (15 tasks, DeepSeek
 - Fix (#45): the engineers and the design lead compute nothing by hand (no formula, conversion or derived value); a module's top-level values come first and gemini derives the inner ones; the reservoir engineer had computed a productivity index from Darcy's law.
 - Fix (#46): an empty text is no answer: the model is asked for it; the energy systems engineer had ended with `''`.
 - Fix (#48): a reference wrapped in quotes (`'"result/…"'`) is read as the reference.
+- Fix (#51): a design or study name stored with other content is refused with a free name in `suggestions` (`<name>_2`) and the advice to send the same call with it; the well engineer had spent its last steps on the refused name and stored nothing.
 - Fix (#49): the same bad input value failing the same way counts as the same failure even beside other input; the explainer had asked six times for a result it made up, each with another `path`.
 
 ### Evals: a fixed start and a live cap (0.4.22.dev27)
