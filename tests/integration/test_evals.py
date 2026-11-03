@@ -294,15 +294,48 @@ def test_the_checked_in_report_has_every_task_under_each_loop():
         assert [row for row in rows if row] == [*tasks, "Total"]
 
 
-@pytest.mark.slow
-def test_the_checked_in_report_is_the_generated_one(gemini_loaded):
-    """``evals/reports/summary.md`` is what ``python -m evals.run --report`` writes, but for time.
+def report_cells():
+    """Return one parameter per cell of the report: a task through a loop."""
+    return [
+        pytest.param(loop, path.parent.name, path.stem, id=f"{loop}-{path.parent.name}-{path.stem}")
+        for loop in evals.REPORT_LOOPS
+        for path in sorted((evals.ROOT / "tasks").glob("*/*.yaml"))
+    ]
 
-    NOTE: slow, because every task runs through three loops; the cells run in one process per
-    core this run may use, at most eight, so a small runner is not run out of memory.
+
+def checked_in_rows(loop):
+    """Return the task rows of one loop's table in the checked-in report, times blanked."""
+    text = (evals.ROOT / "reports" / "summary.md").read_text()
+    table = text.split(f"## {evals.REPORT_LOOPS[loop]}\n")[1].split("\n## ")[0]
+    lines = [line for line in table.splitlines() if line.startswith("| ") and "/" in line]
+    return {without_times(line) for line in lines}
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize(("loop", "folder", "task"), report_cells())
+def test_each_row_of_the_checked_in_report_is_the_generated_one(gemini_loaded, loop, folder, task):
+    """Each row of ``evals/reports/summary.md`` is what its cell gives, but for its time.
+
+    NOTE: slow, because the cell runs its task through a loop. One test per cell, so the slow
+    shards of CI share the report; the totals are checked by
+    ``test_the_totals_of_the_checked_in_report_add_up``.
     """
-    checked_in = (evals.ROOT / "reports" / "summary.md").read_text()
-    assert without_times(evals.report(workers=report_workers())) == without_times(checked_in)
+    outcomes = evals._cell(evals.ROOT, folder, loop, task)
+    rows = [evals._loop_row(evals._renamed(outcome, folder)) for outcome in outcomes]
+    assert {without_times(row) for row in rows} <= checked_in_rows(loop)
+
+
+def test_the_totals_of_the_checked_in_report_add_up():
+    """Each loop's total is the sum of its rows, so a regenerated row cannot hide in it."""
+    text = (evals.ROOT / "reports" / "summary.md").read_text()
+    for title in evals.REPORT_LOOPS.values():
+        table = text.split(f"## {title}\n")[1].split("\n## ")[0]
+        rows = [line.split(" | ") for line in table.splitlines() if line.startswith("| ")][1:]
+        *tasks, total = rows
+        met = [cell.split(" of ") for cell in (row[1] for row in tasks)]
+        assert total[1] == f"{sum(int(a) for a, _ in met)} of {sum(int(b) for _, b in met)}"
+        for column in (2, 3, 4):
+            assert int(total[column]) == sum(int(row[column]) for row in tasks)
 
 
 def report_workers():

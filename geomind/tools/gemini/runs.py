@@ -1,10 +1,10 @@
 """The tools that read the demand of the case and run a plant on it."""
 
-import asyncio
 import copy
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from geomind import runtime
 from geomind.errors import ToolError
 from geomind.tools.base import tool
 from geomind.tools.gemini.case import build_case, case_of
@@ -268,7 +268,7 @@ async def simulate(
     display units (MWh, MEUR, EUR/MWh, kt), gemini's ``verdict``, the requirements that are not met
     (``unmet``), the coverage of the demand, the plant and the case's time span.
     """
-    plant, results, summary, options, ran = await asyncio.to_thread(
+    plant, results, summary, options, ran = await runtime.in_gemini_thread(
         run_plant, context, design, changes, start, end
     )
     reference = await save_run(context, plant, results, summary, options, ran)

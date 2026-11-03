@@ -245,5 +245,5 @@ agent folder under `evals/tasks/`, and `python -m evals.run --agent challenge2 -
 
 `python -m evals.run --report --workers N` runs each cell, one task through one loop, in its own
 process: the work is gemini's simulations, so cells one after another took 11.5 minutes and eight
-processes take under three, bounded by the longest task. The table is the same either way; the
-slow test `test_the_checked_in_report_is_the_generated_one` uses eight.
+processes take under three, bounded by the longest task. The table is the same either way. The tests
+check the checked-in report one row per cell, so the slow shards of CI share it.

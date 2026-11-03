@@ -38,6 +38,18 @@ Python leak: repeated eval runs in one process plateau at about 380 MB, with not
 heavy slow tests one process grew to about 3.5 GB (peak 3.5 GB); with `MALLOC_ARENA_MAX=2` the same
 tests left it at 1.0 to 1.7 GB (peak 2.4 GB), and they ran faster. CI sets it for every job, and a
 long-running host (the backend's workers) should set `MALLOC_ARENA_MAX=2` in its environment too.
-geomind could bound this itself, for example by running gemini in a fixed, small thread pool
-instead of the default executor; that is not done yet.
+The setting `gemini_threads` (`GEOMIND_GEMINI_THREADS`) runs gemini work (sync tools, gemini's
+studies and simulations, the verification) in a pool of that many threads instead of asyncio's
+default executor; unset, nothing changes. On the same load (five heavy slow tests in one Python
+3.14 process), the process ended at, and peaked at:
+
+| Setting | After the last test | Peak |
+|---|---|---|
+| none | 3.5 GB | 3.9 GB |
+| `GEOMIND_GEMINI_THREADS=2` | 2.3 GB | 2.5 GB |
+| `MALLOC_ARENA_MAX=2` | 2.0 GB | 2.1 GB |
+| both | 2.3 GB | 2.5 GB |
+
+`MALLOC_ARENA_MAX=2` is the stronger of the two and the pool adds nothing on top of it here, so a
+host sets the arenas first; the pool helps where the environment of the process cannot be set.
 

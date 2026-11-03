@@ -6,6 +6,13 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.11] - 2026-11-03
+
+Additive.
+
+- New setting `gemini_threads` (`GEOMIND_GEMINI_THREADS`): gemini work runs in a pool of that many threads; unset, as before. On five heavy slow tests in one Python 3.14 process: 3.5 GB at the end (peak 3.9 GB) with neither, 2.3 GB (2.5) with `GEOMIND_GEMINI_THREADS=2`, 2.0 GB (2.1) with `MALLOC_ARENA_MAX=2` and 2.3 GB (2.5) with both. The arenas are the stronger fix; see `.claude/docs/releasing.md`.
+- CI: the checked-in eval report is checked one cell per test, and the slow tier runs in five shards balanced by measured times (about 480 s of serial work each). Shard 1 held the whole report test and took 16 to 18 minutes on GitHub.
+
 ## [0.4.10] - 2026-11-03
 
 CI and tests only; the package is unchanged.

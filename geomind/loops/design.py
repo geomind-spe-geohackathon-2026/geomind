@@ -1,9 +1,8 @@
 """Size, optimise, verify and repeat until a design passes."""
 
-import asyncio
 import json
 
-from geomind import tools
+from geomind import runtime, tools
 from geomind.agents import Designer, Economist, Explainer, Verifier
 from geomind.agents.agent import Agent, Model
 from geomind.engine.hooks import Verified
@@ -182,7 +181,7 @@ class DesignDriver(Agent):
 
     async def after_verification(self, context, calls):
         """Check the design again with gemini, then cost it, route its failures, or stop."""
-        found = await asyncio.to_thread(verify_design, context)
+        found = await runtime.in_gemini_thread(verify_design, context)
         round_number = rounds(calls)
         design = context.problem.design_state.reference
         result = context.problem.verification.get("result")

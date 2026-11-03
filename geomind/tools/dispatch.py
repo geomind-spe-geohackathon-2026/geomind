@@ -74,7 +74,7 @@ async def _call(tool, arguments, context):
     async with asyncio.timeout(tool.timeout):
         if inspect.iscoroutinefunction(tool.function):
             return await tool.function(*leading, **arguments)
-        return await asyncio.to_thread(tool.function, *leading, **arguments)
+        return await runtime.in_gemini_thread(tool.function, *leading, **arguments)
 
 
 async def _bounded(context, call, output):

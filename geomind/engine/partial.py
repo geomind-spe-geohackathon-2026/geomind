@@ -2,6 +2,7 @@
 
 import asyncio
 
+from geomind import runtime
 from geomind.errors import GeomindError
 from geomind.verify.design import verify_design
 
@@ -79,7 +80,7 @@ async def _checks(session, problem):
     if not (problem.verification or {}).get("result"):
         return "not run: the design has no verification result yet"
     try:
-        found = await asyncio.to_thread(verify_design, session.context())
+        found = await runtime.in_gemini_thread(verify_design, session.context())
     except (GeomindError, OSError, ValueError) as error:
         return f"could not be run again: {_cut(str(error))}"
     return _checks_line(found)

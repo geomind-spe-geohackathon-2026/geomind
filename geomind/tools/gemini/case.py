@@ -13,7 +13,6 @@ design whose case differs from it (``case_changes``) until the user approves the
 case.
 """
 
-import asyncio
 import copy
 import hashlib
 import io
@@ -21,6 +20,7 @@ import json
 import re
 from typing import Any, Literal
 
+from geomind import runtime
 from geomind.errors import ToolError
 from geomind.stores.casefiles import case_files, is_safe_name, named_files
 from geomind.tools.base import tool
@@ -169,7 +169,7 @@ async def store_case(context, data, supplied, origin=None):
     ``origin`` is ``(case dict, files)`` of the case the user or the project gave, kept as the
     state's ``case_origin``; ``None`` leaves the origin as it is. A rejected case stores nothing.
     """
-    files = await asyncio.to_thread(file_contents, context, data, supplied)
+    files = await runtime.in_gemini_thread(file_contents, context, data, supplied)
     checked_case(data, files)
     for name in supplied.keys() & files.keys():
         await context.session.save_artifact(f"{CASE_FILE}{name}", supplied[name])
@@ -333,7 +333,7 @@ async def set_case(
     """
     base, supplied = base_case(context, source)
     if files:
-        supplied = {**supplied, **await asyncio.to_thread(project_files_of, context, files)}
+        supplied = {**supplied, **await runtime.in_gemini_thread(project_files_of, context, files)}
     data = merge_patch(base, checked_changes(changes or {}))
     if requirements:
         data["requirements"] = edited_requirements(data.get("requirements"), requirements)
@@ -477,7 +477,7 @@ async def save_profile(
     check_profile_name(name)
     quantity = f"{service}_demand"
     frame = gm.case.from_values(values, unit, start, step_seconds(step), quantity)
-    case = await asyncio.to_thread(case_of, context)
+    case = await runtime.in_gemini_thread(case_of, context)
     data = state_case(context)
     file = f"data/{name}.csv"
     demand = data.setdefault("demand", {})

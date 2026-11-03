@@ -1,8 +1,8 @@
 """The tools that read and store plants."""
 
-import asyncio
 from typing import Any
 
+from geomind import runtime
 from geomind.errors import ToolError
 from geomind.tools.base import tool
 from geomind.tools.gemini.case import case_of
@@ -247,7 +247,7 @@ async def build_plant(context, plant: dict[str, Any], name: str):
     """
     import gemini as gm
 
-    built = await asyncio.to_thread(gm.Plant.from_dict, plant)
+    built = await runtime.in_gemini_thread(gm.Plant.from_dict, plant)
     design = await save_design(context, name, built)
     return {"design": design, **plant_issues(context, built)}
 

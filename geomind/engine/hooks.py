@@ -5,6 +5,7 @@ import json
 import math
 from time import monotonic
 
+from geomind import runtime
 from geomind.engine.callbacks import call_maybe_async
 from geomind.errors import BudgetError
 from geomind.types import RULE_MODEL, Allow, Cancel, Deny, Request, Usage
@@ -334,7 +335,7 @@ class Verified(Hook):
         result = (problem.verification or {}).get("result")
         if design is None and result is None:
             return None
-        return await asyncio.to_thread(verdict, context)
+        return await runtime.in_gemini_thread(verdict, context)
 
 
 def verdict(context):
