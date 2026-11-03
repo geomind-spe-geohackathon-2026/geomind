@@ -143,6 +143,8 @@ def _permission(state, event):
         )
         return
     if event.request is not None:
+        if event.decision == "answer" and event.request.kind == "question":
+            state.questions += 1
         state.pending = None
     if event.decision == "allow":
         state.allowed.append(event.call_id if event.point == "tool" else event.point)

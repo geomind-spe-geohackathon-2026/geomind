@@ -36,14 +36,19 @@ def failure_stop(error, reason):
 
 
 def run_result(session, stop):
-    """Return the result of a stop."""
+    """Return the result of a stop.
+
+    A run that waits on a nested run's request counts that run's usage so far, which joins its
+    own only when the nested run ends.
+    """
     state = session.state
+    waiting = session.child_usage if stop.reason == "request" else None
     return RunResult(
         run_id=state.run_id,
         status=status_of(stop.reason),
         answer=stop.answer,
         request=stop.request,
-        usage=state.usage,
+        usage=state.usage + (waiting or Usage()),
         steps=state.step,
         stop_reason=stop.reason,
         message=None if stop.is_crash else stop.message,
@@ -156,11 +161,15 @@ class Engine:
         return await self.end(session, Stop("not_implemented", str(error)))
 
     async def _steps(self, session):
-        """Run steps until one returns a stop or the step limit is reached."""
+        """Run steps until one returns a stop or the step limit is reached.
+
+        A step that asked the user a question gives its step back, so the answer is acted on even
+        when the question came at the last step.
+        """
         state = session.state
         if state.has_answer and not state.in_step:
             return Stop(state.stop_reason, answer=state.answer)
-        while state.in_step or state.step < state.max_steps:
+        while state.in_step or state.step < state.max_steps + state.questions:
             stop = await run_step(session, session.agent)
             if stop is not None:
                 return stop

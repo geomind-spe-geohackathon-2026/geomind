@@ -166,7 +166,7 @@ class RunSession:
             state.messages,
             chat=state.chat,
             project=state.project,
-            steps_left=state.max_steps - state.step,
+            steps_left=state.max_steps + state.questions - state.step,
             problem=state.problem,
             session=self,
             stored=state.stored,

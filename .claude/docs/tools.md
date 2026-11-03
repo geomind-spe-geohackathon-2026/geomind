@@ -410,6 +410,14 @@ From the second live run (`tests/integration/test_live_regressions_b.py`, record
   `gm.plants.schema()` last in `suggestions` (`plant_skeleton`, `geomind/tools/gemini/skeleton.py`).
 - A nested run that passed the model's window: the delegate answers `context_exceeded`.
 
+From live segment 7 (`tests/integration/test_live_regressions_g.py`):
+
+- A run waiting on a nested run's request reports that run's usage in its result.
+- Every next design round carries the last round's answer (`handover_text`), after a question
+  and after a failed verification (`routed_task_of`).
+- Rounds that recorded no design are no `repeated_failure` (`should_stop_repeated`).
+- A step that asked the user gives its step back (`RunState.questions` in the step limit).
+
 From the fifth live run (`tests/integration/test_live_regressions_e.py`, recording
 `tests/fixtures/live/recording_e.jsonl`):
 

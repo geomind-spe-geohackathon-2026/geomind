@@ -199,9 +199,9 @@ class DesignDriver(Agent):
         note = {"round": round_number, "design": design, "result": result, "failures": failed}
         if round_number >= self._max_rounds:
             return stop(context, {**note, "stop": "max_rounds"}, index)
-        if repeated([*history, failed]):
+        if should_stop_repeated([*history, failed], design):
             return stop(context, {**note, "stop": "repeated_failure"}, index)
-        task = routed_task(round_number + 1, self._max_rounds, design, result, found)
+        task = routed_task_of(context, round_number + 1, self._max_rounds, design, result, found)
         return act(note, index, "designer", task=task)
 
 
@@ -260,14 +260,33 @@ def answered_task(context, answer):
     failed on, so the new round goes on from there instead of reading everything again.
     """
     request = request_of(context)
-    designed = [output for name, output in driver_calls(context.messages) if name == "designer"]
-    handover = (
-        f"\n\nThe last round handed over:\n{designed[-1][:HANDOVER_CHARACTERS]}" if designed else ""
-    )
     return (
-        f"{request}\n\nThe user answered the question on the case: {answer}{handover}\n\nPut it "
-        "into the case with set_case, then design."
+        f"{request}\n\nThe user answered the question on the case: {answer}"
+        f"{handover_text(context)}\n\nPut it into the case with set_case, then design."
     )
+
+
+def handover_text(context):
+    """Return the last round's answer for the next round's task, or ``""`` before any round."""
+    designed = [output for name, output in driver_calls(context.messages) if name == "designer"]
+    if not designed:
+        return ""
+    return f"\n\nThe last round handed over:\n{designed[-1][:HANDOVER_CHARACTERS]}"
+
+
+def routed_task_of(context, round_number, max_rounds, design, result, found):
+    """Return ``routed_task`` with the last round's handover, so the round goes on from there."""
+    task = routed_task(round_number, max_rounds, design, result, found)
+    return f"{task}{handover_text(context)}"
+
+
+def should_stop_repeated(history, design):
+    """Tell whether the loop stops for a repeated failure: a design failed as the one before.
+
+    A round that recorded no design (its steps ran out) is no failure of a design, so the loop
+    goes on to its round limit.
+    """
+    return design is not None and repeated(history)
 
 
 HANDOVER_CHARACTERS = 6000
