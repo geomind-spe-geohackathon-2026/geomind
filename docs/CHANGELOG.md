@@ -6,6 +6,15 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-11-03
+
+Additive: geomind installs from releases and publishes its own.
+
+- gemini comes from its release wheel everywhere: `requirements/gemini.txt` pins it with its hash, `make install` has no `-e`, `make gemini-version` prints it and `make sandbox-image` pulls its image. `pydantic>=2.10`.
+- CI runs on our gemini, on pushes to `dev` and `main` and on pull requests, with no gemini checkout.
+- New workflow `release.yaml`: a `v*` tag on `main` builds the wheel and sdist, tries the wheel in a clean venv and creates the GitHub Release.
+- Tool error codes `no_case` (the chat has no case) and `case_incomplete` (the case misses values; `suggestions` lists the paths). The messages are unchanged.
+- The package readme is `README.md`.
 - `docs/rules.md`: the two long-lived branches, what happens to other branches, and tests on local servers only.
 
 ## [0.4.2] - 2026-11-03

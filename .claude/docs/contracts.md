@@ -46,6 +46,7 @@ and to read one back `event_from_dict`.
 | Contract item | Code | Test |
 |---|---|---|
 | `LLM` | `geomind/providers/base.py` | `tests/unit/providers/test_base.py` |
+| Tool error codes `no_case` and `case_incomplete` (beyond the shared contract) | `geomind/tools/gemini/case.py` | `tests/unit/tools/gemini/test_case.py` |
 | `Completion`, `Usage`, `Message` | `geomind/types/messages.py` | `tests/unit/types/test_messages.py` |
 | `RunStore`, all seven methods, `load_events` included | `geomind/stores/run.py` | `tests/unit/testing/test_conformance.py` |
 | `Workspace` | `geomind/stores/workspace.py` | `tests/unit/testing/test_conformance.py` |

@@ -19,11 +19,12 @@ class ToolError(GeomindError, RuntimeError):
     ``code`` is one of the error codes of ``tools.md`` and ``path`` the input field at fault.
     """
 
-    def __init__(self, message, *, code="invalid_input", path=None):
+    def __init__(self, message, *, code="invalid_input", path=None, suggestions=()):
         """Store the message with what the result of the tool says about it."""
         super().__init__(message)
         self.code = code
         self.path = path
+        self.suggestions = tuple(suggestions)
 
 
 class SandboxError(GeomindError, RuntimeError):

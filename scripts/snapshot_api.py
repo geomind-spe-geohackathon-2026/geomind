@@ -2,8 +2,8 @@
 
 Usage::
 
-    python scripts/snapshot_api.py                       # after raising gd.__version__
-    python scripts/snapshot_api.py --allow-same-version  # an additive, non-breaking change
+    PYTHONPATH=. python scripts/snapshot_api.py          # after raising gd.__version__
+    PYTHONPATH=. python scripts/snapshot_api.py --allow-same-version  # additive, non-breaking
 
 The snapshots go to ``tests/unit/snapshots/`` and the schemas to ``geomind/schemas/``. A snapshot
 records the version it belongs to, so a file whose version equals ``gd.__version__`` is not

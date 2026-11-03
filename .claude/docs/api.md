@@ -126,7 +126,7 @@ differs. `tests/unit/test_contract_map.py` checks that every item of the shared 
 
 1. a version raise in `geomind/__init__.py` and `pyproject.toml`: a breaking change raises the minor
    version, an addition or a fix the patch version;
-2. `python scripts/snapshot_api.py`, which refuses to overwrite a snapshot of the current version;
+2. `PYTHONPATH=. python scripts/snapshot_api.py`, which refuses to overwrite a snapshot of the current version;
    `--allow-same-version` is for an additive, non-breaking change only, and the changelog says which;
 3. an entry in [CHANGELOG.md](../../docs/CHANGELOG.md);
 4. a note to Sahand when the shared contract is affected.

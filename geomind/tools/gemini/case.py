@@ -71,7 +71,8 @@ def state_case(context):
     if data is None:
         raise ToolError(
             "case: the problem state has no case; expected one. Call set_case (source='project' "
-            "for the project's case, or changes with the values) or ask_user for them"
+            "for the project's case, or changes with the values) or ask_user for them",
+            code="no_case",
         )
     return copy.deepcopy(data)
 
@@ -137,10 +138,22 @@ def checked_case(data, files):
 def case_of(context):
     """Return the state's case as a ``gm.Case``; without a case, raise a ``ToolError``.
 
-    There is no fallback case: the model sets one with ``set_case`` or asks the user.
+    There is no fallback case: the model sets one with ``set_case`` or asks the user. A case
+    gemini cannot read for missing values raises ``case_incomplete`` with gemini's message and
+    the missing paths as ``suggestions``.
     """
+    import gemini as gm
+
     data = state_case(context)
-    return build_case(data, file_contents(context, data, {}))
+    try:
+        return build_case(data, file_contents(context, data, {}))
+    except gm.errors.ValidationError as error:
+        missing = [issue.problem()["path"] for issue in gm.case.missing(data)]
+        if not missing:
+            raise
+        raise ToolError(
+            str(error), code="case_incomplete", path=missing[0], suggestions=missing
+        ) from error
 
 
 async def store_case(context, data, supplied, origin=None):

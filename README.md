@@ -33,20 +33,22 @@ Loops:
 ## Requirements
 
 - Python 3.11 or newer.
-- gemini, installed from its release wheel.
+- gemini, installed from its release wheel by `requirements/gemini.txt`.
 - Docker, only for the docker sandbox and its tests. They need the image `gemini-sandbox:<version>`
-  of the installed gemini.
+  of the installed gemini, from `make sandbox-image`.
 
 ## Install for development
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install "https://github.com/geomind-spe-geohackathon-2026/gemini/releases/download/v0.5.5/gemini_geothermal_suite_open-0.5.5-py3-none-any.whl"
-pip install . --group dev
+make install
+make gemini-version
+make sandbox-image   # only for the docker tests
 ```
 
-The tests import geomind from the source folder, not from the installed copy.
+`make install` takes gemini from `requirements/gemini.txt`, then geomind's dependencies. It does not
+install geomind itself: the tests import it from the source folder.
 
 ## Run the tests
 
@@ -58,6 +60,28 @@ make test       # the tests of what changed
 make test-all   # the whole fast tier and the end-to-end tests
 make lint
 python -m pytest -m slow --profile=release   # tests that run gemini for real
+```
+
+## Update gemini
+
+1. In `requirements/gemini.txt` and in `[tool.uv.sources]` of `pyproject.toml`, set the URL of the new
+   release; `requirements/gemini.txt` also takes the wheel's sha256.
+2. Run `make install` in a new venv, then `make sandbox-image`.
+3. Run `make test-all`, `make lint` and `python -m pytest -m "slow or docker" --profile=release`.
+
+## Release
+
+1. On `dev`, raise the version in `pyproject.toml` and `geomind/__init__.py`, run
+   `PYTHONPATH=. python scripts/snapshot_api.py` and date the changelog.
+2. Run all tests locally, then merge `dev` into `main` and push.
+3. Tag `main` with `vX.Y.Z` and push the tag. The release workflow publishes the wheel and the sdist
+   on GitHub Releases.
+
+Install a release with the two wheels together:
+
+```bash
+pip install -r requirements/gemini.txt \
+  "https://github.com/geomind-spe-geohackathon-2026/geomind/releases/download/vX.Y.Z/geomind-X.Y.Z-py3-none-any.whl"
 ```
 
 ## Run the command line

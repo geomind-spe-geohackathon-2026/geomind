@@ -43,14 +43,14 @@ async def checked_in_sandbox(code, **tool_input):
     return (await dispatch(test_module, call, Context(session=session))).output
 
 
-@pytest.mark.skipif(not has_image(), reason="needs Docker and `make sandbox-image` in gemini")
+@pytest.mark.skipif(not has_image(), reason="needs Docker and `make sandbox-image`")
 async def test_a_correct_module_passes_in_the_container():
     """The check of gemini passes it."""
     output = await checked_in_sandbox(GOOD, example=EXAMPLE)
     assert output["passed"] is True and output["modules"] == ["ResistanceHeater"]
 
 
-@pytest.mark.skipif(not has_image(), reason="needs Docker and `make sandbox-image` in gemini")
+@pytest.mark.skipif(not has_image(), reason="needs Docker and `make sandbox-image`")
 async def test_a_broken_module_fails_with_gemini_s_problems():
     """The problems name the failed checks."""
     output = await checked_in_sandbox(BROKEN)

@@ -31,6 +31,8 @@ def test_the_codes_are_the_fixed_list():
         "unknown_name",
         "not_implemented",
         "not_allowed",
+        "no_case",
+        "case_incomplete",
         "timeout",
         "budget",
     }

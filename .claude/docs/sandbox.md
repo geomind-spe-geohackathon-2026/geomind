@@ -41,9 +41,10 @@ in-memory workspace, CPU and memory limits, no network unless the manifest opens
 manifest package mounted read-only. The container receives no environment from this process.
 gemini's dependencies must be in the image; the default `python:<version>-slim` does not have them.
 
-The image of module tests is `gemini-sandbox:<gm.__version__>`, built in the gemini checkout with
-`make sandbox-image` (`docker/sandbox.Dockerfile`: gemini installed, non-root user). Without it
-`docker run` fails and `test_module` says so.
+The image of module tests is `gemini-sandbox:<gm.__version__>`. `make sandbox-image` pulls gemini's
+published image `ghcr.io/geomind-spe-geohackathon-2026/gemini-sandbox:<version>` (gemini installed,
+non-root user) and tags it with that local name. Without it `docker run` fails and `test_module`
+says so.
 
 The docker tests (`tests/integration/test_docker_sandbox.py`, `test_module_sandbox.py`) have the
 `docker` marker and skip without a daemon or the image.
