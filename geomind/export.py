@@ -7,6 +7,8 @@ depends on the clock or the run id, so a replay of a run exports the same text.
 
 import json
 
+from geomind.engine.recovery import recover
+from geomind.loops.compare import alternatives_table
 from geomind.types import RULE_MODEL, Usage
 
 SHORT = 300
@@ -199,6 +201,15 @@ def _stop_lines(events):
     ]
 
 
+def _comparison_lines(events):
+    """Return the table of a comparison's alternatives, or nothing for another run."""
+    root = next((e for e in events if e.type == "run.started" and e.parent is None), None)
+    if root is None or root.loop != "compare":
+        return []
+    table = alternatives_table(recover(events, root.run_id).problem.design)
+    return ["## Comparison", "", table, ""] if table else []
+
+
 def render_export(events, manifest=None):
     """Return the Markdown export of a run: header, every LLM call, prompts, tokens, totals.
 
@@ -211,7 +222,7 @@ def render_export(events, manifest=None):
     for number, call in enumerate(calls, 1):
         lines += _call_lines(number, call, last.get(call.run_id))
         last[call.run_id] = call
-    lines += [*_stop_lines(events), "## Appendix: system prompts", ""]
+    lines += [*_stop_lines(events), *_comparison_lines(events), "## Appendix: system prompts", ""]
     for agent, text in _prompts(calls).items():
         lines += [f"### {agent}", "", *_block(text)]
     total = sum((call.completion.usage for call in calls), Usage())

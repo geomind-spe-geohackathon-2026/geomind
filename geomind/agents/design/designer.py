@@ -55,3 +55,17 @@ class Designer(Agent):
 
         # Model
         self.model = Model(setting="designer_model", temperature=0)
+
+
+class FamilyDesigner(Designer):
+    """Design one family of a comparison, beside the runs of the others.
+
+    NOTE: the ``CompareLoop`` plans and fills the case first, so this run has neither ``set_case``
+    nor ``save_profile``, and it asks nobody: it records why it could not go on instead.
+    """
+
+    def __init__(self):
+        """Declare the designer's tools, without those that change the case or ask the user."""
+        super().__init__()
+        for name in ("set_case", "save_profile", "ask_user"):
+            del self._tools[name]

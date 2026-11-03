@@ -33,7 +33,9 @@ _FIXED = {
     "explainer_model": None,
     "verifier_model": None,
 }
-ADDED_SETTINGS = frozenset({"provider", "context_window", "cache_marked_models"})
+ADDED_SETTINGS = frozenset(
+    {"provider", "context_window", "cache_marked_models", "compare_concurrency"}
+)
 _settings = ContextVar("geomind_settings", default=None)
 
 
@@ -57,6 +59,8 @@ def _defaults():
     to call. ``GEOMIND_PROVIDER`` lists the OpenRouter providers to try, ``GEOMIND_CONTEXT_WINDOW``
     sets the context window in tokens and ``GEOMIND_CACHE_MARKED_MODELS`` the model id prefixes
     that get cache breakpoints; unset means the provider's list, and none.
+    ``GEOMIND_COMPARE_CONCURRENCY`` is how many families a comparison designs side by side; unset
+    means one at a time.
     """
     cheap = os.environ.get("GEOMIND_CHEAP_MODEL") or None
     return {
@@ -67,6 +71,7 @@ def _defaults():
         "provider": _listed("GEOMIND_PROVIDER"),
         "context_window": _integer("GEOMIND_CONTEXT_WINDOW"),
         "cache_marked_models": _listed("GEOMIND_CACHE_MARKED_MODELS"),
+        "compare_concurrency": _integer("GEOMIND_COMPARE_CONCURRENCY"),
     }
 
 

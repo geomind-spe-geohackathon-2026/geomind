@@ -107,7 +107,7 @@ none is added here.
 
 A folder of `SUITES` in `evals/run.py` runs its tasks through a loop instead of one agent:
 `python -m evals.run --agent challenge2` runs `evals/tasks/challenge2/` through the `DesignLoop`;
-`--agent compare` runs `evals/tasks/compare/` through the `CompareLoop`. The `challenge2` tasks:
+`--agent compare` runs `evals/tasks/compare/` through the `StudyCompareLoop`, the loop its recording was made on. The `challenge2` tasks:
 
 | Task | Project | What it checks, and what fails when it is ignored |
 |---|---|---|

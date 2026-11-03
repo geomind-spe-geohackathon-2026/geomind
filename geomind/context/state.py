@@ -62,13 +62,20 @@ REFERENCE_FIELDS = {"reference": "reference", "result": "result", "start_result"
 
 
 class Alternative(BaseModel):
-    """A family built and simulated for the whole year: its design and result."""
+    """A family of a comparison: its design and result, its ``verdict`` and the ``reason``.
+
+    ``verdict`` is ``feasible`` or ``infeasible`` as its run recorded, then ``verified`` or
+    ``rejected`` as gemini judged it, ``failed`` for a run that left no design and ``blocked`` for
+    a family gemini cannot build. A state stored before 0.4.6 has neither key.
+    """
 
     model_config = ConfigDict(frozen=True, extra="allow")
 
     family: str | None = None
     design: Reference | None = None
     result: Reference | None = None
+    verdict: str | None = None
+    reason: str | None = None
 
 
 class DesignState(BaseModel):

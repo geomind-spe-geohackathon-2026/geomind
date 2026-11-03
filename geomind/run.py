@@ -10,7 +10,8 @@ from geomind.engine.context import new_run_id
 from geomind.engine.hooks import Cancellation
 from geomind.engine.recovery import agent_class, recover
 from geomind.errors import NotImplementedYet, RunError
-from geomind.loops import CompareLoop, DesignLoop, ToolLoop
+from geomind.loops import CompareLoop, DesignLoop, StudyCompareLoop, ToolLoop
+from geomind.loops.compare import CompareDriver
 from geomind.loops.design import DesignDriver
 from geomind.providers import OpenRouter
 from geomind.stores.run import MemoryRunStore
@@ -45,7 +46,8 @@ def loop_for(state):
     if state.loop in ("design", "compare") and isinstance(agent, DesignDriver):
         agents = agent.tools()
         limit = {key: value for key, value in state.loop_state.items() if key == "max_rounds"}
-        return LOOPS[state.loop](agents["designer"].agent, agents["verifier"].agent, **limit)
+        kind = StudyCompareLoop if isinstance(agent, CompareDriver) else LOOPS[state.loop]
+        return kind(agents["designer"].agent, agents["verifier"].agent, **limit)
     return LOOPS["tool"](agent)
 
 

@@ -1,5 +1,7 @@
 """A stand-in for the engine's session, for tests below the engine."""
 
+import asyncio
+
 from geomind.errors import SandboxError
 from geomind.sandbox import LocalSandbox, Manifest
 from geomind.types import Usage
@@ -25,6 +27,7 @@ class StubSession:
         self.state = StubState()
         self.workspace = workspace
         self.artifacts = {}
+        self.index_lock = asyncio.Lock()
         self.changes = []
         self.errors = []
         self.child_limit = None

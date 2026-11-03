@@ -166,8 +166,8 @@ async def save_study(context, name, tool, found, designs, best, case):
     study read and stored. The artifact keeps ``study``, ``result``, ``designs``
     (``{read, wrote}``), ``case`` (``case_id`` of the case it ran on), ``tool`` and ``versions``.
     The index keeps ``{study, tool, method, designs (plant names), best, case}`` of each, so
-    ``list_studies`` needs no listing by prefix. NOTE: the index is read and written without a
-    lock, so the study tools run alone.
+    ``list_studies`` needs no listing by prefix. NOTE: the study tools run alone within a run, and
+    the index lock keeps runs side by side from losing an entry.
     """
     study, result = found
     read, wrote = designs
@@ -185,8 +185,9 @@ async def save_study(context, name, tool, found, designs, best, case):
     plants = [design_stem(reference) for reference in read]
     entry = {"study": key, "tool": tool, "method": study["method"], "designs": plants}
     entry |= {"best": best, "case": case}
-    kept = [item for item in study_index(context) if item["study"] != key]
-    await session.save_artifact(STUDY_INDEX, {"studies": [*kept, entry]})
+    async with session.index_lock:
+        kept = [item for item in study_index(context) if item["study"] != key]
+        await session.save_artifact(STUDY_INDEX, {"studies": [*kept, entry]})
     await session.emit(
         StudyRecorded,
         run=session.state.run_id,

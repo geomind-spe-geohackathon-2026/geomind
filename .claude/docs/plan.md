@@ -158,6 +158,7 @@ check it before writing a tool, because gemini's names change.
 | Log and replay | geomind 0.3.1: `run.started` records the geomind, gemini and python versions and the export reads them; the export header shows the run's own request; a replay runs every nested run again with its own completions and compares every run | merged sections V and R | done |
 | Studies, budget, replays | geomind 0.4.0: every study tool stores `study/<name>` (gemini's study and result form) and emits `study.recorded`; `list_studies`, `read_study`; `ProjectBudget` with `UsageLedger`; replay matches results by step and call id, and a log of another geomind version checks decisions, not tool outputs; every eval recording replays in a test | merged sections P, S and B | done |
 | Released on the wheel | geomind 0.4.2 on the gemini 0.5.5 release wheel: shorter context, Designer asks for a missing range, no model id in the package, tests read a copy of gemini's examples; `README.md` and `docs/` for people | `v0.4.2` | done |
+| Real comparison | geomind 0.4.6: `CompareLoop` designs each family in its own nested run, side by side up to `compare_concurrency`, verifies each, compares and explains; `StudyCompareLoop` keeps the old form | `v0.4.6` | done |
 
 No live OpenRouter run has been made yet. It needs `OPENROUTER_API_KEY` in geomind's own
 environment, never the backend's key.
@@ -302,9 +303,8 @@ gemini.
 
 ### S4: compare, uncertainty, evals and export
 
-1. **`CompareLoop`.** Done. `geomind/loops/compare.py` runs the design loop with a compare driver:
-   the Designer builds one design per plant family, `run_study` ranks them, and the rest of the loop
-   verifies, costs and explains the rank-1 design. `Route.loop` can be `compare`.
+1. **`CompareLoop`.** Done, and rebuilt in 0.4.6: see [engine.md](engine.md). `Route.loop` can be
+   `compare`.
 2. **Optimisation (bonus).** Done: `optimize` and `run_study` over `gm.Study` in
    `geomind/tools/gemini/study.py`.
 3. **Uncertainty (bonus).** Done: `sample_uncertainty`, `sensitivity` and `compare` in `study.py`,

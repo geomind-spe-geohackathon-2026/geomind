@@ -29,8 +29,21 @@ def _asked(state):
 
 def _designs(problem):
     """Return the design lines of the problem state."""
-    reference = (problem.design or {}).get("reference")
-    return [f"design {reference}"] if reference else []
+    design = problem.design or {}
+    reference = design.get("reference")
+    lines = [f"design {reference}"] if reference else []
+    return [*lines, *map(_alternative, _judged(design))]
+
+
+def _judged(design):
+    """Return the alternatives of a comparison, which have a verdict."""
+    return [item for item in design.get("alternatives") or () if item.get("verdict")]
+
+
+def _alternative(item):
+    """Return the line of one alternative."""
+    reason = f": {_cut(item['reason'])}" if item.get("reason") else ""
+    return f"alternative {item.get('family')}, {item['verdict']}{reason}"
 
 
 def _studies(events):

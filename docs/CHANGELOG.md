@@ -6,6 +6,16 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.6] - 2026-11-03
+
+Additive: `compare` is a real comparison. Old logs and recordings keep their loop.
+
+- `CompareLoop` plans the families (from the request or the case, else proposed by the Designer: confirmed with the user, or unconfirmed assumptions in an `auto` run), designs each in its own `FamilyDesigner` nested run, verifies each feasible design once, compares the verified ones with the Economist and explains with the Explainer. There is no fixed number of families.
+- `concurrency` (setting `compare_concurrency`, `GEOMIND_COMPARE_CONCURRENCY`): families side by side; unset means one at a time, and mode `ask` always is. A failed or infeasible family stops nothing and keeps its reason.
+- `design.alternatives` entries are `{family, design, result, verdict, reason}`; `design.comparison` holds the ranking, the Pareto set and the recommendation. `show --format md` has a `## Comparison` table, and a stop lists the finished alternatives.
+- Budgets and time limits cover runs side by side: `total_usage` counts a running sibling. A model call in flight counts when it returns.
+- New `Delegate(runs_beside=True)`, a lock for the chat's index artifacts, `gd.loops.StudyCompareLoop` (the loop up to 0.4.5, on which old logs and the `two_families` recording run).
+
 ## [0.4.5] - 2026-11-03
 
 Additive, with one changed code.
