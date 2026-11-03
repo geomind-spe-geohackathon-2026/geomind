@@ -6,6 +6,8 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+- `docs/rules.md`: the two long-lived branches, what happens to other branches, and tests on local servers only.
+
 ## [0.4.2] - 2026-11-03
 
 Additive. Runs on gemini 0.5.5 installed from its release wheel.

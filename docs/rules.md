@@ -33,7 +33,10 @@ These rules apply to everyone who works on geomind, people and agents alike.
 
 ## Branches and worktrees
 
-- `main` holds releases only. `dev` holds work on its way to `main`.
+- There are two long-lived branches: `dev` for all new work and `main` for stable releases.
+- A change reaches `main` only by merging `dev`, after all tests pass locally.
+- Any other branch is deleted after it is merged, or tagged if it must be kept.
+- Worktree branches stay local and are removed after the merge.
 - Every git worktree goes under the repository's own `.tmp/`, for example
   `git worktree add .tmp/worktrees/<name>`, never next to the repository.
 - `.tmp/` is ignored and never tracked. Never `git add -f` anything under it.
@@ -45,3 +48,4 @@ These rules apply to everyone who works on geomind, people and agents alike.
 - Never shrink or delete recordings or goldens.
 - A fast-tier test takes at most 1 s. Never raise this budget or skip a test to meet it.
 - Before a commit, run `make test`, then `make test-all` and `make lint`.
+- Test on local servers only, never on production.
