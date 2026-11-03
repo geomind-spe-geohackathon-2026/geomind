@@ -94,6 +94,7 @@ def test_section_three_protocols_are_frozen(frozen):
         "knowledge_search",
         "knowledge_files",
         "knowledge_file",
+        "mcp",
     }
     assert (
         protocols["LLM"]["complete"] == "(self, messages, tools, *, model, settings, on_text=None)"

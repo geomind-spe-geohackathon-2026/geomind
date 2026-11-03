@@ -16,7 +16,9 @@ from geomind.engine.state import Stop
 from geomind.errors import RunError, TimeLimitReached, ToolError
 from geomind.providers import needs_models
 from geomind.stores.memory import FileMemory
+from geomind.tools.base import with_old_names
 from geomind.tools.knowledge import has_knowledge
+from geomind.tools.mcp import RecordedMcpTool, load_tools, server_of
 from geomind.tools.memory import MEMORY_TOOLS
 from geomind.types import Allow, Deny, Request, Usage
 from geomind.types.events import (
@@ -34,6 +36,19 @@ from geomind.types.redaction import redact
 from geomind.utils.imports import class_path
 
 FROZEN = ("design/", "study/")
+
+
+def keys_of(servers):
+    """Return the header values of the servers: secrets, never logged, stored or shown."""
+    return tuple(value for server in servers for value in server.headers.values() if value)
+
+
+def mcp_timeout():
+    """Return ``mcp_timeout`` in seconds, or refuse a run with servers and no timeout."""
+    timeout = runtime.get("mcp_timeout")
+    if timeout is None:
+        raise RunError("run: mcp_timeout = None; expected GEOMIND_MCP_TIMEOUT, seconds")
+    return timeout
 
 
 def current_versions():
@@ -245,6 +260,7 @@ class RunSession:
 
     async def _call_provider(self, agent, messages, on_text):
         """Call the provider for an agent."""
+        await self.ensure_mcp()
         if self.engine.llm is None:
             raise RunError("engine: llm = None; expected a provider")
         if needs_models(self.engine.llm):
@@ -262,11 +278,55 @@ class RunSession:
         )
 
     def offered_schemas(self, agent):
-        """Return the schemas of the tools offered: without those of a memory or a base not here."""
+        """Return the schemas of the tools offered: without those of a memory or a base not here.
+
+        The tools of the run's MCP servers come last, for every agent that has tools.
+        """
         hidden = set() if self.memory is not None else set(MEMORY_TOOLS)
         if not self.knows():
             hidden.add("search_knowledge")
-        return [item for item in agent.tool_schemas() if item["name"] not in hidden]
+        own = [item for item in agent.tool_schemas() if item["name"] not in hidden]
+        return own + [tool.schema() for tool in self.mcp_of(agent).values()]
+
+    def mcp_of(self, agent):
+        """Return the MCP tools an agent is offered: none for a rule or an agent with no tools."""
+        if agent.model.name == "rule" or not agent.tools():
+            return {}
+        return dict(self.engine.mcp_tools or {})
+
+    def tools_of(self, agent, names):
+        """Return the tools a step looks calls up in: the agent's, its MCP tools, old names.
+
+        A replay finds a recorded MCP call by a stand-in that never runs; its result is reused.
+        """
+        tools = with_old_names({**self.mcp_of(agent), **agent.tools()})
+        for name in names:
+            if name not in tools and server_of(name) and self.engine.recorded:
+                tools[name] = RecordedMcpTool(name)
+        return tools
+
+    async def ensure_mcp(self):
+        """Load the tools of the run's MCP servers once per engine, never in a replay.
+
+        The servers come from ``Workspace.mcp(project_id)``; each header value becomes a secret
+        of the log. A server that fails is left out, with an ``error`` event naming it, never its
+        headers.
+        """
+        engine = self.engine
+        if engine.mcp_tools is not None:
+            return
+        engine.mcp_tools = {}
+        workspace = engine.workspace
+        if engine.recorded or not callable(getattr(workspace, "mcp", None)):
+            return
+        servers = list(workspace.mcp(self.state.project) or [])
+        if not servers:
+            return
+        self.log.secrets = (*self.log.secrets, *keys_of(servers))
+        tools, failures = await load_tools(servers, mcp_timeout(), engine.mcp_transport)
+        engine.mcp_tools = tools
+        for server, error in failures:
+            await self.report_error(error, f"mcp:{server.name}")
 
     def knows(self):
         """Tell whether this run's workspace has a knowledge base with documents."""

@@ -6,7 +6,7 @@ from geomind import runtime
 from geomind.context import ProblemState, render
 from geomind.context.skills import skill_listing
 from geomind.errors import RunError
-from geomind.prompts.prompt import KNOWLEDGE, MEMORY, STORED_RESULTS
+from geomind.prompts.prompt import KNOWLEDGE, MCP, MEMORY, STORED_RESULTS
 from geomind.tools.base import with_old_names
 from geomind.tools.stored import is_long, shortened
 from geomind.types import Message
@@ -89,6 +89,8 @@ class Context:
         remembers = getattr(self._session, "memory", True) is not None
         parts.append(MEMORY if remembers and "search_memory" in agent.tools() else "")
         knows = getattr(self._session, "knows", lambda: True)()
+        connected = getattr(self._session, "mcp_of", lambda agent: {})(agent)
+        parts.append(MCP if connected else "")
         parts.append(KNOWLEDGE if knows and "search_knowledge" in agent.tools() else "")
         text = "\n\n".join(part for part in parts if part)
         return (Message(role="system", content=text),) if text else ()

@@ -11,7 +11,7 @@ sentence in the docstring of the function, class or test that makes it.
 A package may import only the packages to its left:
 
 `geomind.utils`, `geomind.errors` ← `types` ← `stores` ← `runtime` ← `prompts` ← `context`
-← `providers` ← `tools` ← `verify` ← `agents` ← `engine` ← `loops` ← `run` ← `testing`
+← `providers` ← `mcp` ← `tools` ← `verify` ← `agents` ← `engine` ← `loops` ← `run` ← `testing`
 ← `live` ← `export` ← `cli` ← `geomind/__init__`.
 
 `tests/unit/test_package_boundaries.py` enforces this order.

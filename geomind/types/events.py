@@ -115,12 +115,13 @@ class ToolStarted(Event):
 
     type: ClassVar[str] = "tool.started"
     is_public: ClassVar[bool] = True
-    public_fields: ClassVar[tuple[str, ...]] = ("index", "call_id", "tool", "input")
+    public_fields: ClassVar[tuple[str, ...]] = ("index", "call_id", "tool", "input", "mcp")
 
     index: int
     call_id: str
     tool: str
     input: dict[str, Any] = {}
+    mcp: str | None = None
 
 
 class ToolFinished(Event):
@@ -134,6 +135,7 @@ class ToolFinished(Event):
         "output_summary",
         "duration",
         "error",
+        "mcp",
     )
 
     index: int
@@ -141,6 +143,7 @@ class ToolFinished(Event):
     output_summary: str
     duration: float
     error: str | None = None
+    mcp: str | None = None
 
 
 class StepFinished(Event):

@@ -4,6 +4,7 @@ from geomind import (
     agents,
     errors,
     loops,
+    mcp,
     providers,
     runtime,
     stores,
@@ -20,7 +21,7 @@ from geomind.types import Action, Allow, Deny, Message, Request, RunResult
 from geomind.types.events import event_from_dict
 from geomind.types.runlog import runlog
 
-__version__ = "0.4.22.dev36"
+__version__ = "0.4.22.dev37"
 __all__ = [
     "Run",
     "Agent",
@@ -44,6 +45,7 @@ __all__ = [
     "event_from_dict",
     "agents",
     "loops",
+    "mcp",
     "stores",
     "testing",
     "tools",

@@ -425,6 +425,7 @@
       "event_from_dict",
       "hooks",
       "loops",
+      "mcp",
       "providers",
       "runlog",
       "runtime",
@@ -630,6 +631,7 @@
           "duration",
           "error",
           "index",
+          "mcp",
           "output_summary"
         ],
         "is_public": true
@@ -659,6 +661,7 @@
           "call_id",
           "index",
           "input",
+          "mcp",
           "tool"
         ],
         "is_public": true
@@ -729,6 +732,7 @@
         "knowledge_file": "(self, name)",
         "knowledge_files": "(self)",
         "knowledge_search": "(self, query)",
+        "mcp": "(self, project_id)",
         "plants": "(self, project_id)",
         "rag": "(self, project_id, query)"
       }
@@ -1077,5 +1081,5 @@
       "step_limit": "failed"
     }
   },
-  "version": "0.4.22.dev36"
+  "version": "0.4.22.dev37"
 }

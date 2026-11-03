@@ -73,6 +73,8 @@ ADDED_SETTINGS = frozenset(
         "evolve_seed",
         "evolve_polish",
         "knowledge_dir",
+        "mcp_servers",
+        "mcp_timeout",
         *(f"{role}_model" for role in ROLES),
     }
 )
@@ -161,6 +163,8 @@ def _defaults():
         "evolve_seed": _integer("GEOMIND_EVOLVE_SEED"),
         "evolve_polish": _integer("GEOMIND_EVOLVE_POLISH"),
         "knowledge_dir": os.environ.get("GEOMIND_KNOWLEDGE_DIR") or None,
+        "mcp_servers": os.environ.get("GEOMIND_MCP_SERVERS") or None,
+        "mcp_timeout": _number("GEOMIND_MCP_TIMEOUT"),
         "memory": os.environ.get("GEOMIND_MEMORY") or None,
         "memory_dir": os.environ.get("GEOMIND_MEMORY_DIR") or None,
         "memory_similarity": _number("GEOMIND_MEMORY_SIMILARITY"),

@@ -42,6 +42,13 @@ class Workspace(Protocol):
     def file(self, project_id, name):
         """Return the bytes of a file ``files`` lists, or ``None`` for any other name."""
 
+    def mcp(self, project_id):
+        """Return the MCP servers of a project as ``[{name, url, transport, headers}]``.
+
+        NOTE: optional. ``name`` matches ``[a-z0-9_-]{1,32}``, ``transport`` is ``http`` or
+        ``sse``, and the header values are secrets geomind never logs, stores or shows.
+        """
+
     def knowledge_search(self, query):
         """Return passages of the shared knowledge base, best first.
 
@@ -87,9 +94,10 @@ class MemoryWorkspace:
     case is ``(case dict, {file name: bytes})``; its files are ``{name: bytes}``.
     """
 
-    def __init__(self, plants=None, documents=None, cases=None, files=None, knowledge=None):
-        """Keep the given values; ``knowledge`` is a knowledge base, such as ``MemoryKnowledge``."""
+    def __init__(self, plants=None, documents=None, cases=None, files=None, knowledge=None, mcp=()):
+        """Keep the given values; ``knowledge`` is a knowledge base, ``mcp`` the servers."""
         self.knowledge = knowledge
+        self.servers = list(mcp)
         self.project_plants = dict(plants or {})
         self.cases = dict(cases or {})
         self.project_documents = dict(documents or {})
@@ -116,6 +124,10 @@ class MemoryWorkspace:
         """Return the bytes of a file of a project, or ``None``."""
         return self.project_files.get(project_id, {}).get(name)
 
+    def mcp(self, project_id):
+        """Return the MCP servers of every project, as ``gd.mcp.Server``."""
+        return list(self.servers)
+
     def knowledge_search(self, query):
         """Return the knowledge base's passages for ``query``, best first; ``[]`` without one."""
         return self.knowledge.search(query) if self.knowledge is not None else []
@@ -136,10 +148,11 @@ class FileWorkspace:
     files (``kind: plant``), the text files in ``documents/`` and the user's files in ``files/``.
     """
 
-    def __init__(self, root, knowledge=None):
-        """Remember the root folder and the knowledge base, a ``FolderKnowledge`` or ``None``."""
+    def __init__(self, root, knowledge=None, mcp=()):
+        """Remember the root folder, the knowledge base and the MCP servers of every project."""
         self.root = Path(root)
         self.knowledge = knowledge
+        self.servers = list(mcp)
 
     def plants(self, project_id):
         """Return ``{file stem: plant file dict}`` of ``plants/*.json``, ``{}`` without any."""
@@ -175,6 +188,10 @@ class FileWorkspace:
         if not is_safe_name(name):
             return None
         return read_bytes(self.root / project_id / "files" / name)
+
+    def mcp(self, project_id):
+        """Return the MCP servers of every project, as ``gd.mcp.Server``."""
+        return list(self.servers)
 
     def knowledge_search(self, query):
         """Return the knowledge base's passages for ``query``, best first; ``[]`` without one."""

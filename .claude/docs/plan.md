@@ -213,7 +213,7 @@ Open, in order (the team layout agreed with Sahand on 2026-11-03, started on his
 2. [ ] A live run to a verified, costed and explained design, with replay from each failure.
 3. [ ] One full run from the start, the memory off, then the full suite, the release (an
    annotated tag) and the version for the backend.
-4. [ ] MCP connectors for every agent (S5 below).
+4. [x] MCP for every agent (`gd.mcp`, `<server>__<tool>`, 0.4.22.dev37) and the knowledge base (0.4.22.dev35): contract v2 and v3.
 5. [ ] gemini needs for Sahand to approve: `gm.Plant.from_dict` raises `KeyError('')` instead of
    `ValidationError` for an inlet given as a bare value such as `{"flue_out": "gas"}`.
 

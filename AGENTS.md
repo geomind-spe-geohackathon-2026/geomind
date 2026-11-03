@@ -30,6 +30,7 @@ Read every file in `.claude/docs/` before changing the repository:
 - [Hooks](.claude/docs/hooks.md): decision points, decisions and the shipped hooks.
 - [Permissions](.claude/docs/permissions.md): rules, modes and the fixed decision order.
 - [Runtime](.claude/docs/runtime.md): context-local settings.
+- [MCP](.claude/docs/mcp.md): the tools of the MCP servers a run is given.
 - [Errors](.claude/docs/errors.md): the `gd.errors` classes and when each is raised.
 - [Evals](.claude/docs/evals.md): testing an agent by tasks, offline or live.
 - [Testing](.claude/docs/testing.md): tiers, test profiles, budgets, fixtures and CI.
@@ -63,6 +64,7 @@ geomind/
 ├── prompts/          # <team>/<name>.md role files, skills/*.md and Prompt
 ├── context/          # problem state, compaction, skills: the deterministic part
 ├── providers/        # LLM protocol, retry layer, OpenRouter, FakeLLM
+├── mcp/              # a small MCP client: list_tools, McpClient, McpError
 ├── schemas/          # JSON schemas and samples of the exchanged documents, generated
 ├── tools/            # Tool, tool decorator, dispatch, built-ins, Delegate, Team, gemini/
 ├── verify/           # verification of a design over gemini's checks

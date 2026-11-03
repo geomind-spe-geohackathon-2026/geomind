@@ -6,6 +6,19 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### MCP: the tools of the servers a run is given (0.4.22.dev37)
+
+**Contract changes for the backend (contract v2 and v3 names):**
+
+- Optional `Workspace.mcp(project_id) -> [{name, url, transport: http|sse, headers}]`: the project's MCP servers. `name` matches `[a-z0-9_-]{1,32}`; header values are secrets geomind never logs, stores, shows in an error or replays (they join the log's secrets).
+- New public module `gd.mcp`: `list_tools(server) -> [{name, description, read_only}]` (sync; `read_only` from `readOnlyHint`, false when missing), `McpError` with `.code` `unreachable`, `auth_refused` or `bad_response`, `Server`, `McpClient`, `servers_from_text`.
+- In a run, each server's tools are offered to every agent that has tools, named `<server>__<tool>`; a read-only tool has the effect `read`, any other `external`, so the `ask` mode asks for approval (request kind `approval`). Each result carries its origin `{server, tool, time}`.
+- `tool.started` and `tool.finished` have a new optional field `mcp`, the server's name (`null` for a geomind tool); public events and `events.json` gain it (additive).
+- New tool error code `mcp_unavailable` (a server that failed during a call). A server that fails while its tools are listed is left out, with an `error` event naming it.
+- The command line needs `GEOMIND_MCP_SERVERS` (a JSON list, `[]` for none) for a run with a project and `GEOMIND_MCP_TIMEOUT` (seconds, a plain number) when it names a server; no defaults.
+- A replay reuses the recorded answers and never reaches a server.
+- Agents read a shared prompt section on connected servers: cite a server's value with its origin; it enters the case or the plant only after the user confirms it.
+
 ### Documents are "rag" (contract v3 names, 0.4.22.dev36)
 
 **Contract changes for the backend (renames; the backend keeps its old methods until this release):**

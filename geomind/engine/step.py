@@ -13,6 +13,7 @@ from geomind.errors import OutputError, ToolError, UnknownNameError
 from geomind.tools import dispatch
 from geomind.tools.base import with_old_names
 from geomind.tools.dispatch import error_output
+from geomind.tools.mcp import server_of
 from geomind.types import RULE_MODEL, Completion, Deny, Finish, Request, ToolResult
 from geomind.types.events import (
     LLMCompleted,
@@ -53,6 +54,7 @@ async def record_result(session, call, result, **fields):
         output_summary=str(result.output)[:SUMMARY_CHARACTERS],
         duration=result.duration,
         error=str(result.output)[:SUMMARY_CHARACTERS] if result.is_error else None,
+        mcp=server_of(call.name),
     )
 
 
@@ -148,7 +150,12 @@ async def _execute(session, agent, tool, call):
     """Run one admitted call and handle what it returned."""
     if call.id not in session.state.started:
         await session.emit(
-            ToolStarted, index=session.state.step, call_id=call.id, tool=call.name, input=call.input
+            ToolStarted,
+            index=session.state.step,
+            call_id=call.id,
+            tool=call.name,
+            input=call.input,
+            mcp=server_of(call.name),
         )
     results = session.engine.recorded.get(session.state.run_id, {})
     recorded = results.get((session.state.step, call.id))
@@ -192,8 +199,9 @@ def _runs_together(tool):
 async def _run_calls(session, agent):
     """Decide and run the open calls: read and compute tools together, others in order."""
     state = session.state
-    tools = with_old_names(agent.tools())
+    await session.ensure_mcp()
     calls = [call for call in state.calls if call.id not in state.results]
+    tools = session.tools_of(agent, [call.name for call in calls])
     is_together = all(call.name in tools and _runs_together(tools[call.name]) for call in calls)
     admitted = []
     for call in calls:
@@ -287,6 +295,7 @@ async def close_step(session):
 async def run_step(session, agent):
     """Run or continue one step; return a ``Stop`` or ``None`` to go on."""
     state = session.state
+    await session.ensure_mcp()
     if not state.in_step:
         await session.emit(StepStarted, index=state.step + 1, model=agent.model.resolved_name())
     if state.action is None:

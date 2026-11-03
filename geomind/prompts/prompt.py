@@ -20,6 +20,13 @@ MEMORY = (
     "A past design is a starting point only: simulate, check and optimise again, and try at "
     "least one option that differs from it. A lesson is method, never a value of this case."
 )
+MCP = (
+    "## Connected servers\n\n"
+    "Tools named `<server>__<tool>` come from the servers the user connected. A value from one "
+    "comes with its origin (server, tool, time): cite it so, and it enters the case or the plant "
+    "only after the user confirms it, with that origin, as any value no project file gives. A "
+    "tool that is not read-only asks the user's approval before it runs."
+)
 KNOWLEDGE = (
     "## Knowledge\n\n"
     "`search_knowledge` searches the shared knowledge base, documents such as cost catalogues, "

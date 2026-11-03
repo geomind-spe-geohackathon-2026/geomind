@@ -20,6 +20,7 @@ from geomind.engine.hooks import CostBudget, ProjectBudget, TokenBudget
 from geomind.engine.replay import nested_runs_reused, version_differences
 from geomind.errors import GeomindError, RunError
 from geomind.export import models_by_agent, render_export
+from geomind.mcp import servers_from_text
 from geomind.providers import FakeLLM, OpenRouter, Recorder, ReplayThenLive
 from geomind.run import LOOPS, Run, loop_of
 from geomind.stores import FileUsageLedger, FileWorkspace
@@ -399,7 +400,19 @@ def _project(path):
     if path is None:
         return None, None
     folder = Path(path)
-    return FileWorkspace(folder.parent, knowledge=_knowledge()), folder.name
+    workspace = FileWorkspace(folder.parent, knowledge=_knowledge(), mcp=_servers())
+    return workspace, folder.name
+
+
+def _servers():
+    """Return the MCP servers of ``GEOMIND_MCP_SERVERS`` (a JSON list, ``[]`` for none)."""
+    text = runtime.get("mcp_servers")
+    if text is None:
+        raise RunError(
+            "run: mcp_servers = None; expected GEOMIND_MCP_SERVERS, a JSON list of "
+            "{name, url, transport, headers}, [] for none"
+        )
+    return servers_from_text(text)
 
 
 def _knowledge():

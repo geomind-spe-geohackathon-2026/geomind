@@ -30,6 +30,7 @@ EXPECTED = (
     "tools",
     "verify",
     "loops",
+    "mcp",
     "hooks",
     "callbacks",
     "providers",

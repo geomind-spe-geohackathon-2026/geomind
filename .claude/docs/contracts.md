@@ -50,6 +50,7 @@ and to read one back `event_from_dict`.
 | Optional `Workspace.files(project_id) -> [{name, size, media_type}]`, `Workspace.file(project_id, name) -> bytes \| None` (beyond the shared contract) | `geomind/stores/workspace.py` | `tests/unit/stores/test_workspace.py` |
 | Tool error codes `files_unavailable`, `not_text` (beyond the shared contract) | `geomind/tools/files.py` | `tests/unit/tools/test_files.py` |
 | `Workspace.rag(project_id, query)` (was `documents`); tools `rag_search`, `rag_read` (were `search_documents`, `read_document`; old names still replay) | `geomind/stores/workspace.py` | `tests/unit/tools/test_base.py` |
+| Optional `Workspace.mcp(project_id)`, `gd.mcp.list_tools`, `McpError`, tools `<server>__<tool>`, field `mcp` of `tool.started`/`tool.finished`, code `mcp_unavailable` (contract v2/v3) | `geomind/mcp/client.py`, `geomind/tools/mcp.py` | `tests/unit/mcp/test_client.py`, `tests/unit/tools/test_mcp.py` |
 | Optional `Workspace.knowledge_search(query)`, `knowledge_files()`, `knowledge_file(name)`, tool error code `knowledge_unavailable` (contract v2) | `geomind/tools/knowledge.py` | `tests/unit/tools/test_knowledge.py` |
 | `Completion`, `Usage`, `Message` | `geomind/types/messages.py` | `tests/unit/types/test_messages.py` |
 | `RunStore`, all seven methods, `load_events` included | `geomind/stores/run.py` | `tests/unit/testing/test_conformance.py` |

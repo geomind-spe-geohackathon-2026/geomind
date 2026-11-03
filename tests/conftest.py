@@ -173,6 +173,8 @@ def deployment_settings(monkeypatch):
     monkeypatch.setenv("GEOMIND_EVOLVE_SEED", "0")
     monkeypatch.setenv("GEOMIND_EVOLVE_POLISH", "0")
     monkeypatch.setenv("GEOMIND_KNOWLEDGE_DIR", str(ROOT / "data" / "knowledge"))
+    monkeypatch.setenv("GEOMIND_MCP_SERVERS", "[]")
+    monkeypatch.setenv("GEOMIND_MCP_TIMEOUT", "10")
 
 
 @pytest.fixture(autouse=True)
