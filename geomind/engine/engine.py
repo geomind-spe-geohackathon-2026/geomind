@@ -15,12 +15,24 @@ from geomind.engine.replay import replay_run
 from geomind.engine.session import RunSession
 from geomind.engine.state import RunState, Stop
 from geomind.engine.step import record_result, run_step, settle_interrupted, text_result
-from geomind.errors import NotImplementedYet, RequestError, RunError
+from geomind.errors import NotImplementedYet, ProviderError, RequestError, RunError
 from geomind.providers import with_retries
 from geomind.stores.run import MemoryRunStore
 from geomind.types import RunResult, Usage, status_of, validate_answer
 from geomind.types.events import PermissionDecided, RunFinished, ToolRecorded
 from geomind.utils.hooks import RemovableHandle
+
+
+def failure_stop(error, reason):
+    """Return the stop of a run an exception ended: a provider's failure keeps its message.
+
+    NOTE: a provider's refusal is no bug, so its text reaches the result, with its ``code``
+    first when it has one; any other exception is a crash, its text in the log only.
+    """
+    if isinstance(error, ProviderError):
+        prefix = f"{error.code}: " if error.code else ""
+        return Stop(reason, f"{prefix}{error}")
+    return Stop(reason, str(error), is_crash=reason == "error")
 
 
 def run_result(session, stop):
@@ -133,7 +145,7 @@ class Engine:
         except Exception as error:
             await session.report_error(error, where="engine")
             reason = "not_implemented" if isinstance(error, NotImplementedYet) else "error"
-            stop = Stop(reason, str(error), is_crash=reason == "error")
+            stop = failure_stop(error, reason)
         return await self.end(session, stop)
 
     async def decline(self, loop, context, error):

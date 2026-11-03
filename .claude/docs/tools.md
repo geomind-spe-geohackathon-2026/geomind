@@ -311,6 +311,7 @@ A validation error takes `path` from the first input field that failed. Every ot
 | `timeout` | the tool passed its time limit |
 | `budget` | a budget or time limit stopped a delegate's nested run; the message names it with what was spent and the cap |
 | `nested_stopped` | a delegate's nested run stopped without an answer (a step limit, a refusal, invalid calls); the message says why |
+| `context_exceeded` | a delegate's nested run asked the provider for more than the model's window; the message has the provider's numbers |
 | `internal` | a bug or a crash; the detail is in the log, never in the result |
 
 A permission denial is no error class: its result is the reason as text, with `is_error` set and
@@ -392,7 +393,22 @@ each pinned in `tests/integration/test_live_regressions.py`:
   gemini's `invalid_value` about the first column comes back with the exact retry call.
 - A case without its header: `case_incomplete` adds a minimal case from `gm.Case.schema()` as JSON
   to `suggestions`, and the description of `set_case`'s `changes` shows it (`case_skeleton`).
-- `read_stored` with a wrong path lists the keys (or first indexes) there in `suggestions`.
+- `read_stored` with a wrong path lists the keys (or first indexes) there in `suggestions`; on a
+  text, it says to read it without a path.
+
+From the second live run (`tests/integration/test_live_regressions_b.py`, recording
+`tests/fixtures/live/recording_b.jsonl`):
+
+- A series in `changes` naming a file not passed: the suggestion is the `set_case` call with
+  `files=[...]` naming them.
+- `invalid_unit` in `set_case`: `suggestions` holds the field as sent with the accepted unit its
+  letters spell and its value a number (`time.step = {'value': 1, 'unit': 'd'}`), and
+  `accepted units: ...` from `gm.units.names`.
+- `requirements` (or `economics`) inside `changes`: the suggestion is the call with
+  `requirements={name: requirement}`.
+- `build_plant` without a header: `old_format`, with the smallest plant file of
+  `gm.plants.schema()` last in `suggestions` (`plant_skeleton`, `geomind/tools/gemini/skeleton.py`).
+- A nested run that passed the model's window: the delegate answers `context_exceeded`.
 - `read_document` remembers what the run read: a page read again is `already_read`, with the
   `reference` of the stored earlier result, unless `force`.
 - `geomind run --loop design` takes a project with files and no `case.json`.

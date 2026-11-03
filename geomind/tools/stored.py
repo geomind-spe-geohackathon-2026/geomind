@@ -137,12 +137,18 @@ def _step(value, part):
     )
 
 
+TEXT_HINT = "the value is text: read_stored without a path"
+"""How to read a stored text, which a path cannot name a part of."""
+
+
 def parts_of(value):
-    """Return what a path may name next in a stored value: its keys, or its first indexes."""
+    """Return what a path may name next in a stored value: keys, first indexes, or a text hint."""
     if isinstance(value, dict):
         return [str(key) for key in value]
     if isinstance(value, list):
         return [str(index) for index in range(min(len(value), SHOWN_INDEXES))]
+    if isinstance(value, str):
+        return [TEXT_HINT]
     return []
 
 

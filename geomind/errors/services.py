@@ -6,11 +6,12 @@ from geomind.errors.base import GeomindError
 class ProviderError(GeomindError, RuntimeError):
     """An LLM call failed; ``status`` is the HTTP status, ``is_retryable`` says to try again."""
 
-    def __init__(self, message, *, status=None, is_retryable=False):
-        """Store the message, the HTTP status if there was one, and whether a retry can help."""
+    def __init__(self, message, *, status=None, is_retryable=False, code=None):
+        """Store the message, the HTTP status, whether to retry, and a stable ``code`` if known."""
         super().__init__(message)
         self.status = status
         self.is_retryable = is_retryable
+        self.code = code
 
 
 class ToolError(GeomindError, RuntimeError):

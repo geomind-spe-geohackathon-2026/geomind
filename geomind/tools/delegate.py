@@ -7,6 +7,8 @@ from geomind.types import Record
 from geomind.utils.strings import first_paragraph
 
 CHARACTERS_PER_TOKEN = 4
+STOP_CODES = ("context_exceeded",)
+"""Codes a nested run's message may start with, which its delegate passes on."""
 
 
 class DelegateInput(Record):
@@ -63,10 +65,12 @@ class Delegate(Tool):
         if result.status != "done" and limit is not None:
             raise ToolError(f"{self.name}: run {limit}", code="budget")
         if result.status != "done" and result.message:
+            code, _, rest = result.message.partition(": ")
+            known = code in STOP_CODES
             raise ToolError(
                 f"{self.name}: the nested run stopped with {result.stop_reason}: "
-                f"{result.message}",
-                code="nested_stopped",
+                f"{rest if known else result.message}",
+                code=code if known else "nested_stopped",
             )
         if result.status != "done":
             raise ToolError(

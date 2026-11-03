@@ -7,10 +7,10 @@ from time import perf_counter
 
 from geomind import runtime
 from geomind.context import apply_changes
-from geomind.context.compaction import load_windows
+from geomind.context.compaction import context_window, load_windows
 from geomind.engine.context import Context
 from geomind.engine.delegation import run_child
-from geomind.engine.hooks import ask_hooks
+from geomind.engine.hooks import ask_hooks, input_bound
 from geomind.engine.recovery import apply
 from geomind.engine.state import Stop
 from geomind.errors import RunError, SandboxError, TimeLimitReached, ToolError
@@ -203,12 +203,20 @@ class RunSession:
         """Log one provider retry."""
         await self.emit(Retried, **fields)
 
-    def _call_settings(self, agent):
-        """Return the agent's settings with the output limit a hook set for this call, used once."""
+    def _call_settings(self, agent, messages):
+        """Return the agent's settings with the output limit of this call, used once.
+
+        The limit is the least of what a hook set, the agent's ``max_tokens`` and what the
+        model's window leaves after the input bound, so no call asks for more than fits.
+        """
         settings = agent.model.settings()
         limit, self._output_limit = self._output_limit, None
-        if limit is not None and (settings.get("max_tokens") or limit) >= limit:
-            settings = {**settings, "max_tokens": limit}
+        limits = [item for item in (limit, settings.get("max_tokens")) if item is not None]
+        window = context_window(agent.model.resolved_name())
+        if window is not None and limits:
+            limits.append(max(1, window - input_bound(agent, messages)))
+        if limits:
+            settings = {**settings, "max_tokens": min(limits)}
         return settings
 
     async def _call_provider(self, agent, messages, on_text):
@@ -218,7 +226,7 @@ class RunSession:
         if needs_models(self.engine.llm):
             await load_windows({agent.model.resolved_name()})
         llm = self.engine.recorded_llms.get(self.state.run_id, self.engine.llm)
-        settings = self._call_settings(agent)
+        settings = self._call_settings(agent, messages)
         return await llm.complete(
             list(messages),
             agent.tool_schemas(),

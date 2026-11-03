@@ -20,8 +20,9 @@ class RetryLLM:
     """Wrap any ``LLM`` so a backend-made provider gets the same reliability.
 
     A failure with ``is_retryable`` set, or a timeout, is tried again with exponential backoff, up
-    to the ``retry_count`` runtime setting. Then the fallback models are tried in order. A failure
-    that is not retryable goes straight to the next model. NOTE: text streamed before a failure
+    to the ``retry_count`` runtime setting (unset, one attempt: a live run requires it). Then the
+    fallback models are tried in order. A failure that is not retryable goes straight to the next
+    model. NOTE: text streamed before a failure
     stays streamed, so a client can see it twice; the logged completion holds only the final text.
     """
 
@@ -51,7 +52,7 @@ class RetryLLM:
 
     async def _attempts(self, messages, tools, arguments, on_retry):
         """Call one model, backing off between retryable failures."""
-        retries = runtime.get("retry_count")
+        retries = runtime.get("retry_count") or 0
         for attempt in range(retries + 1):
             try:
                 return await self.llm.complete(messages, tools, **arguments)

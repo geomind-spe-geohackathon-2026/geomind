@@ -1,5 +1,6 @@
 """The tools that read and store plants."""
 
+import json
 from typing import Any
 
 from geomind import runtime
@@ -7,6 +8,7 @@ from geomind.errors import ToolError
 from geomind.tools.base import tool
 from geomind.tools.gemini.case import case_of
 from geomind.tools.gemini.references import reference_schema
+from geomind.tools.gemini.skeleton import plant_skeleton
 from geomind.tools.gemini.stored import load_design, save_design
 from geomind.utils.strings import did_you_mean, join_names
 
@@ -242,12 +244,24 @@ async def build_plant(context, plant: dict[str, Any], name: str):
     ``plant`` is the plant file (``read_plant`` shows one). Every value with a dimension is
     ``{"value", "unit"}``. A file gemini cannot read is an error with gemini's problems
     (``path``, ``message``, ``suggestions`` such as the name probably meant) and nothing is
-    stored. A file that builds is stored even with ``issues`` (the values still missing, checked
-    as in ``read_plant``): fill them in a new file or with ``simulate`` ``changes``.
+    stored. A file without its header is ``old_format``, the smallest plant file of gemini's
+    schema last in ``suggestions``. A file that builds is stored even with ``issues`` (the values
+    still missing, checked as in ``read_plant``): fill them in a new file or with ``simulate``
+    ``changes``.
     """
     import gemini as gm
 
-    built = await runtime.in_gemini_thread(gm.Plant.from_dict, plant)
+    try:
+        built = await runtime.in_gemini_thread(gm.Plant.from_dict, plant)
+    except gm.errors.ValidationError as error:
+        if error.code != "old_format":
+            raise
+        raise ToolError(
+            str(error),
+            code=error.code,
+            path=error.path,
+            suggestions=[*error.suggestions, json.dumps(plant_skeleton())],
+        ) from error
     design = await save_design(context, name, built)
     return {"design": design, **plant_issues(context, built)}
 

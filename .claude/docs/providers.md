@@ -16,7 +16,11 @@ redacts from every event.
 
 `RetryLLM(llm)` wraps any `LLM`, so a backend-made provider gets it too. The engine wraps whatever
 it receives, once, through `with_retries`. A failure with `is_retryable` set, or a `TimeoutError`, is
-tried again up to `retry_count` times, with a delay of `retry_delay * 2**attempt`. Then the models
+tried again up to `retry_count` times, with a delay of `retry_delay * 2**attempt`. geomind holds no
+value for either: a live run (`geomind run`, `check-live`, `gd.Run` on a real provider) is refused
+while `GEOMIND_RETRY_COUNT` or `GEOMIND_RETRY_DELAY` is unset, and a scripted or fake provider,
+unset, makes one attempt. A 400 of OpenRouter for a call longer than the model's window is a
+`ProviderError` with `code="context_exceeded"`, its numbers in the message. Then the models
 in `Model.fallbacks` are tried in order. A failure that is not retryable goes straight to the next
 model. Every retry is a `retry` event. Text streamed before a failure stays streamed, so a client
 can see it twice; the logged completion holds only the final text.
