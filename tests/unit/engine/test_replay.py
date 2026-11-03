@@ -116,13 +116,14 @@ async def test_a_refused_answer_is_refused_again():
 
 
 async def test_a_paused_run_never_runs_its_pending_tool():
-    """A replay ends where the log ends."""
+    """A replay ends where the log ends, waiting on the same request."""
     result, engine, _ = await run(
         [uses(call("save_note", text="x"))], hooks=[RequireApproval(["save_note"])]
     )
     EXECUTED.clear()
     replayed = await Engine.replay(engine.store, result.run_id)
-    assert EXECUTED == [] and replayed.stop_reason == "cancelled"
+    assert EXECUTED == [] and replayed.status == "waiting"
+    assert replayed.request.message == result.request.message
 
 
 async def test_resumed_run_replays():
@@ -669,32 +670,47 @@ async def test_a_state_change_beside_a_reused_call_is_applied_once():
     assert len([e for e in replayed if isinstance(e, StateChanged)]) == 1
 
 
+def ended(result):
+    """Return how a run ended: status, stop reason, answer and message."""
+    return result.status, result.stop_reason, result.answer, result.message
+
+
 async def test_a_token_budget_stop_replays():
-    """A run the budget stopped ends where its log ends; the replay asks no model for more."""
+    """A run the budget stopped ends the same in its replay, partial answer included."""
     script = [uses(call("lookup", key="k")), says("never reached")]
     result, engine, _ = await run(script, hooks=[TokenBudget(1)])
-    assert result.stop_reason != "answer"
+    assert result.stop_reason == "denied" and "partial answer" in result.answer
     replayed = await Engine.replay(engine.store, result.run_id)
-    assert replayed.stop_reason == "cancelled"
+    assert ended(replayed) == ended(result)
 
 
 async def test_a_time_limit_stop_replays():
-    """A run the clock stopped ends where its log ends, whatever the clock says now."""
+    """A run the clock stopped ends the same, whatever the clock says now."""
     ticks = iter([0.0, 0.0, 100.0, 100.0])
     script = [uses(call("lookup", key="k")), says("never reached")]
     limit = TimeLimit(1, clock=lambda: next(ticks, 100.0))
     result, engine, _ = await run(script, hooks=[limit])
-    assert result.stop_reason != "answer"
+    assert result.stop_reason == "denied"
     replayed = await Engine.replay(engine.store, result.run_id)
-    assert replayed.stop_reason == "cancelled"
+    assert ended(replayed) == ended(result)
 
 
 async def test_a_question_in_auto_mode_replays():
-    """A run waiting on ``ask_user`` ends at its pending call: the question is not asked again."""
+    """A run waiting on ``ask_user`` waits again on the same question."""
     result, engine, _ = await run([uses(call("ask_user", question="Which demand?"))])
     assert result.status == "waiting"
     replayed = await Engine.replay(engine.store, result.run_id)
-    assert replayed.stop_reason == "cancelled"
+    assert replayed.status == "waiting"
+    assert replayed.request.message == result.request.message
+
+
+async def test_a_step_limit_replays():
+    """A run that hit its step limit ends there again, with the same partial answer."""
+    script = [uses(call("lookup", "c1", key="k")), uses(call("lookup", "c2", key="j"))]
+    result, engine, _ = await run(script, max_steps=1)
+    assert result.stop_reason == "step_limit"
+    replayed = await Engine.replay(engine.store, result.run_id)
+    assert ended(replayed) == ended(result)
 
 
 async def test_an_answered_question_replays():

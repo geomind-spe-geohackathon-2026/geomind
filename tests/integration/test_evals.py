@@ -253,6 +253,28 @@ def test_the_report_has_a_table_per_loop_and_main_writes_it(tmp_path, capsys):
     assert "| analyst/depth | 5 of 5 | 3 | 2 | 45 | 0.0300 |" in text
 
 
+@pytest.mark.slow
+def test_the_report_of_cells_side_by_side_is_the_same_report(tmp_path):
+    """``workers`` runs the cells of the report in processes of their own; the table is equal.
+
+    NOTE: slow, because each process imports geomind and gemini anew.
+    """
+    write_task(tmp_path)
+    alone = evals.report(tmp_path)
+    assert without_times(evals.report(tmp_path, workers=2)) == without_times(alone)
+
+
+@pytest.mark.slow
+def test_the_report_command_takes_workers(tmp_path, capsys):
+    """``--workers`` is passed to the report; without it the cells run one after another.
+
+    NOTE: slow, because each process imports geomind and gemini anew.
+    """
+    write_task(tmp_path)
+    assert evals.main(["--report", "--workers", "2"], tmp_path) == 0
+    assert "## CompareLoop" in capsys.readouterr().out
+
+
 def without_times(text):
     """Return a report with the time cells blanked: they differ from run to run."""
     return re.sub(r"\| [\d.]+ \|$", "| time |", text, flags=re.MULTILINE)
@@ -275,10 +297,10 @@ def test_the_checked_in_report_has_every_task_under_each_loop():
 def test_the_checked_in_report_is_the_generated_one(gemini_loaded):
     """``evals/reports/summary.md`` is what ``python -m evals.run --report`` writes, but for time.
 
-    NOTE: slow, because every task runs through three loops.
+    NOTE: slow, because every task runs through three loops; the cells run in eight processes.
     """
     checked_in = (evals.ROOT / "reports" / "summary.md").read_text()
-    assert without_times(evals.report()) == without_times(checked_in)
+    assert without_times(evals.report(workers=8)) == without_times(checked_in)
 
 
 def run_recorded(tmp_path, task, recording):

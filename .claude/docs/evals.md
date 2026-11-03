@@ -240,3 +240,10 @@ it ends `denied`).
 To re-record the challenge2 recordings live: `python -m evals.run --agent <name> --live` for each
 agent folder under `evals/tasks/`, and `python -m evals.run --agent challenge2 --live` for the suite
 (each writes its recordings anew); then run the same commands without `--live` to confirm they pass. The scripted recordings of the previous section are replaced by `official_brief_live.jsonl`.
+
+## The report's speed
+
+`python -m evals.run --report --workers N` runs each cell, one task through one loop, in its own
+process: the work is gemini's simulations, so cells one after another took 11.5 minutes and eight
+processes take under three, bounded by the longest task. The table is the same either way; the
+slow test `test_the_checked_in_report_is_the_generated_one` uses eight.

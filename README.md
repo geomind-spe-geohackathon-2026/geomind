@@ -110,5 +110,6 @@ geomind has no built-in model: a run on a real provider stops at the start until
 | `GEOMIND_CONTEXT_WINDOW` | The context window in tokens; unset, it is read from the provider |
 | `GEOMIND_CACHE_MARKED_MODELS` | The model id prefixes that get cache breakpoints |
 | `GEOMIND_COMPARE_CONCURRENCY` | How many families a comparison designs side by side; unset, one at a time |
+| `GEOMIND_COMPARE_RETRIES` | How often a comparison designs a rejected family again; unset, never |
 
 The team uses DeepSeek models. `python -m geomind check-live` shows what a live run would use.

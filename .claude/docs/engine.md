@@ -130,7 +130,9 @@ unset meaning one at a time) is how many run in one driver step; a run that may 
 mode `ask`, always takes one at a time, since a run holds one pending request. A family that
 fails or is infeasible keeps its reason and stops nothing. The driver then moves the state's design
 to each feasible family, the `Verifier` checks it once and gemini's verdict sets `verified` or
-`rejected`. The `Economist` compares the verified ones (`design.comparison`), the driver names the
+`rejected`. A rejected family runs again in a new nested run, told gemini's reason and given new
+names (`<family>_r<n>_`), up to `retries` times (setting `compare_retries`; unset, never); the
+shared budget covers the retries. The `Economist` compares the verified ones (`design.comparison`), the driver names the
 recommended design, the `Explainer` writes the comparison, and `show --format md` prints the table.
 
 `Delegate(..., runs_beside=True)` lets the delegate calls of one step run together, and
@@ -243,5 +245,7 @@ conformance checks.
 `load_loop_state` gives an agent what its loop logged: a replay or a resume rebuilds the driver from
 its class, so `DesignDriver` takes `max_rounds` from `run.started.loop_state` and decides as the run
 did. A log without it keeps the constructor's value. A run that stopped at a budget, a time limit
-or a pending question replays up to the end of its log and ends `cancelled` there: the replay
-compares the calls, repeats no hook and asks no model for more.
+or a pending question replays up to the end of its log and ends there as the run did: a run that
+waited asks the same request again, one a budget or time limit denied stops with the same reason
+and the same partial answer, and one that was cancelled is cancelled. The replay repeats no hook
+and asks no model for more; a log that just ends (a crash) still ends `cancelled`.

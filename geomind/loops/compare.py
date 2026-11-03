@@ -87,13 +87,23 @@ def plan_task(context, asks):
     return f"{request_of(context)}{project}\n\n{plan_instructions(asks)}"
 
 
-def family_task(request, family):
-    """Return the task of one family's nested run, which designs that family and nothing else."""
+def family_task(request, family, failed=None, attempt=0):
+    """Return the task of one family's nested run, which designs that family and nothing else.
+
+    A retry (``attempt`` 1 and up) is told why gemini rejected the last design, ``failed``.
+    """
+    prefix = f"{family['id']}_r{attempt}_" if attempt else f"{family['id']}_"
+    again = (
+        f" An earlier design of this family failed gemini's checks: {failed}. Design it again, "
+        "changing what failed."
+        if attempt
+        else ""
+    )
     return (
-        f"{request}\n\nDesign one alternative only: {family['id']}: {family['summary']}. Other "
-        "runs design the others. Size it, simulate the whole year, check it, optimize it with "
-        "design.search, simulate the best and check it. Start every design and study name with "
-        f"'{family['id']}_'. Do not write design.reference, design.result or verification. Add "
+        f"{request}\n\nDesign one alternative only: {family['id']}: {family['summary']}.{again} "
+        "Other runs design the others. Size it, simulate the whole year, check it, optimize it "
+        "with design.search, simulate the best and check it. Start every design and study name "
+        f"with '{prefix}'. Do not write design.reference, design.result or verification. Add "
         "one entry at /design/alternatives/-: {family, design, result, verdict, reason}, with "
         f"family '{family['id']}' and verdict 'feasible' or 'infeasible', and the reason of an "
         "infeasible one. When the family cannot be built, add it as 'infeasible' with why."
@@ -244,12 +254,14 @@ class ComparisonDriver(DesignDriver):
 
         self._concurrency = None
         self._asks = False
+        self._retries = None
 
     def load_loop_state(self, state):
         """Take the logged limit, the concurrency and whether a user can answer."""
         super().load_loop_state(state)
         self._concurrency = state.get("concurrency", self._concurrency)
         self._asks = state.get("asks", self._asks)
+        self._retries = state.get("retries", self._retries)
 
     def batch_size(self):
         """Return how many families run together: one while a run may wait for a user."""
@@ -326,6 +338,8 @@ class ComparisonDriver(DesignDriver):
         last = notes(context.messages)[-1]
         if last.get("limited") or note.get("limited"):
             return self.partial(design, note, index)
+        if "retry" in last:
+            return self.retry(context, last, note, index)
         done = attempted(context.messages)
         pending = [item for item in open_families(design) if item.get("id") not in done]
         if pending:
@@ -378,14 +392,35 @@ class ComparisonDriver(DesignDriver):
         return act({**note, "checking": family}, index, "verifier", task=task)
 
     async def after_check(self, context, note, index):
-        """Record gemini's verdict on the family just checked."""
+        """Record gemini's verdict on the family just checked, or set it aside for a retry."""
         found = await asyncio.to_thread(verify_design, context)
         family = notes(context.messages)[-1]["checking"]
         verdict = VERIFIED if found["passed"] else "rejected"
         reason = None if found["passed"] else failure_reason(found)
         design = context.problem.design or {}
+        used = sum(item.get("retry") == family for item in notes(context.messages))
+        if verdict == "rejected" and used < (self._retries or 0):
+            kept = [
+                item for item in design.get("alternatives") or () if item.get("family") != family
+            ]
+            changes = [{"op": "add", "path": "/design/alternatives", "value": kept}]
+            retry = {**note, "retry": family, "failed": reason, "attempt": used + 1}
+            return act(retry, index, "update_state", changes=changes)
         changes = verdict_changes(design, family, verdict, reason)
         return act(note, index, "update_state", changes=changes)
+
+    def retry(self, context, last, note, index):
+        """Run a rejected family again, told why gemini rejected it."""
+        design = context.problem.design or {}
+        family = next(
+            item for item in design.get("families") or () if item.get("id") == last["retry"]
+        )
+        task = family_task(request_of(context), family, last["failed"], last["attempt"])
+        call = ToolCall(
+            id=f"loop-{index}-family-retry", name="family_designer", input={"task": task}
+        )
+        text = MARK + json.dumps({**note, "batch": [family["id"]]})
+        return Action(text=text, tool_calls=(call,))
 
     def conclude(self, context, calls, design, note, index):
         """Compare the verified designs, name the recommended one, explain, and finish."""
@@ -419,7 +454,9 @@ class CompareLoop(DesignLoop):
     user confirms them unless the run is ``auto``, where they are unconfirmed assumptions. One
     ``FamilyDesigner`` nested run per family designs it, ``concurrency`` of them side by side
     (the setting ``compare_concurrency``; unset, one at a time); a failed or infeasible family
-    stops nothing and keeps its reason. The ``Verifier`` checks each feasible design once, the
+    stops nothing and keeps its reason. The ``Verifier`` checks each feasible design; one gemini
+    rejects runs again, told why, up to ``retries`` times (setting ``compare_retries``; unset, no
+    retry). The
     ``Economist`` compares the verified ones and the ``Explainer`` writes the comparison.
     Budgets and time limits are hooks of the run, shared by its nested runs. A stop gives a
     partial answer listing the finished alternatives.
@@ -428,10 +465,11 @@ class CompareLoop(DesignLoop):
     name = "compare"
     driver = ComparisonDriver
 
-    def __init__(self, designer, verifier, max_rounds=5, concurrency=None):
-        """Keep the agents, the limit and the concurrency, the setting's when not given."""
+    def __init__(self, designer, verifier, max_rounds=5, concurrency=None, retries=None):
+        """Keep the agents and the limits; the settings give what is not given."""
         super().__init__(designer, verifier, max_rounds)
         self.concurrency = concurrency or runtime.get("compare_concurrency")
+        self.retries = retries if retries is not None else runtime.get("compare_retries")
         self.asks = False
         self.agent.load_loop_state(self.state_dict())
 
@@ -443,10 +481,16 @@ class CompareLoop(DesignLoop):
 
     def state_dict(self):
         """Return the limit, the concurrency and whether a user can answer."""
-        return {**super().state_dict(), "concurrency": self.concurrency, "asks": self.asks}
+        return {
+            **super().state_dict(),
+            "concurrency": self.concurrency,
+            "asks": self.asks,
+            "retries": self.retries,
+        }
 
     def load_state_dict(self, state):
         """Take the logged settings; a log without one keeps this loop's."""
         super().load_state_dict(state)
         self.concurrency = state.get("concurrency", self.concurrency)
         self.asks = state.get("asks", self.asks)
+        self.retries = state.get("retries", self.retries)

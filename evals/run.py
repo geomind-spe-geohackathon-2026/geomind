@@ -7,8 +7,10 @@ tasks through a loop instead of one agent. ``--report`` runs every task through 
 """
 
 import argparse
+import multiprocessing
 import os
 import sys
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 from time import perf_counter
@@ -165,22 +167,23 @@ def _provider(recording, is_live):
     return Recorder(OpenRouter(), recording)
 
 
-def run_agent(agent_name, root=ROOT, is_live=False, loop=None):
-    """Run every task of one agent, through ``loop`` if given, and return the outcomes."""
+def run_agent(agent_name, root=ROOT, is_live=False, loop=None, only=None):
+    """Run every task of one agent, or the one ``only`` names, through ``loop`` if given."""
     outcomes = []
-    for path in sorted((root / "tasks" / agent_name).glob("*.yaml")):
+    for path in sorted((root / "tasks" / agent_name).glob(f"{only or '*'}.yaml")):
         recording = root / "recordings" / agent_name / f"{path.stem}.jsonl"
         llm = _provider(recording, is_live)
         outcomes.append(run_task(path.stem, load_task(path), agent_name, llm, loop))
     return outcomes
 
 
-def _cell(root, agent_name, loop):
-    """Return the outcomes of a task folder through one loop; a loop that breaks fails it."""
+def _cell(root, agent_name, loop, only=None):
+    """Return the outcomes of a task folder, or one task, through a loop; a break fails it."""
     try:
-        return run_agent(agent_name, root, loop=loop)
+        return run_agent(agent_name, root, loop=loop, only=only)
     except Exception as error:
-        return [Outcome(name=f"{agent_name} ({type(error).__name__}: {error})", problems=["run"])]
+        name = only or agent_name
+        return [Outcome(name=f"{name} ({type(error).__name__}: {error})", problems=["run"])]
 
 
 def _row(outcome):
@@ -249,8 +252,11 @@ def _loop_table(title, outcomes):
     ]
 
 
-def report(root=ROOT):
+def report(root=ROOT, workers=None):
     """Return the report of every task through each loop, as Markdown.
+
+    ``workers`` runs the cells (one task through one loop) in that many processes, each on its
+    own recording and store, so the table is the same; unset, one after another.
 
     Every task runs from its own recording through ``ToolLoop`` (the task's agent, or the Designer
     alone for a suite), ``DesignLoop`` and ``CompareLoop``. The recording is the decisions of one
@@ -265,12 +271,29 @@ def report(root=ROOT):
         "`python -m evals.run --report`. Time varies from run to run.",
         "",
     ]
+    cells = [
+        (root, folder, loop, path.stem)
+        for loop in REPORT_LOOPS
+        for folder in folders
+        for path in sorted((root / "tasks" / folder).glob("*.yaml"))
+    ]
+    found = dict(zip(cells, _cells(cells, workers)))
     for loop, title in REPORT_LOOPS.items():
         outcomes = []
-        for folder in folders:
-            outcomes += [_renamed(outcome, folder) for outcome in _cell(root, folder, loop)]
+        for cell, cell_outcomes in found.items():
+            if cell[2] == loop:
+                outcomes += [_renamed(outcome, cell[1]) for outcome in cell_outcomes]
         lines += _loop_table(title, outcomes)
     return "\n".join(lines) + "\n"
+
+
+def _cells(cells, workers):
+    """Return the outcomes of each cell, in order, in ``workers`` processes when given."""
+    if not workers or workers < 2:
+        return [_cell(*cell) for cell in cells]
+    context = multiprocessing.get_context("spawn")
+    with ProcessPoolExecutor(max_workers=workers, mp_context=context) as pool:
+        return list(pool.map(_cell, *zip(*cells)))
 
 
 def _renamed(outcome, folder):
@@ -285,9 +308,10 @@ def main(argv=None, root=ROOT):
     parser.add_argument("--agent")
     parser.add_argument("--live", action="store_true")
     parser.add_argument("--report", action="store_true")
+    parser.add_argument("--workers", type=int, help="processes of the report; unset, one")
     args = parser.parse_args(argv)
     if args.report:
-        return _command_report(root)
+        return _command_report(root, args.workers)
     if not args.agent:
         parser.error("one of --agent or --report is needed")
     if args.live and not os.environ.get("OPENROUTER_API_KEY"):
@@ -310,9 +334,9 @@ def main(argv=None, root=ROOT):
     return 0 if all(outcome.passed for outcome in outcomes) else 1
 
 
-def _command_report(root):
+def _command_report(root, workers=None):
     """Write ``reports/summary.md`` and print it."""
-    text = report(root)
+    text = report(root, workers)
     (root / "reports").mkdir(exist_ok=True)
     (root / "reports" / "summary.md").write_text(text)
     print(text)
