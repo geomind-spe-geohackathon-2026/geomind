@@ -27,6 +27,7 @@ from geomind.engine.hooks import CostBudget
 from geomind.providers import FakeLLM, OpenRouter, Recorder
 from geomind.run import loop_of
 from geomind.stores import FileWorkspace, MemoryRunStore
+from geomind.stores.knowledge import FolderKnowledge
 from geomind.types import ToolCall, Usage
 from geomind.utils.models import fetch_prices
 
@@ -78,7 +79,9 @@ def _workspace(task):
     if task.plant is None:
         return None, None
     folder = Path(task.plant)
-    return FileWorkspace(folder.parent), folder.name
+    folder_of = runtime.get("knowledge_dir")
+    knowledge = FolderKnowledge(folder_of) if folder_of else None
+    return FileWorkspace(folder.parent, knowledge=knowledge), folder.name
 
 
 def is_step_limit(request):
@@ -97,9 +100,8 @@ def ruled_answer(request, rules, unanswered):
     """Return the reply a task's rules give to ``request``, and note one no rule covers."""
     values = [option.value for option in request.options or ()]
     for rule in rules:
-        if re.search(rule.match, request.message, re.IGNORECASE) and (
-            not values or rule.answer in values
-        ):
+        fits = rule.answer in values if values else not rule.only_options
+        if fits and re.search(rule.match, request.message, re.IGNORECASE):
             return rule.answer
     unanswered.append(request.message)
     if values:

@@ -569,3 +569,12 @@ def test_a_question_no_rule_covers_is_answered_unknown_and_noted():
     options = [{"value": "set_it", "label": "x"}, {"value": "leave_unset", "label": "y"}]
     choice = Request(kind="question", message="Gas composition?", options=options)
     assert evals.ruled_answer(choice, rules, noted) == "leave_unset"
+
+
+def test_a_task_s_workspace_has_the_knowledge_base_of_the_settings(tmp_path):
+    """#63: the eval workspace had no knowledge base, so the case lead found no cost catalogue."""
+    from evals.tasks_format import Task
+
+    task = Task(message="x", plant=str(tmp_path / "p"), criteria=())
+    workspace, project = evals._workspace(task)
+    assert project == "p" and workspace.knowledge_files()

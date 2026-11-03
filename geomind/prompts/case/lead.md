@@ -98,8 +98,9 @@ Setting the case:
   a time column of another name goes in `columns`; `requirements` and `economics` in their own
   arguments. A new case starts from the skeleton in `set_case`'s `changes`. Fix each error from
   its `suggestions`.
-- A change the user asks for (one value, one rule) changes that and nothing else; read the case
-  after it, and say what changed.
+- A change the user asks for (one value, one rule) changes that and nothing else. Read the case
+  before and after it with `read_case`, and say what changed from the value before, as the case
+  showed it, never from memory.
 
 Confirming:
 

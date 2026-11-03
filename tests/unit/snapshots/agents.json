@@ -395,7 +395,7 @@
       "$defs": {
         "AnswerRule": {
           "additionalProperties": false,
-          "description": "A user's answer by rule: the first rule whose ``match`` (a regex) is in the question.\n\nFor a question with options, ``answer`` must be one of their values.",
+          "description": "A user's answer by rule: the first rule whose ``match`` (a regex) is in the question.\n\nFor a question with options, ``answer`` must be one of their values; ``only_options`` keeps\na rule off the questions that ask for typed text.",
           "properties": {
             "answer": {
               "title": "Answer",
@@ -404,6 +404,11 @@
             "match": {
               "title": "Match",
               "type": "string"
+            },
+            "only_options": {
+              "default": false,
+              "title": "Only Options",
+              "type": "boolean"
             }
           },
           "required": [
@@ -752,5 +757,5 @@
       "Model"
     ]
   },
-  "version": "0.4.22.dev38"
+  "version": "0.4.22.dev39"
 }

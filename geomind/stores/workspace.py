@@ -176,18 +176,39 @@ class FileWorkspace:
         return search(items, query)
 
     def files(self, project_id):
-        """Return the rows of every file below ``files/``, by its path there."""
+        """Return the rows of every file below ``files/``, and of the files ``case.json`` names.
+
+        A case's data files beside ``case.json`` are the project's files too, so the agents read
+        the data a case points at.
+        """
         folder = self.root / project_id / "files"
         paths = sorted(path for path in folder.rglob("*") if path.is_file())
-        return [
+        rows = [
             file_entry(path.relative_to(folder).as_posix(), path.stat().st_size) for path in paths
         ]
+        listed = {row["name"] for row in rows}
+        for name in self.case_file_names(project_id):
+            path = self.root / project_id / name
+            if name not in listed and path.is_file():
+                rows.append(file_entry(name, path.stat().st_size))
+        return rows
+
+    def case_file_names(self, project_id):
+        """Return the names of the files ``case.json`` names, beside it; none without one."""
+        folder = self.root / project_id
+        path = folder / "case.json"
+        if not path.exists():
+            return []
+        return sorted(named_files(read_json(path), lambda name: read_bytes(folder / name)))
 
     def file(self, project_id, name):
-        """Return the bytes of a file below ``files/``; a name leaving the folder has none."""
+        """Return the bytes of a file below ``files/`` or one ``case.json`` names; else none."""
         if not is_safe_name(name):
             return None
-        return read_bytes(self.root / project_id / "files" / name)
+        found = read_bytes(self.root / project_id / "files" / name)
+        if found is None and name in self.case_file_names(project_id):
+            return read_bytes(self.root / project_id / name)
+        return found
 
     def mcp(self, project_id):
         """Return the MCP servers of every project, as ``gd.mcp.Server``."""

@@ -226,6 +226,7 @@ cap is 5 USD (1.66 USD spent before the team).
 |---|---|---|---|---|
 | A1 | each of the 15 agents alone, in parallel, on a fixed input from the earlier runs (`setup`), 0.10 cap each | 0.43 | 2.09 | 15 of 15 passed their criteria; bugs #42 to #50 |
 | E1 | end to end from the coordinator, memory off, 1 USD cap, three answers by the test operator | 1.00 | 3.38 | stopped at its cap before a verified design: two families planned, process, integration and reservoir engineers done; bugs #53 to #55 |
+| C1 | the case lead and the geoscientist alone, six tasks (files, chat, one change, a question, a flawed case, the geoscientist on the brief) | 0.06 | 3.69 | 6 of 6 passed; every flaw caught and asked; no invented value; bugs #61 to #63 |
 | A2 | the 6 agents the fixes touched, alone again | 0.29 | 2.38 | 5 passed; the case lead now asks for the values with no source (#44 working), so its task's fixed answer must change |
 
 Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/CHANGELOG.md)):
@@ -249,6 +250,9 @@ Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/C
 | 58 | E2, case lead | read a year ending at an exclusive 31 Dec as 364 values and proposed to cut a day | knows `time.end` is exclusive | this commit |
 | 59 | E2, case lead | asked for a typed path and value with options, three times | `ask_user` says a typed answer needs no options | this commit |
 | 60 | E2, case lead | `read_profile` showed the clipped series as the file | shows the case window and the file's own rows | this commit |
+| 61 | C1, case lead | the data files `case.json` names were no project files | listed and read beside `files/` | this commit |
+| 62 | C1, case lead | reported a value before a change it never read | reads before and after | this commit |
+| 63 | C1, evals | an eval workspace had no knowledge base | the settings' knowledge base | this commit |
 | 50 | A1, all | models saw only the first paragraph of each tool's docstring | the whole docstring but its `NOTE:` paragraphs | `768f396` |
 
 ### The adaptation to gemini 0.5 (done) and what is open

@@ -6,6 +6,15 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### What the case team alone showed (0.4.22.dev39)
+
+Round C1: the case lead and the geoscientist alone, six tasks live (DeepSeek, 0.062 USD): 6 of 6 passed. The case lead caught every flaw of a flawed case file (a duration stored as a count, a chilled-water return colder than its supply, a span one day short, a derived temperature set by hand) and asked; it invented no value. Each bug is pinned by a test.
+
+- Fix (#61): `FileWorkspace.files` and `file` list and read the data files `case.json` names beside it, not only `files/`; the case lead had said the project held no files while its case named two demand files.
+- Fix (#62): the case lead reads the case before and after a change and reports the value before as the case showed it; it had said a cap "was 200" where the case held 300.
+- Fix (#63): an eval task's workspace has the knowledge base of `GEOMIND_KNOWLEDGE_DIR`, as the command line's has; the case lead had found no cost catalogue.
+- Evals: an answer rule may be `only_options`, kept off questions that ask for typed text.
+
 ### The case team knows the case format (0.4.22.dev38)
 
 - The case's key tree (`case_tree`, in the case lead's and the geoscientist's prompts) says after each key what it means and where its value comes from (brief, data, report, user, economics), marks the keys gemini derives (leave them unset), and explains every option of the requirements (`on`, `quantity`, `over`, `when`), with how operating days and counts are written (`geomind/tools/gemini/fields.py`). gemini's schema has no descriptions; the texts are geomind's, from gemini's docstrings; `undescribed()` lists the fields gemini describes nowhere. About 13,500 characters, in the cached prefix.

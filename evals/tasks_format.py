@@ -117,11 +117,13 @@ class SetupCall(Record):
 class AnswerRule(Record):
     """A user's answer by rule: the first rule whose ``match`` (a regex) is in the question.
 
-    For a question with options, ``answer`` must be one of their values.
+    For a question with options, ``answer`` must be one of their values; ``only_options`` keeps
+    a rule off the questions that ask for typed text.
     """
 
     match: str
     answer: str
+    only_options: bool = False
 
 
 class Task(Record):

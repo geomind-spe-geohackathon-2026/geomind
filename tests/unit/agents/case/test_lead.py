@@ -85,3 +85,9 @@ def test_its_key_tree_says_what_each_field_means():
     text = CaseLead().prompt.render()
     assert "site.reservoir.temperature" in text and "derived from the ground" in text
     assert "duration: the total time of the steps" in text and "count: how many units" in text
+
+
+def test_a_change_reports_the_value_before_as_the_case_showed_it():
+    """#62: the case lead said a cap was 200 while the case held 300; it reads before and after."""
+    text = " ".join(CaseLead().prompt.content.split())
+    assert "before and after it with `read_case`" in text and "never from memory" in text
