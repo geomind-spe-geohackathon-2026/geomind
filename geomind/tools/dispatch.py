@@ -38,10 +38,28 @@ def is_reported_error(error):
 
 
 def _validation_problem(error):
-    """Return the problem of an input that does not fit: its first field, with the whole text."""
-    fields = error.errors()[0]["loc"]
-    path = ".".join(str(field) for field in fields) or None
-    return Problem(path=path, code="invalid_input", message=str(error))
+    """Return the problem of an input that does not fit: its first field, with the whole text.
+
+    An object sent as JSON text, which models often do, gets the suggestion to send the object.
+    """
+    first = error.errors()[0]
+    path = ".".join(str(field) for field in first["loc"]) or None
+    suggestions = (
+        [f"{path} is JSON text: send the object itself, not a string"]
+        if (first["type"] == "dict_type" and _is_json_object(first.get("input")))
+        else []
+    )
+    return Problem(path=path, code="invalid_input", message=str(error), suggestions=suggestions)
+
+
+def _is_json_object(value):
+    """Tell whether ``value`` is text that reads as a JSON object."""
+    if not isinstance(value, str):
+        return False
+    try:
+        return isinstance(json.loads(value), dict)
+    except ValueError:
+        return False
 
 
 def _problem(error):

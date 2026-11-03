@@ -417,6 +417,7 @@ From live segment 7 (`tests/integration/test_live_regressions_g.py`):
   and after a failed verification (`routed_task_of`).
 - Rounds that recorded no design are no `repeated_failure` (`should_stop_repeated`).
 - A step that asked the user gives its step back (`RunState.questions` in the step limit).
+- An object sent as JSON text gets the suggestion to send the object (`_validation_problem`).
 
 From the fifth live run (`tests/integration/test_live_regressions_e.py`, recording
 `tests/fixtures/live/recording_e.jsonl`):
