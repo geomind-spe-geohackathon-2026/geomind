@@ -185,3 +185,17 @@ async def test_a_delegate_s_step_setting_unset_is_refused_with_its_variable():
             Delegate(Helper(), steps="engineer_max_steps"), call(), Context(session=session)
         )
     assert result.is_error and "GEOMIND_ENGINEER_MAX_STEPS" in result.output["error"]["message"]
+
+
+async def test_a_once_delegate_runs_one_time_per_run():
+    """The case lead asked its geoscientist six times in one run (Track A project run)."""
+    session = StubSession()
+    session.result = RunResult(run_id="c", status="done", answer="findings")
+    delegate = Delegate(Helper(), once=True)
+    first = await dispatch(delegate, call(), Context(session=session))
+    again = await dispatch(delegate, call("do it again"), Context(session=session))
+    assert first.output == "findings"
+    assert again.output["error"]["code"] == "already_asked"
+    other = StubSession()
+    other.result = session.result
+    assert (await dispatch(delegate, call(), Context(session=other))).output == "findings"

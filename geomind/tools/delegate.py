@@ -56,10 +56,13 @@ class Delegate(Tool):
     in one run, such as ``design_concurrency``; it is required when given, with no default.
     ``steps`` names the runtime setting of the nested run's own step limit, such as
     ``engineer_max_steps``: at it the nested run ends with what it has instead of asking to go
-    on; required when given, with no default.
+    on; required when given, with no default. ``once`` runs the agent at most once per run: a
+    second call answers ``already_asked``, as its findings are still in the conversation.
     """
 
-    def __init__(self, agent, max_summary_tokens=None, runs_beside=False, limit=None, steps=None):
+    def __init__(
+        self, agent, max_summary_tokens=None, runs_beside=False, limit=None, steps=None, once=False
+    ):
         """Offer ``agent`` as a tool named after it."""
         super().__init__(
             agent.name,
@@ -75,6 +78,7 @@ class Delegate(Tool):
         self.runs_beside = runs_beside
         self.limit = limit
         self.steps = steps
+        self.once = once
 
     @property
     def is_pure(self):
@@ -83,6 +87,16 @@ class Delegate(Tool):
 
     async def _delegate(self, context, task):
         """Run the nested agent through the run of ``context``, within its limit if it has one."""
+        if self.once:
+            asked = context.session.__dict__.setdefault("asked_once", set())
+            if self.name in asked:
+                raise ToolError(
+                    f"{self.name}: already asked in this run; its findings are above in the "
+                    "conversation, kept whole for the run: work from them, and ask the user for "
+                    "what they lack",
+                    code="already_asked",
+                )
+            asked.add(self.name)
         max_steps = required_setting(self.steps, self.name) if self.steps else None
         if self.limit is None:
             result = await context.session.delegate(self.agent, task, max_steps)

@@ -30,7 +30,7 @@ class CaseLead(Agent):
         self.prompt = Prompt("case/lead", appendix=trees("case_compact"))
 
         # Tools
-        geoscientist = Delegate(Geoscientist(), max_summary_tokens=FINDINGS_TOKENS)
+        geoscientist = Delegate(Geoscientist(), max_summary_tokens=FINDINGS_TOKENS, once=True)
         geoscientist.keeps_result = "run"
         self.geoscientist = geoscientist
         self.list_files = tools.list_files

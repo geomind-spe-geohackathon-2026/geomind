@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### The case lead asks its geoscientist once (0.4.22.dev49)
+
+The fresh project case on DeepSeek (0.086 USD, 31 steps, 1423 s) set no case: the case lead began its work again four times, read the brief again each time and asked its geoscientist six times, until its steps ran out.
+
+- Contract (addition): `Delegate(..., once=True)` runs its agent at most once per run; a second call is the error `already_asked`, whose message says the findings are in the conversation. The case lead's geoscientist is such a delegate.
+
 ### The case lead chooses among the catalogue's rows (0.4.22.dev48)
 
 Sahand's cost catalogue now has 133 rows (61 verified, 53 secondary, 19 placeholder), several for many keys.
