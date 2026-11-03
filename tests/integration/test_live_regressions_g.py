@@ -61,3 +61,18 @@ async def test_an_object_sent_as_a_json_string_says_to_send_the_object():
     error = (await dispatched(build_plant, {"name": "hc", "plant": plant})).output["error"]
     assert error["path"] == "plant"
     assert error["suggestions"] == ["plant is JSON text: send the object itself, not a string"]
+
+
+def test_a_pdf_table_drawn_word_by_word_reads_as_rows():
+    """Segment 9 read a brief whose tables came one word per line and missed their values."""
+    from geomind.tools.files import document_text
+    from tests.fixtures.pdfs import word_by_word_pdf
+
+    rows = [["Parameter", "Value", "Unit"], ["Pipe length", "120", "m"], ["Pump head", "35", "m"]]
+    lines = document_text("table.pdf", word_by_word_pdf(rows)).splitlines()
+    assert lines[0] == "[page 1]"
+    assert [line.split() for line in lines[1:] if line.strip()] == [
+        ["Parameter", "Value", "Unit"],
+        ["Pipe", "length", "120", "m"],
+        ["Pump", "head", "35", "m"],
+    ]

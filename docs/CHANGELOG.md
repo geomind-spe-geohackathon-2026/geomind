@@ -17,6 +17,7 @@ What the fifth live run showed, each pinned by a test on its recorded calls.
 - Fix: two rounds that recorded no design (their steps ran out) no longer stop the design loop as `repeated_failure`; it goes on to its round limit.
 - Fix: a step that asked the user a question gives its step back (`RunState.questions`), so an answer to a question on the last step is acted on.
 - Fix: an object sent as JSON text gets the suggestion to send the object itself, beside pydantic's error.
+- Fix: a PDF reads in layout order (pypdf's layout mode, runs of spaces shortened), so a table drawn word by word keeps each row on one line instead of one word per line.
 - `geomind run --replay FILE --replay-steps N` answers the first `N` calls from a recording at no cost and the rest live, so a run after a fix goes on from where it failed; both or neither, no default. `Recorder` writes an `input_digest` of the tool results each call answered; a line whose digest differs from this run's goes live at that step. `ReplayThenLive` is the provider.
 
 ## [0.4.21] - 2026-11-03
