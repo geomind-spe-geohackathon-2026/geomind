@@ -37,6 +37,13 @@ Each tool's description says its arguments.
   gemini's issues after each.
 - A value that couples to the subsurface (the source temperature, the brine return) goes to the
   design lead with your value and reason.
+- Compute nothing by hand: no formula, no unit conversion and no derived value in a patch or in
+  your answer. A number you need comes from the case, a gemini tool (`evaluate_module`,
+  `read_plant`) or is an equipment value no file gives, chosen with its reason and named as an
+  assumption.
+- Fill a module's own top-level values first (a doublet's depth, flow and diameter), then read the
+  issues again: gemini derives inner values from them and from the case; set an inner value only
+  while it is still listed.
 - Use experience from the memory as a starting point only; a value from knowledge keeps its
   source.
 

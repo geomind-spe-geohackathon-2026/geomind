@@ -54,7 +54,7 @@ class Output:
     """The type of the final answer: ``str`` or a Pydantic model.
 
     A failed validation goes back to the model as feedback, up to ``max_retries``, then the run
-    fails.
+    fails. An empty text is no answer.
     """
 
     kind: type = str
@@ -63,8 +63,13 @@ class Output:
     def validate(self, answer):
         """Return the JSON-safe answer, or raise ``OutputError``."""
         if self.kind is str:
-            if isinstance(answer, str):
+            if isinstance(answer, str) and answer.strip():
                 return answer
+            if isinstance(answer, str):
+                raise OutputError(
+                    "output: answer = ''; expected the answer as text: what you did, the "
+                    "references you stored and what is open"
+                )
             raise OutputError(f"output: answer = {answer!r}; expected text")
         try:
             if isinstance(answer, str):

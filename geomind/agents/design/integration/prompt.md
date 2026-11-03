@@ -33,6 +33,13 @@ Each tool's description says its arguments.
 - Patch only `connections`, `inlets`, `outlets`, `fluids` and `boundary`; a module or a parameter
   is another discipline's: a missing module goes back to the design lead with the reason.
 - Patch in small steps and read gemini's issues after each; fix each from its message.
+- Compute nothing by hand: no formula, no unit conversion and no derived value in a patch or in
+  your answer. A number you need comes from the case, a gemini tool (`evaluate_module`,
+  `read_plant`) or is an equipment value no file gives, chosen with its reason and named as an
+  assumption.
+- Fill a module's own top-level values first (a doublet's depth, flow and diameter), then read the
+  issues again: gemini derives inner values from them and from the case; set an inner value only
+  while it is still listed.
 - Use experience from the memory as a starting point only.
 - No number of your own.
 

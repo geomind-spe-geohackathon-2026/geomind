@@ -113,3 +113,14 @@ async def test_a_scripted_run_never_fetches_the_context_windows(monkeypatch):
     )
     result, _, _ = await run([says("x")])
     assert result.status == "done"
+
+
+async def test_a_run_with_the_memory_off_is_not_offered_the_memory_tools():
+    """#42: with the memory off, agents called search_memory again and again and were refused."""
+    from geomind.agents import DesignLead
+
+    session = RunSession(engine_for([says()]), None, RunState(), None)
+    with runtime.settings(memory="off"):
+        names = [item["name"] for item in session.offered_schemas(DesignLead())]
+    assert "search_memory" not in names and "write_memory" not in names
+    assert "simulate" in names

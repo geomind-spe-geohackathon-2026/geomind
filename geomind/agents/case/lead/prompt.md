@@ -58,9 +58,12 @@ Each tool's description says its arguments.
   the user gives as values goes in with `save_profile`, then into the case's demand.
 - Series times without an offset take a `time_zone` (an IANA name) on each series: choose the zone
   `time.start` is meant in.
-- A value the case needs that no file states: propose one with a one-line reason when the request
-  lets you choose; else leave it to the user. Either way the user confirms it before the case is
-  final.
+- Compute nothing: put each value as a file states it, never a value you work out from others.
+  A value gemini derives from the case (a reservoir temperature from the ground's surface
+  temperature, gradient and depth) stays unset.
+- A value the case needs that no file states comes from the memory's knowledge with its source
+  and status; with none, ask the user for it, naming its path and unit, and propose no number of
+  your own. The user confirms every such value before the case is final.
 - Before you finish, ask ONE confirmation question with `ask_user` that lists every case value
   that did not come from the user's files, one per line: the case path, the value with its unit,
   where it came from (source title, publisher or author, year, page or link, and the price year

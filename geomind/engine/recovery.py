@@ -99,16 +99,23 @@ def _count_failure(state, event):
 
 
 def _count_repeat(state, event):
-    """Count how often in a row the same call (tool and input) failed with the same output."""
+    """Count how often in a row the same call failed with the same output.
+
+    A call is the same when its tool, and the input the error names (its ``path``), are: a wrong
+    reference sent again with another ``path`` beside it is the same failure. An error that names
+    no input compares the whole input.
+    """
     if not event.is_error or event.call_id is None:
         state.last_failure, state.repeated = None, 0
         return
     call = next((item for item in state.calls if item.id == event.call_id), None)
     if call is None:
         return
-    key = json.dumps(
-        [call.name, call.input, to_jsonable(event.output)], sort_keys=True, default=str
-    )
+    output = to_jsonable(event.output)
+    error = output.get("error") if isinstance(output, dict) else None
+    field = error.get("path") if isinstance(error, dict) else None
+    shown = {field: call.input[field]} if field in (call.input or {}) else call.input
+    key = json.dumps([call.name, shown, output], sort_keys=True, default=str)
     state.repeated = state.repeated + 1 if key == state.last_failure else 1
     state.last_failure = key
 

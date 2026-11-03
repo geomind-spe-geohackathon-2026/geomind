@@ -47,3 +47,9 @@ def test_its_model_is_its_own_required_setting(monkeypatch):
     monkeypatch.delenv("GEOMIND_RESERVOIRENGINEER_MODEL", raising=False)
     assert runtime.role_models()["reservoirengineer"] is None
     assert "GEOMIND_RESERVOIRENGINEER_MODEL" in runtime.missing_model_settings()
+
+
+def test_it_computes_nothing_by_hand():
+    """#45: no formula or conversion; numbers from the case, gemini, or a named assumption."""
+    text = ReservoirEngineer().prompt.content
+    assert "Compute nothing by hand" in text and "top-level values first" in text

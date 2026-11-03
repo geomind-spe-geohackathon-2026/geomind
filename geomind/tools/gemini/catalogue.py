@@ -59,9 +59,15 @@ def evaluate_module(
     """Run one module at one point in display units; every inlet needs a fluid.
 
     Give every value with a dimension as ``{"value": 150, "unit": "m3/h"}``, never as text such as
-    '150 m3/h'. Every inlet needs ``fluid`` (a mapping such as ``{"kind": "brine"}``), ``T``, ``p``
-    and ``m_dot`` (or ``flow`` for a volume flow). The result is in gemini's display units (MW,
-    degC, m3/h; a quantity it has no display unit for stays in SI). A module with state needs
+    '150 m3/h'. Every inlet is ``{"fluid": {...}, "T": {...}, "p": {...}, "m_dot": {...}}`` (or
+    ``flow`` for a volume flow), for example ``{"fluid_in": {"fluid": {"kind": "brine",
+    "density": {"value": 1000, "unit": "kg/m3"}}, "T": {"value": 80, "unit": "degC"},
+    "p": {"value": 10, "unit": "bar"}, "flow": {"value": 100, "unit": "m3/h"}}}``. ``fluid``
+    holds gemini's fluid fields: ``kind`` (brine, water, glycol_water, steam, gas), ``salinity``,
+    ``gas_liquid_ratio``, ``gas_composition`` and the properties ``density``, ``viscosity``,
+    ``specific_heat``, each property as ``{"value", "unit"}``; ``kind`` alone uses gemini's. The
+    result is in gemini's display units (MW, degC, m3/h; a quantity it has no display unit for
+    stays in SI). A module with state needs
     ``state``, its state at the start as ``{name: {"value", "unit"}}``, and ``dt``, the step as
     ``{"value", "unit"}``; the ``state`` of the result is the state after the step.
     """

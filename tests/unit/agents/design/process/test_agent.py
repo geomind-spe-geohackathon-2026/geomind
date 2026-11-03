@@ -57,3 +57,9 @@ def test_it_records_the_modules_and_their_owners():
     text = ProcessEngineer().prompt.render()
     assert "design.owners" in text and "design.modules" in text
     assert all(f"`{name}`" in text for name in ("reservoir", "well", "energy", "process"))
+
+
+def test_it_computes_nothing_by_hand():
+    """#45: no formula or conversion; numbers from the case, gemini, or a named assumption."""
+    text = ProcessEngineer().prompt.content
+    assert "Compute nothing by hand" in text and "top-level values first" in text

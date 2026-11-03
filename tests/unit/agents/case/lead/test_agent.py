@@ -58,3 +58,10 @@ def test_the_case_is_set_in_parts():
 
     assert "never send the whole case again" in CaseLead().prompt.render()
     assert "send only" in set_case.description or "send only" in set_case.function.__doc__
+
+
+def test_it_computes_nothing_and_invents_no_number():
+    """#43 and #44: a derived value stays unset for gemini; a value with no source is asked."""
+    text = CaseLead().prompt.content
+    assert "Compute nothing" in text and "stays unset" in text
+    assert "propose no number of" in text

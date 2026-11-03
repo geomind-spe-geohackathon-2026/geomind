@@ -16,6 +16,7 @@ from geomind.engine.state import Stop
 from geomind.errors import RunError, TimeLimitReached, ToolError
 from geomind.providers import needs_models
 from geomind.stores.memory import FileMemory
+from geomind.tools.memory import MEMORY_TOOLS
 from geomind.types import Allow, Deny, Request, Usage
 from geomind.types.events import (
     Compacted,
@@ -250,13 +251,19 @@ class RunSession:
         settings = self._call_settings(agent, messages)
         return await llm.complete(
             list(messages),
-            agent.tool_schemas(),
+            self.offered_schemas(agent),
             model=agent.model.resolved_name(),
             settings=settings,
             on_text=on_text,
             fallbacks=agent.model.fallbacks,
             on_retry=self._on_retry,
         )
+
+    def offered_schemas(self, agent):
+        """Return the schemas of the tools offered: without the memory's when it is off."""
+        if self.memory is not None:
+            return agent.tool_schemas()
+        return [item for item in agent.tool_schemas() if item["name"] not in MEMORY_TOOLS]
 
     async def summarize(self, agent, messages, turns):
         """Call the provider for a summary of ``turns`` turns and log it, without streaming."""

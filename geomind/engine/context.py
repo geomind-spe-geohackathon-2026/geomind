@@ -85,8 +85,9 @@ class Context:
         parts = [agent.prompt.render() if agent.prompt else "", agent.output.instructions()]
         parts.append(skill_listing() if "read_skill" in agent.tools() else "")
         parts.append(STORED_RESULTS if "read_stored" in agent.tools() else "")
-        parts.append(MEMORY if "search_memory" in agent.tools() else "")
-        parts.append(KNOWLEDGE if "search_knowledge" in agent.tools() else "")
+        remembers = getattr(self._session, "memory", True) is not None
+        parts.append(MEMORY if remembers and "search_memory" in agent.tools() else "")
+        parts.append(KNOWLEDGE if remembers and "search_knowledge" in agent.tools() else "")
         text = "\n\n".join(part for part in parts if part)
         return (Message(role="system", content=text),) if text else ()
 

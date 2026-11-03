@@ -52,3 +52,9 @@ def test_it_owns_the_connections_only():
     """Its prompt patches the connections and boundaries, never a module or a parameter."""
     text = IntegrationEngineer().prompt.render()
     assert "Patch only `connections`, `inlets`, `outlets`, `fluids` and `boundary`" in text
+
+
+def test_it_computes_nothing_by_hand():
+    """#45: no formula or conversion; numbers from the case, gemini, or a named assumption."""
+    text = IntegrationEngineer().prompt.content
+    assert "Compute nothing by hand" in text and "top-level values first" in text

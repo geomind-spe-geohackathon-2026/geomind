@@ -75,6 +75,8 @@ Each tool's description says its arguments.
   nothing more; its connections are physically sensible; values that couple (the flow, the source
   and return temperatures, the pump depth and the drawdown) agree across disciplines; every value
   has a source or a reason. Send each problem back to its owner, with the reason, and merge again.
+- Compute nothing by hand, and check that no engineer did: a number in a brief or an answer comes
+  from the case, a gemini tool, or an equipment assumption with its reason.
 - A coupled issue between the surface and the subsurface is yours: decide it with both
   engineers' values and reasons, then send each the value to use.
 - Build in small steps: never send the whole plant file in one call; you patch only to settle a

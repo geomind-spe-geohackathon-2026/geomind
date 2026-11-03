@@ -6,6 +6,21 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### What each agent alone showed, live (0.4.22.dev28)
+
+Every agent ran alone on a fixed input from the earlier runs (15 tasks, DeepSeek, 0.43 USD); all passed their criteria, and their outputs were read one by one. Each bug is pinned by a test.
+
+**Contract change for the backend:** a tool's `description` (in `tool_schemas()` and the `tools.json` snapshot) is its whole docstring without `NOTE:` paragraphs, one line per paragraph, instead of the first paragraph only.
+
+- Fix (#50): a model saw only the first paragraph of each tool's docstring, so no usage rule, shape or example written there reached it (`evaluate_module`'s inlet form, `patch_plant`'s ownership, `set_case`'s details). `tool_description` gives the whole docstring but its `NOTE:` paragraphs.
+- Fix (#47): `evaluate_module` shows a whole inlet with its fluid and gemini's fluid fields, each property as `{value, unit}`; engineers had sent `kind` beside the inlet and a bare density.
+- Fix (#42): a run with the memory off no longer offers the memory tools, nor their prompt sections; agents had called `search_memory` again and again and were refused.
+- Fix (#43, #44): the case lead computes nothing (a value gemini derives, such as the reservoir temperature from the ground's gradient, stays unset) and proposes no number with no source: knowledge with its source, or a question to the user.
+- Fix (#45): the engineers and the design lead compute nothing by hand (no formula, conversion or derived value); a module's top-level values come first and gemini derives the inner ones; the reservoir engineer had computed a productivity index from Darcy's law.
+- Fix (#46): an empty text is no answer: the model is asked for it; the energy systems engineer had ended with `''`.
+- Fix (#48): a reference wrapped in quotes (`'"result/…"'`) is read as the reference.
+- Fix (#49): the same bad input value failing the same way counts as the same failure even beside other input; the explainer had asked six times for a result it made up, each with another `path`.
+
 ### Evals: a fixed start and a live cap (0.4.22.dev27)
 
 - A task may hold `setup`, tool calls `{tool, input}` that code runs in the task's chat before its agent (`SetupAgent`, no model), so an agent is tested alone from a fixed state: a case loaded, a design built and simulated, owners recorded. A setup call that fails stops the task. `eval_task.json` gains `setup` (additive).

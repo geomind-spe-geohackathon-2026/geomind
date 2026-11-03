@@ -11,7 +11,10 @@ from geomind.tools import Tool, tool
 def add(left: int, right: int = 1):
     """Add two numbers.
 
-    Second paragraph.
+    Second paragraph, with its
+    two lines.
+
+    NOTE: for people, not for the model.
     """
     return left + right
 
@@ -19,7 +22,8 @@ def add(left: int, right: int = 1):
 def test_decorator_builds_the_schema_from_the_signature():
     """Name, description and schema come from the function."""
     schema = add.schema()
-    assert (schema["name"], schema["description"]) == ("add", "Add two numbers.")
+    assert schema["name"] == "add"
+    assert schema["description"] == "Add two numbers.\n\nSecond paragraph, with its two lines."
     assert schema["input_schema"]["required"] == ["left"]
     assert schema["input_schema"]["properties"]["left"]["type"] == "integer"
 

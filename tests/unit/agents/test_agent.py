@@ -234,3 +234,9 @@ def test_an_unknown_agent_name_gets_a_close_match():
     """A typo in ``--agent`` says what was meant."""
     with pytest.raises(UnknownNameError, match="did you mean 'analysis_lead'"):
         agents.named("analist")
+
+
+def test_an_empty_text_is_no_answer():
+    """#46: the energy engineer ended with ''; the model is asked for its answer instead."""
+    with pytest.raises(OutputError, match="expected the answer as text"):
+        Output().validate("  ")

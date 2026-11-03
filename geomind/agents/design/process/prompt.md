@@ -44,6 +44,13 @@ Each tool's description says its arguments.
   cooling limit), `well` (well paths, risers, injectors, pumps in the wells), `energy` (heat
   pumps, chillers, boilers, storage, exchangers, surface pipes and network), `process` (what
   belongs to none of them). Every parameter path has exactly one owner.
+- Compute nothing by hand: no formula, no unit conversion and no derived value in a patch or in
+  your answer. A number you need comes from the case, a gemini tool (`evaluate_module`,
+  `read_plant`) or is an equipment value no file gives, chosen with its reason and named as an
+  assumption.
+- Fill a module's own top-level values first (a doublet's depth, flow and diameter), then read the
+  issues again: gemini derives inner values from them and from the case; set an inner value only
+  while it is still listed.
 - Use experience from the memory as a starting point only, never as the answer; a value from
   knowledge keeps its source.
 - No number of your own: sizes and values come from the case, a file, knowledge with its source,

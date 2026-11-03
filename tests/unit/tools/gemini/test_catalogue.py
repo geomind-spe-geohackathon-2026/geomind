@@ -154,3 +154,14 @@ def test_evaluate_module_takes_the_state_and_the_step_of_a_stateful_module():
 def test_evaluate_module_needs_a_name_and_parameters():
     """The model sees which inputs are required."""
     assert TOOLS.evaluate_module.input_schema["required"] == ["name", "parameters"]
+
+
+def test_evaluate_module_shows_the_whole_inlet_with_gemini_s_fluid_fields(gm):
+    """#47: engineers sent ``kind`` beside the inlet and a bare density; the form is shown."""
+    import inspect
+
+    text = TOOLS.evaluate_module.description
+    assert '"fluid": {"kind": "brine"' in text and '"density": {"value"' in text
+    fields = inspect.signature(gm.Fluid).parameters
+    for name in ("kind", "salinity", "gas_liquid_ratio", "gas_composition", "density", "viscosity"):
+        assert name in fields and f"``{name}``" in text

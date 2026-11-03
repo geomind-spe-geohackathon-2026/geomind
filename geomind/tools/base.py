@@ -7,7 +7,7 @@ import typing
 from pydantic import ConfigDict, create_model
 
 from geomind.errors import DeclarationError, ToolError, UnknownNameError
-from geomind.utils.strings import did_you_mean, first_paragraph, join_names
+from geomind.utils.strings import did_you_mean, join_names
 
 EFFECTS = ("read", "compute", "write", "execute", "external")
 PURE_EFFECTS = ("read", "compute")
@@ -176,6 +176,17 @@ def _input_model(function):
     return create_model(f"{function.__name__}_input", __config__=config, **fields)
 
 
+def tool_description(docstring):
+    """Return what a model reads of a tool: its docstring without the ``NOTE:`` paragraphs.
+
+    Each paragraph is one line, so the usage rules, the shapes and the examples reach the model
+    in few tokens.
+    """
+    paragraphs = inspect.cleandoc(docstring).split("\n\n")
+    kept = [" ".join(item.split()) for item in paragraphs if not item.lstrip().startswith("NOTE:")]
+    return "\n\n".join(item for item in kept if item)
+
+
 def tool(
     *,
     effect,
@@ -190,7 +201,8 @@ def tool(
 ):
     """Return a decorator that builds a ``Tool`` from a typed function.
 
-    The schema comes from the signature through Pydantic, the description from the docstring.
+    The schema comes from the signature through Pydantic, the description from the docstring:
+    all of it but its ``NOTE:`` paragraphs, which are for people (``tool_description``).
     """
 
     def build(function):
@@ -199,7 +211,7 @@ def tool(
         model = _input_model(function)
         return Tool(
             function.__name__,
-            first_paragraph(function.__doc__),
+            tool_description(function.__doc__),
             model.model_json_schema(),
             function,
             effect=effect,

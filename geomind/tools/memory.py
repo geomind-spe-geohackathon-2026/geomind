@@ -18,6 +18,17 @@ from geomind.stores.memory import (
 from geomind.stores.memory import search_knowledge as search_knowledge_entries
 from geomind.tools.base import tool
 
+MEMORY_TOOLS = frozenset(
+    {
+        "search_memory",
+        "read_memory",
+        "write_memory",
+        "search_knowledge",
+        "read_knowledge",
+        "write_lesson",
+    }
+)
+"""The tools that need the memory: a run with the memory off does not offer them."""
 SHOWN_ENTRIES = 8
 """The most entries of each section ``search_memory`` returns, best first."""
 

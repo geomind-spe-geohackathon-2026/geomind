@@ -112,3 +112,32 @@ def test_every_renamed_class_path_imports():
     from geomind.utils.imports import import_class
 
     assert all(isinstance(import_class(path), type) for path in RENAMED_CLASSES.values())
+
+
+def test_the_same_bad_value_beside_other_input_is_the_same_failure():
+    """#49: a made-up reference sent six times, each with another ``path``, counts as repeated."""
+    from geomind.engine.recovery import _count_repeat
+    from geomind.engine.state import RunState
+    from geomind.types import ToolCall
+    from geomind.types.events import ToolRecorded
+
+    state = RunState()
+    error = {"error": {"path": "reference", "code": "unknown_name", "message": "no such result"}}
+    for index, path in enumerate(("lcoh", "lcoc", "lcts")):
+        call = ToolCall(
+            id=f"c{index}", name="read_result", input={"reference": "result/x", "path": path}
+        )
+        state.calls = [call]
+        event = ToolRecorded(
+            run_id="r",
+            sequence=index,
+            time="t",
+            agent="a",
+            index=1,
+            call_id=call.id,
+            tool="read_result",
+            output=error,
+            is_error=True,
+        )
+        _count_repeat(state, event)
+    assert state.repeated == 3
