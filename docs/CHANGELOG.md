@@ -2,10 +2,12 @@
 
 `gd.__version__` follows semver below 1.0, the same rule as gemini: a breaking change to a frozen
 interface raises the minor version, and an addition or a fix raises the patch version. The rule and
-the list of frozen interfaces are in [.claude/docs/api.md](.claude/docs/api.md#frozen-interfaces).
+the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.md#frozen-interfaces).
 
 ## [Unreleased]
 
+- The repository has a `README.md` and a `docs/` folder for people: `docs/rules.md` holds every project rule, moved out of `AGENTS.md`, and this changelog moves here. `.claude/docs/` stays for agents.
+- Every git worktree goes under `.tmp/`. A test fails when a path under `.tmp/` is tracked or `.gitignore` stops ignoring it. `.tmp/live/t.md`, force-added in the 0.4.2 work, is removed from the history.
 - The root `conftest.py` moves to `tests/conftest.py`.
 - Tests: the designer tasks that size a plant or run a real search (`designer/project_plant`, `designer/missing_range`, the designer's shipped tasks) move to the slow tier. Eight xdist workers replace `-n auto`: the fast tier takes half the wall time here and no test nears the one-second budget.
 - Designer prompt: "Choices" is reworded to "Decisions", the name gemini removed stays out of the package.

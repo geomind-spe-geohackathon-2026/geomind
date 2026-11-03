@@ -6,16 +6,14 @@ tools, permissions, a sandbox for model-written code, and the `Run` facade the b
 
 Use `import geomind as gd`. `gm` stays gemini's alias.
 
-The name `geomind` on PyPI belongs to an unrelated, abandoned package. Keep `name = "geomind"` in
-`pyproject.toml` for local and editable installs, and do not publish.
+Read [docs/rules.md](docs/rules.md) first: it holds every project rule.
 
 ## Start here
 
 - [Plan](.claude/docs/plan.md): the goal, the decisions and their reasons, what is built, and the
   numbered remaining work. Start with this file.
 
-Test with the development profile (`make test`); see
-[Testing: Test profiles](.claude/docs/testing.md#test-profiles).
+How to test is in [Testing: Test profiles](.claude/docs/testing.md#test-profiles).
 
 Read every file in `.claude/docs/` before changing the repository:
 
@@ -38,24 +36,15 @@ Read every file in `.claude/docs/` before changing the repository:
 - [Testing](.claude/docs/testing.md): tiers, test profiles, budgets, fixtures and CI.
 - [Utilities](.claude/docs/utils.md): the `geomind.utils` helpers and how to add one.
 
-Every rule a contributor needs is in `.claude/docs/`, so this repository works on its own. The
-shared documents of all repositories are optional background, in a sibling folder that a clone of
-this repository does not have: the [agreed design](../docs/geomind-design.md), the
-[contracts](../docs/contracts.md), the [engineering layers](../docs/agent-engineering-layers.md),
-the [harness review](../docs/open-source-harnesses.md) and the [phases](../docs/phases.md).
+The docs for a new session are in `.claude/docs/`, so this repository works on its own. Keep them
+current: they say what the code does now. The shared documents of all repositories are optional
+background, in a sibling folder that a clone of this repository does not have: the
+[agreed design](../docs/geomind-design.md), the [contracts](../docs/contracts.md), the
+[engineering layers](../docs/agent-engineering-layers.md), the
+[harness review](../docs/open-source-harnesses.md) and the [phases](../docs/phases.md).
 
-When a commit changes behaviour, structure or conventions, update the relevant document in the
-same commit, so a new session can read the docs and know the current state.
-
-Frozen interfaces change only with a version raise; see
-[api.md](.claude/docs/api.md#frozen-interfaces).
-
-## Branching
-
-Work directly on `main`: commit after each step and push `origin main` when a phase ends. Do not
-create another branch.
-
-Test before each commit with `make test`, then `make test-all` and `make lint`.
+Changes by version are in [docs/CHANGELOG.md](docs/CHANGELOG.md). `README.md` and `docs/` are for
+people; `.claude/docs/` is for agents.
 
 ## Layout
 
@@ -86,6 +75,7 @@ examples/             # area/category/NN_name.py
 scripts/              # test_changed.py, the development test profile; snapshot_api.py
 evals/                # tasks/, recordings/, reports/ and the runner, run.py
 tests/                # unit mirror, integration, e2e and recorded fixtures
+docs/                 # for people: rules.md, CHANGELOG.md
 ```
 
 ## The gemini parallels

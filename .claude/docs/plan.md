@@ -130,7 +130,7 @@ check it before writing a tool, because gemini's names change.
 | S2 | `Analyst` (complete sample, the default agent without a sandbox), `Summarizer`; skeletons of `Coordinator`, `Designer`, `Verifier`, `Economist`, `Explainer`, each with a six-heading prompt file | `ad01b96` | done |
 | S2 | `geomind chat` and the eval runner | `55296c1` | done |
 | S2b | `FileWorkspace.plant` through `gm.plants.from_dict` | `957c119` | done |
-| Freeze | Every interface below, pinned by snapshots; the tool catalogue and the loops as stubs; see [CHANGELOG.md](../../CHANGELOG.md) | `fab5524`, `09096d8` | done |
+| Freeze | Every interface below, pinned by snapshots; the tool catalogue and the loops as stubs; see [CHANGELOG.md](../../docs/CHANGELOG.md) | `fab5524`, `09096d8` | done |
 | S2b.1 | `list_modules`, `describe_module`, `evaluate_module` over `gm.modules` and `gm.evaluate` | `599a660` | done |
 | S2b.2 | `list_plants`, `read_plant`, `build_plant` over `gm.plants`; a plant file builds with `Plant.from_dict` and is stored with its issues | `2d3efa1` | done |
 | S2b.3 | `list_profiles`, `read_profile`, `simulate` (`gm.schedule` and `gm.simulate`, failed days recorded) | `f4732aa` | done |
@@ -154,7 +154,7 @@ check it before writing a tool, because gemini's names change.
 | Caching | OpenRouter prompt caching on the system prompt of Anthropic models; `Usage.cached_tokens` | `7286e6d` | done |
 | Spending cap | `geomind run --max-tokens/--max-cost`; budgets count the whole run, nested runs included | `65c576a` | done |
 | Terminal | `geomind run` no longer prints the coordinator's route JSON; plan corrections from the audit | this commit | done |
-| gemini 0.5 | geomind 0.3.0 on gemini `>=0.5,<0.6`: project folder case with `economics.json`, verdict, ranges and `run_study`, `Workspace.plants`, chat-scoped artifacts, `write_module`/`test_module` in the gemini sandbox, `CompareLoop`, the competition export, `check-live`, the loop report ([CHANGELOG.md](../../CHANGELOG.md)) | merged sections A to P | done |
+| gemini 0.5 | geomind 0.3.0 on gemini `>=0.5,<0.6`: project folder case with `economics.json`, verdict, ranges and `run_study`, `Workspace.plants`, chat-scoped artifacts, `write_module`/`test_module` in the gemini sandbox, `CompareLoop`, the competition export, `check-live`, the loop report ([CHANGELOG.md](../../docs/CHANGELOG.md)) | merged sections A to P | done |
 | Log and replay | geomind 0.3.1: `run.started` records the geomind, gemini and python versions and the export reads them; the export header shows the run's own request; a replay runs every nested run again with its own completions and compares every run | merged sections V and R | done |
 | Studies, budget, replays | geomind 0.4.0: every study tool stores `study/<name>` (gemini's study and result form) and emits `study.recorded`; `list_studies`, `read_study`; `ProjectBudget` with `UsageLedger`; replay matches results by step and call id, and a log of another geomind version checks decisions, not tool outputs; every eval recording replays in a test | merged sections P, S and B | done |
 
@@ -182,7 +182,7 @@ geomind 0.3.0 runs on gemini 0.5: the case is a project folder (`set_case`, `rea
 ranged with `set_ranges` and searched with `optimize` or `run_study`; pass or fail is
 `gm.evaluate.verdict`; artifacts live in the chat; modules the model writes are tested in the
 gemini sandbox; `CompareLoop` ranks plant families. The full list of changes is in
-[CHANGELOG.md](../../CHANGELOG.md).
+[CHANGELOG.md](../../docs/CHANGELOG.md).
 
 Open geomind items:
 
@@ -314,7 +314,7 @@ gemini.
 ## 8. How to work in this repository
 
 - **Read first:** `AGENTS.md` and every file in `.claude/docs/`.
-- **Branch, tests and quality:** see [AGENTS.md](../../AGENTS.md#branching),
+- **Branch, tests and quality:** see [AGENTS.md](../../docs/rules.md#branches-and-worktrees),
   [testing.md](testing.md) and [conventions.md](conventions.md#code-quality).
 - **Docs:** a commit that changes behaviour updates `AGENTS.md` or `.claude/docs/` in the same commit.
 - **Temporary files** go to `.tmp/`.

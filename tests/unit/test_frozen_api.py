@@ -30,7 +30,7 @@ A frozen interface changed, see .claude/docs/api.md. In the same commit:
    minor version);
 2. run python scripts/snapshot_api.py (--allow-same-version only for an additive change, and the
    changelog says which);
-3. add a CHANGELOG.md entry;
+3. add a docs/CHANGELOG.md entry;
 4. tell Sahand if docs/contracts.md is affected.
 """
 

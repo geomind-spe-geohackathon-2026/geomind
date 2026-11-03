@@ -1,5 +1,7 @@
 # Implementation conventions
 
+The project rules are in [docs/rules.md](../../docs/rules.md); this file holds the coding style.
+
 Write for Python 3.11, the oldest supported version (3.11 to 3.14), and use Black, isort,
 100-character lines and Flake8 with docstrings. Record an intentional decision as a `NOTE:`
 sentence in the docstring of the function, class or test that makes it.
@@ -75,7 +77,6 @@ every Python file in `geomind/`, `examples/`, `tests/`, `scripts/` and `evals/`.
 - Clear names, as in [Naming](#naming).
 - Explicit errors: raise an `gd.errors` class (see [errors.md](errors.md)), never a bare `except`,
   and no silent fallback that hides a failure.
-- A bug gets a failing test first; the fix makes it pass.
 
 Enforcement: `tests/unit/test_code_quality.py` checks nesting, function length, `else` after an
 early exit, builtin raises, comments and framework names. Flake8 (`make lint` and the Lint

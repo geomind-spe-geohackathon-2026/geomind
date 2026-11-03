@@ -49,7 +49,7 @@ HACKATHON = re.compile(
     r"hackathon|2027|30 K/km|2500 m\b|37\.58|48\.48",
     re.IGNORECASE,
 )
-DOC_FILES = ("AGENTS.md",)
+DOC_FILES = ("AGENTS.md", "README.md", "docs/rules.md")
 
 
 def geomind_files():

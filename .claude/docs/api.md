@@ -128,7 +128,7 @@ differs. `tests/unit/test_contract_map.py` checks that every item of the shared 
    version, an addition or a fix the patch version;
 2. `python scripts/snapshot_api.py`, which refuses to overwrite a snapshot of the current version;
    `--allow-same-version` is for an additive, non-breaking change only, and the changelog says which;
-3. an entry in [CHANGELOG.md](../../CHANGELOG.md);
+3. an entry in [CHANGELOG.md](../../docs/CHANGELOG.md);
 4. a note to Sahand when the shared contract is affected.
 
 A stub keeps its signature when it is filled: filling one changes no snapshot.

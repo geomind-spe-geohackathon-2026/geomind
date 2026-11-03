@@ -6,7 +6,12 @@ import pytest
 
 from tests.fixtures import ROOT
 
-DOCUMENTS = [ROOT / "AGENTS.md", *sorted((ROOT / ".claude/docs").glob("*.md"))]
+DOCUMENTS = [
+    ROOT / "AGENTS.md",
+    ROOT / "README.md",
+    *sorted((ROOT / "docs").glob("*.md")),
+    *sorted((ROOT / ".claude/docs").glob("*.md")),
+]
 LINK = re.compile(r"\]\(([^)\s]+)\)")
 HEADING = re.compile(r"^#+ (.+)$", re.MULTILINE)
 SHARED_DOCS = ROOT.parent / "docs"

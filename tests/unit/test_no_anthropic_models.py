@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-FOLDERS = ("geomind", "evals", "examples", ".claude/docs")
+FOLDERS = ("geomind", "evals", "examples", ".claude/docs", "docs")
 SUFFIXES = {".py", ".md", ".json", ".txt", ".toml", ".yaml", ".yml"}
 PATTERN = re.compile(r"anthropic/|claude-[a-z0-9]|\b(?:sonnet|haiku|opus)[ -]?\d", re.IGNORECASE)
 ALLOWED = {("geomind/live.py", "FORBIDDEN_PREFIX")}
