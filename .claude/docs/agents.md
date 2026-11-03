@@ -77,8 +77,9 @@ its JSON schema to the system prompt.
 | `Assistant`, `CodeAssistant` | `general/` | complete; `Run` uses `CodeAssistant` with a sandbox | `code_assistant` |
 | `Summarizer` | `general/` | complete; only compaction calls it | no |
 | `Coordinator` | `coordination/` | complete; answers with a `Route`, called by `Run.start` | no |
-| `Designer` | `design/` | complete; sizes, simulates, checks and optimises a design for the case | no |
-| `FamilyDesigner` | `design/` | complete; a `Designer` without `set_case`, `save_profile` and `ask_user`, for one family of a comparison |
+| `Formulator` | `formulation/` | complete; formulates the case from the project's files and the user's answers, confirms every value no file gives in one question; `formulator_model` (`GEOMIND_FORMULATOR_MODEL`, required, no fallback) | no |
+| `Designer` | `design/` | complete; sizes, simulates, checks and optimises a design for the case, which it reads and never sets | no |
+| `FamilyDesigner` | `design/` | complete; a `Designer` without `ask_user`, for one family of a comparison |
 | `Verifier` | `verification/` | complete; checks the final design once with gemini | no |
 | `Economist` | `economics/` | complete; costs, compares, samples uncertainty | no |
 | `Explainer` | `reporting/` | complete; the explanation, from the state and the tools | no |
@@ -99,7 +100,8 @@ frozen; the tools themselves are in [tools.md](tools.md#catalogue). Every agent 
 |---|---|
 | `Analyst` | `list_files`, `read_document`, `read_case`, `set_case`, `list_modules`, `describe_module`, `evaluate_module`, `list_plants`, `read_plant`, `list_profiles`, `read_profile`, `save_profile`, `simulate`, `read_result`, `list_studies`, `read_study`, `compute_kpis`, `write_module`, `test_module`, `search_documents`, `update_state`, `read_skill`, `ask_user`, `finish` |
 | `Coordinator` | none: it answers with a `Route` |
-| `Designer` | `read_case`, `set_case`, `save_profile`, `list_plants`, `read_plant`, `list_modules`, `describe_module`, `evaluate_module`, `build_plant`, `set_ranges`, `size_plant`, `list_profiles`, `read_profile`, `simulate`, `read_result`, `list_studies`, `read_study`, `check_results`, `optimize`, `run_study`, `write_module`, `test_module`, `search_documents`, `update_state`, `read_skill`, `ask_user`, `finish` |
+| `Formulator` | `list_files`, `read_document`, `search_documents`, `read_case`, `set_case`, `save_profile`, `list_profiles`, `read_profile`, `read_stored`, `update_state`, `ask_user`, `finish` |
+| `Designer` | `read_case`, `list_plants`, `read_plant`, `list_modules`, `describe_module`, `evaluate_module`, `build_plant`, `set_ranges`, `size_plant`, `list_profiles`, `read_profile`, `simulate`, `read_result`, `list_studies`, `read_study`, `check_results`, `optimize`, `run_study`, `write_module`, `test_module`, `update_state`, `read_skill`, `read_stored`, `ask_user`, `finish` |
 | `Verifier` | `check_results`, `case_changes`, `read_case`, `compute_kpis`, `read_result`, `update_state`, `read_skill`, `finish` |
 | `Economist` | `compute_kpis`, `estimate_costs`, `compare`, `run_study`, `sample_uncertainty`, `sensitivity`, `read_result`, `list_studies`, `read_study`, `update_state`, `read_skill`, `finish` |
 | `Explainer` | `read_case`, `case_changes`, `read_plant`, `read_result`, `list_studies`, `read_study`, `compute_kpis`, `estimate_costs`, `search_documents`, `finish` |

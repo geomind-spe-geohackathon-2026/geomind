@@ -246,6 +246,7 @@ async def test_a_run_without_a_case_asks_the_user_before_designing(verdicts):
     }
     script = [
         uses(call("set_case", "c1", changes=changes, requirements=named, economics=economics)),
+        says("case set"),
         *designer_round(1),
         *verifier_round(1),
         says("costs"),
@@ -261,7 +262,7 @@ async def test_a_run_without_a_case_asks_the_user_before_designing(verdicts):
         engine, result.run_id, result.request.id, {"text": "the project's heating"}
     )
     events = engine.store.load_events(result.run_id)
-    first = tasks_of(events, "designer")[0]
+    first = tasks_of(events, "formulator")[0]
     assert "The user answered the question on the case: the project's heating" in first
     assert resumed.status == "done" and "stop: verified" in resumed.answer
     problem = recover(events).problem
@@ -276,15 +277,15 @@ async def test_a_case_without_demand_asks_the_user():
     assert agents_of(events) == []
 
 
-async def test_a_project_with_files_goes_to_the_designer_before_any_question():
-    """The files may hold the case, so the designer reads them first."""
+async def test_a_project_with_files_goes_to_the_formulator_before_any_question():
+    """The files may hold the case, so the formulator reads them first; the designer waits."""
     workspace = MemoryWorkspace(files={"p": {"demand.csv": b"time,heat\n"}})
     engine = engine_for([says("no case in them")], workspace=workspace)
     start = context("Design the plant.", problem=ProblemState(), project="p")
     result = await DesignLoop(Designer(), Verifier(), max_rounds=2).run(engine, start)
     events = engine.store.load_events(start.run_id)
-    assert agents_of(events) == ["designer"]
-    assert "demand.csv" in tasks_of(events, "designer")[0]
+    assert agents_of(events) == ["formulator"]
+    assert "demand.csv" in tasks_of(events, "formulator")[0]
     assert result.status == "waiting" and "no case" in result.request.message
 
 
@@ -368,10 +369,11 @@ async def test_a_changed_case_asks_the_user_and_an_approval_goes_on_to_the_costs
     assert recover(events).problem.case_origin["case"] == CASE
 
 
-async def test_a_refused_change_sends_the_designer_back_to_the_user_s_case(verdicts):
-    """On restore the next round is told to set the case back with source='origin'."""
+async def test_a_refused_change_sends_the_formulator_back_to_the_user_s_case(verdicts):
+    """On restore the formulator sets the case back with source='origin'; the designer designs."""
     verdicts.extend([CHANGED, PASSED])
-    script = [*designer_round(1), *verifier_round(1), *designer_round(2), *verifier_round(2)]
+    script = [*designer_round(1), *verifier_round(1), says("restored")]
+    script += [*designer_round(2), *verifier_round(2)]
     script += [says("costs"), says("explained")]
     result, engine, _ = await run_loop(script, origin=ORIGIN)
     resumed = await DesignLoop(Designer(), Verifier()).resume(
@@ -380,7 +382,8 @@ async def test_a_refused_change_sends_the_designer_back_to_the_user_s_case(verdi
     events = engine.store.load_events(result.run_id)
     second = tasks_of(events, "designer")[1]
     assert resumed.status == "done"
-    assert "set_case(source='origin')" in second and second.startswith("Design the plant")
+    assert "set_case(source='origin')" in tasks_of(events, "formulator")[0]
+    assert "is restored" in second and second.startswith("Design the plant")
 
 
 async def test_the_explainer_reads_the_verifier_s_report(verdicts):
@@ -497,3 +500,32 @@ def test_the_designer_prompt_asks_instead_of_inventing_a_range():
         (root / "skills" / "designing-a-plant.md").read_text(),
     ):
         assert "ask_user" in text and ("invent" in text or "Never fill a missing one" in text)
+
+
+async def test_the_formulator_sets_the_case_from_the_files_before_the_designer(verdicts):
+    """With files and no case the formulator runs once; the designer reads the case, not files."""
+    verdicts.append(PASSED)
+    case, files = example_case("shallow_district")
+    workspace = MemoryWorkspace(cases={"p": (case, files)}, files={"p": files})
+    script = [uses(call("set_case", "s1", source="project")), says("case set")]
+    script += [*designer_round(1), *verifier_round(1), says("costs"), says("explained")]
+    engine = engine_for(script, workspace=workspace)
+    start = context("Design the plant.", problem=ProblemState(), project="p")
+    result = await DesignLoop(Designer(), Verifier()).run(engine, start)
+    events = engine.store.load_events(start.run_id)
+    assert agents_of(events)[:3] == ["formulator", "designer", "verifier"]
+    assert "read_document" not in tasks_of(events, "designer")[0]
+    assert result.status == "done"
+
+
+async def test_a_case_change_the_designer_names_goes_to_the_formulator(verdicts):
+    """``case change needed:`` in the designer's answer goes to the formulator, then round 2."""
+    verdicts.append(PASSED)
+    need = "case change needed: site.air.temperature: the chillers need it"
+    script = [says(need), says("changed"), *designer_round(2), *verifier_round(2)]
+    script += [says("costs"), says("explained")]
+    result, _, events = await run_loop(script)
+    assert agents_of(events)[:3] == ["designer", "formulator", "designer"]
+    assert need in tasks_of(events, "formulator")[0]
+    assert tasks_of(events, "designer")[1].startswith("Round 2 of at most 5.")
+    assert result.status == "done"

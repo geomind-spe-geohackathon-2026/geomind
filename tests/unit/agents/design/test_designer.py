@@ -10,11 +10,7 @@ def test_it_is_complete():
         Designer,
         "designer",
         [
-            "list_files",
-            "read_document",
             "read_case",
-            "set_case",
-            "save_profile",
             "list_plants",
             "read_plant",
             "list_modules",
@@ -34,7 +30,6 @@ def test_it_is_complete():
             "run_study",
             "write_module",
             "test_module",
-            "search_documents",
             "update_state",
             "read_skill",
             "read_stored",
@@ -42,3 +37,12 @@ def test_it_is_complete():
             "finish",
         ],
     )
+
+
+def test_a_plant_value_no_file_gives_is_the_designer_s_assumption():
+    """Segment 9 asked the user for equipment datasheets instead of choosing their values."""
+    from geomind.agents import Designer
+
+    text = Designer().prompt.render()
+    assert "A plant value gemini lists as missing" in text
+    assert "describe_module" in text and "confirmed: false" in text

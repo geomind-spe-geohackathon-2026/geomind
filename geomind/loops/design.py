@@ -3,7 +3,7 @@
 import json
 
 from geomind import runtime, tools
-from geomind.agents import Designer, Economist, Explainer, Verifier
+from geomind.agents import Designer, Economist, Explainer, Formulator, Verifier
 from geomind.agents.agent import Agent, Model
 from geomind.engine.hooks import Verified
 from geomind.loops.loop import Loop
@@ -16,6 +16,8 @@ from geomind.verify.design import verify_design
 MARK = "design loop: "
 DESIGN_TOKENS = 1000
 EXPLANATION_TOKENS = 6000
+CASE_CHANGE = "case change needed:"
+"""How a designer's answer names a change of the case, one per line, for the formulator."""
 APPROVE = "approve"
 RESTORE = "restore"
 CASE_OPTIONS = (
@@ -100,6 +102,7 @@ class DesignDriver(Agent):
         super().__init__()
 
         # Tools
+        self.formulator = Delegate(Formulator(), max_summary_tokens=DESIGN_TOKENS)
         self.designer = Delegate(designer or Designer(), max_summary_tokens=DESIGN_TOKENS)
         self.verifier = Delegate(verifier or Verifier(), max_summary_tokens=DESIGN_TOKENS)
         self.economist = Delegate(Economist(), max_summary_tokens=DESIGN_TOKENS)
@@ -125,8 +128,10 @@ class DesignDriver(Agent):
         if not calls:
             return self.begin(context, note, index)
         name, output = calls[-1]
+        if name == "formulator":
+            return self.after_formulation(context, note, index, calls)
         if name == "designer":
-            return self.after_design(context, note, index)
+            return self.after_design(context, note, index, output, calls)
         if name == "ask_user":
             return self.after_question(context, note, index, output)
         if name in ("verifier", "accept_case"):
@@ -139,28 +144,52 @@ class DesignDriver(Agent):
         return act(note, index, "finish", answer=stop_answer(notes(context.messages)[-1]))
 
     def begin(self, context, note, index):
-        """Start with the designer, or ask for a missing case when no project file can hold it."""
+        """Set the case first when it is missing: the formulator from the files, else the user."""
         missing = missing_case(context.problem)
-        if missing is not None and not project_file_names(context):
+        if missing is None:
+            return act(note, index, "designer", task=self.first_task(context))
+        if project_file_names(context) or has_project_case(context):
+            return act(note, index, "formulator", task=formulation_task(context))
+        return act({**note, "missing": missing}, index, "ask_user", question=question_of(missing))
+
+    def after_formulation(self, context, note, index, calls):
+        """Design once the case is set; ask the user once for a case still missing, then stop."""
+        missing = missing_case(context.problem)
+        asked = any("missing" in item for item in notes(context.messages))
+        if missing is not None and not asked:
             return act(
                 {**note, "missing": missing}, index, "ask_user", question=question_of(missing)
             )
-        return act(note, index, "designer", task=self.first_task(context))
+        if missing is not None:
+            answer = f"No design was verified: the problem state has {missing}. {MARK}stop: no_case"
+            return act({**note, "stop": "no_case"}, index, "finish", answer=answer)
+        if rounds(calls) == 0:
+            return act(note, index, "designer", task=self.first_task(context))
+        if any(item.get("restore") for item in notes(context.messages)):
+            return act(note, index, "designer", task=restored_task(context, note["round"] + 1))
+        task = f"Round {note['round'] + 1} of at most {self._max_rounds}.{handover_text(context)}"
+        return act(note, index, "designer", task=f"{task}\n\nThe case was changed: design for it.")
 
     def first_task(self, context):
         """Return the designer's first task: the request, the project's plants and the rounds."""
         request = request_of(context)
         return (
-            f"{request}{project_plants_text(context)}{project_files_text(context)}\n\n"
+            f"{request}{project_plants_text(context)}\n\n"
             f"Round 1 of at most {self._max_rounds}. "
             "Read the case, then size a plant, simulate the whole year, check it, optimize it, "
             "simulate the optimised design and record design.reference and design.result."
         )
 
-    def after_design(self, context, note, index):
-        """Verify the design, or ask the user for the case the design run still lacks."""
+    def after_design(self, context, note, index, output, calls):
+        """Verify the design, or send a missing case or a change the designer names onward.
+
+        The formulator takes either while rounds are left.
+        """
         missing = missing_case(context.problem)
-        if missing is None:
+        changes = case_changes_named(output)
+        if missing is None and not changes:
+            return act(note, index, "verifier", task=verifier_task(context))
+        if missing is None and note["round"] >= self._max_rounds:
             return act(note, index, "verifier", task=verifier_task(context))
         if note["round"] >= self._max_rounds:
             answer = (
@@ -168,16 +197,16 @@ class DesignDriver(Agent):
                 f"after round {note['round']}."
             )
             return act({**note, "stop": "no_case"}, index, "finish", answer=answer)
-        return act({**note, "missing": missing}, index, "ask_user", question=question_of(missing))
+        return act(note, index, "formulator", task=change_task(context, missing, changes))
 
     def after_question(self, context, note, index, answer):
-        """Act on the user's answer: on a changed case, accept or restore it; else design."""
+        """Act on the user's answer: on a changed case, accept or restore it; else set the case."""
         asked = notes(context.messages)[-1]
         if not asked.get("case_changed"):
-            return act(note, index, "designer", task=answered_task(context, answer))
+            return act(note, index, "formulator", task=answered_task(context, answer))
         if answer.strip() == APPROVE:
             return act({**note, "approved": True}, index, "accept_case")
-        return act(note, index, "designer", task=restored_task(context, note["round"] + 1))
+        return act({**note, "restore": True}, index, "formulator", task=restore_task(context))
 
     async def after_verification(self, context, calls):
         """Check the design again with gemini, then cost it, route its failures, or stop."""
@@ -228,8 +257,45 @@ def project_files_text(context):
     if not names:
         return ""
     return (
-        f"\n\nThe project's files: {', '.join(names)}. Read them first with read_document and "
-        "fill the case from them with set_case (files), before you ask the user for anything."
+        f"\n\nThe project's files: {', '.join(names)}. Read them with read_document and set the "
+        "case from them with set_case (files), before you ask the user for anything."
+    )
+
+
+def has_project_case(context):
+    """Tell whether the run's project holds a case file the formulator can load."""
+    workspace = context.session.workspace
+    if workspace is None or context.project is None or not hasattr(workspace, "case"):
+        return False
+    return workspace.case(context.project) is not None
+
+
+def formulation_task(context):
+    """Return the formulator's task: the request and the project's files."""
+    return f"{request_of(context)}{project_files_text(context)}\n\nSet the case for this design."
+
+
+def case_changes_named(output):
+    """Return the lines of a designer's answer that name a change of the case."""
+    return [line.strip() for line in str(output).splitlines() if CASE_CHANGE in line]
+
+
+def change_task(context, missing, changes):
+    """Return the formulator's task when a round found the case missing or naming a change."""
+    lines = [f"The problem state has {missing}." if missing else "", *changes]
+    shown = "\n".join(line for line in lines if line)
+    return (
+        f"{request_of(context)}{project_files_text(context)}\n\nThe last design round needs the "
+        f"case changed:\n{shown}\n\nChange the case with the files' values, or record an "
+        "assumption, or ask the user; never change a value a file states."
+    )
+
+
+def restore_task(context):
+    """Return the formulator's task after the user refused a change of the case."""
+    return (
+        f"{request_of(context)}\n\nThe user did not approve the changes of the case. Call "
+        "set_case(source='origin') to restore the case the user gave."
     )
 
 
@@ -261,14 +327,14 @@ def answered_task(context, answer):
     """
     request = request_of(context)
     return (
-        f"{request}\n\nThe user answered the question on the case: {answer}"
-        f"{handover_text(context)}\n\nPut it into the case with set_case, then design."
+        f"{request}{project_files_text(context)}\n\nThe user answered the question on the case: "
+        f"{answer}{handover_text(context)}\n\nPut it into the case with set_case."
     )
 
 
-def handover_text(context):
-    """Return the last round's answer for the next round's task, or ``""`` before any round."""
-    designed = [output for name, output in driver_calls(context.messages) if name == "designer"]
+def handover_text(context, agent="designer"):
+    """Return the last answer of ``agent`` for the next task, or ``""`` before it ran."""
+    designed = [output for name, output in driver_calls(context.messages) if name == agent]
     if not designed:
         return ""
     return f"\n\nThe last round handed over:\n{designed[-1][:HANDOVER_CHARACTERS]}"
@@ -319,9 +385,9 @@ def restored_task(context, round_number):
     """Return the designer's task after the user refused a change of the case."""
     return (
         f"{request_of(context)}\n\nRound {round_number}. The user did not approve the changes of "
-        "the case. Call set_case(source='origin') to restore the case the user gave, never change "
-        "it again, and design for it: size, simulate the whole year, check, optimize, and record "
-        "design.reference and design.result."
+        "the case, so the case the user gave is restored. Never ask to change it again, and design "
+        "for it: size, simulate the whole year, check, optimize, and record design.reference and "
+        "design.result."
     )
 
 

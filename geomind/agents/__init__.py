@@ -8,6 +8,7 @@ from geomind.agents.analysis.analyst import Analyst
 from geomind.agents.coordination.coordinator import Coordinator, Route
 from geomind.agents.design.designer import Designer, FamilyDesigner
 from geomind.agents.economics.economist import Economist
+from geomind.agents.formulation.formulator import Formulator
 from geomind.agents.general.assistant import Assistant, CodeAssistant
 from geomind.agents.general.summarizer import Summarizer
 from geomind.agents.reporting.explainer import Explainer
@@ -30,6 +31,7 @@ __all__ = [
     "Output",
     "named",
     "Route",
+    "Formulator",
     "Summarizer",
     "Verifier",
 ]

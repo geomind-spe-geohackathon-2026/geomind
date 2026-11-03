@@ -22,11 +22,7 @@ class Designer(Agent):
         self.prompt = Prompt("designer")
 
         # Tools
-        self.list_files = tools.list_files
-        self.read_document = tools.read_document
         self.read_case = tools.gemini.read_case
-        self.set_case = tools.gemini.set_case
-        self.save_profile = tools.gemini.save_profile
         self.list_plants = tools.gemini.list_plants
         self.read_plant = tools.gemini.read_plant
         self.list_modules = tools.gemini.list_modules
@@ -46,7 +42,6 @@ class Designer(Agent):
         self.run_study = tools.gemini.run_study
         self.write_module = tools.gemini.write_module
         self.test_module = tools.gemini.test_module
-        self.search_documents = tools.search_documents
         self.update_state = tools.update_state
         self.read_skill = tools.read_skill
         self.read_stored = tools.read_stored
@@ -60,12 +55,11 @@ class Designer(Agent):
 class FamilyDesigner(Designer):
     """Design one family of a comparison, beside the runs of the others.
 
-    NOTE: the ``CompareLoop`` plans and fills the case first, so this run has neither ``set_case``
-    nor ``save_profile``, and it asks nobody: it records why it could not go on instead.
+    NOTE: the ``CompareLoop`` sets the case first, and a designer never sets it, so this run asks
+    nobody either: it records why it could not go on instead.
     """
 
     def __init__(self):
-        """Declare the designer's tools, without those that change the case or ask the user."""
+        """Declare the designer's tools, without the one that asks the user."""
         super().__init__()
-        for name in ("set_case", "save_profile", "ask_user"):
-            del self._tools[name]
+        del self._tools["ask_user"]

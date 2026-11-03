@@ -430,7 +430,10 @@ def test_a_live_cost_cap_bounds_calls_with_the_prices_of_the_list(monkeypatch):
     prices = {"fake/model": (1e-6, 2e-6)}
     args = cli._parser().parse_args(["run", "x", "--max-cost", "1"])
     with runtime.settings(
-        default_model="fake/model", coordinator_model="fake/model", summarizer_model="fake/model"
+        default_model="fake/model",
+        coordinator_model="fake/model",
+        summarizer_model="fake/model",
+        formulator_model="fake/model",
     ):
         budget = cli._budgets(args, fetcher=lambda: prices)[0]
     assert budget.prices == prices and budget.bounds_input
@@ -474,3 +477,31 @@ def test_the_cli_reads_the_repository_s_env_file(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
     found = cli.real_env_files()
     assert found == [tmp_path / ".env", tmp_path / "home" / ".config" / "geomind" / "live.env"]
+
+
+def test_run_runs_one_agent_alone(tmp_path, monkeypatch, capsys):
+    """``--loop tool --agent formulator`` runs that agent only, to try one step of a loop."""
+    monkeypatch.chdir(tmp_path)
+    path = recording(tmp_path, says("case set"))
+    assert (
+        cli.main(
+            ["run", "Set the case", "--loop", "tool", "--agent", "formulator", "--recording", path]
+        )
+        == 0
+    )
+    run = next(Path(".runs").iterdir())
+    started = next(
+        e for e in FileRunStore(".runs").load_events(run.name) if e.type == "run.started"
+    )
+    assert started.agent == "formulator"
+
+
+def test_an_agent_needs_the_tool_loop(capsys):
+    """``--agent`` with another loop is refused."""
+    assert (
+        cli.main(
+            ["run", "x", "--loop", "design", "--agent", "formulator", "--recording", "r.jsonl"]
+        )
+        == 1
+    )
+    assert "--loop tool" in capsys.readouterr().err

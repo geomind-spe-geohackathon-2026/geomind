@@ -127,5 +127,7 @@ def test_the_next_round_gets_what_the_last_round_handed_over():
         Message(role="assistant", tool_calls=(ToolCall(id="d1", name="designer", input={}),)),
         Message(role="tool", tool_call_id="d1", content=handover),
     ]
-    task = answered_task(Context(messages=messages), "use the files")
+    from tests.fixtures.sessions import StubSession
+
+    task = answered_task(Context(messages=messages, session=StubSession()), "use the files")
     assert "use the files" in task and handover in task

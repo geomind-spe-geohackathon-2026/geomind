@@ -275,6 +275,10 @@
           }
         },
         "run": {
+          "--agent": {
+            "choices": null,
+            "default": null
+          },
           "--answer-retries": {
             "choices": null,
             "default": null
@@ -680,5 +684,5 @@
       "Model"
     ]
   },
-  "version": "0.4.22.dev6"
+  "version": "0.4.22.dev7"
 }

@@ -6,8 +6,11 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
-**Required settings (backend):** `GEOMIND_MAX_STEPS` (or `--max-steps`) has no default any more: a run without it refuses to start. It is how many steps an agent takes before the run asks the user to continue; set it next to `GEOMIND_RETRY_COUNT` and `GEOMIND_RETRY_DELAY`.
+**Required settings (backend):** `GEOMIND_FORMULATOR_MODEL` names the new Formulator's model; it has no fallback to `GEOMIND_MODEL`. `GEOMIND_MAX_STEPS` (or `--max-steps`) has no default any more: a run without it refuses to start. It is how many steps an agent takes before the run asks the user to continue; set it next to `GEOMIND_RETRY_COUNT` and `GEOMIND_RETRY_DELAY`.
 
+- Design change: a new agent, `Formulator` (`gd.agents.Formulator`, `agents/formulation/`), owns the case. The design loop runs it before round 1 when the case is missing (from the project's files or its `case.json`) and again when a round names `case change needed: <path>: <why>` or the user's case must be restored; the `Designer` reads the case and no longer has `set_case`, `save_profile`, `list_files`, `read_document` or `search_documents`, so later rounds never read the files again. Every case value no file gives is confirmed by the user in one question (`approve all`, `change some`, `stop`) and recorded as an assumption with its source or reason. The event shapes are unchanged: the backend sees one more nested agent, `formulator`.
+- Fix (#31): a plant value gemini lists as missing that no file gives (an equipment parameter) is the designer's assumption with a reason, never a question for a datasheet.
+- `geomind run --loop tool --agent NAME` runs one shipped agent alone, such as `formulator`.
 - The step limit no longer ends an agent's work: the run waits on a question with the options `continue` and `stop` (point `steps`). `continue` gives it as many steps again and `stop` ends it with `step_limit` as before; a budget still bounds the cost, and a replay takes the recorded decisions.
 
 What the fifth live run showed, each pinned by a test on its recorded calls.

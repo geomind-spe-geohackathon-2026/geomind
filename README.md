@@ -118,6 +118,7 @@ geomind has no built-in model: a run on a real provider stops at the start until
 | `GEOMIND_COMPARE_CONCURRENCY` | How many families a comparison designs side by side; unset, one at a time |
 | `GEOMIND_COMPARE_RETRIES` | How often a comparison designs a rejected family again; unset, never |
 | `GEOMIND_GEMINI_THREADS` | The threads gemini work runs in; unset, asyncio's default executor |
+| `GEOMIND_FORMULATOR_MODEL` | Required: the model of the Formulator, which sets the case; no fallback |
 | `GEOMIND_MAX_STEPS` | Required: the steps an agent takes before the run asks the user to continue; no default |
 | `GEOMIND_RETRY_COUNT`, `GEOMIND_RETRY_DELAY` | Required for a live run: retries of a failed provider call and the first delay in seconds, doubled each time; no default |
 

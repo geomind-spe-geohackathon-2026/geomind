@@ -157,6 +157,7 @@ def deployment_settings(monkeypatch):
     """Name the models, the context window, the retries and the steps as a deployment does."""
     monkeypatch.setenv("GEOMIND_MODEL", TEST_MODEL)
     monkeypatch.setenv("GEOMIND_CHEAP_MODEL", TEST_CHEAP_MODEL)
+    monkeypatch.setenv("GEOMIND_FORMULATOR_MODEL", TEST_MODEL)
     monkeypatch.setenv("GEOMIND_CONTEXT_WINDOW", TEST_CONTEXT_WINDOW)
     monkeypatch.setenv("GEOMIND_RETRY_COUNT", TEST_RETRY_COUNT)
     monkeypatch.setenv("GEOMIND_RETRY_DELAY", TEST_RETRY_DELAY)

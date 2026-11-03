@@ -16,7 +16,18 @@ from geomind.errors import UnknownNameError
 from geomind.utils.context import ContextSetting
 from geomind.utils.strings import did_you_mean
 
-ROLES = ("analyst", "coordinator", "designer", "economist", "explainer", "summarizer", "verifier")
+ROLES = (
+    "analyst",
+    "coordinator",
+    "designer",
+    "economist",
+    "explainer",
+    "formulator",
+    "summarizer",
+    "verifier",
+)
+OWN_MODELS = {"formulator": "GEOMIND_FORMULATOR_MODEL"}
+"""Roles whose model is their own required setting, with no fallback to ``GEOMIND_MODEL``."""
 _FIXED = {
     "request_timeout": 120.0,
     "prompt_caching": True,
@@ -99,6 +110,7 @@ def _defaults():
         **_FIXED,
         "coordinator_model": cheap,
         "summarizer_model": cheap,
+        **{f"{role}_model": os.environ.get(name) or None for role, name in OWN_MODELS.items()},
         "provider": _listed("GEOMIND_PROVIDER"),
         "context_window": _integer("GEOMIND_CONTEXT_WINDOW"),
         "cache_marked_models": _listed("GEOMIND_CACHE_MARKED_MODELS"),
@@ -113,7 +125,10 @@ def _defaults():
 
 def role_models():
     """Return the model id of each role from the settings; ``None`` where none is set."""
-    return {role: get(f"{role}_model") or get("default_model") for role in ROLES}
+    return {
+        role: get(f"{role}_model") or (None if role in OWN_MODELS else get("default_model"))
+        for role in ROLES
+    }
 
 
 def model_problems():
@@ -122,7 +137,9 @@ def model_problems():
     lines = []
     for role, model in role_models().items():
         if model is None:
-            name = "GEOMIND_CHEAP_MODEL" if role in cheap_roles else "GEOMIND_MODEL"
+            name = OWN_MODELS.get(role) or (
+                "GEOMIND_CHEAP_MODEL" if role in cheap_roles else "GEOMIND_MODEL"
+            )
             lines.append(f"{role}: set {name} or {role}_model")
     for setting, name in RETRY_SETTINGS.items():
         if get(setting) is None:
@@ -135,7 +152,9 @@ def missing_model_settings():
     cheap_roles = ("coordinator", "summarizer")
     missing = []
     for role, model in role_models().items():
-        name = "GEOMIND_CHEAP_MODEL" if role in cheap_roles else "GEOMIND_MODEL"
+        name = OWN_MODELS.get(role) or (
+            "GEOMIND_CHEAP_MODEL" if role in cheap_roles else "GEOMIND_MODEL"
+        )
         if model is None and name not in missing:
             missing.append(name)
     return missing + [name for setting, name in RETRY_SETTINGS.items() if get(setting) is None]

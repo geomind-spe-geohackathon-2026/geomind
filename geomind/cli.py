@@ -302,6 +302,7 @@ def _command_run(args):
     """
     _require_cap(args)
     workspace, project = _project(args.project)
+    _require_tool_loop(args)
     _require_case(args, workspace, project)
     with runtime.settings(**_changes(args)):
         run = Run(
@@ -316,10 +317,26 @@ def _command_run(args):
             hooks=_budgets(args),
         )
         if args.loop is not None:
-            run.loop = loop_of(Route(kind="loop", loop=args.loop))
+            run.loop = _loop(args)
         result = _until_answered(run, run.start(), args.answer_retries)
         write_manifest(RUNS_FOLDER, result.run_id, args)
     return _report(result)
+
+
+def _loop(args):
+    """Return the loop of ``--loop``; with ``--agent``, the tool loop around that one agent.
+
+    ``--agent`` runs any shipped agent alone, such as ``formulator``, to try one step of a loop.
+    """
+    if args.agent is None:
+        return loop_of(Route(kind="loop", loop=args.loop))
+    return LOOPS["tool"](agents.named(args.agent))
+
+
+def _require_tool_loop(args):
+    """Refuse ``--agent`` with any loop but the tool loop."""
+    if args.agent is not None and args.loop != "tool":
+        raise RunError(f"run: --agent {args.agent} with --loop {args.loop}; expected --loop tool")
 
 
 def _command_resume(args):
@@ -613,6 +630,7 @@ def _parser():
     run = commands.add_parser("run", help="answer one message")
     run.add_argument("message")
     run.add_argument("--loop", choices=list(LOOPS))
+    run.add_argument("--agent", help="with --loop tool, the one agent to run, such as formulator")
     _comparison_arguments(run)
     _run_options(run)
     run.set_defaults(function=_command_run)

@@ -90,7 +90,9 @@ def test_missing_model_settings_name_the_environment_variables(monkeypatch):
     """With neither variable set, both are named and every role has no model."""
     monkeypatch.delenv("GEOMIND_MODEL")
     monkeypatch.delenv("GEOMIND_CHEAP_MODEL")
-    assert runtime.missing_model_settings() == ["GEOMIND_MODEL", "GEOMIND_CHEAP_MODEL"]
+    monkeypatch.delenv("GEOMIND_FORMULATOR_MODEL")
+    missing = ["GEOMIND_MODEL", "GEOMIND_CHEAP_MODEL", "GEOMIND_FORMULATOR_MODEL"]
+    assert runtime.missing_model_settings() == missing
     assert set(runtime.role_models().values()) == {None}
 
 
