@@ -2,8 +2,13 @@
 
 from geomind import tools
 from geomind.agents.agent import Agent, Model
+from geomind.agents.case.geoscientist.agent import Geoscientist
 from geomind.prompts import Prompt
+from geomind.tools import Delegate
 from geomind.tools.gemini.skeleton import trees
+
+FINDINGS_TOKENS = 8000
+"""The most tokens of the geoscientist's findings the case lead reads back."""
 
 
 class CaseLead(Agent):
@@ -15,13 +20,14 @@ class CaseLead(Agent):
     """
 
     def __init__(self):
-        """Declare the prompt, the tools over files and the case, and the role's model."""
+        """Declare the prompt, the geoscientist, the tools over files and the case, the model."""
         super().__init__()
 
         # Prompt
         self.prompt = Prompt("case/lead", appendix=trees("case"))
 
         # Tools
+        self.geoscientist = Delegate(Geoscientist(), max_summary_tokens=FINDINGS_TOKENS)
         self.list_files = tools.list_files
         self.read_document = tools.read_document
         self.search_documents = tools.search_documents

@@ -20,7 +20,7 @@ from geomind.types import Action, Allow, Deny, Message, Request, RunResult
 from geomind.types.events import event_from_dict
 from geomind.types.runlog import runlog
 
-__version__ = "0.4.22.dev24"
+__version__ = "0.4.22.dev25"
 __all__ = [
     "Run",
     "Agent",

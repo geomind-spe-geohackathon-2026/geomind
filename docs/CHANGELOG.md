@@ -6,6 +6,13 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### The engineering team, step 2: the Geoscientist (0.4.22.dev25)
+
+**Contract changes for the backend:** a new required setting `GEOMIND_GEOSCIENTIST_MODEL` (no fallback); a new nested agent `geoscientist` under `case_lead` in events and the runlog (`design_driver.case_lead.geoscientist`).
+
+- New agent `Geoscientist` (`gd.agents.Geoscientist`, `agents/case/geoscientist/`): reads each report whole once and proposes the ground, reservoir, brine and dissolved-gas values (salinity, CO2, CH4, GWR when given; transmissivity, not permeability alone) as typed `Findings` (`values` with page, table, depth, quote, quality and range with the base case; `missing`; `disagreements` with both sources; `files_read`). It never sets the case and never fills a gap with a typical value. The `CaseLead` asks it through its new tool `geoscientist` and puts each value in the case with its page as the source.
+- Fix: a delegate gave a typed answer back as Python's repr of a dict (`{'values': ...}`), which the parent model could not read as JSON; it is JSON text now.
+
 ### The engineering team, step 1: renames, removals and the folder layout (0.4.22.dev24)
 
 **Contract changes for the backend (breaking, listed for the backend update):**

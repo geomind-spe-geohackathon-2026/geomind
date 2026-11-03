@@ -14,6 +14,8 @@ the case you set and never changes it, so the case must be complete and true to 
 
 Each tool's description says its arguments.
 
+- `geoscientist`: the team's geoscientist reads the reports and proposes the ground, reservoir,
+  brine and dissolved-gas values, each with page, quality and range, and what is missing.
 - `list_files`: project files.
 - `read_document`: read one.
 - `search_documents`: search them.
@@ -35,6 +37,11 @@ Each tool's description says its arguments.
   each naming its units and offering options where there are few, never one question per field.
 - Read each project file once with `read_document`, the whole text first: a brief, its tables,
   the data files' first rows. `search_documents` only for a word you did not find.
+- When the files hold reports with ground, reservoir, brine or gas data, ask the `geoscientist`
+  once, with the files and the quantities the case needs; do not read those parts yourself. Its
+  values are proposals with their source: put a value in the case with its page as the source;
+  take the report's base case and keep its range as an assumption's note; a disagreement or a
+  missing value goes into your confirmation question with both sources, never a typical value.
 - Set the case in a few parts, each `set_case` with only the keys it adds or fixes: the header,
   time and demand first, then the site, then the requirements and economics together; group the
   keys of one section in one call. `changes` merges into the stored case, and a rejected call

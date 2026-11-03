@@ -88,6 +88,7 @@ under `tests/unit/agents/<team>/<name>/`. Class names stay whole and the import 
 | `Reviewer` | `project/reviewer/` | complete (the `Verifier` until 0.4.22); checks the final design once with gemini, reads knowledge only, never experience | no |
 | `Explainer` | `project/explainer/` | complete; the explanation, from the state and the tools; reads knowledge only, to cite sources | no |
 | `CaseLead` | `case/lead/` | complete (the `Formulator` until 0.4.22); sets the case from the project's files and the user's answers, confirms every value no file gives in one question | no |
+| `Geoscientist` | `case/geoscientist/` | complete; reads the reports whole once and proposes the ground, reservoir, brine and dissolved-gas values to the `CaseLead` (its `geoscientist` tool) as typed `Findings`: each value with page, table, depth, quality and range, the missing ones and the disagreements with both sources; never sets the case, never fills a gap with a typical value | no |
 | `DesignLead` | `design/lead/` | complete (the `Designer` until 0.4.22); sizes, simulates, checks and optimises a design for the case, which it reads and never sets; a comparison runs one per family without `ask_user` | no |
 | `AnalysisLead` | `analysis/lead/` | complete (the `Analyst` until 0.4.22), the sample, with the gemini tools | yes, the default route |
 | `Economist` | `analysis/economist/` | complete; costs, compares, samples uncertainty | no |
@@ -113,7 +114,8 @@ frozen; the tools themselves are in [tools.md](tools.md#catalogue). Every agent 
 |---|---|
 | `AnalysisLead` | `list_files`, `read_document`, `read_case`, `set_case`, `list_modules`, `describe_module`, `evaluate_module`, `list_plants`, `read_plant`, `list_profiles`, `read_profile`, `save_profile`, `simulate`, `read_result`, `list_studies`, `read_study`, `compute_kpis`, `search_documents`, `update_state`, `read_skill`, the memory tools, `ask_user`, `finish` |
 | `Coordinator` | none: it answers with a `Route` |
-| `CaseLead` | `list_files`, `read_document`, `search_documents`, `read_case`, `set_case`, `save_profile`, `list_profiles`, `read_profile`, `read_stored`, the memory tools, `update_state`, `ask_user`, `finish` |
+| `Geoscientist` | `list_files`, `read_document`, `search_documents`, `read_case`, `read_stored`, the memory tools, `finish` |
+| `CaseLead` | `geoscientist`, `list_files`, `read_document`, `search_documents`, `read_case`, `set_case`, `save_profile`, `list_profiles`, `read_profile`, `read_stored`, the memory tools, `update_state`, `ask_user`, `finish` |
 | `DesignLead` | `read_case`, `list_plants`, `read_plant`, `list_modules`, `describe_module`, `evaluate_module`, `build_plant`, `patch_plant`, `set_ranges`, `size_plant`, `list_profiles`, `read_profile`, `simulate`, `read_result`, `list_studies`, `read_study`, `check_results`, `optimize`, `run_study`, `update_state`, `read_skill`, `read_stored`, the memory tools, `ask_user`, `finish` |
 | `Reviewer` | `check_results`, `case_changes`, `read_case`, `compute_kpis`, `read_result`, `update_state`, `read_skill`, `read_stored`, `search_knowledge`, `read_knowledge`, `finish` |
 | `Economist` | `compute_kpis`, `estimate_costs`, `compare`, `run_study`, `sample_uncertainty`, `sensitivity`, `read_result`, `list_studies`, `read_study`, `update_state`, `read_skill`, `read_stored`, the memory tools, `finish` |

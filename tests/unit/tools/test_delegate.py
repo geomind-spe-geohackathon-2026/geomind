@@ -50,6 +50,16 @@ async def test_answer_is_cut_to_the_token_limit():
     assert session.delegated[1] == "do it"
 
 
+async def test_a_typed_answer_comes_back_as_json():
+    """A typed answer is JSON text the parent can parse, not Python's repr of a dict."""
+    import json
+
+    session = StubSession()
+    session.result = RunResult(run_id="c", status="done", answer={"values": [1], "ok": True})
+    result = await dispatch(Delegate(Helper()), call(), Context(session=session))
+    assert json.loads(result.output) == {"values": [1], "ok": True}
+
+
 async def test_waiting_nested_run_pauses_the_parent():
     """The request of the nested run passes through."""
     session = StubSession()

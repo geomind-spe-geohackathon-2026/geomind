@@ -1,5 +1,7 @@
 """A tool that runs another agent in a nested run."""
 
+import json
+
 from geomind import runtime
 from geomind.errors import ToolError
 from geomind.tools.base import Tool
@@ -57,7 +59,8 @@ class Delegate(Tool):
         """Return the output of a finished nested run, or its request when it waits.
 
         ``limit`` is the reason a budget or time limit stopped the nested run: the error then has
-        the code ``budget`` and names the limit with what was spent and the cap. Another stop is
+        the code ``budget`` and names the limit with what was spent and the cap. A typed answer
+        comes back as JSON text. Another stop is
         ``nested_stopped`` with its message, and a crash ``internal``, its text left in the log.
         """
         if result.request is not None:
@@ -79,4 +82,5 @@ class Delegate(Tool):
                 code="internal",
             )
         tokens = self.max_summary_tokens or runtime.get("delegate_summary_tokens")
-        return str(result.answer)[: tokens * CHARACTERS_PER_TOKEN]
+        answer = result.answer if isinstance(result.answer, str) else json.dumps(result.answer)
+        return answer[: tokens * CHARACTERS_PER_TOKEN]

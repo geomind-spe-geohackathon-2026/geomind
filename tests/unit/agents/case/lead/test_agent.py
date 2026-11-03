@@ -5,6 +5,7 @@ from geomind.agents import CaseLead, DesignLead
 from tests.unit.agents.structure import check_complete
 
 TOOLS = [
+    "geoscientist",
     "list_files",
     "read_document",
     "search_documents",

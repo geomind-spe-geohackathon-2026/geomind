@@ -23,6 +23,7 @@ ROLES = (
     "designlead",
     "economist",
     "explainer",
+    "geoscientist",
     "reviewer",
     "summarizer",
 )

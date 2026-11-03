@@ -6,6 +6,7 @@ Imports ``tools`` and everything to its left; never the engine.
 from geomind.agents.agent import Agent, AgentResult, Model, Output
 from geomind.agents.analysis.economist.agent import Economist
 from geomind.agents.analysis.lead.agent import AnalysisLead
+from geomind.agents.case.geoscientist.agent import Geoscientist
 from geomind.agents.case.lead.agent import CaseLead
 from geomind.agents.design.lead.agent import DesignLead
 from geomind.agents.project.coordinator.agent import Coordinator, Route
@@ -24,6 +25,7 @@ __all__ = [
     "DesignLead",
     "Economist",
     "Explainer",
+    "Geoscientist",
     "Model",
     "Output",
     "named",

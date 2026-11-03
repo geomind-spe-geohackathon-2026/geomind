@@ -106,7 +106,7 @@ geomind has no built-in model: a run on a real provider stops at the start until
 | Variable | Meaning |
 |---|---|
 | `OPENROUTER_API_KEY` | The key for OpenRouter |
-| `GEOMIND_<ROLE>_MODEL` | Each agent's own model, required, no fallback: `GEOMIND_ANALYSISLEAD_MODEL`, `GEOMIND_CASELEAD_MODEL`, `GEOMIND_COORDINATOR_MODEL`, `GEOMIND_DESIGNLEAD_MODEL`, `GEOMIND_ECONOMIST_MODEL`, `GEOMIND_EXPLAINER_MODEL`, `GEOMIND_REVIEWER_MODEL`, `GEOMIND_SUMMARIZER_MODEL` |
+| `GEOMIND_<ROLE>_MODEL` | Each agent's own model, required, no fallback: `GEOMIND_ANALYSISLEAD_MODEL`, `GEOMIND_CASELEAD_MODEL`, `GEOMIND_COORDINATOR_MODEL`, `GEOMIND_DESIGNLEAD_MODEL`, `GEOMIND_ECONOMIST_MODEL`, `GEOMIND_EXPLAINER_MODEL`, `GEOMIND_GEOSCIENTIST_MODEL`, `GEOMIND_REVIEWER_MODEL`, `GEOMIND_SUMMARIZER_MODEL` |
 | `GEOMIND_PROVIDER` | The OpenRouter providers to try |
 | `GEOMIND_CONTEXT_WINDOW` | The context window in tokens; unset, it is read from the provider |
 | `GEOMIND_CACHE_MARKED_MODELS` | The model id prefixes that get cache breakpoints |
