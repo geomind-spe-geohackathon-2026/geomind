@@ -351,3 +351,36 @@ def keys_under(path):
     if path.startswith("requirements"):
         lines.append(options_text())
     return lines
+
+
+def module_reference(*names):
+    """Return prompt text of gemini's own ``describe()`` of each module: its parameters, ports.
+
+    Made when the prompt renders, so an agent's prompt follows gemini: a module gemini renames
+    or drops is an error here, not a stale line in a prompt. A list parameter reads as gemini
+    gives it; ``{"value": [..], "unit": "m"}`` is the form of a list of quantities.
+    """
+    import gemini as gm
+
+    lines = ["## Module reference (from gemini)", ""]
+    for name in names:
+        tree = module_tree(gm.modules.get(name)().describe())
+        lines.append(f"### {tree['type']} ({tree['category']}): {tree['summary']}")
+        lines += [f"- {line}" for line in tree["parameters"] + tree["controls"]]
+        ports = [f"in {key} ({kind})" for key, kind in tree["inlets"].items()]
+        ports += [f"out {key} ({kind})" for key, kind in tree["outlets"].items()]
+        lines.append(f"- ports: {', '.join(ports) or 'none'}")
+        lines.append("")
+    lines.append("* marks a parameter with no default: the plant file gives it.")
+    return "\n".join(lines)
+
+
+def modules_of(*categories):
+    """Return gemini's module names in ``categories``, such as ``wells`` or ``subsurface``."""
+    import gemini as gm
+
+    return sorted(
+        name
+        for name in gm.modules.names()
+        if getattr(gm.modules.get(name), "category", None) in categories
+    )

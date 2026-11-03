@@ -482,6 +482,23 @@ def edited_economics(context, data, supplied, patch):
     return {**supplied, name: text.encode()}
 
 
+def changes_files(context, changes, files, supplied):
+    """Return ``files`` with each project file a series of ``changes`` names that is not given.
+
+    The case lead named the files in ``changes`` and sent ``files`` alone in another call, again
+    and again (#65); a file the changes name is loaded from the project as if it were passed.
+    """
+    workspace = context.session.workspace
+    listed = workspace.files(context.project) if hasattr(workspace, "files") else []
+    project = {entry["name"] for entry in listed} if context.project is not None else set()
+    needed = unpassed_files(changes or {}, files)
+    return [
+        name
+        for name in needed
+        if name in (files or []) or (name in project and name not in supplied)
+    ]
+
+
 def project_files_of(context, names, columns=None):
     """Return ``{name: bytes}`` of the project files ``set_case`` gives to the case.
 
@@ -520,7 +537,8 @@ async def set_case(
     ``economics`` is a merge patch on the content of the case's economics file. ``files`` names
     project files (``list_files``): their bytes go to gemini, under the same name, so a data file
     is given to the case and never retyped: name it in ``changes``, as the ``file`` of a series.
-    ``columns`` renames header names of those files, such as ``{"demand.csv": {"date": "time"}}``:
+    A project file the changes name is loaded even when ``files`` leaves it out. ``columns``
+    renames header names of those files, such as ``{"demand.csv": {"date": "time"}}``:
     gemini reads a series' times from a column named ``time``. Once a case is stored, send only
     the keys that change: ``changes`` merges into it, and a rejected call stores nothing. The
     sections are
@@ -536,13 +554,15 @@ async def set_case(
     alone = files and source is None and not (changes or requirements or economics)
     if alone and context.problem.case is None:
         raise ToolError(
-            f"set_case: files = {files!r} and nothing else; expected the changes that name them "
-            "in the same call: files alone set no case, and a rejected call stores nothing",
+            f"set_case: files = {files!r} and nothing else; expected changes that name each file "
+            "as the `file` of its series: set_case loads the project files the changes name, so "
+            "`files` is not needed, and files alone set no case",
             code="case_incomplete",
             path="format",
             suggestions=[json.dumps(case_skeleton())],
         )
     base, supplied = base_case(context, source)
+    files = changes_files(context, changes, files, supplied)
     if files:
         given = await runtime.in_gemini_thread(project_files_of, context, files, columns)
         supplied = {**supplied, **given}

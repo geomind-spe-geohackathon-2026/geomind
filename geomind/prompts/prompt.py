@@ -6,6 +6,8 @@ from geomind.errors import UnknownNameError
 from geomind.utils.strings import did_you_mean
 
 FOLDER = Path(__file__).parent
+SHARED_RULES = FOLDER / "shared" / "rules.md"
+"""The rules every role prompt ends with: sources, no defaults, units, errors."""
 SHARED_TOOLS = ("read_stored", "search_memory", "read_memory")
 STORED_RESULTS = (
     "## Stored results\n\n"
@@ -43,7 +45,7 @@ def role_files():
     return {
         f"{path.parent.name}/{path.stem}": path
         for path in sorted(FOLDER.glob("*/*.md"))
-        if path.parent.name != "skills"
+        if path.parent.name not in ("skills", "shared")
     }
 
 
@@ -66,7 +68,7 @@ class Prompt:
             raise UnknownNameError(
                 f"Prompt: role = {role!r}; expected a role file{did_you_mean(role, roles)}"
             )
-        self.content = roles[role].read_text().strip()
+        self.content = f"{roles[role].read_text().strip()}\n\n{SHARED_RULES.read_text().strip()}"
 
     @classmethod
     def text(cls, content):

@@ -20,15 +20,16 @@ async def test_a_gradient_in_degc_per_km_gets_k_per_km():
     assert not any("'unit': 'degC'}" in item for item in suggestions)
 
 
-async def test_the_files_retry_says_to_send_everything_again():
-    """#65: told ``changes=<the same changes>``, the case lead sent the files alone, 3 times."""
+async def test_files_the_changes_name_load_without_files():
+    """#65: the case lead sent the files and the changes in separate calls; now one is enough."""
     output = (await call(set_case, CALLS["together"], session_with_files(), "p")).output
-    retry = next(item for item in output["error"]["suggestions"] if item.startswith("set_case("))
-    assert "requirements and economics" in retry and "stored nothing" in retry
+    message = output["error"]["message"]
+    assert "not found" not in message and "first column = 'date'" in message
 
 
 async def test_files_alone_on_no_case_name_what_they_need():
     """#65: files with no changes on an empty case got the header error, which says nothing."""
     output = (await call(set_case, CALLS["files_alone"], session_with_files(), "p")).output
     error = output["error"]
-    assert error["code"] == "case_incomplete" and "in the same call" in error["message"]
+    assert error["code"] == "case_incomplete"
+    assert "loads the project files the changes name" in error["message"]

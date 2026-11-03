@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### Shared rules for every agent, gemini's module reference, and set_case loads the files the case names (0.4.22.dev47)
+
+- Prompts: every role prompt ends with `prompts/shared/rules.md`, said once for all 17 roles: the source order (user, files, knowledge base, MCP, then ask), citations, the user's confirmation of a value no file gave, no defaults, units and physics left to gemini, and applying an error's fix.
+- Prompts: `module_reference(*names)` and `modules_of(*categories)` (`geomind/tools/gemini/skeleton.py`) give gemini's own `describe()` of modules as prompt text, made when the prompt renders, for an agent's appendix. A test checks that every module or plant class a prompt names in backticks is one of gemini's.
+- Behaviour (#65 again): `set_case` loads every project file a series of `changes` names, without `files`. The case lead of the project run still sent the files alone three times and stopped; `files` alone on no case says so.
+
 ### The design team alone (0.4.22.dev46)
 
 Rounds D1 and D2: each design agent alone on the C1 case, live (DeepSeek). Each bug is pinned by a test.
