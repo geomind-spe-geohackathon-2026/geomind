@@ -2,6 +2,7 @@
 
 import asyncio
 import tarfile
+from pathlib import Path
 
 import pytest
 
@@ -26,11 +27,13 @@ def stored(tmp_path_factory):
     two_families.jsonl`` as it was then, so its ``run_study`` call has no ``name``. The archive
     holds the whole events log, the manifest and the five artifacts the replay reads (the final
     result and its plant, case and files, and the best design); each other artifact was dropped
-    after a replay without it still passed.
+    after a replay without it still passed. The archive was packed on macOS, and its ``._*``
+    metadata entries are no part of the log, so they stay out of the extracted folder.
     """
     root = tmp_path_factory.mktemp("log")
     with tarfile.open(ARCHIVE) as archive:
-        archive.extractall(root, filter="data")
+        members = [item for item in archive if not Path(item.name).name.startswith("._")]
+        archive.extractall(root, members=members, filter="data")
     run_id = next(path.name for path in root.iterdir() if path.name != "chats")
     return FileRunStore(root), run_id, root / run_id
 
