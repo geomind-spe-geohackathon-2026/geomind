@@ -6,7 +6,7 @@ import pytest
 
 from geomind.agents import Agent, Model
 from geomind.engine import Engine, Permissions
-from geomind.engine.hooks import Hook, RequireApproval
+from geomind.engine.hooks import Hook, RequireApproval, TimeLimit, TokenBudget
 from geomind.engine.replay import _nested_changes, version_differences
 from geomind.engine.session import current_versions
 from geomind.errors import ReplayError
@@ -667,3 +667,40 @@ async def test_a_state_change_beside_a_reused_call_is_applied_once():
     replayed = []
     await Engine.replay(engine.store, result.run_id, replayed=replayed)
     assert len([e for e in replayed if isinstance(e, StateChanged)]) == 1
+
+
+async def test_a_token_budget_stop_replays():
+    """A run the budget stopped ends where its log ends; the replay asks no model for more."""
+    script = [uses(call("lookup", key="k")), says("never reached")]
+    result, engine, _ = await run(script, hooks=[TokenBudget(1)])
+    assert result.stop_reason != "answer"
+    replayed = await Engine.replay(engine.store, result.run_id)
+    assert replayed.stop_reason == "cancelled"
+
+
+async def test_a_time_limit_stop_replays():
+    """A run the clock stopped ends where its log ends, whatever the clock says now."""
+    ticks = iter([0.0, 0.0, 100.0, 100.0])
+    script = [uses(call("lookup", key="k")), says("never reached")]
+    limit = TimeLimit(1, clock=lambda: next(ticks, 100.0))
+    result, engine, _ = await run(script, hooks=[limit])
+    assert result.stop_reason != "answer"
+    replayed = await Engine.replay(engine.store, result.run_id)
+    assert replayed.stop_reason == "cancelled"
+
+
+async def test_a_question_in_auto_mode_replays():
+    """A run waiting on ``ask_user`` ends at its pending call: the question is not asked again."""
+    result, engine, _ = await run([uses(call("ask_user", question="Which demand?"))])
+    assert result.status == "waiting"
+    replayed = await Engine.replay(engine.store, result.run_id)
+    assert replayed.stop_reason == "cancelled"
+
+
+async def test_an_answered_question_replays():
+    """The recorded answer is reused, and the run ends as it did."""
+    script = [uses(call("ask_user", question="Which demand?")), says("thanks")]
+    result, engine, _ = await run(script)
+    resumed = await engine.resume(result.run_id, result.request.id, {"text": "5 MW"})
+    replayed = await Engine.replay(engine.store, result.run_id)
+    assert replayed.answer == resumed.answer

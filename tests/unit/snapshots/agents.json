@@ -11,6 +11,7 @@
       "complete": "(self, context, messages)",
       "forward": "(self, context)",
       "help": "(cls)",
+      "load_loop_state": "(self, state)",
       "named_agents": "(self)",
       "tool_schemas": "(self)",
       "tools": "(self, recurse=False)"
@@ -577,5 +578,5 @@
       "Model"
     ]
   },
-  "version": "0.4.4"
+  "version": "0.4.5"
 }
