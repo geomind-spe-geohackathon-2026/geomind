@@ -29,3 +29,15 @@ creates the GitHub Release with `GITHUB_TOKEN`.
 The order: raise the version on `dev`, run `PYTHONPATH=. python scripts/snapshot_api.py`, run every
 test tier, merge `dev` into `main` with `--no-ff`, push `main`, tag `main`, push the tag. Never push a
 test tag: it would publish a release.
+
+## Memory on a long-running host
+
+geomind runs gemini in worker threads (`asyncio.to_thread`), and glibc gives each thread its own
+malloc arena, so freed memory stays fragmented across arenas and the process grows. It is no
+Python leak: repeated eval runs in one process plateau at about 380 MB, with nothing kept. Over the
+heavy slow tests one process grew to about 3.5 GB (peak 3.5 GB); with `MALLOC_ARENA_MAX=2` the same
+tests left it at 1.0 to 1.7 GB (peak 2.4 GB), and they ran faster. CI sets it for every job, and a
+long-running host (the backend's workers) should set `MALLOC_ARENA_MAX=2` in its environment too.
+geomind could bound this itself, for example by running gemini in a fixed, small thread pool
+instead of the default executor; that is not done yet.
+

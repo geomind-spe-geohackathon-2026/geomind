@@ -12,6 +12,7 @@ CI and tests only; the package is unchanged.
 
 - CI is split into a `fast` job (fast tier and e2e, every event) and a `slow` job in four shards (everything but a `dev` push). Every job runs `-n auto`, with `timeout-minutes` and `fail-fast: false`. Before, the full suite took 25 to 42 minutes per Python in one job, and a dying runner ended it at 98 %.
 - `--shard i/n` balances the slow tests by the measured times in `tests/fixtures/shard_times.json`: about 420 s of serial work each.
+- CI sets `MALLOC_ARENA_MAX=2`, and the report test uses one process per usable core, at most eight. The Python 3.14 runner deaths were memory: glibc gives each worker thread its own arena, and a test process grew to about 3.5 GB; two xdist workers plus the report's eight processes measured 17.6 GB. With two arenas the same tests stay at 1.0 to 1.7 GB (peak 2.4 GB). No Python object leaks: repeated runs plateau at about 380 MB. A long-running host, such as the backend's workers, should set `MALLOC_ARENA_MAX=2` too; see `.claude/docs/releasing.md`.
 
 ## [0.4.9] - 2026-11-03
 

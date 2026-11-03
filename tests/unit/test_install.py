@@ -94,3 +94,11 @@ def test_the_ci_matrix_is_the_supported_pythons():
     )
     for job in workflow_jobs().values():
         assert sorted(job["strategy"]["matrix"]["python"]) == declared
+
+
+def test_ci_keeps_the_memory_of_worker_threads_small():
+    """Two glibc arenas, not one per thread, keep a test process near half its size."""
+    import yaml
+
+    workflow = yaml.safe_load((ROOT / ".github/workflows/python_test.yaml").read_text())
+    assert workflow["env"]["MALLOC_ARENA_MAX"] == "2"

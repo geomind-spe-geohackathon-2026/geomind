@@ -109,6 +109,8 @@ in the release profile, since a shared runner is no measure of the one-second bu
 runs the fast tier and e2e (`-m "not slow and not docker"`) on every event; job `slow` runs the slow
 tier in four shards (`--shard i/4`) on everything but a push to `dev`. Every job uses `-n auto`, has
 a `timeout-minutes` and `fail-fast: false`, so a runner that dies hides no other job.
+CI sets `MALLOC_ARENA_MAX=2`: glibc's per-thread arenas made one test process about twice as large
+([releasing.md](releasing.md#memory-on-a-long-running-host)).
 
 `--shard i/n` (`tests/conftest.py`) keeps shard `i` of the slow tests and every other test. The
 split is greedy by the seconds in `tests/fixtures/shard_times.json`, the longest first to the least

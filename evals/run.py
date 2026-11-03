@@ -288,11 +288,17 @@ def report(root=ROOT, workers=None):
 
 
 def _cells(cells, workers):
-    """Return the outcomes of each cell, in order, in ``workers`` processes when given."""
+    """Return the outcomes of each cell, in order, in ``workers`` processes when given.
+
+    NOTE: a process runs one cell and exits, so the memory of a heavy cell is given back before
+    the next one starts.
+    """
     if not workers or workers < 2:
         return [_cell(*cell) for cell in cells]
     context = multiprocessing.get_context("spawn")
-    with ProcessPoolExecutor(max_workers=workers, mp_context=context) as pool:
+    with ProcessPoolExecutor(
+        max_workers=workers, mp_context=context, max_tasks_per_child=1
+    ) as pool:
         return list(pool.map(_cell, *zip(*cells)))
 
 
