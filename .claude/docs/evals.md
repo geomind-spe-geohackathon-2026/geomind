@@ -247,3 +247,21 @@ agent folder under `evals/tasks/`, and `python -m evals.run --agent challenge2 -
 process: the work is gemini's simulations, so cells one after another took 11.5 minutes and eight
 processes take under three, bounded by the longest task. The table is the same either way. The tests
 check the checked-in report one row per cell, so the slow shards of CI share it.
+
+## The scripted recording
+
+`evals/scripted.py` is the model that wrote `recordings/alternatives/three_families.jsonl`: its
+moves are code, chosen from the task, the system prompt and the tools' results, and every tool is
+gemini's. `python -m evals.scripted --recording <file>` writes it again offline;
+`tests/integration/test_scripted_recording.py` (slow) checks that the task passes and the moves
+match the checked-in recording.
+
+## Why the report's CompareLoop table meets fewer criteria
+
+A recording is the decisions of the loop it was made for. Since 0.4.6 the `CompareLoop` plans
+first and runs one `FamilyDesigner` per family, so a recording made for the `DesignLoop` or the
+`StudyCompareLoop` answers questions this loop never asks, and runs out or stops early: its
+criteria are unmet. That is the loop's real behaviour on those recordings, not a scoring fault;
+the same task through its own loop (`--agent compare` on the `StudyCompareLoop`, `challenge2` on
+the `DesignLoop`) meets them. `alternatives/three_families` is the `CompareLoop`'s own task.
+

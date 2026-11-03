@@ -102,3 +102,13 @@ callbacks, so an answer always finds it. It returns
 `RunResult(status="waiting", request=...)`, and the process may exit. `Request.id` is filled in
 from the sequence number, so it is deterministic. An approved call is not asked again, and an
 approval applies to that call id only.
+
+## Time limit in flight
+
+`TimeLimit` bounds the call in flight, not only the next one: before a model call and before a
+tool call it gives the session the seconds left (`RunSession.limit_time`). A model call that passes
+them is cancelled (`TimeLimitReached`) and the run gives its partial answer; an async tool is
+cancelled with a `timeout` result naming the time limit, and the next model call is denied. What
+cannot be cancelled: a sync tool or gemini work in a worker thread, which Python cannot stop; the
+run stops waiting at the limit and the thread runs on to its end, its result unused.
+

@@ -37,12 +37,12 @@ Read every file in `.claude/docs/` before changing the repository:
 - [Releasing](.claude/docs/releasing.md): installs, updating gemini and publishing a release.
 - [Utilities](.claude/docs/utils.md): the `geomind.utils` helpers and how to add one.
 
-The docs for a new session are in `.claude/docs/`, so this repository works on its own. Keep them
-current: they say what the code does now. The shared documents of all repositories are optional
-background, in a sibling folder that a clone of this repository does not have: the
-[agreed design](../docs/geomind-design.md), the [contracts](../docs/contracts.md), the
-[engineering layers](../docs/agent-engineering-layers.md), the
-[harness review](../docs/open-source-harnesses.md) and the [phases](../docs/phases.md).
+The docs for a new session are in [.claude/docs/](.claude/docs/plan.md), so this repository works
+on its own; the project rules are in [docs/rules.md](docs/rules.md). Keep both current: they say
+what the code does now. The shared contract between the repositories is the backend's
+`docs/app-build/contracts.md`; the tests read a copy of it,
+[tests/fixtures/contracts/shared.md](tests/fixtures/contracts/shared.md), and
+[contracts.md](.claude/docs/contracts.md) maps it to the code.
 
 Changes by version are in [docs/CHANGELOG.md](docs/CHANGELOG.md). `README.md` and `docs/` are for
 people; `.claude/docs/` is for agents.

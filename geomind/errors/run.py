@@ -25,3 +25,7 @@ class LoopError(GeomindError, RuntimeError):
 
 class BudgetError(GeomindError, ValueError):
     """A budget is set up wrongly, for example a project budget with no cap."""
+
+
+class TimeLimitReached(GeomindError, TimeoutError):
+    """A call in flight passed the run's time limit and was cancelled; the run answers by rule."""

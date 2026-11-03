@@ -13,7 +13,7 @@ from geomind.engine.delegation import run_child
 from geomind.engine.hooks import ask_hooks
 from geomind.engine.recovery import apply
 from geomind.engine.state import Stop
-from geomind.errors import RunError, SandboxError, ToolError
+from geomind.errors import RunError, SandboxError, TimeLimitReached, ToolError
 from geomind.providers import needs_models
 from geomind.sandbox import Manifest
 from geomind.types import Allow, Deny, Request, Usage
@@ -74,10 +74,15 @@ class RunSession:
         self._held_text = ""
         self._output_limit = None
         self.limit_reached = None
+        self.time_left = None
 
     def limit_output(self, tokens):
         """Lower the output limit of the next provider call to ``tokens``, never raise it."""
         self._output_limit = min(self._output_limit or tokens, tokens)
+
+    def limit_time(self, seconds):
+        """Bound the next call to ``seconds``: a time limit cancels it when they have passed."""
+        self.time_left = seconds
 
     def note_limit(self, reason):
         """Remember that a budget or time limit denied a call, so the run answers from its state."""
@@ -239,8 +244,17 @@ class RunSession:
     async def complete(self, agent, messages):
         """Call the provider and log the completion before anything acts on it."""
         started = perf_counter()
+        time_left, self.time_left = self.time_left, None
         try:
-            completion = await self._call_provider(agent, messages, self.on_text)
+            async with asyncio.timeout(time_left):
+                completion = await self._call_provider(agent, messages, self.on_text)
+        except TimeoutError as error:
+            self.release()
+            if time_left is None:
+                raise
+            reason = f"time limit: the model call passed the {time_left:.0f} s left"
+            self.note_limit(reason)
+            raise TimeLimitReached(reason) from error
         except BaseException:
             self.release()
             raise
@@ -268,6 +282,7 @@ class RunSession:
         """Return the hook decision of an LLM call, unless the user approved it."""
         hooks = self._hooks_for("llm")
         self._output_limit = None
+        self.time_left = None
         self.release()
         decision, _ = await ask_hooks(
             hooks, "before_llm_call", self.context(), agent, tuple(messages)
@@ -288,6 +303,7 @@ class RunSession:
 
         A call the user approved is not asked again: an approval applies to that call id only.
         """
+        self.time_left = None
         decision, rule = await ask_hooks(
             self._hooks_for(call.id), "before_tool_call", self.context(), agent, call
         )

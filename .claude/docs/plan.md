@@ -59,7 +59,7 @@ frontend (React + Vite) -> backend (FastAPI, Celery) -> geomind (agents) -> gemi
 - **docs/** holds the shared documents. `contracts.md` is the one every repository follows; its
   geomind part is mapped in [contracts.md](contracts.md).
 - The product and the infrastructure have their own name, in the shared
-  [contracts](../../../docs/contracts.md) section 3. The only Python packages are the ones above.
+  [contracts](../../tests/fixtures/contracts/shared.md) section 3. The only Python packages are the ones above.
 
 ## 3. Design decisions
 

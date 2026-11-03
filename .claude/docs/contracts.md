@@ -1,6 +1,6 @@
 # Contracts
 
-How geomind implements the backend contract: [contracts.md](../../../docs/contracts.md), file
+How geomind implements the backend contract: [contracts.md](../../tests/fixtures/contracts/shared.md), file
 version 15, sections 2 and 3, interface version 2.5. A change to the contract is a change to that
 file first, announced to all repositories. `tests/unit/test_contract_map.py` checks that every code
 path below exists.

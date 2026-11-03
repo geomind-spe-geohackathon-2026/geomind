@@ -14,7 +14,7 @@ the whole tree. `event.to_dict()` holds every field and `event_from_dict` rebuil
 
 ## Public events
 
-`data()` is exactly the JSON of [contracts.md](../../../docs/contracts.md) section 2, always with
+`data()` is exactly the JSON of [contracts.md](../../tests/fixtures/contracts/shared.md) section 2, always with
 `agent` and `parent`. An optional key whose value is `null` is left out. A test pins each one.
 
 | Type | Class | `data()` |

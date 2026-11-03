@@ -95,7 +95,8 @@ python -m geomind check-live
 ```
 
 `python -m geomind <command> --help` lists the options of each command. `run --concurrency N` lets a
-comparison design N families side by side.
+comparison design N families side by side, and `run --retries N` designs a family gemini
+rejects again, up to N times.
 
 ## Configure the models
 

@@ -68,10 +68,27 @@ def error_output(error):
     return {"error": _problem(error).model_dump(mode="json")}
 
 
+def seconds_of(tool, context):
+    """Return the seconds a call may take: its tool's timeout, or less when the run has less."""
+    left = getattr(context.session, "time_left", None)
+    limits = [seconds for seconds in (tool.timeout, left) if seconds is not None]
+    return min(limits) if limits else None
+
+
+def timed_out(tool, context):
+    """Return the error of a call that timed out; one the time limit cut also ends the run."""
+    left = getattr(context.session, "time_left", None)
+    if left is None or (tool.timeout is not None and tool.timeout <= left):
+        return ToolError(f"{tool.name}: timed out after {tool.timeout} s", code="timeout")
+    reason = f"time limit: {tool.name} passed the time the run had left"
+    context.session.note_limit(reason)
+    return ToolError(reason, code="timeout")
+
+
 async def _call(tool, arguments, context):
     """Run the function with its timeout; a sync one runs in a worker thread."""
     leading = (context,) if tool.takes_context else ()
-    async with asyncio.timeout(tool.timeout):
+    async with asyncio.timeout(seconds_of(tool, context)):
         if inspect.iscoroutinefunction(tool.function):
             return await tool.function(*leading, **arguments)
         return await runtime.in_gemini_thread(tool.function, *leading, **arguments)
@@ -116,7 +133,7 @@ async def dispatch(tool, call, context):
     try:
         output = await _call(tool, arguments, context.for_call(call.id))
     except TimeoutError:
-        error = ToolError(f"{tool.name}: timed out after {tool.timeout} s", code="timeout")
+        error = timed_out(tool, context)
         return _result(tool, call, started, error_output(error), is_error=True)
     except Exception as error:
         if is_reported_error(error):

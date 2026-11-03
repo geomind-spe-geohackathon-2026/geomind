@@ -250,6 +250,10 @@
             "choices": null,
             "default": null
           },
+          "--retries": {
+            "choices": null,
+            "default": null
+          },
           "--sandbox": {
             "choices": [
               "local",
@@ -582,5 +586,5 @@
       "Model"
     ]
   },
-  "version": "0.4.14"
+  "version": "0.4.15"
 }
