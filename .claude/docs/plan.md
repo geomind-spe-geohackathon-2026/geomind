@@ -315,6 +315,18 @@ gemini.
 5. **Export.** Done. `geomind show <run> --format md` writes the competition export: every LLM call
    with its messages, each agent's prompt once, and the token tables.
 
+### S5: connectors (MCP) for every agent (planned, after the memory)
+
+- A generic MCP client in geomind: every agent can use the tools of the MCP servers a run is
+  given, to gather information. The servers come from a required setting
+  (`GEOMIND_MCP_SERVERS`, no default); a backend gives the ones a user added in the frontend
+  through the workspace contract. geomind builds no backend or frontend part.
+- A server's tools are named with the server's name in front (`<server>.<tool>`), so they never
+  clash with geomind's tools.
+- A value from an MCP tool is handled like a knowledge entry: shown with its origin (server, tool,
+  time) in the Formulator's confirmation question and set in the case only after the user
+  confirms it, recorded as an assumption with that citation.
+
 ## 8. How to work in this repository
 
 - **Read first:** `AGENTS.md` and every file in `.claude/docs/`.
