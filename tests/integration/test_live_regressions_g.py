@@ -241,8 +241,7 @@ async def test_a_completion_cut_at_the_limit_is_retried_with_a_note():
 
 
 async def test_a_missing_case_value_in_a_plant_s_issues_says_how_to_get_it():
-    """The designer tried 12 times to put a case value in the plant; the issue now says where it
-    goes: a case change for the formulator."""
+    """The designer tried 12 times to put a case value in the plant; now the issue routes it."""
     from geomind.tools.gemini.plants import routed_issue
 
     issue = {"path": "site.air.pressure", "code": "missing_value", "message": "missing"}
