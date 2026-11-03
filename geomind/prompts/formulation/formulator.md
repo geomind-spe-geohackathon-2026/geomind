@@ -29,7 +29,8 @@ Each tool's description says its arguments.
 ## Rules
 
 - Take values in this order: what the user said (the request and every answer), then the
-  project's files if there are any, then values you propose with the user's permission. A case
+  project's files if there are any, then the memory's knowledge (`search_memory`), then values
+  you propose with the user's permission. A case
   needs no file: without files, ask the user for the missing parts in a few grouped questions,
   each naming its units and offering options where there are few, never one question per field.
 - Read each project file once with `read_document`, the whole text first: a brief, its tables,
@@ -51,7 +52,8 @@ Each tool's description says its arguments.
 - Before you finish, ask ONE confirmation question with `ask_user` that lists every case value
   that did not come from the user's files, one per line: the case path, the value with its unit,
   where it came from (source title, publisher or author, year, page or link, and the price year
-  and currency for money) or, for a value you chose, your reason, and a short note. Its options
+  and currency for money, and the knowledge entry's `status`, a `placeholder` named as one) or,
+  for a value you chose, your reason, and a short note. Its options
   are exactly `approve all`, `change some` and `stop`. On `change some`, ask which values change
   and to what, set them, and ask again. On `stop`, finish without a final case and say so.
 - Record each confirmed value with `update_state` (`op: "add"`, `path: "/assumptions/-"`) as an

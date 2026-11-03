@@ -11,6 +11,7 @@ from geomind.tools.delegate import Delegate
 from geomind.tools.dispatch import dispatch
 from geomind.tools.files import list_files, read_document
 from geomind.tools.gemini import read_result, search_documents
+from geomind.tools.memory import read_memory, search_memory, write_memory
 from geomind.tools.skills import read_skill
 from geomind.tools.state import update_state
 from geomind.tools.stored import read_stored
@@ -29,6 +30,9 @@ __all__ = [
     "read_result",
     "read_skill",
     "read_stored",
+    "read_memory",
+    "search_memory",
+    "write_memory",
     "run_python",
     "search_documents",
     "tool",

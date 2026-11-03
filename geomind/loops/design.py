@@ -219,6 +219,7 @@ class DesignDriver(Agent):
             question = changed_question(changed)
             return act(note, index, "ask_user", question=question, options=list(CASE_OPTIONS))
         if found["passed"]:
+            await runtime.in_gemini_thread(remember_design, context, found)
             task = economist_task(design, result, context.problem)
             return act({"round": round_number, "passed": True}, index, "economist", task=task)
         failed = sorted(item["name"] for item in found["failures"])
@@ -230,6 +231,45 @@ class DesignDriver(Agent):
             return stop(context, {**note, "stop": "repeated_failure"}, index)
         task = routed_task_of(context, round_number + 1, self._max_rounds, design, result, found)
         return act(note, index, "designer", task=task)
+
+
+def remember_design(context, found):
+    """Keep a design that passed gemini's checks as experience, when the memory is on.
+
+    The entry holds the case's general features, the design and its result, the KPIs, the
+    verdict and the lessons of the rejected rounds, never a rule made of the case's numbers. A
+    replay keeps nothing, since its run was kept the first time.
+    """
+    from geomind.tools.gemini.case import case_of
+    from geomind.tools.memory import case_features
+
+    session = context.session
+    memory = getattr(session, "memory", None)
+    if memory is None or getattr(session.engine, "recorded", None):
+        return
+    problem = context.problem
+    rejected = [note["failures"] for note in notes(context.messages) if "failures" in note]
+    memory.add(
+        "experience",
+        {
+            "id": session.state.run_id,
+            "features": case_features(case_of(context)),
+            "case": case_summary(problem.case),
+            "design": problem.design_state.reference,
+            "result": problem.verification.get("result"),
+            "kpis": problem.verification.get("kpis"),
+            "verdict": "passed",
+            "families": problem.design.get("families") if problem.design else None,
+            "lessons": [f"rejected before: {', '.join(names)}" for names in rejected],
+            "origin_run": session.state.run_id,
+        },
+    )
+
+
+def case_summary(case):
+    """Return the sections a case sets and the name of each demand service, as general features."""
+    demand = case.get("demand") or {}
+    return {"sections": sorted(case), "services": sorted(demand)}
 
 
 def request_of(context):

@@ -6,11 +6,22 @@ from geomind.errors import UnknownNameError
 from geomind.utils.strings import did_you_mean
 
 FOLDER = Path(__file__).parent
-SHARED_TOOLS = ("read_stored",)
+SHARED_TOOLS = ("read_stored", "search_memory", "read_memory", "write_memory")
 STORED_RESULTS = (
     "## Stored results\n\n"
     "A long result is whole for one step, then only its `reference`, small values and an outline. "
     "Get the rest with `read_stored(reference, path)` (dotted keys and indexes) or the tool again."
+)
+MEMORY = (
+    "## Memory\n\n"
+    "`search_memory` reads the shared memory when it is on: `knowledge` holds cited reference "
+    "values, each with its source and `status` (`verified`, `secondary`, `placeholder`); "
+    "`experience` holds designs that passed before, each with its `similarity` to this case; "
+    "`read_memory` reads one entry by its id. "
+    "A value from knowledge is used with its source and status, and a `placeholder` is named as "
+    "one. A past design is a starting point only: simulate, check and optimise again, and try "
+    "at least one option that differs from it. `write_memory` adds a cited value to knowledge; "
+    "a value without its source is never written."
 )
 
 

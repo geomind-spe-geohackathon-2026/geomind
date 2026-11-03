@@ -23,7 +23,7 @@ def test_unknown_role_suggests_a_name():
 
 
 def test_the_shared_text_names_the_tool_it_is_given_with():
-    """The text added for ``read_stored`` names that tool and the shared set holds it."""
-    from geomind.prompts.prompt import SHARED_TOOLS, STORED_RESULTS
+    """The texts added for the shared tools name each tool the shared set holds."""
+    from geomind.prompts.prompt import MEMORY, SHARED_TOOLS, STORED_RESULTS
 
-    assert all(f"`{name}(" in STORED_RESULTS for name in SHARED_TOOLS)
+    assert all(f"`{name}" in STORED_RESULTS + MEMORY for name in SHARED_TOOLS)

@@ -30,6 +30,9 @@ class Verifier(Agent):
         self.update_state = tools.update_state
         self.read_skill = tools.read_skill
         self.read_stored = tools.read_stored
+        self.search_memory = tools.search_memory
+        self.read_memory = tools.read_memory
+        self.write_memory = tools.write_memory
         self.finish = tools.finish
 
         # Model

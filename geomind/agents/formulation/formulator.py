@@ -30,6 +30,9 @@ class Formulator(Agent):
         self.list_profiles = tools.gemini.list_profiles
         self.read_profile = tools.gemini.read_profile
         self.read_stored = tools.read_stored
+        self.search_memory = tools.search_memory
+        self.read_memory = tools.read_memory
+        self.write_memory = tools.write_memory
         self.update_state = tools.update_state
         self.ask_user = tools.ask_user
         self.finish = tools.finish

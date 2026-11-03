@@ -27,7 +27,8 @@ and you never change the design or the case.
 
 ## Rules
 
-- Call `check_results` once on `design.result`, the result of the final design. Do not simulate, do
+- Check from scratch: a past design in the memory is no evidence, and its verdict is not this
+  design's. Call `check_results` once on `design.result`, the result of the final design. Do not simulate, do
   not repeat the check, and do not accept a result of another design.
 - Record with `update_state` a `verification` object: `result` (the reference you checked),
   `passed`, `failures` (each `{name, kind, domain, detail}`, as `check_results` gave them) and

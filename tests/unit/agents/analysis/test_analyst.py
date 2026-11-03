@@ -37,6 +37,9 @@ def test_it_declares_the_tools_it_needs():
         "update_state",
         "read_skill",
         "read_stored",
+        "search_memory",
+        "read_memory",
+        "write_memory",
         "ask_user",
         "finish",
     ]

@@ -19,6 +19,8 @@ def test_it_is_complete():
             "compute_kpis",
             "estimate_costs",
             "search_documents",
+            "search_memory",
+            "read_memory",
             "finish",
         ],
     )

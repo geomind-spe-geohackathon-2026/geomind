@@ -505,3 +505,27 @@ def test_an_agent_needs_the_tool_loop(capsys):
         == 1
     )
     assert "--loop tool" in capsys.readouterr().err
+
+
+def test_memory_seed_loads_a_cited_catalogue(tmp_path, monkeypatch, capsys):
+    """Each row keeps its source columns and status; a placeholder stays one."""
+    from geomind.stores.memory import FileMemory
+    from tests.fixtures import ROOT
+
+    monkeypatch.setenv("GEOMIND_MEMORY", "on")
+    monkeypatch.setenv("GEOMIND_MEMORY_DIR", str(tmp_path / "memory"))
+    catalogue = ROOT / "data" / "knowledge" / "cost-sources.csv"
+    assert cli.main(["memory", "seed", str(catalogue)]) == 0
+    assert "seeded 74 knowledge entries" in capsys.readouterr().out
+    entries = FileMemory(tmp_path / "memory").entries("knowledge")
+    statuses = {entry["status"] for entry in entries}
+    assert statuses == {"verified", "secondary", "placeholder"}
+    assert all(
+        entry["title"] and entry["publisher"] for entry in entries if entry["status"] == "verified"
+    )
+
+
+def test_memory_seed_needs_the_memory_on(capsys):
+    """Without the memory settings nothing is written."""
+    assert cli.main(["memory", "seed", "x.csv"]) == 1
+    assert "GEOMIND_MEMORY=on" in capsys.readouterr().err

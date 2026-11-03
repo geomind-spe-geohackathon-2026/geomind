@@ -139,6 +139,9 @@ def command_options(parser):
         if action.dest == "help":
             continue
         flags = action.option_strings or [action.dest]
+        if isinstance(action.choices, dict):
+            options[flags[0]] = {name: command_options(sub) for name, sub in action.choices.items()}
+            continue
         options[flags[0]] = {"choices": action.choices, "default": action.default}
     return options
 

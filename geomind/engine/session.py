@@ -16,6 +16,7 @@ from geomind.engine.state import Stop
 from geomind.errors import RunError, SandboxError, TimeLimitReached, ToolError
 from geomind.providers import needs_models
 from geomind.sandbox import Manifest
+from geomind.stores.memory import FileMemory
 from geomind.types import Allow, Deny, Request, Usage
 from geomind.types.events import (
     Compacted,
@@ -93,6 +94,21 @@ class RunSession:
     def versions(self):
         """Return the versions of this process, for what a tool stores beside its result."""
         return current_versions()
+
+    @property
+    def memory(self):
+        """Return the agents' memory: the engine's or the workspace's, else the settings' folder.
+
+        ``None`` when ``memory`` is ``off`` or unset; a memory tool then says it is off.
+        """
+        held = getattr(self.engine, "memory", None)
+        if held is None:
+            held = getattr(self.engine.workspace, "memory", None)
+        if held is not None:
+            return held
+        if runtime.get("memory") != "on":
+            return None
+        return FileMemory(runtime.get("memory_dir"))
 
     @property
     def store(self):

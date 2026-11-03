@@ -68,12 +68,17 @@ RETRY_SETTINGS = {
     "retry_count": "GEOMIND_RETRY_COUNT",
     "retry_delay": "GEOMIND_RETRY_DELAY",
     "max_steps": "GEOMIND_MAX_STEPS",
+    "memory": "GEOMIND_MEMORY",
 }
 """The settings a live run needs beside its models, by the environment variable that sets each.
 
 NOTE: ``max_steps`` is the steps an agent takes before the run asks the user to continue; every
 run needs it, so a run without it refuses to start."""
-"""The retries of a failed provider call and the first delay, doubled each time, unless set."""
+MEMORY_SETTINGS = {
+    "memory_dir": "GEOMIND_MEMORY_DIR",
+    "memory_similarity": "GEOMIND_MEMORY_SIMILARITY",
+}
+"""What a memory that is on needs: where it lives and how alike a past design must be."""
 
 
 def _number(name):
@@ -118,6 +123,9 @@ def _defaults():
         "compare_retries": _integer("GEOMIND_COMPARE_RETRIES"),
         "gemini_threads": _integer("GEOMIND_GEMINI_THREADS"),
         "max_steps": _integer("GEOMIND_MAX_STEPS"),
+        "memory": os.environ.get("GEOMIND_MEMORY") or None,
+        "memory_dir": os.environ.get("GEOMIND_MEMORY_DIR") or None,
+        "memory_similarity": _number("GEOMIND_MEMORY_SIMILARITY"),
         "retry_count": _integer("GEOMIND_RETRY_COUNT"),
         "retry_delay": _number("GEOMIND_RETRY_DELAY"),
     }
@@ -144,7 +152,23 @@ def model_problems():
     for setting, name in RETRY_SETTINGS.items():
         if get(setting) is None:
             lines.append(f"retries: set {name} or {setting}")
-    return lines
+    return lines + memory_problems()
+
+
+def memory_problems():
+    """Return one line per memory setting a run lacks: the switch, and with it on, the rest."""
+    switch = get("memory")
+    if switch is None:
+        return []
+    if switch not in ("on", "off"):
+        return [f"memory: GEOMIND_MEMORY = {switch!r}; expected on or off"]
+    if switch == "off":
+        return []
+    return [
+        f"memory: set {name} or {setting}"
+        for setting, name in MEMORY_SETTINGS.items()
+        if get(setting) is None
+    ]
 
 
 def missing_model_settings():
@@ -157,7 +181,10 @@ def missing_model_settings():
         )
         if model is None and name not in missing:
             missing.append(name)
-    return missing + [name for setting, name in RETRY_SETTINGS.items() if get(setting) is None]
+    missing += [name for setting, name in RETRY_SETTINGS.items() if get(setting) is None]
+    if get("memory") == "on":
+        missing += [name for setting, name in MEMORY_SETTINGS.items() if get(setting) is None]
+    return missing
 
 
 def state():

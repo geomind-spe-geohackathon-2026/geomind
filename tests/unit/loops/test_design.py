@@ -557,3 +557,21 @@ async def test_a_case_change_the_designer_names_goes_to_the_formulator(verdicts)
     assert need in tasks_of(events, "formulator")[0]
     assert tasks_of(events, "designer")[1].startswith("Round 2 of at most 5.")
     assert result.status == "done"
+
+
+async def test_a_verified_design_is_kept_as_experience(verdicts):
+    """The driver writes experience in code after a pass: features, design, verdict, lessons."""
+    from geomind.stores.memory import MemoryMemory
+
+    verdicts.append(PASSED)
+    case, files = example_case("shallow_district")
+    memory = MemoryMemory()
+    script = [*designer_round(1), *verifier_round(1), says("costs"), says("explained")]
+    engine = engine_for(script, memory=memory)
+    for name, content in files.items():
+        engine.store.save_chat_artifact("chat", f"case/{name}", content)
+    start = context("Design it.", problem=ProblemState(case=case), chat="chat")
+    result = await DesignLoop(Designer(), Verifier()).run(engine, start)
+    [kept] = memory.entries("experience")
+    assert result.status == "done" and kept["verdict"] == "passed"
+    assert kept["design"] == "design/d1" and kept["features"]["depth"] == 1300.0

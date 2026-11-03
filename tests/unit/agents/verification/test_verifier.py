@@ -18,6 +18,9 @@ def test_it_is_complete():
             "update_state",
             "read_skill",
             "read_stored",
+            "search_memory",
+            "read_memory",
+            "write_memory",
             "finish",
         ],
     )
