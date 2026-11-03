@@ -44,24 +44,22 @@ def kpi_values(plant, case, results):
     report = gm.evaluate.report(plant, case, results)
     totals = displayed(report, gm.evaluate.totals(plant, case, results))
     metrics = {name: item for name, item in report.to_dict().items() if name not in METRIC_EXCLUDED}
-    return {**totals, **metrics, **cost_gaps(plant, case, results, metrics)}
+    errors = cost_errors(plant, case, results, metrics)
+    return {**totals, **metrics, **({"errors": errors} if errors else {})}
 
 
-def cost_gaps(plant, case, results, metrics):
-    """Return each cost gemini gave no value for with its error: ``case_incomplete`` and paths.
+def cost_errors(plant, case, results, metrics):
+    """Return ``{cost: error}`` of each cost gemini gave no value for: ``case_incomplete``, paths.
 
-    NOTE: gemini's report gives only a ``reason`` text for such a cost, or nothing; the cost is
-    asked of gemini once more, for those costs only, to get its error and the path in the case.
+    NOTE: gemini's report gives only a ``reason`` text for such a cost, or leaves it out; the cost
+    is asked of gemini once more, for those costs only, to get its error and the path in the case.
+    The entries stay as the report gives them, so the shape of 0.4.11 holds.
     """
     missing = [name for name in COSTS if (metrics.get(name) or {}).get("value") is None]
     if not missing:
         return {}
     _, errors = cost_values(plant, case, results, missing)
-    return {
-        name: {**(metrics.get(name) or {"value": None}), "error": explained(errors[name])}
-        for name in missing
-        if name in errors
-    }
+    return {name: explained(errors[name]) for name in missing if name in errors}
 
 
 @tool(effect="compute", late_schemas={"reference": reference_schema("result")})
@@ -69,9 +67,9 @@ def compute_kpis(context, reference: str, names: list[str] | None = None):
     """Compute KPIs of stored results in display units, all of them without ``names``.
 
     The KPIs are the totals of ``gm.evaluate.totals`` (what crossed the plant's edge, coverage,
-    COP, peaks) and the metrics of ``gm.evaluate.report``. A cost gemini gives no value for has
-    ``error``, ``case_incomplete`` with the path in the case when a value is missing, beside
-    gemini's ``reason``.
+    COP, peaks) and the metrics of ``gm.evaluate.report``. ``errors`` maps each cost gemini gives
+    no value for to its error, ``case_incomplete`` with the path in the case when a value is
+    missing; it is left out when there is none.
     """
     found = kpi_values(*load_run(context, reference, "compute_kpis"))
     for name in names or ():
@@ -82,7 +80,11 @@ def compute_kpis(context, reference: str, names: list[str] | None = None):
                 code="unknown_name",
                 path="names",
             )
-    return {name: found[name] for name in names} if names else found
+    if not names:
+        return found
+    chosen = {name: found[name] for name in names}
+    errors = {name: error for name, error in found.get("errors", {}).items() if name in names}
+    return {**chosen, **({"errors": errors} if errors else {})}
 
 
 def cost_values(plant, case, results, names=COSTS):

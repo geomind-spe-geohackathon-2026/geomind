@@ -1,0 +1,184 @@
+{
+ "base": {
+  "boiler_heat": "quantity",
+  "capacities": {
+   "compression_chiller": {
+    "capacity": "quantity",
+    "kind": "str",
+    "peak": "quantity",
+    "share": "quantity"
+   },
+   "compression_cooler": {
+    "capacity": "quantity",
+    "kind": "str",
+    "peak": "quantity",
+    "share": "quantity"
+   },
+   "cooling_return_pipe": {
+    "capacity": "quantity",
+    "kind": "str",
+    "peak": "quantity",
+    "share": "quantity"
+   },
+   "cooling_supply_pipe": {
+    "capacity": "quantity",
+    "kind": "str",
+    "peak": "quantity",
+    "share": "quantity"
+   },
+   "d0": {
+    "capacity": "quantity",
+    "kind": "str",
+    "peak": "quantity",
+    "share": "quantity"
+   },
+   "heat_exchanger": {
+    "capacity": "quantity",
+    "kind": "str",
+    "peak": "quantity",
+    "share": "quantity"
+   },
+   "heat_pump": {
+    "capacity": "quantity",
+    "kind": "str",
+    "peak": "quantity",
+    "share": "quantity"
+   },
+   "heating_return_pipe": {
+    "capacity": "quantity",
+    "kind": "str",
+    "peak": "quantity",
+    "share": "quantity"
+   },
+   "heating_supply_pipe": {
+    "capacity": "quantity",
+    "kind": "str",
+    "peak": "quantity",
+    "share": "quantity"
+   },
+   "peak_boiler": {
+    "capacity": "quantity",
+    "kind": "str",
+    "peak": "quantity",
+    "share": "quantity"
+   }
+  },
+  "capex": "quantity",
+  "chemicals": "quantity",
+  "co2": "quantity",
+  "co2_emitted": "quantity",
+  "cold_delivered": "quantity",
+  "cold_surplus": "quantity",
+  "cold_useful": "quantity",
+  "cooling_coverage": "quantity",
+  "cop": "quantity",
+  "electricity_bought": "quantity",
+  "electricity_sold": "quantity",
+  "failed_steps": "int",
+  "gas_bought": "quantity",
+  "heat_delivered": "quantity",
+  "heat_surplus": "quantity",
+  "heat_useful": "quantity",
+  "heating_coverage": "quantity",
+  "lcoc": "quantity",
+  "lcoh": "quantity",
+  "lcts": "quantity",
+  "losses": "quantity",
+  "methane_emitted": "quantity",
+  "opex": "quantity",
+  "peak_cold": "quantity",
+  "peak_heat": "quantity",
+  "waste": "quantity"
+ },
+ "no_economics": {
+  "boiler_heat": "quantity",
+  "capacities": {
+   "compression_chiller": {
+    "capacity": "quantity",
+    "kind": "str",
+    "peak": "quantity",
+    "share": "quantity"
+   },
+   "compression_cooler": {
+    "capacity": "quantity",
+    "kind": "str",
+    "peak": "quantity",
+    "share": "quantity"
+   },
+   "cooling_return_pipe": {
+    "capacity": "quantity",
+    "kind": "str",
+    "peak": "quantity",
+    "share": "quantity"
+   },
+   "cooling_supply_pipe": {
+    "capacity": "quantity",
+    "kind": "str",
+    "peak": "quantity",
+    "share": "quantity"
+   },
+   "d0": {
+    "capacity": "quantity",
+    "kind": "str",
+    "peak": "quantity",
+    "share": "quantity"
+   },
+   "heat_exchanger": {
+    "capacity": "quantity",
+    "kind": "str",
+    "peak": "quantity",
+    "share": "quantity"
+   },
+   "heat_pump": {
+    "capacity": "quantity",
+    "kind": "str",
+    "peak": "quantity",
+    "share": "quantity"
+   },
+   "heating_return_pipe": {
+    "capacity": "quantity",
+    "kind": "str",
+    "peak": "quantity",
+    "share": "quantity"
+   },
+   "heating_supply_pipe": {
+    "capacity": "quantity",
+    "kind": "str",
+    "peak": "quantity",
+    "share": "quantity"
+   },
+   "peak_boiler": {
+    "capacity": "quantity",
+    "kind": "str",
+    "peak": "quantity",
+    "share": "quantity"
+   }
+  },
+  "capex": "quantity",
+  "chemicals": "quantity",
+  "co2": "quantity",
+  "co2_emitted": "quantity",
+  "cold_delivered": "quantity",
+  "cold_surplus": "quantity",
+  "cold_useful": "quantity",
+  "cooling_coverage": "quantity",
+  "cop": "quantity",
+  "electricity_bought": "quantity",
+  "electricity_sold": "quantity",
+  "failed_steps": "int",
+  "gas_bought": "quantity",
+  "heat_delivered": "quantity",
+  "heat_surplus": "quantity",
+  "heat_useful": "quantity",
+  "heating_coverage": "quantity",
+  "lcoc": "quantity",
+  "lcoh": "quantity",
+  "lcts": "quantity",
+  "losses": "quantity",
+  "methane_emitted": "quantity",
+  "opex": "quantity",
+  "peak_cold": "quantity",
+  "peak_heat": "quantity",
+  "waste": "quantity"
+ }
+}
