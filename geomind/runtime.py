@@ -72,6 +72,7 @@ ADDED_SETTINGS = frozenset(
         "evolve_population",
         "evolve_seed",
         "evolve_polish",
+        "knowledge_dir",
         *(f"{role}_model" for role in ROLES),
     }
 )
@@ -159,6 +160,7 @@ def _defaults():
         "evolve_population": _integer("GEOMIND_EVOLVE_POPULATION"),
         "evolve_seed": _integer("GEOMIND_EVOLVE_SEED"),
         "evolve_polish": _integer("GEOMIND_EVOLVE_POLISH"),
+        "knowledge_dir": os.environ.get("GEOMIND_KNOWLEDGE_DIR") or None,
         "memory": os.environ.get("GEOMIND_MEMORY") or None,
         "memory_dir": os.environ.get("GEOMIND_MEMORY_DIR") or None,
         "memory_similarity": _number("GEOMIND_MEMORY_SIMILARITY"),

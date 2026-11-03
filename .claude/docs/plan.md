@@ -189,7 +189,7 @@ Done on `dev` (0.4.22.dev23), each with tests; 41 bugs of the live loop found an
 - [x] Key trees from gemini's public schemas in the system prompts: case and economics
   (CaseLead), plant file and study (DesignLead), study (Economist); compact `describe_module`.
 - [x] Shared memory: `knowledge` (cited values; gemini's cost catalogue copied into
-  `data/knowledge/` and loaded with `geomind memory seed`) and `experience` (verified designs,
+  `data/knowledge/`, now a document of the knowledge base since 0.4.22.dev35) and `experience` (verified designs,
   written by the loop in code, recalled only above `memory_similarity`).
 - [x] Step limit asks to continue; `geomind resume`; replay then live (`--replay`).
 - [x] Required settings with no default: `GEOMIND_MAX_STEPS`, `GEOMIND_MAX_OUTPUT_TOKENS`,

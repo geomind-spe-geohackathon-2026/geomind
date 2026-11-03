@@ -108,6 +108,8 @@ geomind has no built-in model: a run on a real provider stops at the start until
 | `OPENROUTER_API_KEY` | The key for OpenRouter |
 | `GEOMIND_<ROLE>_MODEL` | Each agent's own model, required, no fallback: `GEOMIND_ANALYSISLEAD_MODEL`, `GEOMIND_CASELEAD_MODEL`, `GEOMIND_COORDINATOR_MODEL`, `GEOMIND_DESIGNLEAD_MODEL`, `GEOMIND_ECONOMIST_MODEL`, `GEOMIND_EXPLAINER_MODEL`, `GEOMIND_GEOSCIENTIST_MODEL`, `GEOMIND_REVIEWER_MODEL`, `GEOMIND_SUMMARIZER_MODEL`, `GEOMIND_PROCESSENGINEER_MODEL`, `GEOMIND_INTEGRATIONENGINEER_MODEL`, `GEOMIND_RESERVOIRENGINEER_MODEL`, `GEOMIND_WELLENGINEER_MODEL`, `GEOMIND_ENERGYSYSTEMSENGINEER_MODEL`, `GEOMIND_PROJECTLEAD_MODEL`, `GEOMIND_SUPPORTLEAD_MODEL`, `GEOMIND_CURATOR_MODEL` |
 | `GEOMIND_DESIGN_CONCURRENCY` | Required: how many engineers of the design team fill their parts side by side |
+| `GEOMIND_KNOWLEDGE_DIR` | Required for a run with a project: the folder of the knowledge base's documents, such as `data/knowledge` |
+| `GEOMIND_EVOLVE_EVALUATIONS`, `GEOMIND_EVOLVE_POPULATION`, `GEOMIND_EVOLVE_SEED`, `GEOMIND_EVOLVE_POLISH` | Required: the settings of gemini's structure search (`evolve_structure`) |
 | `GEOMIND_ENGINEER_MAX_STEPS` | Required: the steps of one engineer's run, at which it hands back what it has instead of asking to go on |
 | `GEOMIND_PROVIDER` | The OpenRouter providers to try |
 | `GEOMIND_CONTEXT_WINDOW` | The context window in tokens; unset, it is read from the provider |

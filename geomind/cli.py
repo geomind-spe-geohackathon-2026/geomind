@@ -24,6 +24,7 @@ from geomind.providers import FakeLLM, OpenRouter, Recorder, ReplayThenLive
 from geomind.run import LOOPS, Run, loop_of
 from geomind.stores import FileUsageLedger, FileWorkspace
 from geomind.stores.casefiles import named_files
+from geomind.stores.knowledge import FolderKnowledge
 from geomind.stores.run import FileRunStore
 from geomind.stores.workspace import read_bytes
 from geomind.types import Message, validate_answer
@@ -281,30 +282,6 @@ def _require_cap(args):
         raise RunError("run: --mode auto with a live provider needs --max-cost or --max-tokens")
 
 
-def _command_memory_seed(args):
-    """Load a cited catalogue (CSV) into the knowledge of the memory the settings name."""
-    import csv
-
-    from geomind.stores.memory import FileMemory, catalogue_entries
-
-    if runtime.get("memory") != "on" or runtime.get("memory_dir") is None:
-        raise RunError(
-            "memory seed: memory = off; expected GEOMIND_MEMORY=on and GEOMIND_MEMORY_DIR"
-        )
-    path = Path(args.file)
-    with path.open(newline="", encoding="utf-8") as file:
-        entries = catalogue_entries(list(csv.DictReader(file)), origin=path.name)
-    memory = FileMemory(runtime.get("memory_dir"))
-    for entry in entries:
-        memory.add("knowledge", entry)
-    counts = {}
-    for entry in entries:
-        counts[entry["status"]] = counts.get(entry["status"], 0) + 1
-    shown = ", ".join(f"{count} {status}" for status, count in sorted(counts.items()))
-    print(f"seeded {len(entries)} knowledge entries from {path.name}: {shown}")
-    return 0
-
-
 def _command_check_live(args):
     """Print what a live run still lacks; exit 1 when anything is missing."""
     lines, ready = live.report(args.max_cost, args.max_tokens)
@@ -418,11 +395,22 @@ def _require_case(args, workspace, project):
 
 
 def _project(path):
-    """Return the workspace and the project of a project folder."""
+    """Return the workspace and the project of a project folder, with the knowledge base."""
     if path is None:
         return None, None
     folder = Path(path)
-    return FileWorkspace(folder.parent), folder.name
+    return FileWorkspace(folder.parent, knowledge=_knowledge()), folder.name
+
+
+def _knowledge():
+    """Return the knowledge base of ``GEOMIND_KNOWLEDGE_DIR``; a run without it is refused."""
+    folder = runtime.get("knowledge_dir")
+    if folder is None or not Path(folder).is_dir():
+        raise RunError(
+            f"run: knowledge_dir = {folder!r}; expected GEOMIND_KNOWLEDGE_DIR, the folder of "
+            "the knowledge base's documents"
+        )
+    return FolderKnowledge(folder)
 
 
 def _state_text(chat):
@@ -638,15 +626,6 @@ def _answer_retries(command):
     )
 
 
-def _memory_commands(commands):
-    """Add ``memory seed FILE``: load a cited catalogue into the memory's knowledge."""
-    memory = commands.add_parser("memory", help="manage the agents' memory")
-    memory_commands = memory.add_subparsers(dest="memory_command", required=True)
-    seed = memory_commands.add_parser("seed", help="load a cited catalogue into the knowledge")
-    seed.add_argument("file", help="a CSV with source columns, such as data/knowledge/...")
-    seed.set_defaults(function=_command_memory_seed)
-
-
 def _parser():
     """Return the argument parser."""
     parser = argparse.ArgumentParser(prog="geomind", description=__doc__)
@@ -664,7 +643,6 @@ def _parser():
     resume.add_argument("--answer", required=True, help="the text, or the value of one option")
     _run_options(resume)
     resume.set_defaults(function=_command_resume)
-    _memory_commands(commands)
     check = commands.add_parser("check-live", help="check what a first live run needs")
     check.add_argument("--max-tokens", type=int)
     check.add_argument("--max-cost", type=float)

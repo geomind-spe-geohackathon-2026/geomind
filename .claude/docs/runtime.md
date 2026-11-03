@@ -23,7 +23,11 @@
   (`GEOMIND_DESIGN_CONCURRENCY`, required for a live run, no default) bounds how many engineers
   of the design team fill their parts side by side. `engineer_max_steps`
   (`GEOMIND_ENGINEER_MAX_STEPS`, required for a live run, no default) is an engineer's own step
-  limit: at it the engineer's run ends with what it has, with no question to the user. Unset is
+  limit: at it the engineer's run ends with what it has, with no question to the user.
+  `knowledge_dir` (`GEOMIND_KNOWLEDGE_DIR`) is the command line's knowledge base folder, required
+  for a run with a project; a backend gives its knowledge through the workspace instead. The
+  `evolve_*` settings (`GEOMIND_EVOLVE_EVALUATIONS`, `_POPULATION`, `_SEED`, `_POLISH`) are
+  `evolve_structure`'s, required for a live run. Unset is
   `None`, with no fallback: there is no `GEOMIND_MODEL`, `GEOMIND_CHEAP_MODEL` or
   `default_model` since 0.4.22, and no model id is built in. `geomind run --model ID` sets every
   role's model.

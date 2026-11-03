@@ -47,7 +47,7 @@ Each tool's description says its arguments.
   while it is still listed.
 - In a superstructure, fill the parameters of every option you own, whether it may be off or
   not: the search turns options on and off.
-- Use experience from the memory as a starting point only; a value from knowledge keeps its
+- Use experience from the memory as a starting point only; a value from the knowledge base keeps its
   source.
 
 ## Output

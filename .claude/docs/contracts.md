@@ -49,6 +49,7 @@ and to read one back `event_from_dict`.
 | Tool error codes `no_case` and `case_incomplete` (beyond the shared contract) | `geomind/tools/gemini/case.py` | `tests/unit/tools/gemini/test_case.py` |
 | Optional `Workspace.files(project_id) -> [{name, size, media_type}]`, `Workspace.file(project_id, name) -> bytes \| None` (beyond the shared contract) | `geomind/stores/workspace.py` | `tests/unit/stores/test_workspace.py` |
 | Tool error codes `files_unavailable`, `not_text` (beyond the shared contract) | `geomind/tools/files.py` | `tests/unit/tools/test_files.py` |
+| Optional `Workspace.knowledge_search(query)`, `knowledge_files()`, `knowledge_file(name)`, tool error code `knowledge_unavailable` (contract v2) | `geomind/tools/knowledge.py` | `tests/unit/tools/test_knowledge.py` |
 | `Completion`, `Usage`, `Message` | `geomind/types/messages.py` | `tests/unit/types/test_messages.py` |
 | `RunStore`, all seven methods, `load_events` included | `geomind/stores/run.py` | `tests/unit/testing/test_conformance.py` |
 | `Workspace` | `geomind/stores/workspace.py` | `tests/unit/testing/test_conformance.py` |

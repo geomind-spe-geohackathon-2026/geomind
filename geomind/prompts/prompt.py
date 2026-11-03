@@ -6,14 +6,7 @@ from geomind.errors import UnknownNameError
 from geomind.utils.strings import did_you_mean
 
 FOLDER = Path(__file__).parent
-SHARED_TOOLS = (
-    "read_stored",
-    "search_memory",
-    "read_memory",
-    "write_memory",
-    "search_knowledge",
-    "read_knowledge",
-)
+SHARED_TOOLS = ("read_stored", "search_memory", "read_memory", "search_knowledge")
 STORED_RESULTS = (
     "## Stored results\n\n"
     "A long result is whole for one step, then only its `reference`, small values and an outline. "
@@ -21,21 +14,20 @@ STORED_RESULTS = (
 )
 MEMORY = (
     "## Memory\n\n"
-    "`search_memory` reads the shared memory when it is on: `knowledge` holds cited reference "
-    "values, each with its source and `status` (`verified`, `secondary`, `placeholder`); "
-    "`experience` holds designs that passed before, each with its `similarity` to this case; "
-    "`read_memory` reads one entry by its id. "
-    "A value from knowledge is used with its source and status, and a `placeholder` is named as "
-    "one. A past design is a starting point only: simulate, check and optimise again, and try "
-    "at least one option that differs from it. `write_memory` adds a cited value to knowledge; "
-    "a value without its source is never written."
+    "`search_memory` gives what the team learned before, when the memory is on: `experience`, "
+    "designs that passed on an alike case, each with its `similarity`, and `lessons`, the general "
+    "lessons of your role and the facts the user gave; `read_memory` reads one entry by its id. "
+    "A past design is a starting point only: simulate, check and optimise again, and try at "
+    "least one option that differs from it. A lesson is method, never a value of this case."
 )
 KNOWLEDGE = (
     "## Knowledge\n\n"
-    "`search_knowledge` reads the shared memory's cited reference values when it is on, each with "
-    "its source and `status` (`verified`, `secondary`, `placeholder`); `read_knowledge` reads one "
-    "by its id. Cite a value from it with its source and status, and name a `placeholder` as one. "
-    "Past designs are not yours to read: judge and explain this run's design from its own results."
+    "`search_knowledge` searches the shared knowledge base, documents such as cost catalogues, "
+    "standards and reports, and returns passages with their document, title and page; "
+    "`read_document` reads a whole one as `knowledge/<document>`. A value from it is cited with "
+    "its document and page, and a value that enters the case is confirmed by the user, as any "
+    "value no project file gives. Never take a value from memory where knowledge or a file "
+    "gives one."
 )
 
 

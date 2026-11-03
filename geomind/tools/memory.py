@@ -1,33 +1,18 @@
-"""The memory tools: search, read and write the shared memory.
+"""The memory tools: the team's experience, read by the case, design and analysis teams.
 
-The case, design and analysis teams have all of them; the reviewer and the explainer read the
-knowledge only, never experience (``search_knowledge``, ``read_knowledge``).
+Experience is past designs (written by code after the reviewer passed them) and the curator's
+lessons and the user's facts. The reviewer and the explainer never read it; cited values are the
+knowledge base's (``geomind/tools/knowledge.py``).
 """
 
-from typing import Any, Literal
+from typing import Literal
 
 from geomind import runtime
 from geomind.errors import ToolError
-from geomind.stores.memory import (
-    checked_knowledge,
-    checked_lesson,
-    checked_section,
-    lessons_for,
-    search_experience,
-)
-from geomind.stores.memory import search_knowledge as search_knowledge_entries
+from geomind.stores.memory import checked_lesson, lessons_for, search_experience
 from geomind.tools.base import tool
 
-MEMORY_TOOLS = frozenset(
-    {
-        "search_memory",
-        "read_memory",
-        "write_memory",
-        "search_knowledge",
-        "read_knowledge",
-        "write_lesson",
-    }
-)
+MEMORY_TOOLS = frozenset({"search_memory", "read_memory", "write_lesson"})
 """The tools that need the memory: a run with the memory off does not offer them."""
 SHOWN_ENTRIES = 8
 """The most entries of each section ``search_memory`` returns, best first."""
@@ -82,32 +67,23 @@ def state_features(context):
 
 
 @tool(effect="read")
-def search_memory(context, query: str, section: Literal["knowledge", "experience"] | None = None):
-    """Search the shared memory: cited reference values, and designs that passed before.
+def search_memory(context):
+    """Return what the team learned before: designs that passed on alike cases, and lessons.
 
-    ``knowledge`` returns entries that hold a word of ``query``, each with its source (title,
-    publisher, year, page or link, price year and currency for money) and ``status``
-    (``verified``, ``secondary`` or ``placeholder``). ``experience`` returns past designs whose
-    case is at least the ``memory_similarity`` setting alike to the state's case, each with its
-    ``similarity``: a starting point only, never a result; with it come ``lessons``, the general
-    lessons of your role and the facts the user gave. Without ``section``, both.
+    ``experience`` holds past designs whose case is at least the ``memory_similarity`` setting
+    alike to the state's case, each with its ``similarity``: a starting point only, never a
+    result. ``lessons`` holds the general lessons of your role and the facts the user gave.
+    Cited values are not here: search the knowledge base (``search_knowledge``).
     """
     memory = memory_of(context, "search_memory")
-    found = {}
-    if section in (None, "knowledge"):
-        found["knowledge"] = search_knowledge_entries(memory, query)[:SHOWN_ENTRIES]
-    if section in (None, "experience"):
-        features = state_features(context)
-        threshold = runtime.get("memory_similarity")
-        if features is None or threshold is None:
-            found["experience"] = []
-            found["note"] = "experience needs the state's case and the memory_similarity setting"
-        else:
-            entries = search_experience(memory, features, threshold)
-            found["experience"] = entries[:SHOWN_ENTRIES]
-            found["threshold"] = threshold
-        found["lessons"] = lessons_for(memory, role_of(context))[:SHOWN_ENTRIES]
-    return found
+    found = {"lessons": lessons_for(memory, role_of(context))[:SHOWN_ENTRIES]}
+    features = state_features(context)
+    threshold = runtime.get("memory_similarity")
+    if features is None or threshold is None:
+        note = "past designs need the state's case and the memory_similarity setting"
+        return {"experience": [], "note": note, **found}
+    entries = search_experience(memory, features, threshold)
+    return {"experience": entries[:SHOWN_ENTRIES], "threshold": threshold, **found}
 
 
 def role_of(context):
@@ -117,58 +93,17 @@ def role_of(context):
 
 
 @tool(effect="read")
-def read_memory(context, section: Literal["knowledge", "experience"], id: str):
-    """Return one entry of the memory by its section and id."""
+def read_memory(context, id: str):
+    """Return one experience entry by the id ``search_memory`` gave."""
     memory = memory_of(context, "read_memory")
-    for entry in memory.entries(checked_section(section)):
+    for entry in memory.entries("experience"):
         if entry.get("id") == id:
             return entry
     raise ToolError(
-        f"read_memory: {section} has no entry {id!r}; expected an id that search_memory gave",
+        f"read_memory: experience has no entry {id!r}; expected an id that search_memory gave",
         code="unknown_name",
         path="id",
     )
-
-
-@tool(effect="read")
-def search_knowledge(context, query: str):
-    """Search the shared memory's cited reference values only, never past designs.
-
-    Returns the entries that hold a word of ``query``, each with its source (title, publisher,
-    year, page or link, price year and currency for money) and ``status`` (``verified``,
-    ``secondary`` or ``placeholder``).
-    """
-    memory = memory_of(context, "search_knowledge")
-    return {"knowledge": search_knowledge_entries(memory, query)[:SHOWN_ENTRIES]}
-
-
-@tool(effect="read")
-def read_knowledge(context, id: str):
-    """Return one cited reference value of the memory's knowledge by its id."""
-    memory = memory_of(context, "read_knowledge")
-    for entry in memory.entries("knowledge"):
-        if entry.get("id") == id:
-            return entry
-    raise ToolError(
-        f"read_knowledge: knowledge has no entry {id!r}; expected an id that search_knowledge "
-        "gave",
-        code="unknown_name",
-        path="id",
-    )
-
-
-@tool(effect="write", idempotent=True)
-def write_memory(context, entry: dict[str, Any]):
-    """Add a cited reference value to the memory's knowledge, for later runs.
-
-    ``entry`` is ``{id, item, value, unit, title, publisher, year, page or link, status, note}``,
-    with ``price_year`` and ``currency`` for money; a value without its source is refused. Past
-    designs are written by the design loop alone, after one passed verification.
-    """
-    memory = memory_of(context, "write_memory")
-    entry = {**checked_knowledge(entry), "origin_run": context.session.state.run_id}
-    memory.add("knowledge", entry)
-    return {"written": entry["id"]}
 
 
 @tool(effect="write", idempotent=True)
@@ -191,6 +126,7 @@ def write_lesson(
     memory = memory_of(context, "write_lesson")
     origin = {"run": context.session.state.run_id, "source": source}
     entry = {"id": id, "kind": kind, "role": role, "text": text, "origin": origin}
+    entry["project_id"] = context.project
     memory.add("experience", checked_lesson(entry))
     return {"written": id, "kind": kind}
 
@@ -222,7 +158,8 @@ def keep_design(context, found, rejected):
             "verdict": "passed",
             "families": problem.design.get("families") if problem.design else None,
             "lessons": [f"rejected before: {', '.join(names)}" for names in rejected],
-            "origin_run": session.state.run_id,
+            "origin": {"run": session.state.run_id, "source": "code"},
+            "project_id": context.project,
         },
     )
 

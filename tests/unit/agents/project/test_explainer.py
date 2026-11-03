@@ -20,7 +20,6 @@ def test_it_is_complete():
             "estimate_costs",
             "search_documents",
             "search_knowledge",
-            "read_knowledge",
             "finish",
         ],
     )
@@ -29,5 +28,5 @@ def test_it_is_complete():
 def test_it_reads_knowledge_only_for_its_sources():
     """The explainer cites knowledge with its source and never reads past designs."""
     tools = Explainer().tools()
-    assert {"search_knowledge", "read_knowledge"} <= set(tools)
-    assert not {"search_memory", "read_memory", "write_memory"} & set(tools)
+    assert "search_knowledge" in tools
+    assert not {"search_memory", "read_memory"} & set(tools)

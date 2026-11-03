@@ -211,16 +211,6 @@
             "default": null
           }
         },
-        "memory": {
-          "memory_command": {
-            "seed": {
-              "file": {
-                "choices": null,
-                "default": null
-              }
-            }
-          }
-        },
         "replay": {
           "--project": {
             "choices": null,
@@ -735,5 +725,5 @@
       "Model"
     ]
   },
-  "version": "0.4.22.dev34"
+  "version": "0.4.22.dev35"
 }

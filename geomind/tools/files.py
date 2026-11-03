@@ -7,10 +7,10 @@ without them gets ``files_unavailable``, so a backend that has not added them ke
 import csv
 import difflib
 import io
-import re
 from pathlib import Path
 
 from geomind.errors import ToolError
+from geomind.stores.documents import document_text
 from geomind.tools.base import tool
 from geomind.tools.stored import reference_of
 from geomind.utils.strings import join_names
@@ -19,7 +19,6 @@ PAGE_CHARACTERS = 20_000
 """The most text one ``read_document`` call returns; a longer file is read by pages."""
 FIRST_ROWS = 5
 TABLE_SUFFIXES = {".csv": ",", ".tsv": "\t"}
-PDF_START = b"%PDF-"
 
 
 def file_name_schema():
@@ -83,55 +82,6 @@ def project_file(context, tool_name, name):
         path="name",
         suggestions=difflib.get_close_matches(name, names),
     )
-
-
-def not_text(name, reason):
-    """Return the error of a file that gives no text."""
-    return ToolError(f"read_document: {name!r} {reason}", code="not_text", path="name")
-
-
-def laid_out(text):
-    """Return a page's layout text with its runs of spaces shortened and blank lines dropped.
-
-    Layout extraction keeps a table row on one line, as on the page, where plain extraction gives
-    a PDF drawn word by word one word per line; the long runs of spaces only cost tokens.
-    """
-    lines = (re.sub(" {3,}", "  ", line).strip() for line in (text or "").splitlines())
-    return "\n".join(line for line in lines if line)
-
-
-def pdf_text(name, content):
-    """Return the text of a PDF, each page after its ``[page n]`` marker, laid out as the page."""
-    from pypdf import PdfReader
-    from pypdf.errors import PyPdfError
-
-    try:
-        reader = PdfReader(io.BytesIO(content))
-        if reader.is_encrypted:
-            raise not_text(name, "is an encrypted PDF")
-        pages = [laid_out(page.extract_text(extraction_mode="layout")) for page in reader.pages]
-    except (PyPdfError, ValueError, KeyError, OSError) as error:
-        raise not_text(name, f"is a PDF that cannot be read: {error}") from error
-    if not "".join(pages).strip():
-        raise not_text(name, "is a PDF with no text layer, such as a scan")
-    marked = [f"[page {number}]\n{text}" for number, text in enumerate(pages, start=1)]
-    return "\n\n".join(marked)
-
-
-def plain_text(name, content):
-    """Return the text of a UTF-8 file; a binary file is not text."""
-    try:
-        text = content.decode("utf-8-sig")
-    except UnicodeDecodeError as error:
-        raise not_text(name, "is not UTF-8 text") from error
-    if "\x00" in text:
-        raise not_text(name, "is a binary file, not text")
-    return text
-
-
-def document_text(name, content):
-    """Return the text of a file, by its content."""
-    return pdf_text(name, content) if content.startswith(PDF_START) else plain_text(name, content)
 
 
 def table_of(name, text):
@@ -206,11 +156,20 @@ def remember_read(context, name, start, end):
     reads.setdefault(name, []).append(read)
 
 
+def document_bytes(context, name):
+    """Return the bytes of a project file, or of ``knowledge/<name>`` of the knowledge base."""
+    from geomind.tools.knowledge import PREFIX, knowledge_file
+
+    if name.startswith(PREFIX):
+        return knowledge_file(context, "read_document", name)
+    return project_file(context, "read_document", name)
+
+
 @tool(effect="read", late_schemas={"name": file_name_schema}, keeps_result=True)
 def read_document(
     context, name: str, start: int = 0, length: int | None = None, force: bool = False
 ):
-    """Read a project file as text, one page at a time.
+    """Read a project file, or a document of the knowledge base as ``knowledge/<name>``, as text.
 
     CSV, TSV, JSON, Markdown and text files read as they are, and a PDF as its extracted text with
     a ``[page n]`` marker before each page; another file is a ``not_text`` error. ``start`` is the
@@ -224,7 +183,7 @@ def read_document(
     """
     if start < 0:
         raise ToolError(f"read_document: start = {start}; expected 0 or more", path="start")
-    text = document_text(name, project_file(context, "read_document", name))
+    text = document_text(name, document_bytes(context, name))
     size = min(length or PAGE_CHARACTERS, PAGE_CHARACTERS)
     end = min(start + size, len(text))
     whole = read_before(context, name, 0, len(text))

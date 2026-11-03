@@ -112,7 +112,7 @@ class DesignLead(Agent):
         self.read_stored = tools.read_stored
         self.search_memory = tools.search_memory
         self.read_memory = tools.read_memory
-        self.write_memory = tools.write_memory
+        self.search_knowledge = tools.search_knowledge
         self.support_lead = Delegate(SupportLead(), max_summary_tokens=SUPPORT_TOKENS)
         self.ask_user = tools.ask_user
         self.finish = tools.finish

@@ -1,11 +1,10 @@
-"""The shared memory of the agents: cited reference data and good past designs.
+"""The shared memory of the agents: experience, never cited values (those are knowledge).
 
-Two sections. ``knowledge`` holds reference values, each with its source: ``title``,
-``publisher``, ``year``, ``page`` or ``link``, ``price_year`` and ``currency`` for money, a
-``status`` (``verified``, ``secondary`` or ``placeholder``) and a ``note``. ``experience`` holds
-designs that passed verification: the case's general features, the plant, the results and KPIs,
-the verdict and the lessons, with the run they came from. It keeps lessons, never a project's
-numbers as rules.
+One section, ``experience``: designs that passed gemini's check and the reviewer, written by code
+(the case's general features, the plant, the results and KPIs, the verdict, the lessons, the run
+and the project they came from), and the curator's lessons and the user's facts, each with its
+origin. It keeps lessons, never a project's numbers as rules. Cited values and documents are the
+knowledge base (``geomind/stores/knowledge.py``), not memory.
 
 NOTE: a memory is a protocol like the run store: ``FileMemory`` for the command line, and a
 backend gives its own through the workspace (``Workspace.memory``).
@@ -16,16 +15,9 @@ from pathlib import Path
 from typing import Protocol
 
 from geomind.errors import ToolError
-from geomind.stores.workspace import search
 
-SECTIONS = ("knowledge", "experience")
-"""The two sections of a memory."""
-CITATION = ("title", "publisher", "year")
-"""What every knowledge entry must name of its source."""
-LOCATION = ("page", "link")
-"""Where in its source a knowledge entry is: one of them at least."""
-STATUSES = ("verified", "secondary", "placeholder")
-"""How far a knowledge entry was checked against its source."""
+SECTIONS = ("experience",)
+"""The sections of a memory: experience only; cited values are in the knowledge base."""
 FEATURES = (
     "heating_peak",
     "heating_mean",
@@ -58,113 +50,6 @@ def checked_section(section):
             path="section",
         )
     return section
-
-
-def checked_knowledge(entry, catalogue=False):
-    """Return a knowledge entry if it names its value, unit and source, else raise.
-
-    A value without its source is no knowledge: ``title``, ``publisher``, ``year``, a ``page``
-    or a ``link``, and a ``status``; money needs its ``price_year`` and ``currency``. A
-    ``placeholder`` (a value no source backs yet) is kept only from a seeded ``catalogue``, and
-    needs its ``note``; a model never writes one. A catalogue's price without its price year is
-    kept as the catalogue gives it, its note saying so.
-    """
-    if entry.get("status") == "placeholder":
-        return checked_placeholder(entry, catalogue)
-    missing = [key for key in ("id", "item", "value", *CITATION, "status") if not entry.get(key)]
-    if not any(entry.get(key) for key in LOCATION):
-        missing.append("page or link")
-    if entry.get("status") and entry["status"] not in STATUSES:
-        missing.append(f"status one of {', '.join(STATUSES)}")
-    if (
-        is_money(entry)
-        and not (entry.get("price_year") and entry.get("currency"))
-        and not catalogue
-    ):
-        missing.append("price_year and currency")
-    if missing:
-        raise ToolError(
-            f"write_memory: a knowledge entry lacks {', '.join(missing)}; expected a cited value",
-            path="entry",
-        )
-    return entry
-
-
-def checked_placeholder(entry, catalogue):
-    """Return a placeholder entry of a catalogue, or raise for one a model writes."""
-    if not catalogue:
-        raise ToolError(
-            "write_memory: status = 'placeholder'; expected a value with its source (verified or "
-            "secondary): a placeholder comes only from a seeded catalogue",
-            path="entry",
-        )
-    missing = [key for key in ("id", "item", "note") if not entry.get(key)]
-    if missing:
-        raise ToolError(f"memory: a placeholder lacks {', '.join(missing)}", path="entry")
-    return entry
-
-
-def catalogue_entries(rows, origin):
-    """Return the knowledge entries of a cost catalogue's rows, each keeping its source columns.
-
-    A row is ``{id, group, item, value, unit, price_year, source, publisher, year, page, url,
-    status, quote, note}`` and more; the currency is the unit's leading code (``EUR/m`` is EUR).
-    ``origin`` names the catalogue the rows came from.
-    """
-    entries = []
-    for row in rows:
-        unit = row.get("unit") or ""
-        code = unit.split("/")[0]
-        entry = {
-            "id": row["id"],
-            "group": row.get("group") or None,
-            "item": row.get("item"),
-            "value": number_or_text(row.get("value")),
-            "unit": unit or None,
-            "price_year": number_or_text(row.get("price_year")),
-            "currency": code if len(code) == 3 and code.isalpha() and code.isupper() else None,
-            "title": row.get("source") or None,
-            "publisher": row.get("publisher") or None,
-            "year": number_or_text(row.get("year")),
-            "page": row.get("page") or None,
-            "link": row.get("url") or None,
-            "status": row.get("status"),
-            "quote": row.get("quote") or None,
-            "note": row.get("note") or row.get("conversion") or None,
-            "origin": origin,
-        }
-        if is_money(entry) and not entry["price_year"]:
-            entry["note"] = "; ".join(
-                filter(None, [entry["note"], "no price year in the catalogue"])
-            )
-        entries.append(checked_knowledge(entry, catalogue=True))
-    return entries
-
-
-def number_or_text(value):
-    """Return a catalogue value as a number, or as its text when it is a range or a phrase."""
-    if value in (None, ""):
-        return None
-    try:
-        number = float(value)
-    except ValueError:
-        return value
-    return int(number) if number.is_integer() and "." not in value else number
-
-
-def is_money(entry):
-    """Tell whether a knowledge entry is a price or a cost, by its unit or its currency."""
-    unit = str(entry.get("unit") or "")
-    return bool(entry.get("currency")) or any(sign in unit for sign in ("EUR", "USD", "$", "€"))
-
-
-def search_knowledge(memory, query):
-    """Return the knowledge entries that hold a word of ``query``, best first."""
-    items = [
-        {"title": "", "text": json.dumps(entry, ensure_ascii=False), "entry": entry}
-        for entry in memory.entries("knowledge")
-    ]
-    return [{**item["entry"], "score": item["score"]} for item in search(items, query)]
 
 
 def similarity(first, second):
@@ -239,9 +124,9 @@ def search_experience(memory, features, threshold):
 class MemoryMemory:
     """Hold the sections in memory, for tests and for a run that keeps nothing."""
 
-    def __init__(self, knowledge=(), experience=()):
+    def __init__(self, experience=()):
         """Start with the entries given."""
-        self.sections = {"knowledge": list(knowledge), "experience": list(experience)}
+        self.sections = {"experience": list(experience)}
 
     def entries(self, section):
         """Return the entries of one section."""

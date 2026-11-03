@@ -26,7 +26,6 @@ class Explainer(Agent):
         self.estimate_costs = tools.gemini.estimate_costs
         self.search_documents = tools.search_documents
         self.search_knowledge = tools.search_knowledge
-        self.read_knowledge = tools.read_knowledge
         self.finish = tools.finish
 
         # Output

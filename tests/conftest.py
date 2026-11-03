@@ -172,6 +172,7 @@ def deployment_settings(monkeypatch):
     monkeypatch.setenv("GEOMIND_EVOLVE_POPULATION", "8")
     monkeypatch.setenv("GEOMIND_EVOLVE_SEED", "0")
     monkeypatch.setenv("GEOMIND_EVOLVE_POLISH", "0")
+    monkeypatch.setenv("GEOMIND_KNOWLEDGE_DIR", str(ROOT / "data" / "knowledge"))
 
 
 @pytest.fixture(autouse=True)

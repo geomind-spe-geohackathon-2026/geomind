@@ -306,6 +306,7 @@ A validation error takes `path` from the first input field that failed. Every ot
 | `no_case` | the chat has no case: call `set_case` or ask the user |
 | `case_incomplete` | the case misses values gemini needs, to read it or for this plant; `path` is the first and `suggestions` lists every missing path, from `gm.case.missing` or gemini's check; the message stays gemini's |
 | `files_unavailable` | the workspace has no `files` and `file`: an older backend; the run goes on without them |
+| `knowledge_unavailable` | the workspace has no `knowledge_search`, `knowledge_files` and `knowledge_file`, or no document: the run goes on without a knowledge base |
 | `not_text` | `read_document`: the file gives no text (binary, encrypted, a scan) |
 | `timeout` | the tool passed its time limit |
 | `budget` | a budget or time limit stopped a delegate's nested run; the message names it with what was spent and the cap |
@@ -460,12 +461,13 @@ From the third live run (`tests/integration/test_live_regressions_c.py`, recordi
   `reference` of the stored earlier result, unless `force`.
 - `geomind run --loop design` takes a project with files and no `case.json`.
 
-## Memory tools
+## Memory and knowledge tools
 
-The case, design and analysis teams have `search_memory(query, section=None)`,
-`read_memory(section, id)` and `write_memory(entry)`; the reviewer and the explainer have
-`search_knowledge(query)` and `read_knowledge(id)`, the knowledge only, never experience
-(`geomind/tools/memory.py`); the curator alone has `write_lesson(id, kind, role, text, source)`,
-which keeps a general lesson for one role (no digit) or a fact the user gave in experience, with
-its origin `{run, source}`; see [memory.md](memory.md). With the memory off they answer
-`not_allowed`.
+The case, design and analysis teams have `search_memory()` and `read_memory(id)` over the
+memory's experience: past designs alike to the case and the lessons of the caller's role; the
+curator alone has `write_lesson(id, kind, role, text, source)` (`geomind/tools/memory.py`). With
+the memory off they are not offered and answer `not_allowed`. Every model agent but the
+coordinator, the summarizer and the curator has `search_knowledge(query)`, the knowledge base's
+passages with their document, title and page (`geomind/tools/knowledge.py`); `read_document`
+reads a whole document as `knowledge/<name>`. A workspace without a knowledge base answers
+`knowledge_unavailable`, and the tool is not offered. See [memory.md](memory.md).

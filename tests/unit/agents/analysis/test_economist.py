@@ -24,7 +24,7 @@ def test_it_is_complete():
             "read_stored",
             "search_memory",
             "read_memory",
-            "write_memory",
+            "search_knowledge",
             "finish",
         ],
     )

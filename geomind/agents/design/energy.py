@@ -34,7 +34,7 @@ class EnergySystemsEngineer(Agent):
         self.read_stored = tools.read_stored
         self.search_memory = tools.search_memory
         self.read_memory = tools.read_memory
-        self.write_memory = tools.write_memory
+        self.search_knowledge = tools.search_knowledge
         self.finish = tools.finish
 
         # Model

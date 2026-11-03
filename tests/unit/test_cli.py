@@ -7,6 +7,7 @@ import httpx
 import pytest
 
 from geomind import cli, runtime
+from geomind.errors import GeomindError
 from geomind.providers import FakeLLM, OpenRouter
 from geomind.stores.run import FileRunStore
 from geomind.utils.json import append_line
@@ -500,25 +501,14 @@ def test_an_agent_needs_the_tool_loop(capsys):
     assert "--loop tool" in capsys.readouterr().err
 
 
-def test_memory_seed_loads_a_cited_catalogue(tmp_path, monkeypatch, capsys):
-    """Each row keeps its source columns and status; a placeholder stays one."""
-    from geomind.stores.memory import FileMemory
-    from tests.fixtures import ROOT
-
-    monkeypatch.setenv("GEOMIND_MEMORY", "on")
-    monkeypatch.setenv("GEOMIND_MEMORY_DIR", str(tmp_path / "memory"))
-    catalogue = ROOT / "data" / "knowledge" / "cost-sources.csv"
-    assert cli.main(["memory", "seed", str(catalogue)]) == 0
-    assert "seeded 74 knowledge entries" in capsys.readouterr().out
-    entries = FileMemory(tmp_path / "memory").entries("knowledge")
-    statuses = {entry["status"] for entry in entries}
-    assert statuses == {"verified", "secondary", "placeholder"}
-    assert all(
-        entry["title"] and entry["publisher"] for entry in entries if entry["status"] == "verified"
-    )
+def test_a_project_run_needs_the_knowledge_folder():
+    """``GEOMIND_KNOWLEDGE_DIR`` is required: unset, a run with a project is refused, naming it."""
+    with runtime.settings(knowledge_dir=None):
+        with pytest.raises(GeomindError, match="GEOMIND_KNOWLEDGE_DIR"):
+            cli._project("site/p1")
 
 
-def test_memory_seed_needs_the_memory_on(capsys):
-    """Without the memory settings nothing is written."""
-    assert cli.main(["memory", "seed", "x.csv"]) == 1
-    assert "GEOMIND_MEMORY=on" in capsys.readouterr().err
+def test_there_is_no_memory_seed_any_more():
+    """The cost catalogue is a document of the knowledge base, not memory entries."""
+    with pytest.raises(SystemExit):
+        cli._parser().parse_args(["memory", "seed", "x.csv"])

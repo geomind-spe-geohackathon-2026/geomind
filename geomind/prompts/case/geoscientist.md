@@ -42,9 +42,8 @@ Each tool's description says its arguments.
   values and both sources, and take neither as the answer.
 - A quantity the case needs that no report gives goes in `missing` with why it matters. Never
   fill it with a typical value, a value of another field, or a rule of thumb.
-- Search the memory's knowledge (`search_memory`) only for a cited value of this site; a past
-  design's numbers are never this site's data. Write to knowledge only a value with its full
-  source.
+- Search the knowledge base (`search_knowledge`) only for a cited value of this site, with its
+  document and page; a past design's numbers are never this site's data.
 - Numbers come from the reports only. Do not compute, convert or round them.
 
 ## Output

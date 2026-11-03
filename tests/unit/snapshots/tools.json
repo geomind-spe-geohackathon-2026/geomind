@@ -655,7 +655,7 @@
       "name": "read_case"
     },
     "read_document": {
-      "description": "Read a project file as text, one page at a time.",
+      "description": "Read a project file, or a document of the knowledge base as ``knowledge/<name>``, as text.",
       "effect": "read",
       "idempotent": true,
       "input_schema": {
@@ -699,29 +699,8 @@
       ],
       "name": "read_document"
     },
-    "read_knowledge": {
-      "description": "Return one cited reference value of the memory's knowledge by its id.",
-      "effect": "read",
-      "idempotent": true,
-      "input_schema": {
-        "additionalProperties": false,
-        "properties": {
-          "id": {
-            "title": "Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id"
-        ],
-        "title": "read_knowledge_input",
-        "type": "object"
-      },
-      "late_schemas": [],
-      "name": "read_knowledge"
-    },
     "read_memory": {
-      "description": "Return one entry of the memory by its section and id.",
+      "description": "Return one experience entry by the id ``search_memory`` gave.",
       "effect": "read",
       "idempotent": true,
       "input_schema": {
@@ -730,18 +709,9 @@
           "id": {
             "title": "Id",
             "type": "string"
-          },
-          "section": {
-            "enum": [
-              "knowledge",
-              "experience"
-            ],
-            "title": "Section",
-            "type": "string"
           }
         },
         "required": [
-          "section",
           "id"
         ],
         "title": "read_memory_input",
@@ -1238,7 +1208,7 @@
       "name": "search_documents"
     },
     "search_knowledge": {
-      "description": "Search the shared memory's cited reference values only, never past designs.",
+      "description": "Search the shared knowledge base for passages that state a value, with their citation.",
       "effect": "read",
       "idempotent": true,
       "input_schema": {
@@ -1259,36 +1229,12 @@
       "name": "search_knowledge"
     },
     "search_memory": {
-      "description": "Search the shared memory: cited reference values, and designs that passed before.",
+      "description": "Return what the team learned before: designs that passed on alike cases, and lessons.",
       "effect": "read",
       "idempotent": true,
       "input_schema": {
         "additionalProperties": false,
-        "properties": {
-          "query": {
-            "title": "Query",
-            "type": "string"
-          },
-          "section": {
-            "anyOf": [
-              {
-                "enum": [
-                  "knowledge",
-                  "experience"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Section"
-          }
-        },
-        "required": [
-          "query"
-        ],
+        "properties": {},
         "title": "search_memory_input",
         "type": "object"
       },
@@ -1663,29 +1609,7 @@
       },
       "late_schemas": [],
       "name": "write_lesson"
-    },
-    "write_memory": {
-      "description": "Add a cited reference value to the memory's knowledge, for later runs.",
-      "effect": "write",
-      "idempotent": true,
-      "input_schema": {
-        "additionalProperties": false,
-        "properties": {
-          "entry": {
-            "additionalProperties": true,
-            "title": "Entry",
-            "type": "object"
-          }
-        },
-        "required": [
-          "entry"
-        ],
-        "title": "write_memory_input",
-        "type": "object"
-      },
-      "late_schemas": [],
-      "name": "write_memory"
     }
   },
-  "version": "0.4.22.dev34"
+  "version": "0.4.22.dev35"
 }

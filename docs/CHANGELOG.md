@@ -6,6 +6,19 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### Knowledge is a document base (retrieval); memory is experience only (0.4.22.dev35)
+
+Contract v2 with the backend: knowledge and memory are never mixed.
+
+**Contract changes for the backend:**
+
+- Optional `Workspace.knowledge_search(query) -> [{id, document, title, page, text, score}]`, `knowledge_files() -> [{name, size, media_type}]`, `knowledge_file(name) -> bytes | None`: the shared knowledge base. Without them, or with no document, `search_knowledge` answers the new tool error code `knowledge_unavailable` and the tool is not offered.
+- `search_knowledge(query)` now searches the knowledge base and returns `{passages}`, each with its citation; `read_document` reads a knowledge document as `knowledge/<name>`. A value taken from knowledge is cited and confirmed by the user like any value no project file gives.
+- The command line needs `GEOMIND_KNOWLEDGE_DIR` (a folder of documents, `FolderKnowledge`) for a run with a project, no default; `.env` points it at `data/knowledge`, where the cost catalogue `cost-sources.csv` is now a document.
+- Memory keeps only `experience`: designs that passed (written by code, with `origin` `{run, source: code}` and `project_id`) and the curator's lessons and the user's facts (with `origin` and `project_id`). **Removed:** the memory's `knowledge` section, `write_memory`, `read_knowledge`, `checked_knowledge`, `catalogue_entries`, `search_knowledge` of `geomind.stores.memory`, and `geomind memory seed`. `search_memory()` takes no argument (was `query, section`) and `read_memory(id)` no section.
+- The reviewer and the explainer read the knowledge base, never experience; user preferences stay in the problem state.
+- Document text extraction moved to `geomind/stores/documents.py`, shared by the project's files and the knowledge base.
+
 ### A superstructure searched by gemini's genetic algorithm (0.4.22.dev34)
 
 **Contract changes for the backend:** a new tool `evolve_structure` (design lead) and four new required settings, no default: `GEOMIND_EVOLVE_EVALUATIONS`, `GEOMIND_EVOLVE_POPULATION`, `GEOMIND_EVOLVE_SEED`, `GEOMIND_EVOLVE_POLISH` (a live run lacking one is refused; the tool names any unset one). A study `study/<name>` of `tool: evolve_structure` and gemini's `method: evolve` (`study.recorded` as any study); its front designs are stored as `design/<name>_<n>`. The plant file's `optional` and `choices` (gemini 0.6.1) pass through `build_plant` and `patch_plant` unchanged.

@@ -42,6 +42,20 @@ class Workspace(Protocol):
     def file(self, project_id, name):
         """Return the bytes of a file ``files`` lists, or ``None`` for any other name."""
 
+    def knowledge_search(self, query):
+        """Return passages of the shared knowledge base, best first.
+
+        Each passage is ``{id, document, title, page, text, score}``. NOTE: optional, with
+        ``knowledge_files`` and ``knowledge_file``. A workspace without them keeps working:
+        ``search_knowledge`` answers ``knowledge_unavailable``.
+        """
+
+    def knowledge_files(self):
+        """Return the documents of the knowledge base as ``[{name, size, media_type}]``."""
+
+    def knowledge_file(self, name):
+        """Return the bytes of a document ``knowledge_files`` lists, or ``None``."""
+
 
 def file_entry(name, size):
     """Return the row of a project file: its name, size in bytes and media type."""
@@ -73,8 +87,9 @@ class MemoryWorkspace:
     case is ``(case dict, {file name: bytes})``; its files are ``{name: bytes}``.
     """
 
-    def __init__(self, plants=None, documents=None, cases=None, files=None):
-        """Keep the given values."""
+    def __init__(self, plants=None, documents=None, cases=None, files=None, knowledge=None):
+        """Keep the given values; ``knowledge`` is a knowledge base, such as ``MemoryKnowledge``."""
+        self.knowledge = knowledge
         self.project_plants = dict(plants or {})
         self.cases = dict(cases or {})
         self.project_documents = dict(documents or {})
@@ -101,6 +116,18 @@ class MemoryWorkspace:
         """Return the bytes of a file of a project, or ``None``."""
         return self.project_files.get(project_id, {}).get(name)
 
+    def knowledge_search(self, query):
+        """Return the knowledge base's passages for ``query``, best first; ``[]`` without one."""
+        return self.knowledge.search(query) if self.knowledge is not None else []
+
+    def knowledge_files(self):
+        """Return the knowledge base's documents as ``[{name, size, media_type}]``."""
+        return self.knowledge.files() if self.knowledge is not None else []
+
+    def knowledge_file(self, name):
+        """Return the bytes of a document of the knowledge base, or ``None``."""
+        return self.knowledge.file(name) if self.knowledge is not None else None
+
 
 class FileWorkspace:
     """Read gemini's project folder, ``<root>/<project id>/``.
@@ -109,9 +136,10 @@ class FileWorkspace:
     files (``kind: plant``), the text files in ``documents/`` and the user's files in ``files/``.
     """
 
-    def __init__(self, root):
-        """Remember the root folder."""
+    def __init__(self, root, knowledge=None):
+        """Remember the root folder and the knowledge base, a ``FolderKnowledge`` or ``None``."""
         self.root = Path(root)
+        self.knowledge = knowledge
 
     def plants(self, project_id):
         """Return ``{file stem: plant file dict}`` of ``plants/*.json``, ``{}`` without any."""
@@ -147,3 +175,15 @@ class FileWorkspace:
         if not is_safe_name(name):
             return None
         return read_bytes(self.root / project_id / "files" / name)
+
+    def knowledge_search(self, query):
+        """Return the knowledge base's passages for ``query``, best first; ``[]`` without one."""
+        return self.knowledge.search(query) if self.knowledge is not None else []
+
+    def knowledge_files(self):
+        """Return the knowledge base's documents as ``[{name, size, media_type}]``."""
+        return self.knowledge.files() if self.knowledge is not None else []
+
+    def knowledge_file(self, name):
+        """Return the bytes of a document of the knowledge base, or ``None``."""
+        return self.knowledge.file(name) if self.knowledge is not None else None
