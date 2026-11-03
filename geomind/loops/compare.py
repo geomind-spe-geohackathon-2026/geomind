@@ -1,6 +1,5 @@
 """Compare alternative plant families: each designed, verified, then compared and explained."""
 
-import asyncio
 import json
 
 from geomind import runtime
@@ -393,7 +392,7 @@ class ComparisonDriver(DesignDriver):
 
     async def after_check(self, context, note, index):
         """Record gemini's verdict on the family just checked, or set it aside for a retry."""
-        found = await asyncio.to_thread(verify_design, context)
+        found = await runtime.in_gemini_thread(verify_design, context)
         family = notes(context.messages)[-1]["checking"]
         verdict = VERIFIED if found["passed"] else "rejected"
         reason = None if found["passed"] else failure_reason(found)

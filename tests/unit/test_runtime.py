@@ -92,3 +92,50 @@ def test_missing_model_settings_name_the_environment_variables(monkeypatch):
     monkeypatch.delenv("GEOMIND_CHEAP_MODEL")
     assert runtime.missing_model_settings() == ["GEOMIND_MODEL", "GEOMIND_CHEAP_MODEL"]
     assert set(runtime.role_models().values()) == {None}
+
+
+async def test_gemini_work_runs_in_a_bounded_pool_when_set():
+    """``gemini_threads`` caps the threads gemini work runs in, and they see the settings."""
+    import asyncio
+    import threading
+
+    from geomind import runtime
+
+    seen = []
+
+    def work():
+        seen.append((threading.current_thread().name, runtime.get("max_steps")))
+        threading.Event().wait(0.01)
+
+    with runtime.settings(gemini_threads=2, max_steps=7):
+        await asyncio.gather(*(runtime.in_gemini_thread(work) for _ in range(8)))
+    names = {name for name, _ in seen}
+    assert len(names) <= 2 and all(name.startswith("geomind-gemini") for name in names)
+    assert {steps for _, steps in seen} == {7}
+
+
+async def test_unset_gemini_threads_keeps_the_default_executor(monkeypatch):
+    """Without the setting gemini work runs where ``asyncio.to_thread`` puts it, as before."""
+    import threading
+
+    from geomind import runtime
+
+    monkeypatch.delenv("GEOMIND_GEMINI_THREADS", raising=False)
+
+    name = await runtime.in_gemini_thread(lambda: threading.current_thread().name)
+    assert not name.startswith("geomind-gemini")
+    assert runtime.get("gemini_threads") is None
+
+
+async def test_the_result_and_the_error_come_back():
+    """A value is returned and an exception raised in the caller, in both modes."""
+    from geomind import runtime
+
+    def fails():
+        raise ValueError("no")
+
+    for threads in (None, 1):
+        with runtime.settings(gemini_threads=threads):
+            assert await runtime.in_gemini_thread(divmod, 7, 2) == (3, 1)
+            with pytest.raises(ValueError):
+                await runtime.in_gemini_thread(fails)

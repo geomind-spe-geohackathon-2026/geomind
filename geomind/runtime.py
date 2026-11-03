@@ -5,7 +5,11 @@ asyncio tasks and ``asyncio.to_thread`` workers start from a copy of their creat
 while new threads start from the defaults.
 """
 
+import asyncio
+import contextvars
+import functools
 import os
+from concurrent.futures import ThreadPoolExecutor
 from contextvars import ContextVar
 
 from geomind.errors import UnknownNameError
@@ -34,7 +38,14 @@ _FIXED = {
     "verifier_model": None,
 }
 ADDED_SETTINGS = frozenset(
-    {"provider", "context_window", "cache_marked_models", "compare_concurrency", "compare_retries"}
+    {
+        "provider",
+        "context_window",
+        "cache_marked_models",
+        "compare_concurrency",
+        "compare_retries",
+        "gemini_threads",
+    }
 )
 _settings = ContextVar("geomind_settings", default=None)
 
@@ -61,7 +72,8 @@ def _defaults():
     that get cache breakpoints; unset means the provider's list, and none.
     ``GEOMIND_COMPARE_CONCURRENCY`` is how many families a comparison designs side by side; unset
     means one at a time. ``GEOMIND_COMPARE_RETRIES`` is how often a family gemini rejects is
-    designed again; unset means never.
+    designed again; unset means never. ``GEOMIND_GEMINI_THREADS`` is the size of the thread pool
+    gemini work runs in; unset means asyncio's default executor.
     """
     cheap = os.environ.get("GEOMIND_CHEAP_MODEL") or None
     return {
@@ -74,6 +86,7 @@ def _defaults():
         "cache_marked_models": _listed("GEOMIND_CACHE_MARKED_MODELS"),
         "compare_concurrency": _integer("GEOMIND_COMPARE_CONCURRENCY"),
         "compare_retries": _integer("GEOMIND_COMPARE_RETRIES"),
+        "gemini_threads": _integer("GEOMIND_GEMINI_THREADS"),
     }
 
 
@@ -139,3 +152,26 @@ def settings(**changes):
     for name in changes:
         get(name)
     return ContextSetting(_settings, lambda current: {**(current or _defaults()), **changes})
+
+
+_pools = {}
+
+
+def _pool(size):
+    """Return this process's pool of ``size`` gemini threads, made on first use."""
+    if size not in _pools:
+        _pools[size] = ThreadPoolExecutor(max_workers=size, thread_name_prefix="geomind-gemini")
+    return _pools[size]
+
+
+async def in_gemini_thread(function, *args, **kwargs):
+    """Run gemini work off the event loop, with the caller's settings.
+
+    NOTE: with ``gemini_threads`` set it runs in a pool of that many threads, so a long-running
+    process has few threads and glibc few malloc arenas; unset, it runs as ``asyncio.to_thread``.
+    """
+    size = get("gemini_threads")
+    if size is None:
+        return await asyncio.to_thread(function, *args, **kwargs)
+    call = functools.partial(contextvars.copy_context().run, function, *args, **kwargs)
+    return await asyncio.get_running_loop().run_in_executor(_pool(size), call)

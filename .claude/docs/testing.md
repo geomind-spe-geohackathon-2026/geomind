@@ -107,7 +107,7 @@ default.
 to `dev` and `main` and on pull requests, on the Pythons `pyproject.toml` declares (3.11 to 3.14),
 in the release profile, since a shared runner is no measure of the one-second budget. Job `fast`
 runs the fast tier and e2e (`-m "not slow and not docker"`) on every event; job `slow` runs the slow
-tier in four shards (`--shard i/4`) on everything but a push to `dev`. Every job uses `-n auto`, has
+tier in five shards (`--shard i/5`) on everything but a push to `dev`. Every job uses `-n auto`, has
 a `timeout-minutes` and `fail-fast: false`, so a runner that dies hides no other job.
 CI sets `MALLOC_ARENA_MAX=2`: glibc's per-thread arenas made one test process about twice as large
 ([releasing.md](releasing.md#memory-on-a-long-running-host)).
@@ -116,6 +116,8 @@ CI sets `MALLOC_ARENA_MAX=2`: glibc's per-thread arenas made one test process ab
 split is greedy by the seconds in `tests/fixtures/shard_times.json`, the longest first to the least
 loaded shard; a slow test without a time counts as 60 s. Refresh the file from
 `pytest -m "slow and not docker" --durations=0 --durations-min=0` when slow tests change a lot.
+The checked-in eval report is checked one cell per test (`test_each_row_of_the_checked_in_report_is_the_generated_one`,
+a task through a loop), so the shards share it; `test_the_totals_of_the_checked_in_report_add_up` checks each total.
 CI turns NumPy's AVX-512 off as gemini's CI does: a few winter days split heat between heat pump and
 boiler non-uniquely, a known gemini bug. Releases are in [releasing.md](releasing.md).
 

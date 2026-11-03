@@ -1,9 +1,9 @@
 """The tools that size, search, sample and compare stored designs, over the state's case."""
 
-import asyncio
 import json
 from typing import Literal
 
+from geomind import runtime
 from geomind.tools.base import tool
 from geomind.tools.gemini.case import build_case
 from geomind.tools.gemini.explain import range_guidance
@@ -100,7 +100,7 @@ async def size_plant(context, design: str, name: str):
     written = [f"design/{name}"]
     ran, plants, study, case = prepared(context, "size_plant", name, [design], settings, written)
     with range_guidance(plants):
-        sized = await asyncio.to_thread(size_design, plants[design], build_case(*ran))
+        sized = await runtime.in_gemini_thread(size_design, plants[design], build_case(*ran))
     reference = await save_design(context, name, sized)
     result = {"sizing": to_plain(sized.sizing)}
     found = (study.to_dict(), result)
@@ -147,7 +147,7 @@ async def optimize(context, design: str, objective: str, evaluations: int, seed:
     written = [f"design/{name}"]
     ran, plants, study, case = prepared(context, "optimize", name, [design], settings, written)
     with range_guidance(plants):
-        found = await asyncio.to_thread(
+        found = await runtime.in_gemini_thread(
             minimize_design, plants[design], build_case(*ran), objective, evaluations, seed
         )
     best = found["best"]
@@ -196,7 +196,7 @@ async def sample_uncertainty(
     """
     settings = {"method": "sample", "metrics": metrics, "samples": samples, "seed": seed}
     ran, plants, study, case = prepared(context, "sample_uncertainty", name, [design], settings, [])
-    sample = await asyncio.to_thread(
+    sample = await runtime.in_gemini_thread(
         sample_design, plants[design], build_case(*ran), metrics, samples, seed
     )
     result = to_plain(sample.to_dict())
@@ -230,7 +230,7 @@ async def sensitivity(context, design: str, metrics: list[str], name: str):
     """
     settings = {"method": "sensitivity", "metrics": metrics}
     ran, plants, study, case = prepared(context, "sensitivity", name, [design], settings, [])
-    tornado = await asyncio.to_thread(
+    tornado = await runtime.in_gemini_thread(
         sensitivity_of_design, plants[design], build_case(*ran), metrics
     )
     result = to_plain(tornado.to_dict())
@@ -320,7 +320,7 @@ async def run_study(
     written = [f"design/{name}_{design_stem(design)}" for design in designs]
     _, plants, study, case = prepared(context, "run_study", name, designs, settings, written)
     with range_guidance(plants):
-        result = await asyncio.to_thread(study_runs, study)
+        result = await runtime.in_gemini_thread(study_runs, study)
     runs = await store_runs(context, name, result)
     best = {case_name: run and run.plant_name for case_name, run in result.best.items()}
     stored = {item["plant_name"]: item["design"] for item in runs}
@@ -348,7 +348,7 @@ async def compare(context, references: list[str], by: list[str]):
     infeasible run.
     """
     runs = [load_run(context, reference, "compare") for reference in references]
-    comparison, reports = await asyncio.to_thread(compare_runs, runs, by)
+    comparison, reports = await runtime.in_gemini_thread(compare_runs, runs, by)
     entries = to_plain(comparison.to_dict())
     shown = [report.to_dict() for report in reports]
     return [
