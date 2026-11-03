@@ -157,6 +157,7 @@ check it before writing a tool, because gemini's names change.
 | gemini 0.5 | geomind 0.3.0 on gemini `>=0.5,<0.6`: project folder case with `economics.json`, verdict, ranges and `run_study`, `Workspace.plants`, chat-scoped artifacts, `write_module`/`test_module` in the gemini sandbox, `CompareLoop`, the competition export, `check-live`, the loop report ([CHANGELOG.md](../../docs/CHANGELOG.md)) | merged sections A to P | done |
 | Log and replay | geomind 0.3.1: `run.started` records the geomind, gemini and python versions and the export reads them; the export header shows the run's own request; a replay runs every nested run again with its own completions and compares every run | merged sections V and R | done |
 | Studies, budget, replays | geomind 0.4.0: every study tool stores `study/<name>` (gemini's study and result form) and emits `study.recorded`; `list_studies`, `read_study`; `ProjectBudget` with `UsageLedger`; replay matches results by step and call id, and a log of another geomind version checks decisions, not tool outputs; every eval recording replays in a test | merged sections P, S and B | done |
+| Released on the wheel | geomind 0.4.2 on the gemini 0.5.5 release wheel: shorter context, Designer asks for a missing range, no model id in the package, tests read a copy of gemini's examples; `README.md` and `docs/` for people | `v0.4.2` | done |
 
 No live OpenRouter run has been made yet. It needs `OPENROUTER_API_KEY` in geomind's own
 environment, never the backend's key.
@@ -219,6 +220,8 @@ Open requests to gemini (full text in the adaptation notes):
 8. A public `to_dict()` for the result of `gm.study.minimize`, history included (`optimize` stores
    the best without its plant and drops the history).
 9. `Plant.to_dict()` carrying `sizing` with quantities (geomind converts the sizing notes itself).
+10. Time units `day` and `hour`: `gm.units` accepts only `d` and `h`, so a `save_profile` step of
+    `day` is refused (geomind adds the accepted units to the error).
 
 ### S2b: gemini tools (the first job; the text below is the original plan)
 

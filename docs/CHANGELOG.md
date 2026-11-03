@@ -6,6 +6,14 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-11-03
+
+Additive. Runs on gemini 0.5.5 installed from its release wheel.
+
+Context of a design run: 295,953 tokens before, about 146,000 after the smaller context, about
+128,000 after the Designer prompt cut. The last figure is chars/4 of every request of the recording
+`challenge2/hackathon` (20 calls, 15 of them the Designer's, each 1,262 tokens smaller).
+
 - The 0.3.1 log test skips the macOS `._*` entries of its archive, which failed it on Linux.
 - The repository has a `README.md` and a `docs/` folder for people: `docs/rules.md` holds every project rule, moved out of `AGENTS.md`, and this changelog moves here. `.claude/docs/` stays for agents.
 - Every git worktree goes under `.tmp/`. A test fails when a path under `.tmp/` is tracked or `.gitignore` stops ignoring it. `.tmp/live/t.md`, force-added in the 0.4.2 work, is removed from the history.
