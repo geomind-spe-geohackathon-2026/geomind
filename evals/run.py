@@ -22,10 +22,12 @@ from geomind.agents import Route
 from geomind.context import ProblemState
 from geomind.engine import Context
 from geomind.engine.engine import STEP_OPTIONS
+from geomind.engine.hooks import CostBudget
 from geomind.providers import FakeLLM, OpenRouter, Recorder
 from geomind.run import loop_of
 from geomind.stores import FileWorkspace, MemoryRunStore
-from geomind.types import Usage
+from geomind.types import ToolCall, Usage
+from geomind.utils.models import fetch_prices
 
 ROOT = Path(__file__).parent
 CHAT = "eval"
@@ -124,7 +126,7 @@ def verdict(store, chat_id, state):
     return verify_design(context)
 
 
-def new_run(task, agent_name, llm, store, loop=None):
+def new_run(task, agent_name, llm, store, loop=None, hooks=()):
     """Return the run of a task: its own agent or suite loop, or the loop ``loop`` names."""
     workspace, project = _workspace(task)
     loop = loop or SUITES.get(agent_name)
@@ -138,6 +140,7 @@ def new_run(task, agent_name, llm, store, loop=None):
         store=store,
         workspace=workspace,
         permissions=gd.Permissions(mode="auto"),
+        hooks=hooks,
         agent=None if loop in LOOP_SUITES else gd.agents.named(agent_name),
     )
     if loop == "study_compare":
@@ -147,10 +150,58 @@ def new_run(task, agent_name, llm, store, loop=None):
     return run
 
 
-def run_task(name, task, agent_name, llm, loop=None):
+class SetupAgent(gd.Agent):
+    """Make a task's setup calls by rule, one per step, then finish: no model is called."""
+
+    def __init__(self, calls):
+        """Declare the tools the calls name and a rule model."""
+        super().__init__()
+        for name in dict.fromkeys(call.tool for call in calls):
+            tool = getattr(gd.tools.gemini, name, None) or getattr(gd.tools, name)
+            setattr(self, name, tool)
+        self.model = gd.Model(name="rule")
+        self._calls = calls
+
+    async def forward(self, context):
+        """Return the next setup call, or the end once each has run."""
+        done = sum(message.role == "tool" for message in context.messages)
+        if done == len(self._calls):
+            return gd.Action(text="set up")
+        call = self._calls[done]
+        return gd.Action(
+            text="", tool_calls=(ToolCall(id=f"setup-{done}", name=call.tool, input=call.input),)
+        )
+
+
+def set_up(task, store):
+    """Run a task's setup calls in its chat, so its agent starts from their state and artifacts."""
+    if not task.setup:
+        return
+    workspace, project = _workspace(task)
+    result = gd.Run(
+        "set up",
+        chat=CHAT,
+        project=project,
+        llm=FakeLLM([]),
+        store=store,
+        workspace=workspace,
+        permissions=gd.Permissions(mode="auto"),
+        agent=SetupAgent(task.setup),
+    ).start()
+    failed = [
+        event.output
+        for event in store.load_events(result.run_id)
+        if event.type == "tool.result" and event.is_error
+    ]
+    if result.status != "done" or failed:
+        raise gd.errors.GeomindError(f"evals: setup failed: {failed or result.message}")
+
+
+def run_task(name, task, agent_name, llm, loop=None, hooks=()):
     """Run one task, through ``loop`` if given, and return its outcome."""
     store = MemoryRunStore()
-    run = new_run(task, agent_name, llm, store, loop)
+    set_up(task, store)
+    run = new_run(task, agent_name, llm, store, loop, hooks)
     started = perf_counter()
     with runtime.settings(**({"max_steps": task.max_steps} if task.max_steps else {})):
         result = _drive(run, task.answers)
@@ -183,14 +234,27 @@ def _provider(recording, is_live):
     return Recorder(OpenRouter(), recording)
 
 
-def run_agent(agent_name, root=ROOT, is_live=False, loop=None, only=None):
-    """Run every task of one agent, or the one ``only`` names, through ``loop`` if given."""
+def run_agent(agent_name, root=ROOT, is_live=False, loop=None, only=None, max_cost=None):
+    """Run every task of one agent, or the one ``only`` names, through ``loop`` if given.
+
+    A live run caps each task at ``max_cost`` USD, required, with OpenRouter's prices.
+    """
+    hooks = live_caps(max_cost) if is_live else ()
     outcomes = []
     for path in sorted((root / "tasks" / agent_name).glob(f"{only or '*'}.yaml")):
         recording = root / "recordings" / agent_name / f"{path.stem}.jsonl"
+        recording.parent.mkdir(parents=True, exist_ok=True)
         llm = _provider(recording, is_live)
-        outcomes.append(run_task(path.stem, load_task(path), agent_name, llm, loop))
+        task = load_task(path)
+        outcomes.append(run_task(path.stem, task, agent_name, llm, loop, hooks))
     return outcomes
+
+
+def live_caps(max_cost):
+    """Return the cost cap of one live task; a live run without one is refused."""
+    if max_cost is None:
+        raise gd.errors.RunError("evals: --live needs --max-cost USD, the cap of each task")
+    return (CostBudget(max_cost, prices=fetch_prices()),)
 
 
 def _cell(root, agent_name, loop, only=None):
@@ -329,6 +393,7 @@ def main(argv=None, root=ROOT):
     parser = argparse.ArgumentParser(prog="evals.run", description=__doc__)
     parser.add_argument("--agent")
     parser.add_argument("--live", action="store_true")
+    parser.add_argument("--max-cost", type=float, help="with --live, the USD cap of each task")
     parser.add_argument("--report", action="store_true")
     parser.add_argument("--workers", type=int, help="processes of the report; unset, one")
     args = parser.parse_args(argv)
@@ -342,7 +407,7 @@ def main(argv=None, root=ROOT):
     try:
         if args.agent not in SUITES:
             gd.agents.named(args.agent)
-        outcomes = run_agent(args.agent, root, args.live)
+        outcomes = run_agent(args.agent, root, args.live, max_cost=args.max_cost)
     except gd.errors.GeomindError as error:
         print(f"evals: {error}", file=sys.stderr)
         return 2

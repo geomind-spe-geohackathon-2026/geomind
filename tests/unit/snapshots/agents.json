@@ -508,6 +508,27 @@
           "title": "QuestionCriterion",
           "type": "object"
         },
+        "SetupCall": {
+          "additionalProperties": false,
+          "description": "One tool call run by code before the task's agent, so the task starts from a fixed state.",
+          "properties": {
+            "input": {
+              "additionalProperties": true,
+              "default": {},
+              "title": "Input",
+              "type": "object"
+            },
+            "tool": {
+              "title": "Tool",
+              "type": "string"
+            }
+          },
+          "required": [
+            "tool"
+          ],
+          "title": "SetupCall",
+          "type": "object"
+        },
         "StateCriterion": {
           "additionalProperties": false,
           "description": "A field of the final problem state is set, to ``equals`` if given.\n\n``path`` is a JSON Pointer, by id in lists.",
@@ -689,6 +710,14 @@
           ],
           "default": null,
           "title": "Plant"
+        },
+        "setup": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SetupCall"
+          },
+          "title": "Setup",
+          "type": "array"
         }
       },
       "required": [

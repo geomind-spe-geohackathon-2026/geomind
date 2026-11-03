@@ -265,3 +265,10 @@ criteria are unmet. That is the loop's real behaviour on those recordings, not a
 the same task through its own loop (`--agent compare` on the `StudyCompareLoop`, `challenge2` on
 the `DesignLoop`) meets them. `alternatives/three_families` is the `CompareLoop`'s own task.
 
+## A fixed start and the live cap
+
+A task's `setup` lists tool calls `{tool, input}` that code runs in the task's chat before its
+agent, with no model, so one agent is tested alone from a fixed state (a case loaded, a design
+built and simulated, `design.owners` recorded); a failed setup call stops the task.
+`--live` needs `--max-cost USD`, the cap of each task, with OpenRouter's prices; without it
+nothing is called.

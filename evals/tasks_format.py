@@ -107,6 +107,13 @@ Criterion = Annotated[
 ]
 
 
+class SetupCall(Record):
+    """One tool call run by code before the task's agent, so the task starts from a fixed state."""
+
+    tool: str
+    input: dict[str, Any] = {}
+
+
 class Task(Record):
     """One task file; ``plant`` is a project folder and ``answers`` reply to questions in order.
 
@@ -119,6 +126,7 @@ class Task(Record):
     plant: str | None = None
     history: tuple[gd.Message, ...] = ()
     answers: tuple[str, ...] = ()
+    setup: tuple[SetupCall, ...] = ()
     max_steps: int | None = None
     criteria: tuple[Criterion, ...]
 

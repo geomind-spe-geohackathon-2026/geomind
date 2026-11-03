@@ -140,7 +140,9 @@ def test_live_writes_the_recording_anew(tmp_path, monkeypatch):
 
     monkeypatch.setenv("OPENROUTER_API_KEY", "k")
     monkeypatch.setattr(evals, "OpenRouter", Service)
-    assert evals.main(["--agent", "analysis_lead", "--live"], tmp_path) == 0
+    monkeypatch.setattr(evals, "fetch_prices", lambda: {})
+    assert evals.main(["--agent", "analysis_lead", "--live"], tmp_path) == 2
+    assert evals.main(["--agent", "analysis_lead", "--live", "--max-cost", "1"], tmp_path) == 0
     assert evals.main(["--agent", "analysis_lead"], tmp_path) == 0
 
 
@@ -519,3 +521,35 @@ def test_a_task_s_step_limit_is_answered_stop():
     )
     other = Request(kind="question", message="which case?")
     assert evals.is_step_limit(asked) and not evals.is_step_limit(other)
+
+
+def test_a_task_s_setup_runs_by_code_before_its_agent(gemini_loaded):
+    """The setup loads the project's case in the task's chat; the agent starts with it set."""
+    from evals.tasks_format import Task
+    from geomind.providers import FakeLLM
+    from geomind.stores import MemoryRunStore
+    from tests.fixtures.runs import says
+
+    task = Task.model_validate(
+        yaml.safe_load(
+            "message: Which services does the case serve?\n"
+            "plant: evals/projects/hackathon\n"
+            "setup:\n- tool: set_case\n  input: {source: project}\n"
+            "criteria:\n- kind: state\n  path: /case\n"
+        )
+    )
+    store = MemoryRunStore()
+    evals.set_up(task, store)
+    assert store.load_state(evals.CHAT)["case"]["demand"]
+    outcome = evals.run_task("t", task, "analysis_lead", FakeLLM([says("heating, cooling")]))
+    assert outcome.problems == []
+
+
+def test_a_live_eval_needs_a_cost_cap():
+    """No spending without a cap: ``--live`` without ``--max-cost`` is refused before any call."""
+    import pytest
+
+    from geomind.errors import RunError
+
+    with pytest.raises(RunError, match="--max-cost"):
+        evals.live_caps(None)

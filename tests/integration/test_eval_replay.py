@@ -19,12 +19,12 @@ def stored(monkeypatch, tmp_path):
     made = []
     real_new_run = evals.new_run
 
-    def new_run(task, agent_name, llm, store, loop=None):
+    def new_run(task, agent_name, llm, store, loop=None, hooks=()):
         folder = tmp_path / f"task{len(made)}"
         folder.mkdir()
         file_store = FileRunStore(folder)
         made.append((file_store, folder, evals._workspace(task)[0]))
-        return real_new_run(task, agent_name, llm, file_store, loop)
+        return real_new_run(task, agent_name, llm, file_store, loop, hooks)
 
     monkeypatch.setattr(evals, "new_run", new_run)
     return made

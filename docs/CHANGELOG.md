@@ -6,6 +6,11 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### Evals: a fixed start and a live cap (0.4.22.dev27)
+
+- A task may hold `setup`, tool calls `{tool, input}` that code runs in the task's chat before its agent (`SetupAgent`, no model), so an agent is tested alone from a fixed state: a case loaded, a design built and simulated, owners recorded. A setup call that fails stops the task. `eval_task.json` gains `setup` (additive).
+- `python -m evals.run --live` needs `--max-cost USD`, the cap of each task with OpenRouter's prices; without it nothing is called.
+
 ### The engineering team, step 4: ProjectLead, SupportLead, Curator (0.4.22.dev27)
 
 **Contract changes for the backend:**
