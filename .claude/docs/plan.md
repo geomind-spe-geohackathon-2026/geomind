@@ -227,6 +227,9 @@ cap is 5 USD (1.66 USD spent before the team).
 | A1 | each of the 15 agents alone, in parallel, on a fixed input from the earlier runs (`setup`), 0.10 cap each | 0.43 | 2.09 | 15 of 15 passed their criteria; bugs #42 to #50 |
 | E1 | end to end from the coordinator, memory off, 1 USD cap, three answers by the test operator | 1.00 | 3.38 | stopped at its cap before a verified design: two families planned, process, integration and reservoir engineers done; bugs #53 to #55 |
 | C1 | the case lead and the geoscientist alone, six tasks (files, chat, one change, a question, a flawed case, the geoscientist on the brief) | 0.06 | 3.69 | 6 of 6 passed; every flaw caught and asked; no invented value; bugs #61 to #63 |
+| C2 | the case team alone again, after #61 to #63 | 0.08 | 3.77 | 6 of 6 passed; one self-computed dew point (#64) |
+| TA1 | Track A after dev43 (compact tree, run-long pages, columns), six tasks | 0.16 | 4.20 | 4 of 6; from_files at its cap; cache cold after the prompt change, 10 `read_stored` left |
+| TA2 | Track A after dev44, provider pinned to DeepSeek (`GEOMIND_PROVIDER=deepseek`) | 0.035 | 4.24 | 4 of 6 by the criteria; from_files 39 → 15 model calls and 0.069 → 0.011 USD, but stopped on #65; total 0.112 → 0.035 USD |
 | A2 | the 6 agents the fixes touched, alone again | 0.29 | 2.38 | 5 passed; the case lead now asks for the values with no source (#44 working), so its task's fixed answer must change |
 
 Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/CHANGELOG.md)):
@@ -253,6 +256,9 @@ Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/C
 | 61 | C1, case lead | the data files `case.json` names were no project files | listed and read beside `files/` | this commit |
 | 62 | C1, case lead | reported a value before a change it never read | reads before and after | this commit |
 | 63 | C1, evals | an eval workspace had no knowledge base | the settings' knowledge base | this commit |
+| 64 | C2, case lead | worked out a room dew point (14.6 degC) inside a question; with the new `sourced` criterion also a temperature from the gradient, a GWP from memory, an end date and a step count | prompt forbids any number it worked out or knows from memory; `read_rag`'s table gives the case span; eval criterion `sourced` | de37595 |
+| 65 | Track A, case lead | told `changes=<the same changes>` after a missing file, sent the files alone three times and the run stopped | the retry names everything to send again; files alone on no case are `invalid_input` | dev45 |
+| 66 | Track A, case lead | a gradient in `degC/km` got `{'unit': 'degC'}` and the units of temperature as its fix | the quantity of a two-word unit message (`temperature gradient`) is read whole | dev45 |
 | 50 | A1, all | models saw only the first paragraph of each tool's docstring | the whole docstring but its `NOTE:` paragraphs | `768f396` |
 
 ### The adaptation to gemini 0.5 (done) and what is open
@@ -305,6 +311,12 @@ Open requests to gemini (full text in the adaptation notes):
 12. `Case.schema()` does not say that `time.end` is exclusive (a year of daily values ends on the
     next year's first day); the case lead read a year ending on 31 Dec as 364 steps and proposed
     to drop a day of data (found in run E2).
+13. A way to validate a whole case at once: `Case.from_dict` raises the first wrong value only
+    (`gm.case.missing` lists every missing path, but not wrong units or values), so a case lead
+    that sets the case in one call learns its errors one call at a time (Track A).
+14. `site.fluid.dissolved_gas.*` take a bare `{value}` (a mole fraction) with no unit, while
+    briefs give `mol%`: the agents must turn 20 mol% into 0.2 by hand, which their rules forbid.
+    A `unit` (`mol%`, `-`) on those fields, converted by gemini (Track A).
 
 ### S2b: gemini tools (the first job; the text below is the original plan)
 

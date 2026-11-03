@@ -1,0 +1,204 @@
+{
+ "together": {
+  "changes": {
+   "format": 1,
+   "kind": "case",
+   "name": "GEMINI Hackathon 2027 deep-geothermal heating and cooling",
+   "about": {
+    "brief": "GEMINI Hackathon Challenge Requirements, 28 October 2026",
+    "notes": [
+     "Production / injection volume balance required: same reservoir, equal liquid volumes (brief p.2).",
+     "Fluid composition is a fixed baseline; variable PVT optional (brief p.2).",
+     "Nm3 defined at 0 degC and 1.01325 bar(a); GLR is potentially liberated gas at standard conditions (brief p.2).",
+     "For selecting a different geothermal well depth, use hydrostatic pressure for reservoir pressure and estimate reservoir temperature from the given gradient (brief p.2).",
+     "Number of geothermal doublets is a design variable, choose 1-3 (brief p.2).",
+     "Demand files hold 365 daily-average power values, 1 January to 31 December 2027; heating peaks 28 January, cooling peaks 19 July (brief p.1)."
+    ]
+   },
+   "time": {
+    "start": "2027-01-01",
+    "end": "2028-01-01",
+    "step": {
+     "value": 1,
+     "unit": "d"
+    }
+   },
+   "demand": {
+    "heating": {
+     "power": {
+      "file": "GEMINI_Heating_Demand_Daily_2027.csv",
+      "column": "heating_demand_MWth",
+      "unit": "MW",
+      "time_zone": "UTC"
+     },
+     "supply_temperature": {
+      "value": 100,
+      "unit": "degC"
+     }
+    },
+    "cooling": {
+     "power": {
+      "file": "GEMINI_Cooling_Demand_Daily_2027.csv",
+      "column": "cooling_demand_MWcool",
+      "unit": "MW",
+      "time_zone": "UTC"
+     },
+     "supply_temperature": {
+      "value": 20,
+      "unit": "degC"
+     }
+    }
+   },
+   "site": {
+    "ground": {
+     "surface_temperature": {
+      "value": 12,
+      "unit": "degC"
+     },
+     "gradient": {
+      "value": 30,
+      "unit": "degC/km"
+     }
+    },
+    "reservoir": {
+     "reference_depth": {
+      "value": 2500,
+      "unit": "m"
+     },
+     "thickness": {
+      "value": 100,
+      "unit": "m"
+     },
+     "permeability": {
+      "value": 200,
+      "unit": "mD"
+     },
+     "pressure": {
+      "value": 250,
+      "unit": "bar(g)"
+     }
+    },
+    "fluid": {
+     "density": {
+      "value": 1030,
+      "unit": "kg/m3"
+     },
+     "viscosity": {
+      "value": 0.4,
+      "unit": "mPa.s"
+     },
+     "gas_liquid_ratio": {
+      "value": 0.8,
+      "unit": "Nm3/m3"
+     },
+     "dissolved_gas": {
+      "CH4": {
+       "value": 0.8
+      },
+      "CO2": {
+       "value": 0.2
+      }
+     }
+    }
+   }
+  },
+  "requirements": {
+   "doublet_count": {
+    "name": "doublet_count",
+    "on": "doublet",
+    "quantity": "count",
+    "min": 1,
+    "max": 3
+   },
+   "max_production_flow": {
+    "name": "max_production_flow",
+    "on": "doublet",
+    "quantity": "production_flow",
+    "over": "each",
+    "when": "running",
+    "max": 300,
+    "unit": "m3/h"
+   },
+   "min_stable_flow": {
+    "name": "min_stable_flow",
+    "on": "doublet",
+    "quantity": "production_flow",
+    "over": "each",
+    "when": "running",
+    "min": 50,
+    "unit": "m3/h"
+   },
+   "max_brine_cooling": {
+    "name": "max_brine_cooling",
+    "on": "doublet",
+    "quantity": "brine_cooling",
+    "over": "each",
+    "when": "running",
+    "max": 40,
+    "unit": "degC"
+   },
+   "pump_hydraulic_efficiency": {
+    "name": "pump_hydraulic_efficiency",
+    "on": "doublet",
+    "quantity": "pump_efficiency",
+    "over": "each",
+    "when": "running",
+    "min": 70,
+    "max": 70,
+    "unit": "%"
+   },
+   "reinjection_balance": {
+    "name": "reinjection_balance",
+    "on": "doublet",
+    "quantity": "reinjection_ratio",
+    "over": "each",
+    "when": "running",
+    "min": 1,
+    "max": 1
+   },
+   "running_time_limit": {
+    "name": "running_time_limit",
+    "on": "doublet",
+    "quantity": "production_flow",
+    "over": "duration",
+    "when": "running",
+    "max": 330,
+    "unit": "d"
+   },
+   "heating_supply_temperature": {
+    "name": "heating_supply_temperature",
+    "on": "heating_supply",
+    "quantity": "temperature",
+    "over": "each",
+    "when": "running",
+    "min": 100,
+    "max": 100,
+    "unit": "degC"
+   },
+   "cooling_supply_temperature": {
+    "name": "cooling_supply_temperature",
+    "on": "cooling_supply",
+    "quantity": "temperature",
+    "over": "each",
+    "when": "running",
+    "min": 20,
+    "max": 20,
+    "unit": "degC"
+   }
+  }
+ },
+ "files_alone": {
+  "files": [
+   "GEMINI_Heating_Demand_Daily_2027.csv",
+   "GEMINI_Cooling_Demand_Daily_2027.csv"
+  ],
+  "columns": {
+   "GEMINI_Heating_Demand_Daily_2027.csv": {
+    "date": "time"
+   },
+   "GEMINI_Cooling_Demand_Daily_2027.csv": {
+    "date": "time"
+   }
+  }
+ }
+}

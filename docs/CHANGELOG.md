@@ -6,6 +6,14 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### What the second Track A round showed (0.4.22.dev45)
+
+With the provider pinned to DeepSeek the six case tasks cost 0.035 USD instead of 0.112, and from_files 15 model calls instead of 39; it stopped on #65.
+
+- Fix (#65): after a call that named data files it did not pass, the retry said `changes=<the same changes>`; the case lead sent the files alone three times and the run stopped. The retry now says to send the files with everything else of the call, since a rejected call stores nothing, and `set_case` with files alone on a chat without a case says they go with the changes that name them (still `case_incomplete`, with the skeleton).
+- Fix (#66): a wrong unit whose quantity has two words (`temperature gradient`) was read as its first word, so `degC/km` got `{'unit': 'degC'}` and the units of temperature; the whole quantity is read now (`K/km, K/m`).
+- Evals: the `sourced` criterion reads a number after a JSON line break (`\n3.1`), takes a read number written with fewer decimals (34.64 for 34.6364) and a space as a thousands separator (`111 667.7`).
+
 ### The case team re-reads nothing (0.4.22.dev44)
 
 The first live round after dev43 still spent 10 `read_stored` calls in from_files: on pages the case lead read before its geoscientist, on search results, on `describe_case` answers and on the geoscientist's findings, each shrunk to a reference one step after it came.

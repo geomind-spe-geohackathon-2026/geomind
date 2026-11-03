@@ -370,7 +370,11 @@ def case_retries(error, data, supplied, files, columns, changes):
     needed = unpassed_files(changes or {}, files)
     if needed != list(files or []) and not set(needed) <= supplied.keys():
         shown = f", columns={columns!r}" if columns else ""
-        retries.append(f"set_case(files={needed!r}{shown}, changes=<the same changes>)")
+        retries.append(
+            f"set_case(files={needed!r}{shown}, changes=<the same changes>, and the same "
+            "requirements and economics): a rejected call stored nothing, so send the files "
+            "together with everything else of this call"
+        )
     if error.code == "invalid_unit":
         retries.extend(unit_retry(error, data))
     retries.append(zone_retry(error, files, columns))
@@ -529,6 +533,15 @@ async def set_case(
     """
     import gemini as gm
 
+    alone = files and source is None and not (changes or requirements or economics)
+    if alone and context.problem.case is None:
+        raise ToolError(
+            f"set_case: files = {files!r} and nothing else; expected the changes that name them "
+            "in the same call: files alone set no case, and a rejected call stores nothing",
+            code="case_incomplete",
+            path="format",
+            suggestions=[json.dumps(case_skeleton())],
+        )
     base, supplied = base_case(context, source)
     if files:
         given = await runtime.in_gemini_thread(project_files_of, context, files, columns)

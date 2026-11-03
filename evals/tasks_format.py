@@ -12,7 +12,11 @@ from geomind.types import Record
 NUMBER = r"-?\d+(?:\.\d+)?"
 UNSIGNED = r"(?<![\w.])\d+(?:\.\d+)?"
 LIST_MARKER = r"(?m)^\s*\d+[.)]\s"
-THOUSANDS = r"(?<=\d)[,\u00a0\u202f](?=\d{3}(?!\d))"
+PLACES = range(1, 5)
+"""A read number may be written with 1 to 4 decimals, ``34.64`` for ``34.6364``: shortened."""
+ESCAPES = r"\\[nrt]"
+"""A line break or tab of a tool's JSON result, ``\\n``: no letter before the number after it."""
+THOUSANDS = r"(?<=\d)[, \u00a0\u202f](?=\d{3}(?!\d))"
 
 
 class NumberCriterion(Record):
@@ -110,6 +114,7 @@ def _numbers(text):
     A number joined to a word is a name, such as ``A14`` or ``CO2``, and a list's ``13.`` counts
     items: neither is a number the agent states.
     """
+    text = re.sub(ESCAPES, " ", text)
     text = re.sub(LIST_MARKER, " ", re.sub(THOUSANDS, "", text))
     return {float(item) for item in re.findall(UNSIGNED, text)}
 
@@ -128,6 +133,7 @@ class SourcedCriterion(Record):
     def problem(self, outcome):
         """Return what is wrong, or ``None``."""
         read = _numbers(outcome.read)
+        read |= {round(item, places) for item in read for places in PLACES}
         found = _numbers(" ".join([outcome.answer, *outcome.questions]))
         unread = sorted({item for item in found if item not in read and not self._is_small(item)})
         return f"sourced: numbers no message holds {unread}" if unread else None

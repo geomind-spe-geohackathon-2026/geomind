@@ -72,3 +72,16 @@ def test_names_and_list_markers_are_no_numbers():
     """``A14``, ``CO2`` and a list's ``13.`` are no values the agent states."""
     answer = "13. assumption A14 holds CO2 and CH4\n14) done"
     assert CRITERION.problem(outcome(answer, "")) is None
+
+
+def test_a_number_after_a_line_break_of_a_json_result_is_read():
+    r"""A tool's result reaches the model as JSON: ``\n3.1`` holds 3.1, not the name n3.1."""
+    read = '{"text": "Fixed inputs\\n3.1  Geothermal reservoir"}'
+    assert CRITERION.problem(outcome("section 3.1 says", read)) is None
+
+
+def test_a_shortened_read_and_a_space_separator_are_sourced():
+    """Track B: 34.6364 written as 34.64, and 111667.7 written as ``111 667.7``."""
+    read = "flow 34.6364 m3/h, energy 111667.7 MWh"
+    assert CRITERION.problem(outcome("flow 34.64 m3/h, energy 111 667.7 MWh", read)) is None
+    assert CRITERION.problem(outcome("dew point 14.6", read)) is not None
