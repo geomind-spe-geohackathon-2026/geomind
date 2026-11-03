@@ -26,6 +26,11 @@ ROLES = (
     "geoscientist",
     "reviewer",
     "summarizer",
+    "processengineer",
+    "integrationengineer",
+    "reservoirengineer",
+    "wellengineer",
+    "energysystemsengineer",
 )
 """Every agent that calls a model, by its class name in lower case; each has its own setting."""
 _FIXED = {
@@ -58,6 +63,7 @@ ADDED_SETTINGS = frozenset(
         "compare_concurrency",
         "compare_retries",
         "gemini_threads",
+        "design_concurrency",
         *(f"{role}_model" for role in ROLES),
     }
 )
@@ -76,6 +82,7 @@ RETRY_SETTINGS = {
     "max_steps": "GEOMIND_MAX_STEPS",
     "max_output_tokens": "GEOMIND_MAX_OUTPUT_TOKENS",
     "memory": "GEOMIND_MEMORY",
+    "design_concurrency": "GEOMIND_DESIGN_CONCURRENCY",
 }
 """The settings a live run needs beside its models, by the environment variable that sets each.
 
@@ -133,6 +140,7 @@ def _defaults():
         "gemini_threads": _integer("GEOMIND_GEMINI_THREADS"),
         "max_steps": _integer("GEOMIND_MAX_STEPS"),
         "max_output_tokens": _integer("GEOMIND_MAX_OUTPUT_TOKENS"),
+        "design_concurrency": _integer("GEOMIND_DESIGN_CONCURRENCY"),
         "memory": os.environ.get("GEOMIND_MEMORY") or None,
         "memory_dir": os.environ.get("GEOMIND_MEMORY_DIR") or None,
         "memory_similarity": _number("GEOMIND_MEMORY_SIMILARITY"),

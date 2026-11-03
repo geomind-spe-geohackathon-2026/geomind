@@ -90,9 +90,25 @@ under `tests/unit/agents/<team>/<name>/`. Class names stay whole and the import 
 | `CaseLead` | `case/lead/` | complete (the `Formulator` until 0.4.22); sets the case from the project's files and the user's answers, confirms every value no file gives in one question | no |
 | `Geoscientist` | `case/geoscientist/` | complete; reads the reports whole once and proposes the ground, reservoir, brine and dissolved-gas values to the `CaseLead` (its `geoscientist` tool) as typed `Findings`: each value with page, table, depth, quality and range, the missing ones and the disagreements with both sources; never sets the case, never fills a gap with a typical value | no |
 | `DesignLead` | `design/lead/` | complete (the `Designer` until 0.4.22); sizes, simulates, checks and optimises a design for the case, which it reads and never sets; a comparison runs one per family without `ask_user` | no |
+| `ProcessEngineer` | `design/process/` | complete; chooses the modules for every service of the case, a reason each, builds the skeleton and records `design.modules` and `design.owners` (parameter path prefix to discipline) | no |
+| `IntegrationEngineer` | `design/integration/` | complete; connects the modules: ports, streams, inlets, outlets, fluids, boundaries (the PFD) | no |
+| `ReservoirEngineer` | `design/reservoir/` | complete; doublets, spacing, flow, reservoir cooling, degasser, brine-cooling limit | no |
+| `WellEngineer` | `design/well/` | complete; well depth and path, diameters, the ESP and its setting depth | no |
+| `EnergySystemsEngineer` | `design/energy/` | complete; heat pump, chiller, boiler, storage, exchangers, surface pipes and network | no |
 | `AnalysisLead` | `analysis/lead/` | complete (the `Analyst` until 0.4.22), the sample, with the gemini tools | yes, the default route |
 | `Economist` | `analysis/economist/` | complete; costs, compares, samples uncertainty | no |
 | `Summarizer` | `support/summarizer/` | complete; only compaction calls it | no |
+
+The design team works in order: the `DesignLead` asks the `ProcessEngineer`, then the
+`IntegrationEngineer`, then the `ReservoirEngineer`, `WellEngineer` and `EnergySystemsEngineer`
+in one step, side by side (delegates with `runs_beside` and `limit="design_concurrency"`, at most
+`GEOMIND_DESIGN_CONCURRENCY` at once, required, no default), each from the connected design and
+each storing its own name; it joins them with `merge_designs`, reviews the plant (every service
+and nothing more, sensible connections, coupled values that agree, a source or reason for each
+value), sends each problem back to its owner with the reason, and then sizes, simulates, checks
+and optimises. An engineer has a `discipline`; `patch_plant` refuses its change to a part
+another discipline owns (`design.owners`). Engineers ask nobody: what they cannot settle goes
+back to the lead.
 
 Removed in 0.4.22: `Assistant`, `CodeAssistant`, `FamilyDesigner` (a comparison's family run is a
 `DesignLead` without `ask_user`), `run_python`, `read_file`, `write_file`, `write_module`,
@@ -116,7 +132,7 @@ frozen; the tools themselves are in [tools.md](tools.md#catalogue). Every agent 
 | `Coordinator` | none: it answers with a `Route` |
 | `Geoscientist` | `list_files`, `read_document`, `search_documents`, `read_case`, `read_stored`, the memory tools, `finish` |
 | `CaseLead` | `geoscientist`, `list_files`, `read_document`, `search_documents`, `read_case`, `set_case`, `save_profile`, `list_profiles`, `read_profile`, `read_stored`, the memory tools, `update_state`, `ask_user`, `finish` |
-| `DesignLead` | `read_case`, `list_plants`, `read_plant`, `list_modules`, `describe_module`, `evaluate_module`, `build_plant`, `patch_plant`, `set_ranges`, `size_plant`, `list_profiles`, `read_profile`, `simulate`, `read_result`, `list_studies`, `read_study`, `check_results`, `optimize`, `run_study`, `update_state`, `read_skill`, `read_stored`, the memory tools, `ask_user`, `finish` |
+| `DesignLead` | `process_engineer`, `integration_engineer`, `reservoir_engineer`, `well_engineer`, `energy_systems_engineer`, `merge_designs`, `read_case`, `list_plants`, `read_plant`, `list_modules`, `describe_module`, `evaluate_module`, `build_plant`, `patch_plant`, `set_ranges`, `size_plant`, `list_profiles`, `read_profile`, `simulate`, `read_result`, `list_studies`, `read_study`, `check_results`, `optimize`, `run_study`, `update_state`, `read_skill`, `read_stored`, the memory tools, `ask_user`, `finish` |
 | `Reviewer` | `check_results`, `case_changes`, `read_case`, `compute_kpis`, `read_result`, `update_state`, `read_skill`, `read_stored`, `search_knowledge`, `read_knowledge`, `finish` |
 | `Economist` | `compute_kpis`, `estimate_costs`, `compare`, `run_study`, `sample_uncertainty`, `sensitivity`, `read_result`, `list_studies`, `read_study`, `update_state`, `read_skill`, `read_stored`, the memory tools, `finish` |
 | `Explainer` | `read_case`, `case_changes`, `read_plant`, `read_result`, `list_studies`, `read_study`, `compute_kpis`, `estimate_costs`, `search_documents`, `search_knowledge`, `read_knowledge`, `finish` |

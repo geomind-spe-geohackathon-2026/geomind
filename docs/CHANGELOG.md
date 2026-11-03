@@ -6,6 +6,16 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### The engineering team, step 3: the design team (0.4.22.dev26)
+
+**Contract changes for the backend:** new required settings `GEOMIND_PROCESSENGINEER_MODEL`, `GEOMIND_INTEGRATIONENGINEER_MODEL`, `GEOMIND_RESERVOIRENGINEER_MODEL`, `GEOMIND_WELLENGINEER_MODEL`, `GEOMIND_ENERGYSYSTEMSENGINEER_MODEL` (no fallback) and `GEOMIND_DESIGN_CONCURRENCY` (how many engineers run side by side; required for a live run, no default). New nested agents under `design_lead`: `process_engineer`, `integration_engineer`, `reservoir_engineer`, `well_engineer`, `energy_systems_engineer`; the three last run at the same time, so their events interleave. A new tool `merge_designs` (`tool.started`/`tool.finished` as any tool).
+
+- New agents in `agents/design/`: `ProcessEngineer` (`process/`: the modules, a reason each, `design.modules` and `design.owners`), `IntegrationEngineer` (`integration/`: connections, inlets, outlets, fluids, boundaries), `ReservoirEngineer` (`reservoir/`), `WellEngineer` (`well/`), `EnergySystemsEngineer` (`energy/`). Each prompt is method only, with experience a starting point only.
+- The `DesignLead` leads them: process, then integration, then reservoir, well and energy in one step side by side (bounded by `design_concurrency`), `merge_designs`, its review checklist, each problem back to its owner, then size, simulate, check and optimise as before.
+- `patch_plant` refuses an engineer's change to a part another discipline owns (`not_allowed`, the path and its owner in the message); the design lead and other agents are not checked.
+- `merge_designs(base, designs, name)`: joins designs patched side by side from one base; a value two designs set differently is a conflict naming the path and both designs, and nothing is stored.
+- `Delegate(..., limit=SETTING)` bounds how many delegates of one limit run at once in a run; an unset limit is refused naming its variable.
+
 ### The engineering team, step 2: the Geoscientist (0.4.22.dev25)
 
 **Contract changes for the backend:** a new required setting `GEOMIND_GEOSCIENTIST_MODEL` (no fallback); a new nested agent `geoscientist` under `case_lead` in events and the runlog (`design_driver.case_lead.geoscientist`).

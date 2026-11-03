@@ -117,3 +117,37 @@ async def test_a_step_limit_leaves_its_message_on_the_result():
     engine = engine_for([uses(fixture_call("lookup", key="k"))] * 3)
     result = await stopped_at_limit(engine, await engine.run(Worker(), context(), max_steps=2))
     assert result.stop_reason == "step_limit" and "2 steps" in result.message
+
+
+async def test_a_limited_delegate_without_its_setting_is_refused():
+    """``design_concurrency`` has no default: unset, the call says which variable to set."""
+    session = StubSession()
+    session.result = RunResult(run_id="c", status="done", answer="x")
+    with runtime.settings(design_concurrency=None):
+        result = await dispatch(
+            Delegate(Helper(), limit="design_concurrency"), call(), Context(session=session)
+        )
+    assert result.is_error and "GEOMIND_DESIGN_CONCURRENCY" in result.output["error"]["message"]
+
+
+async def test_limited_delegates_run_at_most_the_setting_at_once():
+    """Three calls with a limit of two: never more than two nested runs at the same time."""
+    import asyncio
+
+    running, most = [0], [0]
+
+    class Session(StubSession):
+        async def delegate(self, agent, task):
+            running[0] += 1
+            most[0] = max(most[0], running[0])
+            await asyncio.sleep(0.01)
+            running[0] -= 1
+            return RunResult(run_id="c", status="done", answer=task)
+
+    session = Session()
+    delegate = Delegate(Helper(), limit="design_concurrency")
+    with runtime.settings(design_concurrency=2):
+        results = await asyncio.gather(
+            *(dispatch(delegate, call(f"t{n}"), Context(session=session)) for n in range(3))
+        )
+    assert [result.output for result in results] == ["t0", "t1", "t2"] and most[0] == 2

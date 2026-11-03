@@ -2,27 +2,60 @@
 
 from geomind import tools
 from geomind.agents.agent import Agent, Model
+from geomind.agents.design.energy.agent import EnergySystemsEngineer
+from geomind.agents.design.integration.agent import IntegrationEngineer
+from geomind.agents.design.process.agent import ProcessEngineer
+from geomind.agents.design.reservoir.agent import ReservoirEngineer
+from geomind.agents.design.well.agent import WellEngineer
 from geomind.prompts import Prompt
+from geomind.tools import Delegate
 from geomind.tools.gemini.skeleton import trees
+
+ENGINEER_TOKENS = 2000
+"""The most tokens of an engineer's answer the design lead reads back."""
+LIMIT = "design_concurrency"
+"""The setting that bounds how many engineers fill their parts side by side."""
+
+
+def beside(agent):
+    """Return the delegate of an engineer that fills its part beside others, within the limit."""
+    return Delegate(agent, max_summary_tokens=ENGINEER_TOKENS, runs_beside=True, limit=LIMIT)
+
+
+def team():
+    """Return the design team as delegates by tool name, in the order the lead calls them."""
+    return {
+        "process_engineer": Delegate(ProcessEngineer(), max_summary_tokens=ENGINEER_TOKENS),
+        "integration_engineer": Delegate(IntegrationEngineer(), max_summary_tokens=ENGINEER_TOKENS),
+        "reservoir_engineer": beside(ReservoirEngineer()),
+        "well_engineer": beside(WellEngineer()),
+        "energy_systems_engineer": beside(EnergySystemsEngineer()),
+    }
 
 
 class DesignLead(Agent):
-    """Size a plant for the case, simulate and check it, then optimise it and hand it over.
+    """Lead the design team, review the assembled plant, then size, check and optimise it.
 
-    NOTE: it checks its own designs with ``check_results`` and optimises directly: the search
-    counts a trial as feasible only when gemini's verdict says so, so no ``Reviewer`` round comes
-    before it. With several buildable families it compares them in one ``run_study``. The
-    ``Reviewer`` checks the final design once.
+    NOTE: the process engineer chooses the modules and their owners, the integration engineer
+    connects them, and the reservoir, well and energy systems engineers fill their parts side by
+    side (at most ``design_concurrency`` at once), each patching only its own; the design lead
+    merges, reviews and sends each problem back to its owner. It checks its own designs with
+    ``check_results`` and optimises directly: the search counts a trial as feasible only when
+    gemini's verdict says so, so no ``Reviewer`` round comes before it. With several buildable
+    families it compares them in one ``run_study``. The ``Reviewer`` checks the final design once.
     """
 
     def __init__(self):
-        """Declare the prompt, the gemini tools, the state, questions, the answer and the model."""
+        """Declare the prompt, the team, the gemini tools, the state, questions and the model."""
         super().__init__()
 
         # Prompt
         self.prompt = Prompt("design/lead", appendix=trees("plant", "study"))
 
         # Tools
+        for name, delegate in team().items():
+            setattr(self, name, delegate)
+        self.merge_designs = tools.gemini.merge_designs
         self.read_case = tools.gemini.read_case
         self.list_plants = tools.gemini.list_plants
         self.read_plant = tools.gemini.read_plant

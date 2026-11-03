@@ -205,7 +205,7 @@ Open, in order (the team layout agreed with Sahand on 2026-11-03, started on his
      sandbox removed; one required `GEOMIND_<ROLE>_MODEL` per agent; knowledge-only memory for the
      Reviewer and the Explainer).
    - [x] 2. `Geoscientist` in `case/`.
-   - [ ] 3. The design team (`process`, `integration`, `reservoir`, `well`, `energy`) with parallel
+   - [x] 3. The design team (`process`, `integration`, `reservoir`, `well`, `energy`) with parallel
      `patch_plant`.
    - [ ] 4. `ProjectLead`, `SupportLead`, `Curator`.
    - [ ] 5. Each agent tested alone on a fixed input from earlier runs, then end to end.

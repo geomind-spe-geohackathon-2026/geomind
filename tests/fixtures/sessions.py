@@ -31,6 +31,7 @@ class StubSession:
         self.changes = []
         self.errors = []
         self.child_limit = None
+        self.limits = {}
         self.decision = None
         self.completion = None
         self.result = None

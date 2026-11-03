@@ -15,6 +15,7 @@ from geomind.tools.gemini.origin import accept_case, case_changes
 from geomind.tools.gemini.plants import (
     build_plant,
     list_plants,
+    merge_designs,
     patch_plant,
     read_plant,
     set_ranges,
@@ -46,6 +47,7 @@ __all__ = [
     "list_plants",
     "list_profiles",
     "list_studies",
+    "merge_designs",
     "optimize",
     "read_case",
     "read_plant",

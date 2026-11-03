@@ -68,6 +68,7 @@ class RunSession:
         self.reserved = {}
         self._index_lock = asyncio.Lock()
         self.child_limit = None
+        self.limits = {}
         self._held_text = ""
         self._output_limit = None
         self.limit_reached = None

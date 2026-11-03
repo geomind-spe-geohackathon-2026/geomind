@@ -482,3 +482,55 @@ async def test_a_patch_gemini_refuses_stores_nothing(gm):
     }
     result = await call(TOOLS.patch_plant, step, session)
     assert result.is_error and "design/p1" not in session.artifacts
+
+
+async def test_designs_patched_side_by_side_are_merged_on_their_base(gm):
+    """Two engineers patch different modules from one base; the merge holds both changes."""
+    session = StubSession()
+    start = {
+        "name": "base",
+        "plant": {"format": 1, "kind": "plant", "name": "p", "type": "HeatingPlant"},
+    }
+    await call(TOOLS.build_plant, start, session)
+    radius = {"params": {"d0": {"drainage_radius": {"value": 500, "unit": "m"}}}}
+    roughness = {"params": {"d0": {"roughness": {"value": 0.0001, "unit": "m"}}}}
+    for name, patch in (("a", radius), ("b", roughness)):
+        step = {"design": "design/base", "changes": patch, "name": name}
+        await call(TOOLS.patch_plant, step, session)
+    merged = {"base": "design/base", "designs": ["design/a", "design/b"], "name": "m"}
+    output = (await call(TOOLS.merge_designs, merged, session)).output
+    params = session.artifacts["design/m"]["params"]["d0"]
+    assert output["design"] == "design/m"
+    assert params["drainage_radius"]["value"] == 500 and params["roughness"]["value"] == 0.0001
+    still = {issue["path"] for issue in output["issues"]}
+    assert "params.d0.drainage_radius" not in still and "params.d0.roughness" not in still
+
+
+async def test_two_designs_setting_one_value_differently_are_a_conflict(gm):
+    """Nothing is stored and the error names the path and both designs."""
+    session = StubSession()
+    start = {
+        "name": "base",
+        "plant": {"format": 1, "kind": "plant", "name": "p", "type": "HeatingPlant"},
+    }
+    await call(TOOLS.build_plant, start, session)
+    for name, radius in (("a", 500), ("b", 600)):
+        patch = {"params": {"d0": {"drainage_radius": {"value": radius, "unit": "m"}}}}
+        step = {"design": "design/base", "changes": patch, "name": name}
+        await call(TOOLS.patch_plant, step, session)
+    merged = {"base": "design/base", "designs": ["design/a", "design/b"], "name": "m"}
+    result = await call(TOOLS.merge_designs, merged, session)
+    assert result.is_error and "design/m" not in session.artifacts
+    assert "params.d0.drainage_radius.value" in result.output["error"]["message"]
+    assert "design/a" in result.output["error"]["message"]
+
+
+def test_a_merge_patch_of_two_plant_files_holds_only_what_differs():
+    """Changed leaves, added keys and removed keys; a list is one value."""
+    from geomind.tools.gemini.plants import leaf_changes, plant_difference
+
+    base = {"a": {"b": 1, "c": 2}, "d": [1], "e": 3}
+    other = {"a": {"b": 1, "c": 5}, "d": [1, 2], "f": 4}
+    patch = plant_difference(base, other)
+    assert patch == {"a": {"c": 5}, "d": [1, 2], "e": None, "f": 4}
+    assert leaf_changes(patch) == {"a.c": 5, "d": [1, 2], "e": None, "f": 4}

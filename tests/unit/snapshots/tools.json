@@ -479,6 +479,42 @@
       "late_schemas": [],
       "name": "list_studies"
     },
+    "merge_designs": {
+      "description": "Join the designs the engineers patched side by side from ``base``, stored as design/<name>.",
+      "effect": "write",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "base": {
+            "title": "Base",
+            "type": "string"
+          },
+          "designs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Designs",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "base",
+          "designs",
+          "name"
+        ],
+        "title": "merge_designs_input",
+        "type": "object"
+      },
+      "late_schemas": [
+        "base"
+      ],
+      "name": "merge_designs"
+    },
     "optimize": {
       "description": "Search a stored design for the values that minimise a metric; store the best as ``name``.",
       "effect": "compute",
@@ -1570,5 +1606,5 @@
       "name": "write_memory"
     }
   },
-  "version": "0.4.22.dev25"
+  "version": "0.4.22.dev26"
 }

@@ -16,7 +16,11 @@
 - Role settings: one per model agent of `ROLES` (the class name in lower case), `<role>_model`,
   from its own `GEOMIND_<ROLE>_MODEL`: `GEOMIND_ANALYSISLEAD_MODEL`, `GEOMIND_CASELEAD_MODEL`,
   `GEOMIND_COORDINATOR_MODEL`, `GEOMIND_DESIGNLEAD_MODEL`, `GEOMIND_ECONOMIST_MODEL`,
-  `GEOMIND_EXPLAINER_MODEL`, `GEOMIND_GEOSCIENTIST_MODEL`, `GEOMIND_REVIEWER_MODEL`, `GEOMIND_SUMMARIZER_MODEL`. Unset is
+  `GEOMIND_EXPLAINER_MODEL`, `GEOMIND_GEOSCIENTIST_MODEL`, `GEOMIND_REVIEWER_MODEL`, `GEOMIND_SUMMARIZER_MODEL`, `GEOMIND_PROCESSENGINEER_MODEL`,
+  `GEOMIND_INTEGRATIONENGINEER_MODEL`, `GEOMIND_RESERVOIRENGINEER_MODEL`,
+  `GEOMIND_WELLENGINEER_MODEL`, `GEOMIND_ENERGYSYSTEMSENGINEER_MODEL`. `design_concurrency`
+  (`GEOMIND_DESIGN_CONCURRENCY`, required for a live run, no default) bounds how many engineers
+  of the design team fill their parts side by side. Unset is
   `None`, with no fallback: there is no `GEOMIND_MODEL`, `GEOMIND_CHEAP_MODEL` or
   `default_model` since 0.4.22, and no model id is built in. `geomind run --model ID` sets every
   role's model.

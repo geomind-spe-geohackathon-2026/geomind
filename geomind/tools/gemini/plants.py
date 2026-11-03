@@ -328,15 +328,77 @@ async def patch_plant(context, design: str, changes: dict[str, Any], name: str):
     ``{"params": {"d0": {"drainage_radius": {"value": 500, "unit": "m"}}}}``: one module's
     values at a time, never the whole file. gemini builds the result: a patch it refuses is its
     error, and nothing is stored. Returns the new design, its ``issues`` (what is still missing,
-    checked as in ``read_plant``) and their count, ``missing``.
+    checked as in ``read_plant``) and their count, ``missing``. An engineer of the design team
+    patches only its own part (``design.owners``); another part is ``not_allowed``.
+    """
+    import gemini as gm
+
+    from geomind.tools.gemini.case import merge_patch
+    from geomind.tools.gemini.ownership import check_ownership
+
+    check_ownership(context, changes, "patch_plant")
+    plant = load_design(context, design, "patch_plant").to_dict(structure=True)
+    patched = merge_patch(plant, changes)
+    built = await runtime.in_gemini_thread(gm.Plant.from_dict, patched)
+    stored = await save_design(context, name, built)
+    issues = plant_issues(context, built)
+    return {"design": stored, **issues, "missing": len(issues["issues"])}
+
+
+def plant_difference(base, other):
+    """Return the JSON merge patch that turns ``base`` into ``other``; a list is one value."""
+    if not isinstance(base, dict) or not isinstance(other, dict):
+        return other
+    patch = {key: None for key in base if key not in other}
+    for key, value in other.items():
+        if key not in base:
+            patch[key] = value
+        elif base[key] != value:
+            patch[key] = plant_difference(base[key], value)
+    return patch
+
+
+def leaf_changes(patch, prefix=""):
+    """Return ``{dotted path: value}`` of every leaf a merge patch sets or removes."""
+    if not isinstance(patch, dict) or not patch:
+        return {prefix: patch}
+    found = {}
+    for key, value in patch.items():
+        found.update(leaf_changes(value, f"{prefix}.{key}" if prefix else key))
+    return found
+
+
+@tool(effect="write", late_schemas={"base": reference_schema("design")})
+async def merge_designs(context, base: str, designs: list[str], name: str):
+    """Join the designs the engineers patched side by side from ``base``, stored as design/<name>.
+
+    Each of ``designs`` started from ``base``; what each changed is applied to ``base`` in order.
+    Two designs that set one value differently are a conflict: nothing is stored and the error
+    names the path and both designs. gemini builds the result, and the answer lists what is
+    still missing, as ``patch_plant`` does.
     """
     import gemini as gm
 
     from geomind.tools.gemini.case import merge_patch
 
-    plant = load_design(context, design, "patch_plant").to_dict(structure=True)
-    patched = merge_patch(plant, changes)
-    built = await runtime.in_gemini_thread(gm.Plant.from_dict, patched)
+    start = load_design(context, base, "merge_designs").to_dict(structure=True)
+    merged, setters = start, {}
+    for design in designs:
+        patch = plant_difference(
+            start, load_design(context, design, "merge_designs").to_dict(structure=True)
+        )
+        for path, value in leaf_changes(patch).items():
+            earlier = setters.get(path)
+            if earlier is not None and earlier[1] != value:
+                raise ToolError(
+                    f"merge_designs: {path} is set by {earlier[0]} and differently by {design}; "
+                    "send it back to its owner with both values",
+                    code="invalid_input",
+                    path="designs",
+                )
+            setters[path] = (design, value)
+        merged = merge_patch(merged, patch)
+    built = await runtime.in_gemini_thread(gm.Plant.from_dict, merged)
     stored = await save_design(context, name, built)
     issues = plant_issues(context, built)
     return {"design": stored, **issues, "missing": len(issues["issues"])}

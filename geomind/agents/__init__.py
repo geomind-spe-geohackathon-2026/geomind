@@ -8,7 +8,12 @@ from geomind.agents.analysis.economist.agent import Economist
 from geomind.agents.analysis.lead.agent import AnalysisLead
 from geomind.agents.case.geoscientist.agent import Geoscientist
 from geomind.agents.case.lead.agent import CaseLead
+from geomind.agents.design.energy.agent import EnergySystemsEngineer
+from geomind.agents.design.integration.agent import IntegrationEngineer
 from geomind.agents.design.lead.agent import DesignLead
+from geomind.agents.design.process.agent import ProcessEngineer
+from geomind.agents.design.reservoir.agent import ReservoirEngineer
+from geomind.agents.design.well.agent import WellEngineer
 from geomind.agents.project.coordinator.agent import Coordinator, Route
 from geomind.agents.project.explainer.agent import Explainer
 from geomind.agents.project.reviewer.agent import Reviewer
@@ -24,14 +29,19 @@ __all__ = [
     "Coordinator",
     "DesignLead",
     "Economist",
+    "EnergySystemsEngineer",
     "Explainer",
     "Geoscientist",
+    "IntegrationEngineer",
     "Model",
     "Output",
+    "ProcessEngineer",
+    "ReservoirEngineer",
     "named",
     "Reviewer",
     "Route",
     "Summarizer",
+    "WellEngineer",
 ]
 
 
