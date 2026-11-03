@@ -6,6 +6,13 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.16] - 2026-11-03
+
+No output shape and no unit string of a tool changes; a duration in `ms` is refused.
+
+- geomind converts no unit itself. The case step shown by `set_case` and the profile tools (`readable_step`) and the durations of the settings (`parse_duration`) now go through `gm.units`; geomind still chooses its display units (`READ_UNITS`). A test fails on any conversion factor in the package.
+- `parse_duration` (the durations of the settings, such as `sandbox_timeout`) takes `s`, `min`, `h` and `d`, the units gemini converts. `ms` is no longer accepted, and an unknown unit is an error that lists the accepted ones.
+
 ## [0.4.15] - 2026-11-03
 
 Additive.
