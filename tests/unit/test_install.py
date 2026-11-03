@@ -1,5 +1,6 @@
 """No file installs a project by path or as editable, and the gemini pin agrees everywhere."""
 
+import json
 import re
 import tomllib
 
@@ -84,8 +85,13 @@ def test_every_job_has_a_timeout_and_runs_to_the_end():
         assert "-n auto" in job["steps"][-1]["run"]
 
 
-def test_the_ci_matrix_is_the_supported_pythons():
-    """The matrix tests every Python the package declares, and no other."""
+HACKATHON_PYTHONS = ["3.12"]
+"""The one Python CI runs during the hackathon, the backend image's."""
+HACKATHON_NOTE = "# disabled during hackathon, re-enable after (Sahand 2026-11-03)"
+
+
+def test_the_ci_matrix_is_the_backend_python_during_the_hackathon():
+    """The matrix runs the backend's Python, one the package declares; the rest wait commented."""
     project = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
     declared = sorted(
         item.rsplit(":: ", 1)[1]
@@ -93,7 +99,11 @@ def test_the_ci_matrix_is_the_supported_pythons():
         if re.fullmatch(r"Programming Language :: Python :: 3\.\d+", item)
     )
     for job in workflow_jobs().values():
-        assert sorted(job["strategy"]["matrix"]["python"]) == declared
+        assert job["strategy"]["matrix"]["python"] == HACKATHON_PYTHONS
+    assert set(HACKATHON_PYTHONS) <= set(declared)
+    text = (ROOT / ".github/workflows/python_test.yaml").read_text()
+    assert text.count(HACKATHON_NOTE) == len(workflow_jobs())
+    assert text.count(f"# python: {json.dumps(declared)}") == len(workflow_jobs())
 
 
 def test_ci_keeps_the_memory_of_worker_threads_small():

@@ -27,3 +27,23 @@ def plant_skeleton():
     import gemini as gm
 
     return skeleton_of(gm.plants.schema(), "plant")
+
+
+def requirement_shape():
+    """Return the ``set_case`` argument of one requirement, its fields from gemini's schema.
+
+    A field with options lists them (``doublet|heat_pump|...``), any other names its type; the
+    requirement's name is the key, as ``set_case`` ``requirements`` takes it.
+    """
+    import gemini as gm
+
+    item = gm.Case.schema()["properties"]["requirements"]["items"]
+    properties = item["properties"]
+
+    def shown(key):
+        options = properties[key].get("enum")
+        return "|".join(options) if options else f"<{properties[key].get('type', key)}>"
+
+    fields = {key: shown(key) for key in properties if key != "name"}
+    required = ", ".join(key for key in item["required"] if key != "name")
+    return f"requirements={{'<name>': {fields!r}}}, each with {required}"

@@ -7,6 +7,7 @@ from geomind import runtime
 from geomind.errors import ToolError
 from geomind.tools.base import tool
 from geomind.tools.gemini.case import case_of
+from geomind.tools.gemini.explain import shown_message
 from geomind.tools.gemini.references import reference_schema
 from geomind.tools.gemini.skeleton import plant_skeleton
 from geomind.tools.gemini.stored import load_design, save_design
@@ -257,7 +258,7 @@ async def build_plant(context, plant: dict[str, Any], name: str):
         if error.code != "old_format":
             raise
         raise ToolError(
-            str(error),
+            shown_message(error),
             code=error.code,
             path=error.path,
             suggestions=[*error.suggestions, json.dumps(plant_skeleton())],

@@ -1,7 +1,7 @@
 """gemini's example projects: where they are and what they hold, for tests that read a case.
 
 The published gemini wheel ships no examples, so ``gemini_examples/`` holds a copy of the two
-projects from gemini's tag v0.5.5, the same in v0.5.10 (without their README and PDF).
+projects from gemini's tag v0.5.5, the same in v0.5.13 (without their README and PDF).
 """
 
 import copy

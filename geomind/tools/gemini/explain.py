@@ -15,6 +15,8 @@ from geomind.utils.strings import join_names
 UNIT_GIVEN = re.compile(r"unit = '([^']*)'")
 UNIT_LISTED = ("accepted units", "expected a unit of")
 UNIT_QUANTITY = re.compile(r"a unit of ([a-z_]+)")
+ROW = re.compile(r"\brow (\d+)\b")
+QUOTED = re.compile(r"'[^']*'")
 RANGE_SUFFIX = ".range"
 SHOWN_LEAVES = 12
 ASK = (
@@ -162,7 +164,7 @@ def unit_text(error, quantity=None):
     """Return gemini's unit message with the accepted units, or ``""`` for any other error."""
     import gemini as gm
 
-    message = str(error)
+    message = shown_message(error)
     given = UNIT_GIVEN.search(message)
     if (
         error.code != "invalid_unit"
@@ -191,6 +193,38 @@ def case_gaps(error):
     return [path for path in found if re.split(r"[.\[]", path)[0] in CASE_SECTIONS]
 
 
+def problem_text(problem):
+    """Return a problem's message with its path in front once."""
+    path, message = problem.get("path"), problem["message"]
+    return message if not path or message.startswith(f"{path}:") else f"{path}: {message}"
+
+
+def shown_message(error):
+    """Return gemini's message of an error as geomind shows it: each path once, rows summarised.
+
+    NOTE: gemini's text and codes stay as they are; only how many lines are shown changes. The
+    same problem on many rows of a file is one line: the first row's message, the number of rows
+    and the first and last row.
+    """
+    problems = list(getattr(error, "problems", None) or ())
+    if not problems or not all(isinstance(item, dict) and "message" in item for item in problems):
+        return str(error)
+    groups = {}
+    for problem in problems:
+        text = problem_text(problem)
+        row = ROW.search(text)
+        key = QUOTED.sub("''", ROW.sub("row", text)) if row else text
+        groups.setdefault((problem.get("code"), key), []).append((row, text))
+    lines = []
+    for items in groups.values():
+        rows = [int(row[1]) for row, _ in items if row is not None]
+        text = items[0][1]
+        if len(rows) > 1:
+            text += f" (the same on {len(rows)} rows, rows {min(rows)} to {max(rows)})"
+        lines.append(text)
+    return "; ".join(lines)
+
+
 def explained(error, quantity=None):
     """Return the error as gemini's problem dict, its message extended with the units it accepts.
 
@@ -198,6 +232,8 @@ def explained(error, quantity=None):
     ``suggestions``.
     """
     problem = error.to_dict()
+    if len(getattr(error, "problems", None) or ()) > 1:
+        problem = {**problem, "message": shown_message(error)}
     gaps = case_gaps(error) if error.code in MISSING_CODES else []
     if gaps:
         problem = {**problem, "code": "case_incomplete", "path": gaps[0], "suggestions": gaps}
@@ -260,7 +296,8 @@ def unit_retry(error, data):
         sent = field_of(data, field)
         guess = unit_guess(given[1], units)
         if isinstance(sent, dict) and guess is not None:
-            corrected = {**sent, "value": number_of(sent.get("value")), "unit": guess}
+            rest = {key: value for key, value in sent.items() if key not in ("value", "unit")}
+            corrected = {"value": number_of(sent.get("value")), "unit": guess, **rest}
             suggestions.append(f"{field} = {corrected!r}")
         suggestions.append(f"accepted units: {join_names(units)}")
     return suggestions

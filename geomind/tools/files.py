@@ -144,13 +144,30 @@ def list_files(context):
     return {"files": sorted(workspace.files(context.project), key=lambda item: item["name"])}
 
 
+PAGE_NOTE = "already read in this run: read_stored a reference, or pass force=true"
+WHOLE_NOTE = "the whole document was already read in this run: read_stored the references"
+
+
+def reads_of(context):
+    """Return the reads of the run tree, ``{name: [read]}``: a nested run shares its root's."""
+    session = getattr(context.session, "root_session", context.session)
+    return getattr(session, "documents_read", None)
+
+
 def read_before(context, name, start, end):
     """Return the earlier reads of ``name`` in this run covering ``start`` to ``end``, or ``None``.
 
     Each is ``{start, end, reference}``: ``reference`` is where the earlier result was stored, for
-    ``read_stored``, or ``None`` when it was short enough to stay in the conversation.
+    ``read_stored``, or ``None`` when it was short enough to stay in the conversation. A read
+    of another run of the tree counts only when its result was stored, as this run's
+    conversation does not hold it.
     """
-    reads = getattr(context.session, "documents_read", {}).get(name, [])
+    run = context.session.state.run_id
+    reads = [
+        read
+        for read in (reads_of(context) or {}).get(name, [])
+        if read.get("run") == run or stored_reference(context, read)
+    ]
     covered, position = [], start
     for read in sorted(reads, key=lambda item: item["start"]):
         if read["start"] <= position < read["end"]:
@@ -169,11 +186,12 @@ def stored_reference(context, read):
 
 def remember_read(context, name, start, end):
     """Keep that this run read ``name`` from ``start`` to ``end``, with where its result goes."""
-    if not hasattr(context.session, "documents_read"):
+    reads = reads_of(context)
+    if reads is None:
         return
     reference = reference_of(context.call_id) if context.call_id else None
-    read = {"start": start, "end": end, "reference": reference}
-    context.session.documents_read.setdefault(name, []).append(read)
+    read = {"start": start, "end": end, "reference": reference, "run": context.session.state.run_id}
+    reads.setdefault(name, []).append(read)
 
 
 @tool(effect="read", late_schemas={"name": file_name_schema})
@@ -188,16 +206,19 @@ def read_document(
     ``start``, ``total``, ``text`` and ``next``, where the following page starts (``null`` at the
     end). The first page of a CSV or TSV also has ``table``: ``columns``, the number of ``rows``
     and the ``first_rows``. A page this run already read comes back as ``already_read`` with a
-    ``note`` instead of its text; ``force`` reads it again.
+    ``note`` instead of its text; ``force`` reads it again, until the whole document was read:
+    then every page is ``already_read``, with the references of the stored results. Nested runs
+    share what the run tree read.
     """
     if start < 0:
         raise ToolError(f"read_document: start = {start}; expected 0 or more", path="start")
     text = document_text(name, project_file(context, "read_document", name))
     size = min(length or PAGE_CHARACTERS, PAGE_CHARACTERS)
     end = min(start + size, len(text))
-    earlier = None if force else read_before(context, name, start, end)
+    whole = read_before(context, name, 0, len(text))
+    earlier = whole or (None if force else read_before(context, name, start, end))
     if earlier is not None:
-        note = "already read in this run: read_stored a reference, or pass force=true"
+        note = WHOLE_NOTE if whole else PAGE_NOTE
         return {
             "name": name,
             "start": start,
