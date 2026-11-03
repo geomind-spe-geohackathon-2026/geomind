@@ -47,3 +47,9 @@ def test_every_agent_s_snake_name_is_a_role_a_lesson_may_name():
     from geomind.tools.memory import is_role
 
     assert all(is_role(role) for role in agent_roles()) and not is_role("designlead")
+
+
+def test_with_the_memory_off_it_calls_no_memory_tool():
+    """#99: nemotron called the memory tools it was not offered; the prompt says how to tell."""
+    text = " ".join(Curator().prompt.content.split())
+    assert "are not among the tools you are offered: then call no memory tool at all" in text

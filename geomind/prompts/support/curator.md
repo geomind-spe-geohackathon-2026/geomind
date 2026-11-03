@@ -45,7 +45,8 @@ How to keep them:
   would help on another case. Leave out what the prompts already say.
 - A value of the case is no user fact: it belongs to the case. A preference of the user (the
   units they read, the language of the report, the reviews they want) is one.
-- With the memory off, write nothing and say so.
+- The memory is off when `search_memory` and `write_lesson` are not among the tools you are
+  offered: then call no memory tool at all, keep nothing, and finish saying the memory is off.
 
 Do and don't, from earlier runs:
 
