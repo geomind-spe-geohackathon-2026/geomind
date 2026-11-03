@@ -6,6 +6,10 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### gemini 0.6.1
+
+- geomind runs on the gemini 0.6.1 release wheel (`requirements/gemini.txt`, sha256 `fca120290b87ac87a1dd4aca4ab85a725c6459986c5b8ccd53884eeae8d45655`; `[tool.uv.sources]`). 0.6.1 is additive: optional modules and choice groups of a plant, its structures, and `gm.study.evolve`; nothing breaks, and every test passes unchanged. The range stays `>=0.6,<0.7`.
+
 ### What the second end-to-end run showed (0.4.22.dev32)
 
 Run E2: the case lead found two flaws of the test project's own `case.json` (the 330 operating days stored as a count of 330 doublets; a cooling return colder than its supply) and asked instead of guessing. Each bug is pinned by a test.
