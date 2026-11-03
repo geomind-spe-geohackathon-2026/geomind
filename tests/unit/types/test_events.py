@@ -158,20 +158,20 @@ def test_public_types_are_the_ten_of_the_contract_and_the_study_event():
     assert public == CONTRACT_TYPES | {"study.recorded"}
 
 
+SHARED_CONTRACT = ROOT / "tests" / "fixtures" / "contracts" / "shared.md"
+"""A copy of the shared contract, ``backend/docs/app-build/contracts.md`` version 51."""
+
+
 def test_contract_table_lists_the_same_types():
-    """The test table matches the table of the shared document, when it is present."""
-    document = ROOT.parent / "docs/contracts.md"
-    if not document.exists():
-        pytest.skip("the shared docs folder is a sibling of this repository")
+    """The test table matches the table of the shared document."""
+    document = SHARED_CONTRACT
     section = document.read_text().split("## 2. Live run events")[1].split("## 3.")[0]
     assert set(re.findall(r"^\| `([a-z.]+)` \|", section, re.MULTILINE)) == CONTRACT_TYPES
 
 
 def table_fields():
     """Return ``{type: (required fields, optional fields)}`` from the shared document."""
-    document = ROOT.parent / "docs/contracts.md"
-    if not document.exists():
-        pytest.skip("the shared docs folder is a sibling of this repository")
+    document = SHARED_CONTRACT
     section = document.read_text().split("## 2. Live run events")[1].split("**Problem state")[0]
     fields = {}
     for kind, data in re.findall(r"^\| `([a-z.]+)` \| `\{([^}]*)\}`", section, re.MULTILINE):

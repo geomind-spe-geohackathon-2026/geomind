@@ -6,6 +6,13 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.12] - 2026-11-03
+
+Additive; one change of shape the backend sees.
+
+- `compute_kpis`: a cost gemini gives no value for has `error`, `case_incomplete` with the path in `suggestions` and gemini's message, beside the report's `reason`. A cost the report left `null` (`npv`, `payback` without revenue) is now `{"value": null, "error": {...}}`. Before, such a cost had only a `reason` text, or was `null`, and no code.
+- The 15 tests of the event table against the shared contract run again, on a copy of `backend/docs/app-build/contracts.md` version 51 in `tests/fixtures/contracts/shared.md`; they skipped, looking for a sibling `docs/` folder. The two checks of `study.recorded` still skip: the shared table has no row for it.
+
 ## [0.4.11] - 2026-11-03
 
 Additive.
