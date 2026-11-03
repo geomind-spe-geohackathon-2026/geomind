@@ -6,6 +6,16 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### Verb-first RAG tools and three MCP tools (0.4.22.dev42)
+
+Sahand's naming: a tool's name starts with its verb.
+
+- Contract (rename): `rag_read` is `read_rag` and `rag_search` is `search_rag`. Old logs and recordings still replay: `RENAMED_TOOLS` maps `rag_read`, `rag_search`, `search_knowledge` (and the older `read_document`, `search_documents`) to the new names.
+- Contract (removal): `search_knowledge` is gone. `search_rag` is one search over the project's documents and files and the knowledge base. Each match has `scope` (`project` or `knowledge`), `text`, `score` and `citation`: `{document, title}` for a project document, `{file, page}` for a passage of a project file, and `{document, title, page}` for a knowledge passage, whose `name` is `knowledge/<document>` for `read_rag`. The best of each scope come in turn, because their scores come from different rankings. With neither a project nor a knowledge base it answers `not_allowed`. Its no-match note now says to try MCP and then ask the user for a value of the case, and to choose and record an assumption only for a design choice.
+- Contract (MCP, replaces `<server>__<tool>`): every agent that has tools is offered three fixed tools when the run has a server that answered. `list_mcp(server?)` returns `tools` `[{server, name, description, read_only, input_schema}]`. `read_mcp(server, tool, arguments)` calls a read-only tool and answers `not_read_only` for any other. `call_mcp(server, tool, arguments)` calls any tool, and a tool that is not read-only asks for approval (`request` kind `approval`) through the new `Tool.for_call(session, input)`. Kept: `tool.started` and `tool.finished` carry `mcp` (the `server` input); header values are never logged, stored, echoed or replayed; `GEOMIND_MCP_TIMEOUT` is required when a server is given; `mcp_unavailable` answers a run without a server or a failing one; an unknown server or tool is `unknown_name`. `Engine.mcp_tools` is now `Engine.mcp_servers`. A log with `<server>__<tool>` calls still replays (tested on a dev41 log).
+- Prompts: the shared `KNOWLEDGE` and `MCP` sections name the new tools; the case lead and the geoscientist search the knowledge base with `search_rag`, then a server through `read_mcp`, before they ask.
+- Evals: `Outcome.tools` holds the new names, also for old recordings.
+
 ### A missing value is searched before it is asked for (0.4.22.dev41)
 
 Sahand's rule: a value the user's files lack comes from the knowledge base, then from an MCP tool, and only then from the user; the user confirms what was found, with its source. Prices come from the knowledge base's cost catalogue.

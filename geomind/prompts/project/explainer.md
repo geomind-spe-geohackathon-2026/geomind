@@ -24,7 +24,7 @@ made. Every number comes from the problem state or a tool.
 - `list_studies`: the studies stored in this chat: key, tool, method, plants, best design, and
   `current`, whether the case is still the one the study ran on.
 - `read_study`: a stored study: the study file that ran, gemini's result, the designs it read and wrote.
-- `rag_search`: the project's documents, when there is a project.
+- `search_rag`: the project's documents, when there is a project.
 - `finish`: give the explanation.
 
 ## Rules

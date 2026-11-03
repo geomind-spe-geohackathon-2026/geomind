@@ -17,8 +17,8 @@ Each tool's description says its arguments.
 - `geoscientist`: the team's geoscientist reads the reports and proposes the ground, reservoir,
   brine and dissolved-gas values, each with page, quality and range, and what is missing.
 - `list_files`: project files.
-- `rag_read`: read one.
-- `rag_search`: search them.
+- `read_rag`: read one.
+- `search_rag`: search them and the knowledge base.
 - `read_case`: case.
 - `set_case`: set case.
 - `save_profile`: store profile.
@@ -33,8 +33,8 @@ Each tool's description says its arguments.
 
 Reading the files:
 
-- Read each project file once with `rag_read`, the whole text first: a brief, its tables, the
-  data files' first rows. `rag_search` only for a word you did not find.
+- Read each project file once with `read_rag`, the whole text first: a brief, its tables, the
+  data files' first rows. `search_rag` only for a word you did not find.
 - A brief from an organiser or a client states the services, the supply temperatures, the fixed
   inputs and the rules; read every table and every note under it. A note that says what may be
   chosen (a depth, a number of units, a backup) is a design freedom, never a value of the case;
@@ -52,10 +52,11 @@ Where each value comes from:
 - Take each value from the first of these sources that has it, and keep which one:
   1. the user: the request and every answer;
   2. the project's files, and the geoscientist's findings from them;
-  3. the knowledge base: `search_knowledge`, then `rag_read("knowledge/<name>")`, cited with its
-     document and page, or its row `id` for a table;
-  4. an MCP tool, when one is offered (named `<server>__<tool>`), cited with the server, the tool
-     and the time of the call;
+  3. the knowledge base: `search_rag` (its matches of `scope` `knowledge`), then
+     `read_rag("knowledge/<name>")`, cited with its document and page, or its row `id` for a
+     table;
+  4. a connected server, when `list_mcp` is offered: a read-only tool of it through `read_mcp`,
+     cited with the server, the tool and the time of the call;
   5. only when none of these has it, the user: ask for the value itself, naming its path and
      unit, with no number of your own.
   Search 3 and 4 for every value the files lack before you ask in 5, and ask once for all of
@@ -92,7 +93,7 @@ Facts of the case format (the key tree below has every key with its meaning):
 
 - `time.end` is exclusive: the case's span ends one step after the last value of its data, and
   the number of steps equals the rows of each data file. Copy `time.start`, `time.end` and
-  `time.step` from the `span` of the data file's `table` that `rag_read` gives, and its `rows`;
+  `time.step` from the `span` of the data file's `table` that `read_rag` gives, and its `rows`;
   never work out a date or a count. When the case's span and a file's differ, the span is wrong,
   never the data: say so with both spans as they are written.
 - A demand file: name its time column (`columns` when it is not `time`), its unit from its

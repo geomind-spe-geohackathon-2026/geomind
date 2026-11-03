@@ -10,13 +10,12 @@ from tests.unit.agents.structure import check_complete
 
 TOOLS = [
     "list_files",
-    "rag_read",
-    "rag_search",
+    "read_rag",
+    "search_rag",
     "read_case",
     "read_stored",
     "search_memory",
     "read_memory",
-    "search_knowledge",
     "finish",
 ]
 FINDINGS = {
@@ -46,7 +45,7 @@ def test_it_is_complete():
 def test_it_proposes_and_never_sets_the_case():
     """Only the case lead sets the case; the geoscientist reads files and the case."""
     tools = set(Geoscientist().tools())
-    assert "rag_read" in tools and "read_case" in tools
+    assert "read_rag" in tools and "read_case" in tools
     assert not tools & {"set_case", "save_profile", "update_state", "ask_user"}
 
 
@@ -103,6 +102,6 @@ async def test_the_case_lead_reads_the_findings_of_a_nested_run():
 def test_a_gap_is_searched_in_the_knowledge_base_then_mcp_before_it_is_missing():
     """Sahand: what the reports lack comes from the knowledge base, then MCP, cited."""
     text = " ".join(Geoscientist().prompt.render().split())
-    order = ["(`search_knowledge`", "an MCP tool", "Only when neither has it"]
+    order = ["(`search_rag`", "`read_mcp`", "Only when neither has it"]
     assert [text.index(item) for item in order] == sorted(text.index(item) for item in order)
-    assert "`source.file` is `<server>__<tool>`" in text
+    assert "`source.file` is `<server>/<tool>`" in text

@@ -97,7 +97,7 @@ def test_a_waiting_run_is_resumed_with_the_value_of_an_option(tmp_path, monkeypa
 async def test_search_documents_finds_the_project_s_attached_files():
     """Test 4 searched the brief for site values six times and got ``[]`` each time."""
     from geomind.stores import MemoryWorkspace
-    from geomind.tools.gemini.results import rag_search
+    from geomind.tools.gemini.results import search_rag
     from tests.fixtures.calls import call
     from tests.fixtures.sessions import StubSession
 
@@ -105,7 +105,7 @@ async def test_search_documents_finds_the_project_s_attached_files():
     session = StubSession()
     session.workspace = MemoryWorkspace(files={"p": {"brief.md": brief.encode()}})
     query = recorded(76, "search_documents")
-    [found] = (await call(rag_search, query, session, "p")).output["matches"]
+    [found] = (await call(search_rag, query, session, "p")).output["matches"]
     assert found["name"] == "brief.md" and "reservoir" in found["text"]
     assert found["start"] == 0
 

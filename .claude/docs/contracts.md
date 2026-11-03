@@ -49,8 +49,8 @@ and to read one back `event_from_dict`.
 | Tool error codes `no_case` and `case_incomplete` (beyond the shared contract) | `geomind/tools/gemini/case.py` | `tests/unit/tools/gemini/test_case.py` |
 | Optional `Workspace.files(project_id) -> [{name, size, media_type}]`, `Workspace.file(project_id, name) -> bytes \| None` (beyond the shared contract) | `geomind/stores/workspace.py` | `tests/unit/stores/test_workspace.py` |
 | Tool error codes `files_unavailable`, `not_text` (beyond the shared contract) | `geomind/tools/files.py` | `tests/unit/tools/test_files.py` |
-| `Workspace.rag(project_id, query)` (was `documents`); tools `rag_search`, `rag_read` (were `search_documents`, `read_document`; old names still replay) | `geomind/stores/workspace.py` | `tests/unit/tools/test_base.py` |
-| Optional `Workspace.mcp(project_id)`, `gd.mcp.list_tools`, `McpError`, tools `<server>__<tool>`, field `mcp` of `tool.started`/`tool.finished`, code `mcp_unavailable` (contract v2/v3) | `geomind/mcp/client.py`, `geomind/tools/mcp.py` | `tests/unit/mcp/test_client.py`, `tests/unit/tools/test_mcp.py` |
+| `Workspace.rag(project_id, query)` (was `documents`); tools `search_rag` (also over the knowledge base: matches with `scope` and `citation`), `read_rag` (were `search_documents`, `read_document`, then `rag_search`, `rag_read` and `search_knowledge`; old names still replay) | `geomind/stores/workspace.py` | `tests/unit/tools/test_base.py` |
+| Optional `Workspace.mcp(project_id)`, `gd.mcp.list_tools`, `McpError`, tools `list_mcp`, `read_mcp` and `call_mcp` (code `not_read_only`; `<server>__<tool>` before dev42), field `mcp` of `tool.started`/`tool.finished`, code `mcp_unavailable` (contract v2/v3) | `geomind/mcp/client.py`, `geomind/tools/mcp.py` | `tests/unit/mcp/test_client.py`, `tests/unit/tools/test_mcp.py` |
 | Optional `Workspace.knowledge_search(query)`, `knowledge_files()`, `knowledge_file(name)`, tool error code `knowledge_unavailable` (contract v2) | `geomind/tools/knowledge.py` | `tests/unit/tools/test_knowledge.py` |
 | `Completion`, `Usage`, `Message` | `geomind/types/messages.py` | `tests/unit/types/test_messages.py` |
 | `RunStore`, all seven methods, `load_events` included | `geomind/stores/run.py` | `tests/unit/testing/test_conformance.py` |
@@ -108,7 +108,7 @@ and to read one back `event_from_dict`.
   adds both or neither. `files` returns `[{"name": str, "size": int, "media_type": str}]`, one row per
   file the user attached, `[]` without any: `name` is what the agent passes back, `size` is in bytes
   and `media_type` a MIME type. `file` returns the file's `bytes`, or `None` for any other name. Both
-  are sync, called from a worker thread. Without them `list_files`, `rag_read` and
+  are sync, called from a worker thread. Without them `list_files`, `read_rag` and
   `set_case(files=...)` answer `files_unavailable` and the rest of a run is unchanged.
 - `Workspace.case(project_id)` returns the project's case as `(case dict, {name: bytes})` or
   `None`: the content of its `case.json` as written, and the bytes of every file it names,

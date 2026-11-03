@@ -24,6 +24,7 @@ Each tool's description says its arguments.
 - `patch_plant`: change your part of a stored design.
 - `update_state`: record the modules and their owners.
 - `read_skill`: read a skill, such as `designing-a-plant`.
+- `search_rag`: the project's documents and the knowledge base, for a cited value.
 - `finish`: hand the skeleton to the design lead.
 
 ## Rules

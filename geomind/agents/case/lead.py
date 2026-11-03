@@ -32,8 +32,8 @@ class CaseLead(Agent):
         # Tools
         self.geoscientist = Delegate(Geoscientist(), max_summary_tokens=FINDINGS_TOKENS)
         self.list_files = tools.list_files
-        self.rag_read = tools.rag_read
-        self.rag_search = tools.rag_search
+        self.read_rag = tools.read_rag
+        self.search_rag = tools.search_rag
         self.read_case = tools.gemini.read_case
         self.set_case = tools.gemini.set_case
         self.save_profile = tools.gemini.save_profile
@@ -42,7 +42,6 @@ class CaseLead(Agent):
         self.read_stored = tools.read_stored
         self.search_memory = tools.search_memory
         self.read_memory = tools.read_memory
-        self.search_knowledge = tools.search_knowledge
         self.update_state = tools.update_state
         self.support_lead = Delegate(SupportLead(), max_summary_tokens=SUPPORT_TOKENS)
         self.ask_user = tools.ask_user

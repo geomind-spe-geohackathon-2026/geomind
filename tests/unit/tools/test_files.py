@@ -1,11 +1,11 @@
-"""The tools that read the files of a project: ``list_files`` and ``rag_read``."""
+"""The tools that read the files of a project: ``list_files`` and ``read_rag``."""
 
 from pathlib import Path
 
 import pytest
 
 from geomind.stores import MemoryWorkspace
-from geomind.tools import list_files, rag_read
+from geomind.tools import list_files, read_rag
 from geomind.tools.files import span_of
 from tests.fixtures.calls import call
 from tests.fixtures.sessions import StubSession
@@ -41,9 +41,9 @@ class NoFiles:
 
 
 async def read(name, **options):
-    """Return the output of ``rag_read`` on the project's files."""
+    """Return the output of ``read_rag`` on the project's files."""
     tool_input = {"name": name, **options}
-    return (await call(rag_read, tool_input, session_with(), "p")).output
+    return (await call(read_rag, tool_input, session_with(), "p")).output
 
 
 async def test_list_files_gives_name_size_and_media_type():
@@ -56,11 +56,11 @@ async def test_list_files_gives_name_size_and_media_type():
 async def test_without_a_project_the_tools_are_not_allowed():
     """A chat without a project has no files to read."""
     assert (await call(list_files, {})).output["error"]["code"] == "not_allowed"
-    result = await call(rag_read, {"name": "a.csv"})
+    result = await call(read_rag, {"name": "a.csv"})
     assert result.output["error"]["code"] == "not_allowed"
 
 
-@pytest.mark.parametrize("tool, tool_input", [(list_files, {}), (rag_read, {"name": "a.csv"})])
+@pytest.mark.parametrize("tool, tool_input", [(list_files, {}), (read_rag, {"name": "a.csv"})])
 async def test_a_workspace_without_files_says_so(tool, tool_input):
     """A backend that has not added the methods gets a clear code, not a crash."""
     session = StubSession()
@@ -133,7 +133,7 @@ async def test_a_long_file_is_paged():
 async def test_a_page_is_bounded_without_a_length():
     """A call without ``length`` cannot pull a whole long file into the context."""
     files = {"huge.txt": b"x" * 200_000}
-    output = (await call(rag_read, {"name": "huge.txt"}, session_with(files), "p")).output
+    output = (await call(read_rag, {"name": "huge.txt"}, session_with(files), "p")).output
     assert output["next"] == len(output["text"]) < 40_000
 
 
@@ -145,14 +145,14 @@ async def test_a_negative_start_is_refused():
 async def test_a_long_read_is_stored_by_reference():
     """A read over the store limit is kept as an artifact, so old reads need not stay whole."""
     session = session_with()
-    result = await call(rag_read, {"name": "long.txt"}, session, "p")
+    result = await call(read_rag, {"name": "long.txt"}, session, "p")
     assert result.reference is not None and len(result.output["text"]) == 20000
     assert session.artifacts[result.reference]["text"] == result.output["text"]
 
 
 def test_the_name_argument_has_a_pattern_and_an_example():
     """The schema teaches the form of a name, as the reference arguments do."""
-    schema = rag_read.schema()["input_schema"]["properties"]["name"]
+    schema = read_rag.schema()["input_schema"]["properties"]["name"]
     assert schema["pattern"] and schema["examples"] == ["demand.csv"]
 
 

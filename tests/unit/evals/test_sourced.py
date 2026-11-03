@@ -60,9 +60,9 @@ def test_a_search_must_come_before_the_first_question():
     """The ``before`` criterion: the knowledge base is searched before the user is asked."""
     from evals.tasks_format import BeforeCriterion
 
-    rule = BeforeCriterion(kind="before", tool="search_knowledge", then="ask_user")
-    searched = Outcome(name="t", tools=["rag_read", "search_knowledge", "ask_user"])
-    asked = Outcome(name="t", tools=["rag_read", "ask_user", "search_knowledge"])
+    rule = BeforeCriterion(kind="before", tool="search_rag", then="ask_user")
+    searched = Outcome(name="t", tools=["read_rag", "search_rag", "ask_user"])
+    asked = Outcome(name="t", tools=["read_rag", "ask_user", "search_rag"])
     assert rule.problem(searched) is None
-    assert rule.problem(Outcome(name="t", tools=["rag_read"])) is None
-    assert rule.problem(asked).startswith("before: no search_knowledge before the first ask_user")
+    assert rule.problem(Outcome(name="t", tools=["read_rag"])) is None
+    assert rule.problem(asked).startswith("before: no search_rag before the first ask_user")

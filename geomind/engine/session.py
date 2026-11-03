@@ -18,7 +18,7 @@ from geomind.providers import needs_models
 from geomind.stores.memory import FileMemory
 from geomind.tools.base import with_old_names
 from geomind.tools.knowledge import has_knowledge
-from geomind.tools.mcp import RecordedMcpTool, load_tools, server_of
+from geomind.tools.mcp import MCP_TOOLS, RecordedMcpTool, load_servers, server_of
 from geomind.tools.memory import MEMORY_TOOLS
 from geomind.types import Allow, Deny, Request, Usage
 from geomind.types.events import (
@@ -283,16 +283,18 @@ class RunSession:
         The tools of the run's MCP servers come last, for every agent that has tools.
         """
         hidden = set() if self.memory is not None else set(MEMORY_TOOLS)
-        if not self.knows():
-            hidden.add("search_knowledge")
         own = [item for item in agent.tool_schemas() if item["name"] not in hidden]
         return own + [tool.schema() for tool in self.mcp_of(agent).values()]
 
     def mcp_of(self, agent):
-        """Return the MCP tools an agent is offered: none for a rule or an agent with no tools."""
-        if agent.model.name == "rule" or not agent.tools():
+        """Return the MCP tools an agent is offered: ``list_mcp``, ``read_mcp`` and ``call_mcp``.
+
+        None for a run without a server that answered, a rule, or an agent with no tools.
+        """
+        servers = self.engine.mcp_servers
+        if not servers or not servers.servers or agent.model.name == "rule" or not agent.tools():
             return {}
-        return dict(self.engine.mcp_tools or {})
+        return dict(MCP_TOOLS)
 
     def tools_of(self, agent, names):
         """Return the tools a step looks calls up in: the agent's, its MCP tools, old names.
@@ -301,7 +303,11 @@ class RunSession:
         """
         tools = with_old_names({**self.mcp_of(agent), **agent.tools()})
         for name in names:
-            if name not in tools and server_of(name) and self.engine.recorded:
+            if name in tools or not self.engine.recorded:
+                continue
+            if name in MCP_TOOLS:
+                tools[name] = MCP_TOOLS[name]
+            elif server_of(name):
                 tools[name] = RecordedMcpTool(name)
         return tools
 
@@ -313,9 +319,9 @@ class RunSession:
         headers.
         """
         engine = self.engine
-        if engine.mcp_tools is not None:
+        if engine.mcp_servers is not None:
             return
-        engine.mcp_tools = {}
+        engine.mcp_servers = False
         workspace = engine.workspace
         if engine.recorded or not callable(getattr(workspace, "mcp", None)):
             return
@@ -323,8 +329,9 @@ class RunSession:
         if not servers:
             return
         self.log.secrets = (*self.log.secrets, *keys_of(servers))
-        tools, failures = await load_tools(servers, mcp_timeout(), engine.mcp_transport)
-        engine.mcp_tools = tools
+        engine.mcp_servers, failures = await load_servers(
+            servers, mcp_timeout(), engine.mcp_transport
+        )
         for server, error in failures:
             await self.report_error(error, f"mcp:{server.name}")
 
@@ -417,7 +424,9 @@ class RunSession:
         changed = decision.input if isinstance(decision, Allow) else None
         if decision is None or isinstance(decision, Allow):
             ask_rules = [rule for hook in self.engine.hooks() for rule in hook.ask_rules]
-            decision, rule = self.engine.permissions.decide(tool, ask=ask_rules)
+            decision, rule = self.engine.permissions.decide(
+                tool.for_call(self, call.input), ask=ask_rules
+            )
         else:
             rule = f"hook:{rule}"
         await self.emit(

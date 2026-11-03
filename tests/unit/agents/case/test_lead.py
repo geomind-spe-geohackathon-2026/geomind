@@ -7,8 +7,8 @@ from tests.unit.agents.structure import check_complete
 TOOLS = [
     "geoscientist",
     "list_files",
-    "rag_read",
-    "rag_search",
+    "read_rag",
+    "search_rag",
     "read_case",
     "set_case",
     "save_profile",
@@ -17,7 +17,6 @@ TOOLS = [
     "read_stored",
     "search_memory",
     "read_memory",
-    "search_knowledge",
     "update_state",
     "support_lead",
     "ask_user",
@@ -34,7 +33,7 @@ def test_only_the_formulator_sets_the_case():
     """The design lead reads the case and never sets it or reads the files."""
     design_lead = set(DesignLead().tools())
     assert "set_case" in CaseLead().tools() and "read_case" in design_lead
-    assert not design_lead & {"set_case", "save_profile", "list_files", "rag_read"}
+    assert not design_lead & {"set_case", "save_profile", "list_files", "read_rag"}
 
 
 def test_its_model_is_its_own_required_setting(monkeypatch):
@@ -77,7 +76,7 @@ def test_it_writes_no_number_it_worked_out():
 def test_a_missing_value_is_searched_before_it_is_asked_for():
     """Sahand: files, then the knowledge base, then MCP, and only then the user."""
     text = " ".join(CaseLead().prompt.content.split())
-    order = ["the project's files", "the knowledge base:", "an MCP tool", "only when none"]
+    order = ["the project's files", "the knowledge base:", "`read_mcp`", "only when none"]
     assert [text.index(item) for item in order] == sorted(text.index(item) for item in order)
     assert "Search 3 and 4 for every value the files lack before you ask" in text
     assert "knowledge/cost-sources.csv" in text and "`placeholder`" in text

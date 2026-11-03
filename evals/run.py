@@ -28,6 +28,7 @@ from geomind.providers import FakeLLM, OpenRouter, Recorder
 from geomind.run import loop_of
 from geomind.stores import FileWorkspace, MemoryRunStore
 from geomind.stores.knowledge import FolderKnowledge
+from geomind.tools.base import RENAMED_TOOLS
 from geomind.types import ToolCall, Usage
 from geomind.utils.models import fetch_prices
 
@@ -266,7 +267,11 @@ def run_task(name, task, agent_name, llm, loop=None, hooks=()):
     outcome = Outcome(
         name=name,
         answer=str(result.answer or ""),
-        tools=[e.tool for e in events if e.type == "tool.result" and e.call_id],
+        tools=[
+            RENAMED_TOOLS.get(e.tool, e.tool)
+            for e in events
+            if e.type == "tool.result" and e.call_id
+        ],
         questions=[e.request.message for e in events if e.type == "request"],
         state=store.load_state(CHAT) or {},
         steps=result.steps,

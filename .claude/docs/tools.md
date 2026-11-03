@@ -31,9 +31,9 @@ the problem state as `update_state` does.
 | `save_profile` | `case.py` | `write` | `name, values, unit, start, step, service`, all required: `unit` a unit of power, `step` `{value, unit}`, `service` `heating` or `cooling` | `{demand, time, steps, version}`; gemini checks the values (`gm.case.from_values`), they are written in `unit` as the column `name` of `data/<name>.csv` (first column `time`) in the run's case files and the service's `power` becomes `{unit, file, column}`; a profile that does not cover the case's `time` sets it to the profile's span in the same call; gemini rejects a case that does not fit and nothing is stored | built |
 | `simulate` | `runs.py` | `compute` | `design=None, changes=None, start=None, end=None` | `{reference, summary}`; the run is stored; the summary gives the plant, the case's time span, the window, `steps`, `failed_steps` and the first `failures`, the `report` totals in display units, gemini's `verdict`, the `unmet` requirements (the checks with `passed` false) and the demand `coverage` | built |
 | `read_result` | `results.py` | `read` | `reference, path=None, field=None, start=None, end=None` (ISO 8601, inclusive) | `{time, value, unit}` with `path` and `field`, otherwise `{path: {field: {min, max, mean}}}`, in MW, degC, bar, m3/h and kg/s | built |
-| `rag_search` | `results.py` | `read` | `query` | `{matches, note}`: documents `{id, title, text, score}` and passages of the project's files `{name, start, text, score}`, best first, at most 8; `note` when nothing matches (the project does not state it: an assumption or `ask_user`) or the run tree searched the same words | built |
+| `search_rag` | `results.py` | `read` | `query` | `{matches, note}`: documents `{id, title, text, score}` and passages of the project's files `{name, start, text, score}`, best first, at most 8; `note` when nothing matches (the project does not state it: an assumption or `ask_user`) or the run tree searched the same words | built |
 | `list_files` | `files.py` (`geomind/tools/`) | `read` | none | `{files: [{name, size, media_type}]}` | built |
-| `rag_read` | `files.py` (`geomind/tools/`) | `read` | `name, start=0, length=None` | `{name, start, total, text, next, table?}` | built |
+| `read_rag` | `files.py` (`geomind/tools/`) | `read` | `name, start=0, length=None` | `{name, start, total, text, next, table?}` | built |
 | `check_results` | `assessment.py` | `compute` | `reference` | gemini's verdict on the run's own case, in display units: `{feasible, reasons: [{kind, name, message, ...}], requirements: [check], failures: {total, groups}, metrics}` | built |
 | `compute_kpis` | `assessment.py` | `compute` | `reference, names=None` | `{name: Value}` in display units: `gm.evaluate.totals` and the metrics of `gm.evaluate.report`; an unknown name is `unknown_name` with a did-you-mean | built |
 | `estimate_costs` | `assessment.py` | `compute` | `reference` | `{capex, opex, annualised_cost, lcoh, lcoc, lcts, npv, payback, co2}` as Values in display units, from the case's `economics.json`; a cost whose figure is missing is `{error}` with gemini's `missing_assumption` and its path | built |
@@ -70,8 +70,8 @@ gemini's API is frozen from 0.5.0; a breaking gemini release needs a new geomind
 | `save_profile` | `gm.case.from_values`, `gm.units.Quantity`, `gm.Case.from_dict`, `Case.check` | real |
 | `simulate` | `gm.schedule`, `gm.simulate` (which runs `gm.check`), `gm.evaluate.report`, `totals`, `failures`, `plant.set_params`, `Results.to_bytes` | real |
 | `read_result` | `Results.get`, `Results.summary` through `load_run` | real |
-| `rag_search` | none: it reads `Workspace.rag` and the text of `Workspace.files` | built |
-| `list_files`, `rag_read` | none: they read the optional `Workspace.files` and `Workspace.file` | built |
+| `search_rag` | none: it reads `Workspace.rag` and the text of `Workspace.files` | built |
+| `list_files`, `read_rag` | none: they read the optional `Workspace.files` and `Workspace.file` | built |
 | `check_results` | `gm.evaluate.verdict`, `report`, `gm.Results.from_bytes` | real |
 | `compute_kpis` | `gm.evaluate.totals`, `gm.evaluate.report` | real |
 | `estimate_costs` | `gm.evaluate.capex`, `opex`, `annualised_cost`, `lcoh`, `lcoc`, `lcts`, `npv`, `payback`, `co2`, `report` | real |
@@ -307,7 +307,7 @@ A validation error takes `path` from the first input field that failed. Every ot
 | `case_incomplete` | the case misses values gemini needs, to read it or for this plant; `path` is the first and `suggestions` lists every missing path, from `gm.case.missing` or gemini's check; the message stays gemini's |
 | `files_unavailable` | the workspace has no `files` and `file`: an older backend; the run goes on without them |
 | `knowledge_unavailable` | the workspace has no `knowledge_search`, `knowledge_files` and `knowledge_file`, or no document: the run goes on without a knowledge base |
-| `not_text` | `rag_read`: the file gives no text (binary, encrypted, a scan) |
+| `not_text` | `read_rag`: the file gives no text (binary, encrypted, a scan) |
 | `timeout` | the tool passed its time limit |
 | `budget` | a budget or time limit stopped a delegate's nested run; the message names it with what was spent and the cap |
 | `nested_stopped` | a delegate's nested run stopped without an answer (a step limit, a refusal, invalid calls); the message says why |
@@ -364,7 +364,7 @@ the nested run adds to the parent's.
 
 ## Project files
 
-`rag_read` returns the text by pages of at most 20,000 characters (`PAGE_CHARACTERS`, under
+`read_rag` returns the text by pages of at most 20,000 characters (`PAGE_CHARACTERS`, under
 `tool_result_limit`). A PDF goes through pypdf, each page after a `[page n]` marker; a long result is
 stored by reference like any other, so old reads shrink to their outline. `set_case(files=[...])`
 gives project files to the case: `set_case` passes their bytes to gemini under the same name, and
@@ -421,7 +421,7 @@ From live segment 7 (`tests/integration/test_live_regressions_g.py`):
 From the fifth live run (`tests/integration/test_live_regressions_e.py`, recording
 `tests/fixtures/live/recording_e.jsonl`):
 
-- The run searched 147 times, mostly for values the brief does not hold. `rag_search` now
+- The run searched 147 times, mostly for values the brief does not hold. `search_rag` now
   returns `{matches, note}`: no match says the project does not state it (choose an assumption
   with its reason, or `ask_user`), and the same words again in the run tree are noted. A file's
   name alone matches nothing.
@@ -430,9 +430,9 @@ From the fifth live run (`tests/integration/test_live_regressions_e.py`, recordi
 From the fourth live run (`tests/integration/test_live_regressions_d.py`, recording
 `tests/fixtures/live/recording_d.jsonl`):
 
-- `rag_search` searched only `documents/`, so a brief attached as a project file (a PDF) was
+- `search_rag` searched only `documents/`, so a brief attached as a project file (a PDF) was
   never found: it now also searches passages of 1,500 characters of every project file that reads
-  as text, each with its `name` and `start` for `rag_read`.
+  as text, each with its `name` and `start` for `read_rag`.
 - `read_stored` (`Tool.stored_input`): a long part of a stored result keeps the reference it was
   read from and is not stored again, so no chain of copies is read over and over.
 - The CLI asks again for an answer a question does not accept (`--answer-retries`) and stops as
@@ -450,14 +450,14 @@ From the third live run (`tests/integration/test_live_regressions_c.py`, recordi
 - `shown_message` (`geomind/tools/gemini/explain.py`) shows a gemini error's problems with each path
   once, and the same problem on many rows of a file as one line: the first row's message, the
   number of rows and the first and last row. gemini's codes, paths and text are unchanged.
-- `rag_read`: the reads of a run tree are one memory (`reads_of`, on the root session), so a
+- `read_rag`: the reads of a run tree are one memory (`reads_of`, on the root session), so a
   later design lead round sees what an earlier one read; a read of another run counts only when its
   result was stored. Once the whole document was read, every page is `already_read`, `force` too.
 - A CSV time without an offset stays gemini's error; geomind rewrites no value. A series takes
   gemini's `time_zone` (gemini 0.5.13) through `set_case`, and the error suggests the retry with
   `time_zone: <IANA zone of time.start>` on each series (`zone_retry`): the model chooses the zone
   and records it as an assumption; geomind has no zone.
-- `rag_read` remembers what the run read: a page read again is `already_read`, with the
+- `read_rag` remembers what the run read: a page read again is `already_read`, with the
   `reference` of the stored earlier result, unless `force`.
 - `geomind run --loop design` takes a project with files and no `case.json`.
 
@@ -467,7 +467,10 @@ The case, design and analysis teams have `search_memory()` and `read_memory(id)`
 memory's experience: past designs alike to the case and the lessons of the caller's role; the
 curator alone has `write_lesson(id, kind, role, text, source)` (`geomind/tools/memory.py`). With
 the memory off they are not offered and answer `not_allowed`. Every model agent but the
-coordinator, the summarizer and the curator has `search_knowledge(query)`, the knowledge base's
-passages with their document, title and page (`geomind/tools/knowledge.py`); `rag_read`
-reads a whole document as `knowledge/<name>`. A workspace without a knowledge base answers
-`knowledge_unavailable`, and the tool is not offered. See [memory.md](memory.md).
+coordinator, the summarizer and the curator has `search_rag(query)`, one search over the
+project's documents and files and the knowledge base: each match has its `scope` (`project` or
+`knowledge`) and its `citation` (a file and page, or a document, title and page), the best of each
+scope in turn (`geomind/tools/gemini/results.py`); `read_rag` reads a project file or a whole
+document as `knowledge/<name>`. Reading from a workspace without a knowledge base answers
+`knowledge_unavailable`. `search_knowledge`, `rag_search` and `rag_read` are the old names
+(`RENAMED_TOOLS`). See [memory.md](memory.md).

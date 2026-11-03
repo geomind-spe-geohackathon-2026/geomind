@@ -294,7 +294,7 @@ async def test_files_and_chat_together_make_the_case(verdicts):
     verdicts.append(PASSED)
     workspace, setting = files_project()
     script = [
-        uses(ToolCall(id="r1", name="rag_read", input={"name": "economics.json"})),
+        uses(ToolCall(id="r1", name="read_rag", input={"name": "economics.json"})),
         uses(call("ask_user", "q1", question="Which supply temperature, degC?")),
         uses(setting),
         says("case set from the files and your answer"),
@@ -559,7 +559,7 @@ async def test_the_formulator_sets_the_case_from_the_files_before_the_designer(v
     result = await DesignLoop(DesignLead(), Reviewer()).run(engine, start)
     events = engine.store.load_events(start.run_id)
     assert agents_of(events)[:3] == ["case_lead", "design_lead", "reviewer"]
-    assert "rag_read" not in tasks_of(events, "design_lead")[0]
+    assert "read_rag" not in tasks_of(events, "design_lead")[0]
     assert result.status == "done"
 
 

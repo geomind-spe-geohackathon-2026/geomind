@@ -73,7 +73,7 @@ def search_memory(context):
     ``experience`` holds past designs whose case is at least the ``memory_similarity`` setting
     alike to the state's case, each with its ``similarity``: a starting point only, never a
     result. ``lessons`` holds the general lessons of your role and the facts the user gave.
-    Cited values are not here: search the knowledge base (``search_knowledge``).
+    Cited values are not here: search the knowledge base (``search_rag``).
     """
     memory = memory_of(context, "search_memory")
     found = {"lessons": lessons_for(memory, role_of(context))[:SHOWN_ENTRIES]}

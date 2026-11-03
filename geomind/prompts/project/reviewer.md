@@ -23,6 +23,7 @@ and you never change the design or the case.
 - `read_result`: read a series of the result when a failure needs its days.
 - `update_state`: record the verification.
 - `read_skill`: read `reading-results` before you read a result.
+- `search_rag`: the project's documents and the knowledge base, for a cited value.
 - `finish`: report the verdict.
 
 ## Rules

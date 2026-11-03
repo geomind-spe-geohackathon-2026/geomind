@@ -54,7 +54,7 @@ class Workspace(Protocol):
 
         Each passage is ``{id, document, title, page, text, score}``. NOTE: optional, with
         ``knowledge_files`` and ``knowledge_file``. A workspace without them keeps working:
-        ``search_knowledge`` answers ``knowledge_unavailable``.
+        ``read_rag`` of ``knowledge/<name>`` answers ``knowledge_unavailable``.
         """
 
     def knowledge_files(self):

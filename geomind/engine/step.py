@@ -54,7 +54,7 @@ async def record_result(session, call, result, **fields):
         output_summary=str(result.output)[:SUMMARY_CHARACTERS],
         duration=result.duration,
         error=str(result.output)[:SUMMARY_CHARACTERS] if result.is_error else None,
-        mcp=server_of(call.name),
+        mcp=server_of(call.name, call.input),
     )
 
 
@@ -155,7 +155,7 @@ async def _execute(session, agent, tool, call):
             call_id=call.id,
             tool=call.name,
             input=call.input,
-            mcp=server_of(call.name),
+            mcp=server_of(call.name, call.input),
         )
     results = session.engine.recorded.get(session.state.run_id, {})
     recorded = results.get((session.state.step, call.id))

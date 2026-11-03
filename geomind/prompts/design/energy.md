@@ -21,6 +21,7 @@ Each tool's description says its arguments.
 - `list_profiles`: the case's profiles.
 - `read_profile`: one profile: peak, energy, when services overlap.
 - `patch_plant`: set your parameters.
+- `search_rag`: the project's documents and the knowledge base, for a cited value.
 - `finish`: hand your part to the design lead.
 
 ## Rules

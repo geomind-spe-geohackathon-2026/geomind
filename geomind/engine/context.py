@@ -91,7 +91,7 @@ class Context:
         knows = getattr(self._session, "knows", lambda: True)()
         connected = getattr(self._session, "mcp_of", lambda agent: {})(agent)
         parts.append(MCP if connected else "")
-        parts.append(KNOWLEDGE if knows and "search_knowledge" in agent.tools() else "")
+        parts.append(KNOWLEDGE if knows and "search_rag" in agent.tools() else "")
         text = "\n\n".join(part for part in parts if part)
         return (Message(role="system", content=text),) if text else ()
 

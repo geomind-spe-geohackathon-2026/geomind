@@ -108,9 +108,19 @@ def test_the_offered_schema_has_no_title_annotations_but_keeps_a_property_named_
 
 
 def test_a_renamed_tool_answers_to_its_old_name_for_old_logs():
-    """``read_document`` of an older log finds ``rag_read``; old names stay replayable."""
-    from geomind.tools import rag_read
+    """``read_document`` of an older log finds ``read_rag``; old names stay replayable."""
+    from geomind.tools import read_rag
     from geomind.tools.base import with_old_names
 
-    tools = with_old_names({"rag_read": rag_read})
-    assert tools["read_document"] is rag_read and "search_documents" not in tools
+    tools = with_old_names({"read_rag": read_rag})
+    assert tools["read_document"] is read_rag and "search_documents" not in tools
+
+
+def test_the_rag_tools_of_dev41_logs_find_their_new_names():
+    """``rag_read``, ``rag_search`` and ``search_knowledge`` of older logs still replay."""
+    from geomind.tools import read_rag, search_rag
+    from geomind.tools.base import with_old_names
+
+    tools = with_old_names({"read_rag": read_rag, "search_rag": search_rag})
+    assert tools["rag_read"] is read_rag and tools["rag_search"] is search_rag
+    assert tools["search_knowledge"] is search_rag

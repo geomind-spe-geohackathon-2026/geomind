@@ -6,7 +6,7 @@ from geomind.errors import UnknownNameError
 from geomind.utils.strings import did_you_mean
 
 FOLDER = Path(__file__).parent
-SHARED_TOOLS = ("read_stored", "search_memory", "read_memory", "search_knowledge")
+SHARED_TOOLS = ("read_stored", "search_memory", "read_memory")
 STORED_RESULTS = (
     "## Stored results\n\n"
     "A long result is whole for one step, then only its `reference`, small values and an outline. "
@@ -22,19 +22,19 @@ MEMORY = (
 )
 MCP = (
     "## Connected servers\n\n"
-    "Tools named `<server>__<tool>` come from the servers the user connected. A value from one "
+    "`list_mcp` lists the servers the user connected and their tools, each with `read_only`. "
+    "`read_mcp(server, tool, arguments)` calls a read-only tool; `call_mcp` calls any tool, and "
+    "one that is not read-only asks the user's approval before it runs. A value from a server "
     "comes with its origin (server, tool, time): cite it so, and it enters the case or the plant "
-    "only after the user confirms it, with that origin, as any value no project file gives. A "
-    "tool that is not read-only asks the user's approval before it runs."
+    "only after the user confirms it, with that origin, as any value no project file gives."
 )
 KNOWLEDGE = (
     "## Knowledge\n\n"
-    "`search_knowledge` searches the shared knowledge base, documents such as cost catalogues, "
-    "standards and reports, and returns passages with their document, title and page; "
-    "`rag_read` reads a whole one as `knowledge/<document>`. A value from it is cited with "
-    "its document and page, and a value that enters the case is confirmed by the user, as any "
-    "value no project file gives. Never take a value from memory where knowledge or a file "
-    "gives one."
+    "`search_rag` also searches the shared knowledge base, documents such as cost catalogues, "
+    "standards and reports: a match of `scope` `knowledge` has its document, title and page; "
+    "`read_rag` reads a whole one as `knowledge/<document>`. A value from it is cited with its "
+    "document and page, and a value that enters the case is confirmed by the user, as any value "
+    "no project file gives. Never take a value from memory where knowledge or a file gives one."
 )
 
 

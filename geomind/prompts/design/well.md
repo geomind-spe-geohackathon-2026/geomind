@@ -20,6 +20,7 @@ Each tool's description says its arguments.
 - `evaluate_module`: run one module at one point.
 - `read_profile`: a demand profile.
 - `patch_plant`: set your parameters.
+- `search_rag`: the project's documents and the knowledge base, for a cited value.
 - `finish`: hand your part to the design lead.
 
 ## Rules

@@ -33,6 +33,7 @@ uncertainty. You compute nothing yourself.
 - `read_study`: a stored study: the study file that ran, gemini's result, the designs it read and wrote.
 - `update_state`: record the costs and the assumptions.
 - `read_skill`: read `gemini-units` before you convert a unit for the user.
+- `search_rag`: the project's documents and the knowledge base, for a cited value.
 - `finish`: report the costs.
 
 ## Rules

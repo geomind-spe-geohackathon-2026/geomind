@@ -6,7 +6,7 @@ NOTE: ``tests/fixtures/live/recording_c.jsonl`` is that run's recording, model m
 import json
 from pathlib import Path
 
-from geomind.tools import rag_read
+from geomind.tools import read_rag
 from geomind.tools.gemini.case import set_case
 from tests.fixtures.calls import call
 from tests.fixtures.sessions import StubSession
@@ -92,9 +92,9 @@ async def test_a_date_only_csv_is_read_with_a_time_zone():
 async def test_a_forced_read_of_a_document_read_whole_is_a_note():
     """The run read the whole PDF, then 60 times again with ``force=true``."""
     session = session_with_files()
-    whole = (await call(rag_read, {"name": HEATING}, session, "p")).output
+    whole = (await call(read_rag, {"name": HEATING}, session, "p")).output
     assert whole["next"] is None
-    again = (await call(rag_read, {"name": HEATING, "force": True}, session, "p")).output
+    again = (await call(read_rag, {"name": HEATING, "force": True}, session, "p")).output
     assert "text" not in again and again["already_read"]
     assert "already read" in again["note"]
 
@@ -105,13 +105,13 @@ async def test_a_later_round_sees_what_an_earlier_round_read():
     child = session_with_files()
     child.root_session = root
     child.state.run_id = "r2"
-    first = (await call(rag_read, {"name": HEATING}, root, "p")).output
+    first = (await call(read_rag, {"name": HEATING}, root, "p")).output
     reference = next(iter(root.artifacts), None)
     if reference is None:
         root.artifacts["stored"] = first
         root.documents_read[HEATING][0]["reference"] = "stored"
     child.artifacts = root.artifacts
-    again = (await call(rag_read, {"name": HEATING}, child, "p")).output
+    again = (await call(read_rag, {"name": HEATING}, child, "p")).output
     assert "text" not in again and again["already_read"][0]["reference"]
 
 
@@ -121,7 +121,7 @@ async def test_a_short_read_of_another_round_is_read_again():
     child = session_with_files()
     child.root_session = root
     child.state.run_id = "r2"
-    await call(rag_read, {"name": HEATING, "length": 100}, root, "p")
+    await call(read_rag, {"name": HEATING, "length": 100}, root, "p")
     root.documents_read[HEATING][0]["reference"] = None
-    again = (await call(rag_read, {"name": HEATING, "length": 100}, child, "p")).output
+    again = (await call(read_rag, {"name": HEATING, "length": 100}, child, "p")).output
     assert again["text"]

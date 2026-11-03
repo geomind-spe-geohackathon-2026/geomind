@@ -284,7 +284,7 @@ def project_files_text(context):
     if not names:
         return ""
     return (
-        f"\n\nThe project's files: {', '.join(names)}. Read them with rag_read and set the "
+        f"\n\nThe project's files: {', '.join(names)}. Read them with read_rag and set the "
         "case from them with set_case (files), before you ask the user for anything."
     )
 

@@ -34,8 +34,8 @@ CASE = {
 }
 SCRIPT = [
     uses(ToolCall(id="f1", name="list_files", input={})),
-    uses(ToolCall(id="f2", name="rag_read", input={"name": "demand.csv"})),
-    uses(ToolCall(id="f3", name="rag_read", input={"name": "requirements.pdf"})),
+    uses(ToolCall(id="f2", name="read_rag", input={"name": "demand.csv"})),
+    uses(ToolCall(id="f3", name="read_rag", input={"name": "requirements.pdf"})),
     uses(ToolCall(id="f4", name="set_case", input={"changes": CASE, "files": ["demand.csv"]})),
     *designer_round(1),
     *verifier_round(1),
@@ -72,7 +72,7 @@ async def test_the_loop_fills_the_case_from_the_files_without_asking(passed):
     events = engine.store.load_events(result.run_id)
     assert result.status == "done"
     assert not of_type(events, "request")
-    pdf = [e for e in of_type(events, "tool.result") if e.tool == "rag_read"][1]
+    pdf = [e for e in of_type(events, "tool.result") if e.tool == "read_rag"][1]
     assert "Supply temperature" in pdf.output["text"]
     assert recover(events).problem.case["demand"]["heating"]["power"]["file"] == "demand.csv"
 

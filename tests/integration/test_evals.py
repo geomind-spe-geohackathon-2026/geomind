@@ -27,7 +27,7 @@ TASK = {
     "criteria": [
         {"kind": "number", "value": 2100, "tolerance": 1, "unit": "m"},
         {"kind": "tool", "tool": "update_state"},
-        {"kind": "tool", "tool": "rag_search", "called": False},
+        {"kind": "tool", "tool": "search_rag", "called": False},
         {"kind": "question", "contains": "depth"},
         {"kind": "state", "path": "/goal"},
     ],

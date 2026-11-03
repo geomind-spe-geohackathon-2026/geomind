@@ -26,7 +26,7 @@ class AnalysisLead(Agent):
         # Tools
         self.economist = Delegate(Economist(), max_summary_tokens=ECONOMIST_TOKENS)
         self.list_files = tools.list_files
-        self.rag_read = tools.rag_read
+        self.read_rag = tools.read_rag
         self.read_case = tools.gemini.read_case
         self.set_case = tools.gemini.set_case
         self.list_modules = tools.gemini.list_modules
@@ -42,13 +42,12 @@ class AnalysisLead(Agent):
         self.list_studies = tools.gemini.list_studies
         self.read_study = tools.gemini.read_study
         self.compute_kpis = tools.gemini.compute_kpis
-        self.rag_search = tools.rag_search
+        self.search_rag = tools.search_rag
         self.update_state = tools.update_state
         self.read_skill = tools.read_skill
         self.read_stored = tools.read_stored
         self.search_memory = tools.search_memory
         self.read_memory = tools.read_memory
-        self.search_knowledge = tools.search_knowledge
         self.support_lead = Delegate(SupportLead(), max_summary_tokens=SUPPORT_TOKENS)
         self.ask_user = tools.ask_user
         self.finish = tools.finish

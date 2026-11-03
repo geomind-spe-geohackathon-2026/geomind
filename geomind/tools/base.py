@@ -11,8 +11,14 @@ from geomind.utils.strings import did_you_mean, join_names
 
 EFFECTS = ("read", "compute", "write", "execute", "external")
 PURE_EFFECTS = ("read", "compute")
-RENAMED_TOOLS = {"read_document": "rag_read", "search_documents": "rag_search"}
-"""The name a tool had in an older log or recording, by its name now (0.4.22.dev36)."""
+RENAMED_TOOLS = {
+    "read_document": "read_rag",
+    "search_documents": "search_rag",
+    "rag_read": "read_rag",
+    "rag_search": "search_rag",
+    "search_knowledge": "search_rag",
+}
+"""The name a tool had in an older log or recording, by its name now (0.4.22.dev36, dev42)."""
 
 
 def with_old_names(tools):
@@ -115,6 +121,14 @@ class Tool:
             "description": self.description,
             "input_schema": self._offered_schema(),
         }
+
+    def for_call(self, session, tool_input):
+        """Return the tool the permissions decide one call by: itself by default.
+
+        A tool whose effect depends on the call returns a copy with that effect, as ``call_mcp``
+        does for the server tool it calls.
+        """
+        return self
 
     def renamed(self, name):
         """Return a copy under another name; an agent names a tool by its attribute."""

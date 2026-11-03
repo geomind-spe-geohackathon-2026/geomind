@@ -628,72 +628,6 @@
       ],
       "name": "patch_plant"
     },
-    "rag_read": {
-      "description": "Read a project file, or a document of the knowledge base as ``knowledge/<name>``, as text.",
-      "effect": "read",
-      "idempotent": true,
-      "input_schema": {
-        "additionalProperties": false,
-        "properties": {
-          "force": {
-            "default": false,
-            "title": "Force",
-            "type": "boolean"
-          },
-          "length": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Length"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "start": {
-            "default": 0,
-            "title": "Start",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "name"
-        ],
-        "title": "rag_read_input",
-        "type": "object"
-      },
-      "late_schemas": [
-        "name"
-      ],
-      "name": "rag_read"
-    },
-    "rag_search": {
-      "description": "Search the documents and the files of the project; return ``{matches, note}``, best first.",
-      "effect": "read",
-      "idempotent": true,
-      "input_schema": {
-        "additionalProperties": false,
-        "properties": {
-          "query": {
-            "title": "Query",
-            "type": "string"
-          }
-        },
-        "required": [
-          "query"
-        ],
-        "title": "rag_search_input",
-        "type": "object"
-      },
-      "late_schemas": [],
-      "name": "rag_search"
-    },
     "read_case": {
       "description": "Return the case of the problem state, one of its sections, its economics or the schema.",
       "effect": "read",
@@ -837,6 +771,51 @@
       },
       "late_schemas": [],
       "name": "read_profile"
+    },
+    "read_rag": {
+      "description": "Read a project file, or a document of the knowledge base as ``knowledge/<name>``, as text.",
+      "effect": "read",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "force": {
+            "default": false,
+            "title": "Force",
+            "type": "boolean"
+          },
+          "length": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Length"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "start": {
+            "default": 0,
+            "title": "Start",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "read_rag_input",
+        "type": "object"
+      },
+      "late_schemas": [
+        "name"
+      ],
+      "name": "read_rag"
     },
     "read_result": {
       "description": "Return one series of a stored run, or a summary of the run or of one module path.",
@@ -1207,8 +1186,21 @@
       "late_schemas": [],
       "name": "save_profile"
     },
-    "search_knowledge": {
-      "description": "Search the shared knowledge base for passages that state a value, with their citation.",
+    "search_memory": {
+      "description": "Return what the team learned before: designs that passed on alike cases, and lessons.",
+      "effect": "read",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "title": "search_memory_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "search_memory"
+    },
+    "search_rag": {
+      "description": "Search the project's documents and files and the knowledge base; return ``{matches, note}``.",
       "effect": "read",
       "idempotent": true,
       "input_schema": {
@@ -1222,24 +1214,11 @@
         "required": [
           "query"
         ],
-        "title": "search_knowledge_input",
+        "title": "search_rag_input",
         "type": "object"
       },
       "late_schemas": [],
-      "name": "search_knowledge"
-    },
-    "search_memory": {
-      "description": "Return what the team learned before: designs that passed on alike cases, and lessons.",
-      "effect": "read",
-      "idempotent": true,
-      "input_schema": {
-        "additionalProperties": false,
-        "properties": {},
-        "title": "search_memory_input",
-        "type": "object"
-      },
-      "late_schemas": [],
-      "name": "search_memory"
+      "name": "search_rag"
     },
     "sensitivity": {
       "description": "Rank the case's uncertain values (from the user or the case, never made up) by effect.",
@@ -1611,5 +1590,5 @@
       "name": "write_lesson"
     }
   },
-  "version": "0.4.22.dev41"
+  "version": "0.4.22.dev42"
 }

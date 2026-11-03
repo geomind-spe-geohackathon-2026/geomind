@@ -79,13 +79,12 @@ class Geoscientist(Agent):
 
         # Tools
         self.list_files = tools.list_files
-        self.rag_read = tools.rag_read
-        self.rag_search = tools.rag_search
+        self.read_rag = tools.read_rag
+        self.search_rag = tools.search_rag
         self.read_case = tools.gemini.read_case
         self.read_stored = tools.read_stored
         self.search_memory = tools.search_memory
         self.read_memory = tools.read_memory
-        self.search_knowledge = tools.search_knowledge
         self.finish = tools.finish
 
         # Output

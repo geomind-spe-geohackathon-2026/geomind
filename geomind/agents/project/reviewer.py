@@ -30,7 +30,7 @@ class Reviewer(Agent):
         self.update_state = tools.update_state
         self.read_skill = tools.read_skill
         self.read_stored = tools.read_stored
-        self.search_knowledge = tools.search_knowledge
+        self.search_rag = tools.search_rag
         self.finish = tools.finish
 
         # Model

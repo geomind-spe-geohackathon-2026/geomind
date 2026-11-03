@@ -15,7 +15,7 @@ TOOLS = [
     "read_stored",
     "search_memory",
     "read_memory",
-    "search_knowledge",
+    "search_rag",
     "finish",
 ]
 

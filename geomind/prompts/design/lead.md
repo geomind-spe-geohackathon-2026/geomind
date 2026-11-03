@@ -46,6 +46,7 @@ Each tool's description says its arguments.
 - `read_skill`: skill.
 - `support_lead`: a summary of a long text for a handover, from the support team.
 - `ask_user`: ask.
+- `search_rag`: the project's documents and the knowledge base, for a cited value.
 - `finish`: hand over.
 
 ## Rules

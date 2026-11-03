@@ -19,6 +19,7 @@ Each tool's description says its arguments.
 - `list_modules`: gemini's modules.
 - `describe_module`: one module's ports and the fluid each carries.
 - `patch_plant`: change the connections, inlets, outlets, fluids and boundaries.
+- `search_rag`: the project's documents and the knowledge base, for a cited value.
 - `finish`: hand the connected design to the design lead.
 
 ## Rules

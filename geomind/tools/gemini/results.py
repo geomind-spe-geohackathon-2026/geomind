@@ -1,5 +1,6 @@
 """The tools over a project's results and documents."""
 
+import re
 from pathlib import Path
 
 from geomind.errors import ToolError
@@ -9,6 +10,7 @@ from geomind.tools.files import TABLE_SUFFIXES, document_text
 from geomind.tools.gemini.references import reference_schema
 from geomind.tools.gemini.runs import parse_time
 from geomind.tools.gemini.stored import load_run
+from geomind.tools.knowledge import PREFIX, has_knowledge
 
 READ_UNITS = {
     "power": "MW",
@@ -21,15 +23,17 @@ READ_UNITS = {
 
 
 PASSAGE_CHARACTERS = 1500
-"""The characters of one passage of a project file that ``rag_search`` returns."""
+"""The characters of one passage of a project file that ``search_rag`` returns."""
 SHOWN_MATCHES = 8
-"""The most matches ``rag_search`` returns, best first."""
+"""The most matches ``search_rag`` returns, best first."""
 NO_MATCH = (
-    "no document or file of the project has these words, so it does not state this: choose a "
-    "value and record it as an assumption with its reason, or ask_user; another wording finds "
-    "nothing more"
+    "no file or document of the project and no document of the knowledge base has these words, "
+    "so none states this: for a value of the case, try an MCP tool when one is offered, then ask "
+    "the user for it; for a design choice, choose and record it as an assumption with its "
+    "reason. Another wording finds nothing more"
 )
 SEARCHED = "already searched in this run with the same words:"
+PAGE_MARKER = re.compile(r"\[page (\d+)\]")
 
 
 @tool(effect="read", late_schemas={"reference": reference_schema("result")})
@@ -58,24 +62,28 @@ def read_result(
 
 
 @tool(effect="read")
-def rag_search(context, query: str):
-    """Search the documents and the files of the project; return ``{matches, note}``, best first.
+def search_rag(context, query: str):
+    """Search the project's documents and files and the knowledge base; return ``{matches, note}``.
 
-    A document match has ``id``, ``title``, ``text`` and ``score``. A file match is a passage of a
-    file that reads as text, such as a PDF: ``name``, ``start`` (for ``rag_read``), ``text``
-    and ``score``; a file's name alone matches nothing. No match means the project does not state
-    these words, and the ``note`` says what to do instead; the same words again are noted too.
+    Each match has ``scope`` (``project`` or ``knowledge``), ``text``, ``score`` and ``citation``,
+    what a value taken from it is cited with. A project document: ``id`` and ``title``; a passage
+    of a project file that reads as text, such as a PDF: ``name`` and ``start`` for ``read_rag``,
+    cited with its ``file`` and ``page``; a passage of the knowledge base: ``name`` as
+    ``knowledge/<document>`` for ``read_rag``, cited with its ``document``, ``title`` and
+    ``page``. The best of each scope come first, in turn. A file's name alone matches nothing. No
+    match means neither states these words, and the ``note`` says what to do instead; the same
+    words again are noted too. A value from the knowledge base goes into the case only after the
+    user confirms it, as any value no project file gives.
     """
-    workspace = context.session.workspace
-    if workspace is None or context.project is None:
+    project = project_matches(context, query)
+    knowledge = knowledge_matches(context, query)
+    if project is None and knowledge is None:
         raise ToolError(
-            "rag_search: this run has no project; expected a workspace and one",
+            "search_rag: this run has no project and no knowledge base; work from the case and "
+            "the user",
             code="not_allowed",
         )
-    found = list(workspace.rag(context.project, query))
-    passages = search(file_passages(context), query)
-    found += [{key: value for key, value in item.items() if key != "title"} for item in passages]
-    matches = sorted(found, key=lambda item: item["score"], reverse=True)[:SHOWN_MATCHES]
+    matches = in_turn(project or [], knowledge or [])[:SHOWN_MATCHES]
     result = {"matches": matches}
     words = frozenset(word.lower() for word in WORD.findall(query))
     searched = searches_of(context)
@@ -87,6 +95,60 @@ def rag_search(context, query: str):
     return {**result, "note": " ".join(note)} if note else result
 
 
+def in_turn(first, second):
+    """Return the items of two ranked lists in turn, best of each first: their scores differ."""
+    merged = []
+    for index in range(max(len(first), len(second))):
+        merged += [items[index] for items in (first, second) if index < len(items)]
+    return merged
+
+
+def project_matches(context, query):
+    """Return the project's matches, best first, or ``None`` for a run without a project."""
+    workspace = context.session.workspace
+    if workspace is None or context.project is None:
+        return None
+    documents = [
+        {"scope": "project", **item, "citation": {"document": item["id"], "title": item["title"]}}
+        for item in workspace.rag(context.project, query)
+    ]
+    files = [
+        {
+            "scope": "project",
+            "name": item["name"],
+            "start": item["start"],
+            "text": item["text"],
+            "score": item["score"],
+            "citation": {"file": item["name"], "page": item["page"]},
+        }
+        for item in search(file_passages(context), query)
+    ]
+    return sorted(documents + files, key=lambda item: item["score"], reverse=True)
+
+
+def knowledge_matches(context, query):
+    """Return the knowledge base's passages, best first, or ``None`` for a run without one."""
+    workspace = context.session.workspace
+    if not has_knowledge(workspace) or not workspace.knowledge_files():
+        return None
+    return [
+        {
+            "scope": "knowledge",
+            "name": f"{PREFIX}{item['document']}",
+            "text": item["text"],
+            "score": item["score"],
+            "citation": {key: item[key] for key in ("document", "title", "page")},
+        }
+        for item in list(workspace.knowledge_search(query))[:SHOWN_MATCHES]
+    ]
+
+
+def page_at(text, position):
+    """Return the number of the ``[page n]`` marker at or before ``position``, else ``None``."""
+    markers = PAGE_MARKER.findall(text[: position + len("[page 0000]")])
+    return int(markers[-1]) if markers else None
+
+
 def searches_of(context):
     """Return the word sets the run tree searched, kept on its root session, or ``None``."""
     session = getattr(context.session, "root_session", context.session)
@@ -96,8 +158,9 @@ def searches_of(context):
 def file_passages(context):
     """Return the passages of the project's files that read as text, ``PASSAGE_CHARACTERS`` each.
 
-    A passage is ``{name, start, title, text}`` with an empty ``title``, so the file name is no
-    match. A table (CSV, TSV) holds data, not text to search: ``rag_read`` shows its columns.
+    A passage is ``{name, start, title, text, page}`` with an empty ``title``, so the file name is
+    no match; ``page`` is that of the PDF page the passage starts on, ``None`` for a file without
+    pages. A table (CSV, TSV) holds data, not text to search: ``read_rag`` shows its columns.
     """
     workspace = context.session.workspace
     files = workspace.files(context.project) if hasattr(workspace, "files") else []
@@ -111,5 +174,8 @@ def file_passages(context):
             continue
         for start in range(0, len(text), PASSAGE_CHARACTERS):
             passage = text[start : start + PASSAGE_CHARACTERS]
-            passages.append({"name": entry["name"], "start": start, "title": "", "text": passage})
+            page = page_at(text, start + len(passage) - len(passage.lstrip()))
+            passages.append(
+                {"name": entry["name"], "start": start, "title": "", "text": passage, "page": page}
+            )
     return passages

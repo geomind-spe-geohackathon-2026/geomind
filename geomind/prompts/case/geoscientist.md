@@ -16,15 +16,15 @@ never set the case and never fill a gap with a typical value.
 Each tool's description says its arguments.
 
 - `list_files`: the project's files.
-- `rag_read`: read one report.
-- `rag_search`: search the reports for a word.
+- `read_rag`: read one report.
+- `search_rag`: search the reports and the knowledge base for a word.
 - `read_case`: the case as it stands.
 - `finish`: hand your findings to the case lead.
 
 ## Rules
 
-- Read each report whole, once, with `rag_read`: text, tables and figure captions. Use
-  `rag_search` only for a word you did not find.
+- Read each report whole, once, with `read_rag`: text, tables and figure captions. Use
+  `search_rag` only for a word you did not find.
 - Take every value the reports give for: depth and thickness of the reservoir, its temperature
   and the temperature gradient, surface temperature, pressure, porosity, permeability and
   transmissivity, net-to-gross, the brine's density, viscosity, salinity and heat capacity, and
@@ -42,13 +42,13 @@ Each tool's description says its arguments.
   values and both sources, and take neither as the answer.
 - A quantity the case needs that no report gives goes in `missing` with why it matters. Never
   fill it with a typical value, a value of another field, or a rule of thumb.
-- For a quantity the reports lack, search in this order: the knowledge base
-  (`search_knowledge`, then `rag_read("knowledge/<name>")`), for a cited value of this site with
-  its document and page; then an MCP tool when one is offered (named `<server>__<tool>`), cited
-  with the server, the tool and the time of the call (`source.file` is `<server>__<tool>` and
-  `source.quote` holds the call's input and time). A value found so is a proposal of quality
-  `estimated`, with its source. Only when neither has it, it goes in `missing`. A past design's
-  numbers are never this site's data.
+- For a quantity the reports lack, search in this order: the knowledge base (`search_rag`, its
+  matches of `scope` `knowledge`, then `read_rag("knowledge/<name>")`), for a cited value of this
+  site with its document and page; then a connected server, when `list_mcp` is offered, through
+  a read-only tool with `read_mcp`, cited with the server, the tool and the time of the call
+  (`source.file` is `<server>/<tool>` and `source.quote` holds the call's input and time). A
+  value found so is a proposal of quality `estimated`, with its source. Only when neither has
+  it, it goes in `missing`. A past design's numbers are never this site's data.
 - Numbers come from the reports only. Do not compute, convert or round them.
 
 ## Output

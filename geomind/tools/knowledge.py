@@ -1,17 +1,15 @@
-"""The knowledge base: shared documents searched for cited values (``search_knowledge``).
+"""The knowledge base: shared documents searched for cited values.
 
 A workspace gives it through the optional ``knowledge_search``, ``knowledge_files`` and
-``knowledge_file``; ``rag_read`` reads a whole document as ``knowledge/<name>``. A
-workspace without them, or with no document, answers ``knowledge_unavailable``.
+``knowledge_file``; ``search_rag`` searches it beside the project, and ``read_rag`` reads a whole
+document as ``knowledge/<name>``. Reading one from a workspace without them, or with no document,
+answers ``knowledge_unavailable``.
 """
 
 from geomind.errors import ToolError
-from geomind.tools.base import tool
 
-SHOWN_PASSAGES = 8
-"""The most passages one search returns, best first."""
 PREFIX = "knowledge/"
-"""How ``rag_read`` names a document of the knowledge base."""
+"""How ``read_rag`` names a document of the knowledge base."""
 
 
 def has_knowledge(workspace):
@@ -30,19 +28,6 @@ def knowledge_workspace(context, tool_name):
             code="knowledge_unavailable",
         )
     return workspace
-
-
-@tool(effect="read")
-def search_knowledge(context, query: str):
-    """Search the shared knowledge base for passages that state a value, with their citation.
-
-    Returns ``passages`` best first, each ``{id, document, title, page, text, score}``. A value
-    taken from a passage is cited with its document, title and page, and goes into the case only
-    after the user confirms it, as any value no project file gives. Read a whole document with
-    ``rag_read`` as ``knowledge/<document>``.
-    """
-    workspace = knowledge_workspace(context, "search_knowledge")
-    return {"passages": list(workspace.knowledge_search(query))[:SHOWN_PASSAGES]}
 
 
 def knowledge_file(context, tool_name, name):

@@ -1,4 +1,4 @@
-"""The files of a project: ``list_files`` and ``rag_read``.
+"""The files of a project: ``list_files`` and ``read_rag``.
 
 A project's files come from the optional ``Workspace.files`` and ``Workspace.file``. A workspace
 without them gets ``files_unavailable``, so a backend that has not added them keeps working.
@@ -16,7 +16,7 @@ from geomind.tools.stored import reference_of
 from geomind.utils.strings import join_names
 
 PAGE_CHARACTERS = 20_000
-"""The most text one ``rag_read`` call returns; a longer file is read by pages."""
+"""The most text one ``read_rag`` call returns; a longer file is read by pages."""
 FIRST_ROWS = 5
 TABLE_SUFFIXES = {".csv": ",", ".tsv": "\t"}
 
@@ -152,7 +152,7 @@ def table_of(name, text):
 def list_files(context):
     """List the files of the project: ``files``, each with ``name``, ``size`` and ``media_type``.
 
-    Read one with ``rag_read``, and give a data file to the case with ``set_case`` ``files``.
+    Read one with ``read_rag``, and give a data file to the case with ``set_case`` ``files``.
     """
     workspace = files_workspace(context, "list_files")
     return {"files": sorted(workspace.files(context.project), key=lambda item: item["name"])}
@@ -214,12 +214,12 @@ def document_bytes(context, name):
     from geomind.tools.knowledge import PREFIX, knowledge_file
 
     if name.startswith(PREFIX):
-        return knowledge_file(context, "rag_read", name)
-    return project_file(context, "rag_read", name)
+        return knowledge_file(context, "read_rag", name)
+    return project_file(context, "read_rag", name)
 
 
 @tool(effect="read", late_schemas={"name": file_name_schema}, keeps_result=True)
-def rag_read(context, name: str, start: int = 0, length: int | None = None, force: bool = False):
+def read_rag(context, name: str, start: int = 0, length: int | None = None, force: bool = False):
     """Read a project file, or a document of the knowledge base as ``knowledge/<name>``, as text.
 
     CSV, TSV, JSON, Markdown and text files read as they are, and a PDF as its extracted text with
@@ -236,7 +236,7 @@ def rag_read(context, name: str, start: int = 0, length: int | None = None, forc
     share what the run tree read.
     """
     if start < 0:
-        raise ToolError(f"rag_read: start = {start}; expected 0 or more", path="start")
+        raise ToolError(f"read_rag: start = {start}; expected 0 or more", path="start")
     text = document_text(name, document_bytes(context, name))
     size = min(length or PAGE_CHARACTERS, PAGE_CHARACTERS)
     end = min(start + size, len(text))
