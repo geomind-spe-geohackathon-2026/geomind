@@ -173,3 +173,25 @@ async def test_a_case_without_economics_is_incomplete():
     output = (await assess_in(context, TOOLS.estimate_costs, result)).output
     assert output["error"]["code"] == "case_incomplete"
     assert output["error"]["path"].startswith("economics")
+
+
+async def test_a_kpi_the_case_cannot_give_says_what_is_missing():
+    """A cost without its economics keeps gemini's reason and adds the gap with its path."""
+    context, _, result = await stored_run("shallow_district")
+    identifier = result.removeprefix("result/")
+    ran_on = dict(context.session.load_artifact(f"{identifier}.case"))
+    del ran_on["economics"]
+    await context.session.save_artifact(f"{identifier}.case", ran_on)
+    output = (await assess_in(context, TOOLS.compute_kpis, result)).output
+    lcoh = output["lcoh"]
+    assert lcoh["value"] is None and "discount_rate" in lcoh["reason"]
+    assert lcoh["error"]["code"] == "case_incomplete"
+    assert lcoh["error"]["path"].startswith("economics")
+    assert lcoh["error"]["suggestions"] == [lcoh["error"]["path"]]
+    assert output["npv"]["error"]["code"] == "case_incomplete"
+
+
+async def test_a_kpi_that_has_a_value_has_no_error():
+    """Nothing is added where gemini gave a number."""
+    output = assessed("compute_kpis", "shallow_district", "base")
+    assert "error" not in output["lcts"] and output["lcts"]["value"] is not None

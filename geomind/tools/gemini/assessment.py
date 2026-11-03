@@ -44,7 +44,24 @@ def kpi_values(plant, case, results):
     report = gm.evaluate.report(plant, case, results)
     totals = displayed(report, gm.evaluate.totals(plant, case, results))
     metrics = {name: item for name, item in report.to_dict().items() if name not in METRIC_EXCLUDED}
-    return {**totals, **metrics}
+    return {**totals, **metrics, **cost_gaps(plant, case, results, metrics)}
+
+
+def cost_gaps(plant, case, results, metrics):
+    """Return each cost gemini gave no value for with its error: ``case_incomplete`` and paths.
+
+    NOTE: gemini's report gives only a ``reason`` text for such a cost, or nothing; the cost is
+    asked of gemini once more, for those costs only, to get its error and the path in the case.
+    """
+    missing = [name for name in COSTS if (metrics.get(name) or {}).get("value") is None]
+    if not missing:
+        return {}
+    _, errors = cost_values(plant, case, results, missing)
+    return {
+        name: {**(metrics.get(name) or {"value": None}), "error": explained(errors[name])}
+        for name in missing
+        if name in errors
+    }
 
 
 @tool(effect="compute", late_schemas={"reference": reference_schema("result")})
@@ -52,7 +69,9 @@ def compute_kpis(context, reference: str, names: list[str] | None = None):
     """Compute KPIs of stored results in display units, all of them without ``names``.
 
     The KPIs are the totals of ``gm.evaluate.totals`` (what crossed the plant's edge, coverage,
-    COP, peaks) and the metrics of ``gm.evaluate.report``.
+    COP, peaks) and the metrics of ``gm.evaluate.report``. A cost gemini gives no value for has
+    ``error``, ``case_incomplete`` with the path in the case when a value is missing, beside
+    gemini's ``reason``.
     """
     found = kpi_values(*load_run(context, reference, "compute_kpis"))
     for name in names or ():
@@ -66,12 +85,12 @@ def compute_kpis(context, reference: str, names: list[str] | None = None):
     return {name: found[name] for name in names} if names else found
 
 
-def cost_values(plant, case, results):
+def cost_values(plant, case, results, names=COSTS):
     """Return ``(values, errors)`` of gemini's costs: ``{name: Value}`` and ``{name: error}``."""
     import gemini as gm
 
     values, errors = {}, {}
-    for name in COSTS:
+    for name in names:
         arguments = (plant, case) if name == "capex" else (plant, case, results)
         try:
             values[name] = getattr(gm.evaluate, name)(*arguments)
