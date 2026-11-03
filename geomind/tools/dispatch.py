@@ -49,7 +49,9 @@ def _problem(error):
     if isinstance(error, pydantic.ValidationError):
         return _validation_problem(error)
     if isinstance(error, ToolError):
-        return Problem(path=error.path, code=error.code, message=str(error))
+        return Problem(
+            path=error.path, code=error.code, message=str(error), suggestions=error.suggestions
+        )
     return Problem(code=CODE_OF_ERROR.get(type(error), "invalid_input"), message=str(error))
 
 

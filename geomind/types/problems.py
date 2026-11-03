@@ -7,6 +7,8 @@ TOOL_ERROR_CODES = (
     "unknown_name",
     "not_implemented",
     "not_allowed",
+    "no_case",
+    "case_incomplete",
     "timeout",
     "budget",
     "internal",

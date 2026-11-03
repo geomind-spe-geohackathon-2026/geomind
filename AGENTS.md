@@ -34,6 +34,7 @@ Read every file in `.claude/docs/` before changing the repository:
 - [Errors](.claude/docs/errors.md): the `gd.errors` classes and when each is raised.
 - [Evals](.claude/docs/evals.md): testing an agent by tasks, offline or live.
 - [Testing](.claude/docs/testing.md): tiers, test profiles, budgets, fixtures and CI.
+- [Releasing](.claude/docs/releasing.md): installs, updating gemini and publishing a release.
 - [Utilities](.claude/docs/utils.md): the `geomind.utils` helpers and how to add one.
 
 The docs for a new session are in `.claude/docs/`, so this repository works on its own. Keep them

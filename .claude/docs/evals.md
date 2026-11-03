@@ -82,9 +82,8 @@ time cells blanked. Regenerate and commit it when a task, a recording or a loop 
 
 The eval cases are gemini's project folders in `evals/projects/<project>/`: `case.json`,
 `economics.json`, `data/demand.csv` and, for some, `plants/`. They are **copies** of gemini's
-examples (`../gemini/examples/hackathon_2026` and `shallow_district`, gemini 0.5.0), not paths into
-`../gemini`: a copy keeps the recorded numbers and criteria stable when gemini's examples change,
-and a clone of this repository needs no sibling checkout. When gemini's examples change, copy them
+examples (`hackathon_2026` and `shallow_district`, gemini 0.5.0): a copy keeps the recorded numbers and criteria stable when gemini's examples change,
+and a clone of this repository needs no gemini checkout. When gemini's examples change, copy them
 again, rerun `python -m evals.run --agent challenge2` and update the numbers of the criteria.
 `tests/integration/test_evals.py` checks the copies are byte-equal to the examples, and that each
 variant differs from its example in one thing.

@@ -103,10 +103,13 @@ default.
 
 ## CI
 
-`.github/workflows/python_lint.yaml` runs Flake8, Black and isort. `python_test.yaml` runs the full
-suite on pushes to `main` and the development profile on everything else, on Python 3.11 to 3.14.
-It checks out the `refactor` branch of gemini into `gemini-checkout/`, because geomind needs it as
-an editable path dependency.
+`.github/workflows/python_lint.yaml` runs Flake8, Black and isort. `python_test.yaml` runs on pushes
+to `dev` and `main` and on pull requests: the full suite on `main`, the development profile
+otherwise, on Python 3.11 to 3.14. It installs gemini from `requirements/gemini.txt`, geomind's
+runtime dependencies and the `test` group, and no project with `-e`; tests import geomind from the
+source folder. `tests/unit/test_install.py` keeps these files free of path and editable installs.
+CI turns NumPy's AVX-512 off as gemini's CI does: a few winter days split heat between heat pump and
+boiler non-uniquely, a known gemini bug. Releases are in [releasing.md](releasing.md).
 
 ## Case fixtures
 

@@ -51,7 +51,7 @@ frontend (React + Vite) -> backend (FastAPI, Celery) -> geomind (agents) -> gemi
 
 - **gemini** (`import gemini as gm`) is the physics library and engine: modules, plants, units,
   simulation, results, economics and checks. It is the only place where physics and numbers live.
-  Sahand develops it on the branch `refactor`.
+  It is developed in its own repository and installed from its release wheel.
 - **geomind** (`import geomind as gd`, `git@github.com:crust-team/geomind.git`) is this repository.
   **geomind computes no physics.** Every number comes from a gemini tool.
 - **backend** stores chats, runs, events and plants, queues runs on Celery and streams events by SSE.
@@ -198,7 +198,7 @@ Open geomind items:
 - **Versions of a 0.3.0 log are not in the event log**; the export reads them from
   `run_manifest.json` (runs from 0.3.1 record them on `run.started`).
 - The Docker tests of the module sandbox need the `gemini-sandbox:<gemini version>` image
-  (`make sandbox-image` in gemini); they passed on 2026-11-02 with `gemini-sandbox:0.5.1`.
+  (`make sandbox-image` pulls it); they passed on 2026-11-03 with `gemini-sandbox:0.5.5`.
 - **A log of another geomind version** replays with recorded tool results (pure tools are not run
   again), so it checks the agents' decisions, not the tools' outputs.
 - **`ProjectBudget`** reads the ledger once per run: runs of one project running at the same time
@@ -213,7 +213,8 @@ Open requests to gemini (full text in the adaptation notes):
    and `set_range` accepts any numeric leaf; make the list complete or refuse leaves not meant to
    be searched.
 4. The parts of a value (capex modules, opex components) in display money units.
-5. A `gm.case.missing(case, job)` that lists every missing value at once.
+5. A `job` argument on `gm.case.missing`, so it can list what one job needs (it exists without one
+   and gives `case_incomplete` its paths).
 6. `gm.evaluate` copies the plant and applies the case for each metric (about ten times per
    report), most of a tool call's time.
 7. A size-only study method (`size_plant` stores its study as method `run` with `prepare: ["size"]`).

@@ -26,7 +26,7 @@ def check_module_name(name, where):
 
 
 def sandbox_image():
-    """Return the image of this gemini version, built by ``make sandbox-image`` in gemini."""
+    """Return the image of this gemini version, pulled by ``make sandbox-image``."""
     import gemini as gm
 
     return f"gemini-sandbox:{gm.__version__}"

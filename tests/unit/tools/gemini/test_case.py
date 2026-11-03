@@ -415,3 +415,52 @@ async def test_save_profile_reads_the_case_files_off_the_event_loop(monkeypatch)
     assert result.is_error is False, result.output
     assert len(threads) >= 2
     assert threading.main_thread() not in threads
+
+
+async def test_a_tool_without_a_case_says_no_case():
+    """A chat with no case gets the stable code the app acts on, and the same message."""
+    result = await call(read_case, {})
+    assert result.output["error"]["code"] == "no_case"
+    assert result.output["error"]["message"].startswith("case: the problem state has no case")
+
+
+async def test_a_tool_on_an_incomplete_case_names_what_is_missing():
+    """A case gemini cannot read for missing values keeps gemini's message and lists the paths."""
+    data = {key: value for key, value in example_case("shallow_district")[0].items()}
+    del data["time"]
+    session = StubSession()
+    for file, content in example_case("shallow_district")[1].items():
+        await session.save_artifact(f"case/{file}", content)
+    profile = {
+        "name": "extra",
+        "values": [1.0, 2.0],
+        "unit": "MW",
+        "start": "2027-01-01T00:00:00",
+        "step": {"value": 1, "unit": "d"},
+        "service": "heating",
+    }
+    result = await call(save_profile, profile, session=session, problem=ProblemState(case=data))
+    error = result.output["error"]
+    assert error["code"] == "case_incomplete"
+    assert error["message"] == "time: time is missing"
+    assert error["path"] == "time.start"
+    assert error["suggestions"] == ["time.start", "time.end", "time.step"]
+
+
+async def test_a_case_that_reads_but_is_wrong_keeps_gemini_s_error():
+    """Only missing values are ``case_incomplete``; a bad value stays gemini's own code."""
+    data = copy.deepcopy(example_case("shallow_district")[0])
+    data["time"]["step"] = {"value": "x", "unit": "d"}
+    session = StubSession()
+    for file, content in example_case("shallow_district")[1].items():
+        await session.save_artifact(f"case/{file}", content)
+    profile = {
+        "name": "extra",
+        "values": [1.0, 2.0],
+        "unit": "MW",
+        "start": "2027-01-01T00:00:00",
+        "step": {"value": 1, "unit": "d"},
+        "service": "heating",
+    }
+    result = await call(save_profile, profile, session=session, problem=ProblemState(case=data))
+    assert result.output["error"]["code"] != "case_incomplete"

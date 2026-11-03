@@ -299,6 +299,8 @@ A validation error takes `path` from the first input field that failed. Every ot
 | `unknown_name` | a name that does not exist, such as a tool, a skill or a result path |
 | `not_implemented` | the capability has its final signature and is not built yet; do not retry |
 | `not_allowed` | the run cannot do this: no sandbox, no project, or a path outside the sandbox |
+| `no_case` | the chat has no case: call `set_case` or ask the user |
+| `case_incomplete` | the case misses values gemini needs to read it; `path` is the first and `suggestions` lists every missing path, from `gm.case.missing` |
 | `timeout` | the tool passed its time limit |
 | `budget` | a budget or time limit stopped a delegate's nested run; the message names it with what was spent and the cap |
 | `internal` | a bug or a crash; the detail is in the log, never in the result |
