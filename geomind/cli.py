@@ -27,13 +27,15 @@ from geomind.stores import FileUsageLedger, FileWorkspace
 from geomind.stores.casefiles import named_files
 from geomind.stores.run import FileRunStore
 from geomind.stores.workspace import read_bytes
-from geomind.types import Message
+from geomind.types import Message, validate_answer
 from geomind.types.runlog import runlog
 from geomind.utils.envfile import load_env_files
 from geomind.utils.json import read_json, write_json
 from geomind.utils.models import fetch_prices, load_prices
 
 RUNS_FOLDER = ".runs"
+WAITING = 2
+"""The exit code of a run that waits for an answer: ``geomind resume`` continues it."""
 MESSAGE_CHARACTERS = 2000
 ROUTER = "coordinator"
 
@@ -65,6 +67,52 @@ def _ask(request):
     if input(f"\n{request.message} [y/N] ").strip().lower() in ("y", "yes"):
         return {"approved": True}
     return {"approved": False, "reason": input("Reason: ")}
+
+
+def _answer(request, retries):
+    """Return a valid answer typed in the terminal, or ``None`` when there is none.
+
+    An answer the request does not accept, such as free text where options are fixed, is asked
+    again with the options shown, at most ``retries`` times (``--answer-retries``; unset, never).
+    The end of the input is no answer either, so the run waits and ``geomind resume`` continues it.
+    """
+    for attempt in range((retries or 0) + 1):
+        try:
+            answer = _ask(request)
+        except EOFError:
+            return None
+        try:
+            return validate_answer(request, answer)
+        except GeomindError as error:
+            values = ", ".join(option.value for option in request.options or ())
+            shown = f"; answer with one of: {values}" if values else ""
+            print(f"  geomind: {error}{shown}", flush=True)
+    return None
+
+
+def _until_answered(run, result, retries):
+    """Resume ``run`` while it waits and the terminal gives an answer; return the last result."""
+    while result.status == "waiting":
+        answer = _answer(result.request, retries)
+        if answer is None:
+            return result
+        result = run.resume(result.request.id, answer)
+    return result
+
+
+def _report(result):
+    """Print how a run ended and return its exit code: 0 done, ``WAITING`` waiting, else 1."""
+    print(f"\n\nrun {result.run_id}: {result.status} ({result.stop_reason})")
+    usage = result.usage
+    cached = f" ({usage.cached_tokens} from the cache)" if usage.cached_tokens else ""
+    print(f"tokens {usage.input_tokens} in{cached}, {usage.output_tokens} out; cost {usage.cost}")
+    if result.status == "waiting":
+        print(
+            f"waiting for: {result.request.message}\n"
+            f"resume: geomind resume {result.run_id} --request {result.request.id} --answer ..."
+        )
+        return WAITING
+    return 0 if result.status == "done" else 1
 
 
 def _sandbox(name):
@@ -255,15 +303,33 @@ def _command_run(args):
         )
         if args.loop is not None:
             run.loop = loop_of(Route(kind="loop", loop=args.loop))
-        result = run.start()
-        while result.status == "waiting":
-            result = run.resume(result.request.id, _ask(result.request))
+        result = _until_answered(run, run.start(), args.answer_retries)
         write_manifest(RUNS_FOLDER, result.run_id, args)
-    print(f"\n\nrun {result.run_id}: {result.status} ({result.stop_reason})")
-    usage = result.usage
-    cached = f" ({usage.cached_tokens} from the cache)" if usage.cached_tokens else ""
-    print(f"tokens {usage.input_tokens} in{cached}, {usage.output_tokens} out; cost {usage.cost}")
-    return 0 if result.status == "done" else 1
+    return _report(result)
+
+
+def _command_resume(args):
+    """Answer the request a run waits for and continue it, asking in the terminal after that.
+
+    The run is rebuilt from its log in ``.runs``; the provider, the mode and the caps are given
+    again, as a new process holds none of them.
+    """
+    _require_cap(args)
+    workspace, _ = _project(args.project)
+    with runtime.settings(**_changes(args)):
+        run = Run.load(
+            args.run,
+            llm=_run_provider(args),
+            store=FileRunStore(RUNS_FOLDER),
+            workspace=workspace,
+            sandbox=_sandbox(args.sandbox),
+            permissions=Permissions(mode=args.mode),
+            callbacks=[_Printer()],
+            hooks=_budgets(args),
+        )
+        result = run.resume(args.request, {"text": args.answer})
+        result = _until_answered(run, result, args.answer_retries)
+    return _report(result)
 
 
 @dataclass
@@ -277,6 +343,7 @@ class _Chat:
     project: str | None
     id: str = ""
     last_run: str | None = None
+    answer_retries: int | None = None
 
 
 def _chat_provider(args):
@@ -332,9 +399,7 @@ def _chat_turn(chat, message):
         callbacks=[_Printer()],
         agent=agents.named(chat.agent),
     )
-    result = run.start()
-    while result.status == "waiting":
-        result = run.resume(result.request.id, _ask(result.request))
+    result = _until_answered(run, run.start(), chat.answer_retries)
     chat.last_run = result.run_id
     chat.store.add_message(chat.id, Message(role="user", content=message))
     chat.store.add_message(chat.id, Message(role="assistant", content=str(result.answer or "")))
@@ -365,6 +430,7 @@ def _command_chat(args):
     workspace, project = _project(args.project)
     llm = _chat_provider(args)
     chat = _Chat(args.agent, llm, FileRunStore(RUNS_FOLDER), workspace, project, uuid4().hex)
+    chat.answer_retries = args.answer_retries
     with runtime.settings(**_changes(args)):
         while True:
             try:
@@ -494,25 +560,50 @@ def _comparison_arguments(run):
     )
 
 
+def _run_options(command):
+    """Add what ``run`` and ``resume`` both take: the model, the mode, the caps, the answers."""
+    command.add_argument("--model")
+    command.add_argument("--max-steps", type=int)
+    command.add_argument("--mode", choices=["ask", "auto", "readonly", "plan"], default="ask")
+    command.add_argument("--sandbox", choices=["local", "docker"])
+    command.add_argument("--project")
+    command.add_argument("--recording")
+    command.add_argument("--record")
+    command.add_argument(
+        "--max-tokens", type=int, help="deny model calls once the run used this many"
+    )
+    command.add_argument(
+        "--max-cost", type=float, help="deny model calls once the run cost this, USD"
+    )
+    _add_project_caps(command)
+    _answer_retries(command)
+
+
+def _answer_retries(command):
+    """Add ``--answer-retries``: how often an answer the request refuses is asked again."""
+    command.add_argument(
+        "--answer-retries",
+        type=int,
+        help="ask again this often when an answer is not accepted; unset, never: the run waits",
+    )
+
+
 def _parser():
     """Return the argument parser."""
     parser = argparse.ArgumentParser(prog="geomind", description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     run = commands.add_parser("run", help="answer one message")
     run.add_argument("message")
-    run.add_argument("--model")
-    run.add_argument("--max-steps", type=int)
-    run.add_argument("--mode", choices=["ask", "auto", "readonly", "plan"], default="ask")
-    run.add_argument("--sandbox", choices=["local", "docker"])
     run.add_argument("--loop", choices=list(LOOPS))
     _comparison_arguments(run)
-    run.add_argument("--project")
-    run.add_argument("--recording")
-    run.add_argument("--record")
-    run.add_argument("--max-tokens", type=int, help="deny model calls once the run used this many")
-    run.add_argument("--max-cost", type=float, help="deny model calls once the run cost this, USD")
-    _add_project_caps(run)
+    _run_options(run)
     run.set_defaults(function=_command_run)
+    resume = commands.add_parser("resume", help="answer the request a run waits for")
+    resume.add_argument("run", help="the run id that `run` printed")
+    resume.add_argument("--request", required=True, help="the request id that `run` printed")
+    resume.add_argument("--answer", required=True, help="the text, or the value of one option")
+    _run_options(resume)
+    resume.set_defaults(function=_command_resume)
     check = commands.add_parser("check-live", help="check what a first live run needs")
     check.add_argument("--max-tokens", type=int)
     check.add_argument("--max-cost", type=float)
@@ -524,6 +615,7 @@ def _parser():
     chat.add_argument("--recording")
     chat.add_argument("--model")
     chat.add_argument("--max-steps", type=int)
+    _answer_retries(chat)
     chat.set_defaults(function=_command_chat)
     replay = commands.add_parser("replay", help="rerun a stored run offline")
     replay.add_argument("run")

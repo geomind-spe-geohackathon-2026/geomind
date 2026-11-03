@@ -65,13 +65,21 @@ the routing, for testing one agent by hand, and so does a `run.loop` set before 
   the seeds (none: gemini is deterministic, geomind draws no random numbers, agents run at
   temperature 0).
   `--mode auto` with OpenRouter and no cap refuses to start (`RunError`).
+  An answer the request does not accept, such as free text where a question has options (the
+  contract takes only an option's value), is asked again with the options shown, at most
+  `--answer-retries N` times; unset, never. Then, or at the end of the input, the run stops as
+  `waiting`: it prints the question and the `geomind resume` line, and exits 2 (`cli.WAITING`);
+  done exits 0 and any other end 1.
+- `geomind resume <run id> --request ID --answer TEXT` with the options of `run` (provider, mode,
+  caps, `--answer-retries`) answers the request a run waits for, rebuilt from `.runs` with
+  `Run.load`, and goes on as `run` does. A cap counts this process's calls, so pass what is left.
 - `geomind check-live [--max-cost USD] [--max-tokens N]` lists every role with its model, fails
   when a role has none or a model id starts with the Anthropic prefix, and checks a first live run: `OPENROUTER_API_KEY`
   set (the value is never printed), every role's model id in OpenRouter's public model list (one
   GET; skipped with a message when it fails), and a cap given. It prints one line per missing item
   and exits 1 when anything is missing. See `evals.md`, "First live run".
 - `geomind chat [--agent NAME] [--project PATH] [--live] [--recording FILE] [--model ID]
-  [--max-steps N]` is an interactive session with any agent of `gd.agents`, skeletons included,
+  [--max-steps N] [--answer-retries N]` is an interactive session with any agent of `gd.agents`, skeletons included,
   `analyst` by default. Each turn prints the streamed
   text, every tool call with its input and a short output, the requests, answered at the prompt, and
   the problem state. `/state`, `/log` (the run log of the last turn), `/reset` (a new chat) and `/quit`

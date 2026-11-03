@@ -29,7 +29,7 @@ the problem state as `update_state` does.
 | `save_profile` | `case.py` | `write` | `name, values, unit, start, step, service`, all required: `unit` a unit of power, `step` `{value, unit}`, `service` `heating` or `cooling` | `{demand, time, steps, version}`; gemini checks the values (`gm.case.from_values`), they are written in `unit` as the column `name` of `data/<name>.csv` (first column `time`) in the run's case files and the service's `power` becomes `{unit, file, column}`; a profile that does not cover the case's `time` sets it to the profile's span in the same call; gemini rejects a case that does not fit and nothing is stored | built |
 | `simulate` | `runs.py` | `compute` | `design=None, changes=None, start=None, end=None` | `{reference, summary}`; the run is stored; the summary gives the plant, the case's time span, the window, `steps`, `failed_steps` and the first `failures`, the `report` totals in display units, gemini's `verdict`, the `unmet` requirements (the checks with `passed` false) and the demand `coverage` | built |
 | `read_result` | `results.py` | `read` | `reference, path=None, field=None, start=None, end=None` (ISO 8601, inclusive) | `{time, value, unit}` with `path` and `field`, otherwise `{path: {field: {min, max, mean}}}`, in MW, degC, bar, m3/h and kg/s | built |
-| `search_documents` | `results.py` | `read` | `query` | `[{id, title, text, score}]` | built |
+| `search_documents` | `results.py` | `read` | `query` | documents `[{id, title, text, score}]` and passages of the project's files `[{name, start, title, text, score}]`, best first, at most 8 | built |
 | `list_files` | `files.py` (`geomind/tools/`) | `read` | none | `{files: [{name, size, media_type}]}` | built |
 | `read_document` | `files.py` (`geomind/tools/`) | `read` | `name, start=0, length=None` | `{name, start, total, text, next, table?}` | built |
 | `check_results` | `assessment.py` | `compute` | `reference` | gemini's verdict on the run's own case, in display units: `{feasible, reasons: [{kind, name, message, ...}], requirements: [check], failures: {total, groups}, metrics}` | built |
@@ -69,7 +69,7 @@ gemini's API is frozen from 0.5.0; a breaking gemini release needs a new geomind
 | `save_profile` | `gm.case.from_values`, `gm.units.Quantity`, `gm.Case.from_dict`, `Case.check` | real |
 | `simulate` | `gm.schedule`, `gm.simulate` (which runs `gm.check`), `gm.evaluate.report`, `totals`, `failures`, `plant.set_params`, `Results.to_bytes` | real |
 | `read_result` | `Results.get`, `Results.summary` through `load_run` | real |
-| `search_documents` | none: it reads `Workspace.documents` | built |
+| `search_documents` | none: it reads `Workspace.documents` and the text of `Workspace.files` | built |
 | `list_files`, `read_document` | none: they read the optional `Workspace.files` and `Workspace.file` | built |
 | `check_results` | `gm.evaluate.verdict`, `report`, `gm.Results.from_bytes` | real |
 | `compute_kpis` | `gm.evaluate.totals`, `gm.evaluate.report` | real |
@@ -409,6 +409,17 @@ From the second live run (`tests/integration/test_live_regressions_b.py`, record
 - `build_plant` without a header: `old_format`, with the smallest plant file of
   `gm.plants.schema()` last in `suggestions` (`plant_skeleton`, `geomind/tools/gemini/skeleton.py`).
 - A nested run that passed the model's window: the delegate answers `context_exceeded`.
+
+From the fourth live run (`tests/integration/test_live_regressions_d.py`, recording
+`tests/fixtures/live/recording_d.jsonl`):
+
+- `search_documents` searched only `documents/`, so a brief attached as a project file (a PDF) was
+  never found: it now also searches passages of 1,500 characters of every project file that reads
+  as text, each with its `name` and `start` for `read_document`.
+- `read_stored` (`Tool.stored_input`): a long part of a stored result keeps the reference it was
+  read from and is not stored again, so no chain of copies is read over and over.
+- The CLI asks again for an answer a question does not accept (`--answer-retries`) and stops as
+  `waiting` otherwise; `geomind resume` answers it.
 
 From the third live run (`tests/integration/test_live_regressions_c.py`, recording
 `tests/fixtures/live/recording_c.jsonl`):
