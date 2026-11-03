@@ -60,13 +60,13 @@ geomind/
 ├── types/            # messages, decisions, results, events, redaction, runlog
 ├── stores/           # RunStore, Workspace and their memory and file implementations
 ├── runtime.py        # context-local settings
-├── prompts/          # <area>/<role>.md files, skills/*.md and Prompt
+├── prompts/          # <team>/<name>.md role files, skills/*.md and Prompt
 ├── context/          # problem state, compaction, skills: the deterministic part
 ├── providers/        # LLM protocol, retry layer, OpenRouter, FakeLLM
 ├── schemas/          # JSON schemas and samples of the exchanged documents, generated
-├── tools/            # Tool, tool decorator, dispatch, built-ins, code tools, Delegate, gemini/
+├── tools/            # Tool, tool decorator, dispatch, built-ins, Delegate, Team, gemini/
 ├── verify/           # verification of a design over gemini's checks
-├── agents/           # Agent, AgentResult, Model, Output, and one folder per area of agents
+├── agents/           # Agent, AgentResult, Model, Output; <team>/<name>.py per agent
 ├── engine/           # engine, session, step, delegation, log, recovery, state, context,
 │                     # callbacks, hooks, permissions, replay, compaction
 └── loops/            # Loop, ToolLoop, DesignLoop, CompareLoop

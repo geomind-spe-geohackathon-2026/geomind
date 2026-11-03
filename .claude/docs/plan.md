@@ -199,7 +199,8 @@ Done on `dev` (0.4.22.dev23), each with tests; 41 bugs of the live loop found an
 Open, in order (the team layout agreed with Sahand on 2026-11-03, started on his word at 16:11):
 
 1. [ ] The engineering team ([agents.md](agents.md#shipped-agents)), each step its own commit:
-   - [x] 1. Renames, removals and the folder layout `agents/<team>/<name>/{agent.py,prompt.md}`
+   - [x] 1. Renames, removals and the team layout (now `agents/<team>/<name>.py` and
+     `prompts/<team>/<name>.md`)
      (`Formulator` to `CaseLead`, `Designer` to `DesignLead`, `Verifier` to `Reviewer`, `Analyst`
      to `AnalysisLead`; `Assistant`, `CodeAssistant`, `FamilyDesigner`, the code tools and the
      sandbox removed; one required `GEOMIND_<ROLE>_MODEL` per agent; knowledge-only memory for the

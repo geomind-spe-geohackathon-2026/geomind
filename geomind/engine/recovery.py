@@ -260,36 +260,71 @@ def recover(events, run_id=None):
 
 
 RENAMED_CLASSES = {
-    "geomind.agents.analysis.analyst:Analyst": "geomind.agents.analysis.lead.agent:AnalysisLead",
-    "geomind.agents.formulation.formulator:Formulator": "geomind.agents.case.lead.agent:CaseLead",
-    "geomind.agents.design.designer:Designer": "geomind.agents.design.lead.agent:DesignLead",
-    "geomind.agents.verification.verifier:Verifier": (
-        "geomind.agents.project.reviewer.agent:Reviewer"
+    "geomind.agents.analysis.lead.agent:AnalysisLead": "geomind.agents.analysis.lead:AnalysisLead",
+    "geomind.agents.analysis.economist.agent:Economist": (
+        "geomind.agents.analysis.economist:Economist"
     ),
-    "geomind.agents.economics.economist:Economist": (
-        "geomind.agents.analysis.economist.agent:Economist"
+    "geomind.agents.case.lead.agent:CaseLead": "geomind.agents.case.lead:CaseLead",
+    "geomind.agents.case.geoscientist.agent:Geoscientist": (
+        "geomind.agents.case.geoscientist:Geoscientist"
     ),
-    "geomind.agents.reporting.explainer:Explainer": (
-        "geomind.agents.project.explainer.agent:Explainer"
+    "geomind.agents.design.lead.agent:DesignLead": "geomind.agents.design.lead:DesignLead",
+    "geomind.agents.design.process.agent:ProcessEngineer": (
+        "geomind.agents.design.process:ProcessEngineer"
     ),
+    "geomind.agents.design.integration.agent:IntegrationEngineer": (
+        "geomind.agents.design.integration:IntegrationEngineer"
+    ),
+    "geomind.agents.design.reservoir.agent:ReservoirEngineer": (
+        "geomind.agents.design.reservoir:ReservoirEngineer"
+    ),
+    "geomind.agents.design.well.agent:WellEngineer": "geomind.agents.design.well:WellEngineer",
+    "geomind.agents.design.energy.agent:EnergySystemsEngineer": (
+        "geomind.agents.design.energy:EnergySystemsEngineer"
+    ),
+    "geomind.agents.project.lead.agent:ProjectLead": "geomind.agents.project.lead:ProjectLead",
+    "geomind.agents.project.coordinator.agent:Coordinator": (
+        "geomind.agents.project.coordinator:Coordinator"
+    ),
+    "geomind.agents.project.coordinator.agent:Answer": "geomind.agents.project.coordinator:Answer",
+    "geomind.agents.project.reviewer.agent:Reviewer": "geomind.agents.project.reviewer:Reviewer",
+    "geomind.agents.project.explainer.agent:Explainer": (
+        "geomind.agents.project.explainer:Explainer"
+    ),
+    "geomind.agents.project.lead.design_driver:DesignDriver": (
+        "geomind.agents.project.drivers:DesignDriver"
+    ),
+    "geomind.agents.project.lead.comparison_driver:CompareDriver": (
+        "geomind.agents.project.comparison:CompareDriver"
+    ),
+    "geomind.agents.project.lead.comparison_driver:ComparisonDriver": (
+        "geomind.agents.project.comparison:ComparisonDriver"
+    ),
+    "geomind.agents.support.lead.agent:SupportLead": "geomind.agents.support.lead:SupportLead",
+    "geomind.agents.support.curator.agent:Curator": "geomind.agents.support.curator:Curator",
+    "geomind.agents.support.summarizer.agent:Summarizer": (
+        "geomind.agents.support.summarizer:Summarizer"
+    ),
+    "geomind.agents.analysis.analyst:Analyst": "geomind.agents.analysis.lead:AnalysisLead",
+    "geomind.agents.formulation.formulator:Formulator": "geomind.agents.case.lead:CaseLead",
+    "geomind.agents.design.designer:Designer": "geomind.agents.design.lead:DesignLead",
+    "geomind.agents.verification.verifier:Verifier": ("geomind.agents.project.reviewer:Reviewer"),
+    "geomind.agents.economics.economist:Economist": ("geomind.agents.analysis.economist:Economist"),
+    "geomind.agents.reporting.explainer:Explainer": ("geomind.agents.project.explainer:Explainer"),
     "geomind.agents.coordination.coordinator:Coordinator": (
-        "geomind.agents.project.coordinator.agent:Coordinator"
+        "geomind.agents.project.coordinator:Coordinator"
     ),
-    "geomind.agents.coordination.coordinator:Answer": (
-        "geomind.agents.project.coordinator.agent:Answer"
-    ),
-    "geomind.loops.design:DesignDriver": ("geomind.agents.project.lead.design_driver:DesignDriver"),
-    "geomind.loops.compare:CompareDriver": (
-        "geomind.agents.project.lead.comparison_driver:CompareDriver"
-    ),
+    "geomind.agents.coordination.coordinator:Answer": ("geomind.agents.project.coordinator:Answer"),
+    "geomind.loops.design:DesignDriver": ("geomind.agents.project.drivers:DesignDriver"),
+    "geomind.loops.compare:CompareDriver": ("geomind.agents.project.comparison:CompareDriver"),
     "geomind.loops.compare:ComparisonDriver": (
-        "geomind.agents.project.lead.comparison_driver:ComparisonDriver"
+        "geomind.agents.project.comparison:ComparisonDriver"
     ),
     "geomind.agents.general.summarizer:Summarizer": (
-        "geomind.agents.support.summarizer.agent:Summarizer"
+        "geomind.agents.support.summarizer:Summarizer"
     ),
 }
-"""The class path a log of 0.4.22.dev23 or earlier names, by the path of that agent now."""
+"""The class path an older log names (0.4.22.dev32 or earlier), by its path now."""
 
 
 def agent_class(state):

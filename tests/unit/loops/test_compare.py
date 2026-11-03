@@ -13,8 +13,8 @@ import pytest
 
 from geomind import runtime
 from geomind.agents import DesignLead, Reviewer
-from geomind.agents.project.coordinator.agent import Route
-from geomind.agents.project.lead.design_driver import study_table
+from geomind.agents.project.coordinator import Route
+from geomind.agents.project.drivers import study_table
 from geomind.context import ProblemState
 from geomind.engine import Engine, Permissions
 from geomind.engine.recovery import recover

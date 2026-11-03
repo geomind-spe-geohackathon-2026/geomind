@@ -4,23 +4,23 @@ Imports ``tools`` and everything to its left; never the engine.
 """
 
 from geomind.agents.agent import Agent, AgentResult, Model, Output
-from geomind.agents.analysis.economist.agent import Economist
-from geomind.agents.analysis.lead.agent import AnalysisLead
-from geomind.agents.case.geoscientist.agent import Geoscientist
-from geomind.agents.case.lead.agent import CaseLead
-from geomind.agents.design.energy.agent import EnergySystemsEngineer
-from geomind.agents.design.integration.agent import IntegrationEngineer
-from geomind.agents.design.lead.agent import DesignLead
-from geomind.agents.design.process.agent import ProcessEngineer
-from geomind.agents.design.reservoir.agent import ReservoirEngineer
-from geomind.agents.design.well.agent import WellEngineer
-from geomind.agents.project.coordinator.agent import Coordinator, Route
-from geomind.agents.project.explainer.agent import Explainer
-from geomind.agents.project.lead.agent import ProjectLead
-from geomind.agents.project.reviewer.agent import Reviewer
-from geomind.agents.support.curator.agent import Curator
-from geomind.agents.support.lead.agent import SupportLead
-from geomind.agents.support.summarizer.agent import Summarizer
+from geomind.agents.analysis.economist import Economist
+from geomind.agents.analysis.lead import AnalysisLead
+from geomind.agents.case.geoscientist import Geoscientist
+from geomind.agents.case.lead import CaseLead
+from geomind.agents.design.energy import EnergySystemsEngineer
+from geomind.agents.design.integration import IntegrationEngineer
+from geomind.agents.design.lead import DesignLead
+from geomind.agents.design.process import ProcessEngineer
+from geomind.agents.design.reservoir import ReservoirEngineer
+from geomind.agents.design.well import WellEngineer
+from geomind.agents.project.coordinator import Coordinator, Route
+from geomind.agents.project.explainer import Explainer
+from geomind.agents.project.lead import ProjectLead
+from geomind.agents.project.reviewer import Reviewer
+from geomind.agents.support.curator import Curator
+from geomind.agents.support.lead import SupportLead
+from geomind.agents.support.summarizer import Summarizer
 from geomind.errors import UnknownNameError
 from geomind.utils.strings import did_you_mean, snake_case
 

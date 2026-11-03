@@ -3,7 +3,7 @@
 NOTE: the run's recordings are in ``.tmp/live-2026-11-03-g``; these tests rebuild each case.
 """
 
-from geomind.agents.project.lead.design_driver import routed_task_of, should_stop_repeated
+from geomind.agents.project.drivers import routed_task_of, should_stop_repeated
 from geomind.engine import Context
 from geomind.types import Message, ToolCall
 from tests.fixtures.runs import call, run, says, uses

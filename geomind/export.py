@@ -7,7 +7,7 @@ depends on the clock or the run id, so a replay of a run exports the same text.
 
 import json
 
-from geomind.agents.project.lead.comparison_driver import alternatives_table
+from geomind.agents.project.comparison import alternatives_table
 from geomind.engine.recovery import recover
 from geomind.types import RULE_MODEL, Usage
 

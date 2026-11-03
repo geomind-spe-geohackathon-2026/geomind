@@ -7,17 +7,18 @@ from geomind.prompts import Prompt
 
 
 def test_role_loads_its_file():
-    """A role loads the ``prompt.md`` beside its agent, by ``<team>/<name>``."""
+    """A role loads ``prompts/<team>/<name>.md`` by ``<team>/<name>``."""
     assert "design lead" in Prompt("design/lead").render().lower()
 
 
-def test_every_shipped_agent_has_its_prompt_beside_it():
-    """Each role file sits in ``geomind/agents/<team>/<name>/`` beside its ``agent.py``."""
-    from geomind.prompts.prompt import role_files
+def test_every_role_file_has_its_agent_module():
+    """``prompts/<team>/<name>.md`` belongs to ``agents/<team>/<name>.py``."""
+    from geomind.prompts.prompt import FOLDER, role_files
 
     files = role_files()
     assert files
-    assert all((path.parent / "agent.py").exists() for path in files.values())
+    agents = FOLDER.parent / "agents"
+    assert all((agents / f"{role}.py").exists() for role in files)
 
 
 def test_inline_text():

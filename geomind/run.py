@@ -3,9 +3,9 @@
 import asyncio
 
 from geomind.agents import AnalysisLead, Coordinator, DesignLead, ProjectLead, Reviewer, Route
-from geomind.agents.project.coordinator.agent import Answer
-from geomind.agents.project.lead.comparison_driver import CompareDriver
-from geomind.agents.project.lead.design_driver import DesignDriver
+from geomind.agents.project.comparison import CompareDriver
+from geomind.agents.project.coordinator import Answer
+from geomind.agents.project.drivers import DesignDriver
 from geomind.context import ProblemState, restore
 from geomind.engine import Context, Engine, Permissions
 from geomind.engine.context import new_run_id

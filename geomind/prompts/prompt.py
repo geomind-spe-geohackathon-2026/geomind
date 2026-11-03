@@ -6,7 +6,6 @@ from geomind.errors import UnknownNameError
 from geomind.utils.strings import did_you_mean
 
 FOLDER = Path(__file__).parent
-AGENTS = FOLDER.parent / "agents"
 SHARED_TOOLS = (
     "read_stored",
     "search_memory",
@@ -41,17 +40,19 @@ KNOWLEDGE = (
 
 
 def role_files():
-    """Return the prompt file of each role by ``<team>/<name>``, beside the role's agent."""
+    """Return the prompt file of each role by ``<team>/<name>``; ``skills/`` holds skills."""
     return {
-        f"{path.parent.parent.name}/{path.parent.name}": path
-        for path in sorted(AGENTS.glob("*/*/prompt.md"))
+        f"{path.parent.name}/{path.stem}": path
+        for path in sorted(FOLDER.glob("*/*.md"))
+        if path.parent.name != "skills"
     }
 
 
 class Prompt:
-    """The system prompt of an agent; ``Prompt("design/lead")`` loads its ``prompt.md``.
+    """The system prompt of an agent; ``Prompt("design/lead")`` loads ``design/lead.md``.
 
-    A role has one file, ``geomind/agents/<team>/<name>/prompt.md``, beside its ``agent.py``.
+    A role has one file, ``geomind/prompts/<team>/<name>.md``, as its agent is
+    ``geomind/agents/<team>/<name>.py``.
     """
 
     def __init__(self, role, appendix=None):

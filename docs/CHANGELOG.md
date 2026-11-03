@@ -6,6 +6,16 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### A flat layout for every agent (0.4.22.dev33)
+
+**Contract changes for the backend (module paths; `gd.agents.<Class>` is unchanged):**
+
+- Each agent is `geomind/agents/<team>/<name>.py` (was `geomind/agents/<team>/<name>/agent.py`): `agents/analysis/lead.py`, `analysis/economist.py`, `case/lead.py`, `case/geoscientist.py`, `design/lead.py`, `design/process.py`, `design/integration.py`, `design/reservoir.py`, `design/well.py`, `design/energy.py`, `project/lead.py`, `project/coordinator.py`, `project/reviewer.py`, `project/explainer.py`, `support/lead.py`, `support/curator.py`, `support/summarizer.py`.
+- Each prompt is `geomind/prompts/<team>/<name>.md` (was `geomind/agents/<team>/<name>/prompt.md`); `Prompt("<team>/<name>")` is unchanged. Skills stay in `geomind/prompts/skills/`.
+- The project lead's other modules are siblings: `agents/project/review.py` (was `project/lead/review.py`), `agents/project/drivers.py` (`DesignDriver`, was `project/lead/design_driver.py`) and `agents/project/comparison.py` (`CompareDriver`, `ComparisonDriver`, was `project/lead/comparison_driver.py`).
+- Tests mirror it: `tests/unit/agents/<team>/test_<name>.py`.
+- A log naming an old class path (`geomind.agents.<team>.<name>.agent:<Class>`, `geomind.agents.project.lead.design_driver:DesignDriver`, ...) still resumes and replays (`RENAMED_CLASSES`).
+
 ### gemini 0.6.1
 
 - geomind runs on the gemini 0.6.1 release wheel (`requirements/gemini.txt`, sha256 `fca120290b87ac87a1dd4aca4ab85a725c6459986c5b8ccd53884eeae8d45655`; `[tool.uv.sources]`). 0.6.1 is additive: optional modules and choice groups of a plant, its structures, and `gm.study.evolve`; nothing breaks, and every test passes unchanged. The range stays `>=0.6,<0.7`.

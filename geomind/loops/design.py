@@ -1,6 +1,6 @@
 """Size, optimise, verify and repeat until a design passes, driven by rule."""
 
-from geomind.agents.project.lead.design_driver import DesignDriver
+from geomind.agents.project.drivers import DesignDriver
 from geomind.engine.hooks import Verified
 from geomind.loops.loop import Loop
 

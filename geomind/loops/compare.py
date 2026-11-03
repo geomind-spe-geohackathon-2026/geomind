@@ -1,7 +1,7 @@
 """Compare alternative plant families: each designed, verified, then compared and explained."""
 
 from geomind import runtime
-from geomind.agents.project.lead.comparison_driver import CompareDriver, ComparisonDriver
+from geomind.agents.project.comparison import CompareDriver, ComparisonDriver
 from geomind.loops.design import DesignLoop
 
 

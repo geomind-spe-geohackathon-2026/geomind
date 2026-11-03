@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from geomind.agents import DesignLead, Reviewer
-from geomind.agents.project.lead.design_driver import (
+from geomind.agents.project.drivers import (
     DesignDriver,
     economist_task,
     repeated,
@@ -54,7 +54,7 @@ def verdicts(monkeypatch):
     def verdict(_):
         return queue[0] if len(queue) == 1 else queue.pop(0)
 
-    monkeypatch.setattr("geomind.agents.project.lead.design_driver.verify_design", verdict)
+    monkeypatch.setattr("geomind.agents.project.drivers.verify_design", verdict)
     monkeypatch.setattr("geomind.engine.hooks.verify_design", lambda _: PASSED)
     return queue
 
@@ -542,7 +542,7 @@ def test_the_recorded_designer_asks_for_a_missing_range_and_never_sets_one():
 def test_the_designer_prompt_asks_instead_of_inventing_a_range():
     """The prompt and the skill say ranges come from the user or the case, and to ask."""
     for text in (
-        Path("geomind/agents/design/lead/prompt.md").read_text(),
+        Path("geomind/prompts/design/lead.md").read_text(),
         Path("geomind/prompts/skills/designing-a-plant.md").read_text(),
     ):
         assert "ask_user" in text and ("invent" in text or "Never fill a missing one" in text)
@@ -596,7 +596,7 @@ async def test_a_verified_design_is_kept_as_experience(verdicts):
 
 def test_the_formulation_task_names_the_project_s_case_file():
     """A project with a case.json: the case lead is told to load it, not to ask the user."""
-    from geomind.agents.project.lead.design_driver import formulation_task
+    from geomind.agents.project.drivers import formulation_task
 
     case, files = example_case("shallow_district")
     session = StubSession(workspace=MemoryWorkspace(cases={"p": (case, files)}))

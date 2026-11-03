@@ -57,8 +57,8 @@ hook stopped the call, and then `action` is `None`. Agent code never constructs 
 
 ## Prompt, Model, Output
 
-`Prompt("design/lead")` loads `geomind/agents/design/lead/prompt.md`: a role has one file,
-`prompt.md`, beside its `agent.py` in `geomind/agents/<team>/<name>/`. Skills stay in
+`Prompt("design/lead")` loads `geomind/prompts/design/lead.md`: a role has one file,
+`geomind/prompts/<team>/<name>.md`, as its agent is `geomind/agents/<team>/<name>.py`. Skills stay in
 `geomind/prompts/skills/`. `Prompt.text(...)` holds inline text. A role file has the headings
 Role, Inputs, Tools, Rules, Output and Examples, and holds engineering method only: every number
 comes from the case, the files, knowledge with its source, or a gemini tool.
@@ -77,40 +77,40 @@ its JSON schema to the system prompt.
 ## Shipped agents
 
 The agents are a geothermal engineering team: one folder per team, each team head is `lead`, and
-each agent is `geomind/agents/<team>/<name>/agent.py` with its `prompt.md`; the tests mirror it
-under `tests/unit/agents/<team>/<name>/`. Class names stay whole and the import stays
+each agent is `geomind/agents/<team>/<name>.py` with its prompt in `geomind/prompts/<team>/<name>.md`;
+the tests mirror it as `tests/unit/agents/<team>/test_<name>.py`. Class names stay whole and the import stays
 `gd.agents.<Class>`. Each model agent has its own required model setting,
 `GEOMIND_<CLASS>_MODEL` in capitals (`GEOMIND_CASELEAD_MODEL`).
 
 | Agent | Folder | Status | In `AGENTS` of `run.py` |
 |---|---|---|---|
-| `ProjectLead` | `project/lead/` | complete; a model: plans case, design, review, analysis and explanation, writes each team a brief, routes each failure to its owner, asks the user only what the teams cannot settle, stops when the review passed and the analysis is done or a failure repeats after a real change; run by `ProjectLoop` (route `project`) | no |
-| `Coordinator` | `project/coordinator/` | complete; answers with a `Route` (`task`, a brief for an app event; `preferences`, the user's way of working, put in the problem state), called by `Run.start` | no |
-| `Reviewer` | `project/reviewer/` | complete (the `Verifier` until 0.4.22); checks the final design once with gemini, reads knowledge only, never experience | no |
-| `Explainer` | `project/explainer/` | complete; the explanation, from the state and the tools; reads knowledge only, to cite sources | no |
-| `CaseLead` | `case/lead/` | complete (the `Formulator` until 0.4.22); sets the case from the project's files and the user's answers, confirms every value no file gives in one question | no |
-| `Geoscientist` | `case/geoscientist/` | complete; reads the reports whole once and proposes the ground, reservoir, brine and dissolved-gas values to the `CaseLead` (its `geoscientist` tool) as typed `Findings`: each value with page, table, depth, quality and range, the missing ones and the disagreements with both sources; never sets the case, never fills a gap with a typical value | no |
-| `DesignLead` | `design/lead/` | complete (the `Designer` until 0.4.22); sizes, simulates, checks and optimises a design for the case, which it reads and never sets; a comparison runs one per family without `ask_user` | no |
-| `ProcessEngineer` | `design/process/` | complete; chooses the modules for every service of the case, a reason each, builds the skeleton and records `design.modules` and `design.owners` (parameter path prefix to discipline) | no |
-| `IntegrationEngineer` | `design/integration/` | complete; connects the modules: ports, streams, inlets, outlets, fluids, boundaries (the PFD) | no |
-| `ReservoirEngineer` | `design/reservoir/` | complete; doublets, spacing, flow, reservoir cooling, degasser, brine-cooling limit | no |
-| `WellEngineer` | `design/well/` | complete; well depth and path, diameters, the ESP and its setting depth | no |
-| `EnergySystemsEngineer` | `design/energy/` | complete; heat pump, chiller, boiler, storage, exchangers, surface pipes and network | no |
-| `AnalysisLead` | `analysis/lead/` | complete (the `Analyst` until 0.4.22), the sample, with the gemini tools | yes, the default route |
-| `Economist` | `analysis/economist/` | complete; costs, compares, samples uncertainty | no |
-| `SupportLead` | `support/lead/` | complete; takes the other leads' support requests (every lead has `support_lead`), routes each to the summarizer or the curator, checks the answer and sends it back once when wrong | no |
-| `Curator` | `support/curator/` | complete; at the end of a run keeps general per-role lessons and the user's facts in experience with their origin (`write_lesson`); never a design or a number as a rule | no |
-| `Summarizer` | `support/summarizer/` | complete; compaction calls it, and the support lead for a handover summary | no |
+| `ProjectLead` | `project/lead.py` | complete; a model: plans case, design, review, analysis and explanation, writes each team a brief, routes each failure to its owner, asks the user only what the teams cannot settle, stops when the review passed and the analysis is done or a failure repeats after a real change; run by `ProjectLoop` (route `project`) | no |
+| `Coordinator` | `project/coordinator.py` | complete; answers with a `Route` (`task`, a brief for an app event; `preferences`, the user's way of working, put in the problem state), called by `Run.start` | no |
+| `Reviewer` | `project/reviewer.py` | complete (the `Verifier` until 0.4.22); checks the final design once with gemini, reads knowledge only, never experience | no |
+| `Explainer` | `project/explainer.py` | complete; the explanation, from the state and the tools; reads knowledge only, to cite sources | no |
+| `CaseLead` | `case/lead.py` | complete (the `Formulator` until 0.4.22); sets the case from the project's files and the user's answers, confirms every value no file gives in one question | no |
+| `Geoscientist` | `case/geoscientist.py` | complete; reads the reports whole once and proposes the ground, reservoir, brine and dissolved-gas values to the `CaseLead` (its `geoscientist` tool) as typed `Findings`: each value with page, table, depth, quality and range, the missing ones and the disagreements with both sources; never sets the case, never fills a gap with a typical value | no |
+| `DesignLead` | `design/lead.py` | complete (the `Designer` until 0.4.22); sizes, simulates, checks and optimises a design for the case, which it reads and never sets; a comparison runs one per family without `ask_user` | no |
+| `ProcessEngineer` | `design/process.py` | complete; chooses the modules for every service of the case, a reason each, builds the skeleton and records `design.modules` and `design.owners` (parameter path prefix to discipline) | no |
+| `IntegrationEngineer` | `design/integration.py` | complete; connects the modules: ports, streams, inlets, outlets, fluids, boundaries (the PFD) | no |
+| `ReservoirEngineer` | `design/reservoir.py` | complete; doublets, spacing, flow, reservoir cooling, degasser, brine-cooling limit | no |
+| `WellEngineer` | `design/well.py` | complete; well depth and path, diameters, the ESP and its setting depth | no |
+| `EnergySystemsEngineer` | `design/energy.py` | complete; heat pump, chiller, boiler, storage, exchangers, surface pipes and network | no |
+| `AnalysisLead` | `analysis/lead.py` | complete (the `Analyst` until 0.4.22), the sample, with the gemini tools | yes, the default route |
+| `Economist` | `analysis/economist.py` | complete; costs, compares, samples uncertainty | no |
+| `SupportLead` | `support/lead.py` | complete; takes the other leads' support requests (every lead has `support_lead`), routes each to the summarizer or the curator, checks the answer and sends it back once when wrong | no |
+| `Curator` | `support/curator.py` | complete; at the end of a run keeps general per-role lessons and the user's facts in experience with their origin (`write_lesson`); never a design or a number as a rule | no |
+| `Summarizer` | `support/summarizer.py` | complete; compaction calls it, and the support lead for a handover summary | no |
 
 The project lead's guards are code: before its first model call it loads the project's case
 file by rule (`set_case(source="project")`) when the state has no case; its `reviewer` tool
-(`agents/project/lead/review.py`) runs the `Reviewer`, then gemini's verdict (`verify_design`)
+(`agents/project/review.py`) runs the `Reviewer`, then gemini's verdict (`verify_design`)
 on the state, lists each failure with the team it goes to first (a hint by gemini's domain),
 flags `repeated_failure` when a changed design fails exactly as before, and keeps a passed design
 in experience (`keep_design`); the `Verified` hook of `ProjectLoop` keeps an unverified design
 from the user; the budget, the step limit, the output limit and the stop on repeated identical
 calls are the engine's. Its `comparison` tool runs the rule-driven `ComparisonDriver`, which
-moved with `DesignDriver` and `CompareDriver` to `agents/project/lead/` (`DesignLoop` and
+moved with `DesignDriver` and `CompareDriver` to `agents/project/drivers.py` and `agents/project/comparison.py` (`DesignLoop` and
 `CompareLoop` still run them alone, and old logs find them by their old paths). The analysis
 lead has the `economist` as its member.
 

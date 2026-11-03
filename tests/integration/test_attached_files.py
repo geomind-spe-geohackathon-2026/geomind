@@ -53,7 +53,7 @@ def attached():
 @pytest.fixture
 def passed(monkeypatch):
     """Let gemini's verdict pass, so the run ends without a question."""
-    monkeypatch.setattr("geomind.agents.project.lead.design_driver.verify_design", lambda _: PASSED)
+    monkeypatch.setattr("geomind.agents.project.drivers.verify_design", lambda _: PASSED)
     monkeypatch.setattr("geomind.engine.hooks.verify_design", lambda _: PASSED)
 
 
