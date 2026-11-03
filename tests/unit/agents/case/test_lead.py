@@ -119,3 +119,14 @@ def test_it_reads_once_asks_once_and_copies_digits():
     assert "never read it again" in text and "Never ask for it again" in text
     assert "digit for digit" in text and "as few `set_case` calls as you can" in text
     assert "read once with `columns`" in text
+
+
+def test_it_chooses_among_the_catalogue_s_rows_by_their_status():
+    """Several catalogue rows per key: sourced, then verified, then one question for the rest.
+
+    A row whose unit the key does not accept never goes in (Sahand's catalogue of 133 rows).
+    """
+    text = " ".join(CaseLead().prompt.content.split())
+    order = ["beats a `placeholder`", "`verified` row beats a `secondary`", "ONE question for all"]
+    assert [text.index(item) for item in order] == sorted(text.index(item) for item in order)
+    assert "`EUR/W heat` is `EUR/W`" in text and "never goes in: list it as not usable" in text

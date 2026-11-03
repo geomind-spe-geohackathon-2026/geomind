@@ -75,12 +75,23 @@ Where each value comes from:
 - A key that takes a constant or a series (the outside air's temperature and humidity) may take
   a cited constant; say in the confirmation question that it is constant.
 - Economics come from the knowledge base's cost catalogue, `knowledge/cost-sources.csv`, read
-  once with `columns` `["id", "path", "value_2015", "unit_2015", "status", "source", "page"]`:
-  one row per key, by its `path` column, which names the key under `assumptions.finance.` (drop that
-  prefix). Take every row's `value_2015` in `unit_2015`, so `price_year` is 2015 and `currency`
-  is the currency of those units; cite each row by `id`, `source`, `page` and `status`. A row
-  of status `placeholder` has no source: name it so in the confirmation question. Two rows for
-  one key: offer both and take neither. A key with no row is asked for in 5.
+  once with `columns` `["id", "path", "value_2015", "unit_2015", "status", "source", "year",
+  "url"]`. Its `path` names the key, after `assumptions.finance.`, `assumptions.` or
+  `economics.` (drop that prefix). Take every row's `value_2015` in `unit_2015`, so `price_year`
+  is 2015 and `currency` is the currency of those units; cite each row by `id`, `source`, `year`,
+  `url` and `status`. Choose the rows of one key in this order:
+  1. a sourced row (`verified` or `secondary`) beats a `placeholder`, which has no source;
+  2. a `verified` row beats a `secondary` one;
+  3. when several rows remain with different values, take none: put them in ONE question for all
+     such keys, each row with its `value_2015`, unit, source, year and link, and let the user
+     choose. A key with only placeholder rows is named so, with no value of yours.
+  A row's unit must be one the key accepts (`describe_case("economics.<key>")`); a basis word
+  after it is no other unit (`EUR/W heat` is `EUR/W`, `EUR/MWh (GCV)` is `EUR/MWh`, `EUR/t CO2e`
+  is `EUR/t`), and gemini converts between the units a key accepts. A row whose unit the key
+  does not accept (`EUR/MWh cold` for a key in `EUR/m3`, `EUR/MW/yr` for one in `%/yr`) never
+  goes in: list it as not usable with both units. A path that is no key of the economics
+  (`emissions.CO2.electricity` is the case's `utilities.electricity.co2_intensity`) goes to the
+  key it names, or is listed. A key with no row is asked for in 5.
 - A case needs no file: without files, ask the user for the missing parts in a few grouped
   questions, each naming its units and offering options where there are few, never one question
   per field.

@@ -6,6 +6,13 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### The case lead chooses among the catalogue's rows (0.4.22.dev48)
+
+Sahand's cost catalogue now has 133 rows (61 verified, 53 secondary, 19 placeholder), several for many keys.
+
+- Prompts: the case lead takes a sourced row over a placeholder and a verified one over a secondary; rows left with different values go into one question for all such keys, each with its 2015 value, unit, source, year and link. A row whose unit the key does not accept (`describe_case`) never goes in and is listed; a basis word is no other unit (`EUR/W heat` is `EUR/W`). It reads the catalogue's `year` and `url` columns for the citation.
+- Data: the catalogue's rows whose unit gemini's key does not accept, listed for Sahand: `capex.ice_storage` (EUR/MWh cold; the key takes EUR/m3), `capex.heat_exchanger` (EUR/W; EUR/(W/K)), one `capex.pipe` row (EUR/MW/m; EUR/m), `capex.production_pump` (EUR; EUR/W), `opex.fixed.heat_pump` and `opex.fixed.pipe` (EUR/MW/yr, EUR/MW/km/yr; %/yr), `revenue.subsidy.amount` (EUR/MWh; EUR/yr). Paths that are no economics key: `emissions.CO2.electricity` (the case's `utilities.electricity.co2_intensity`), `opex.chemical`, `opex.waste_disposal` (gemini: `opex.variable.waste_disposal`), `opex.variable.chp`, `opex.variable.corrosion_inhibitor`, `opex.variable.scale_inhibitor`.
+
 ### Shared rules for every agent, gemini's module reference, and set_case loads the files the case names (0.4.22.dev47)
 
 - Prompts: every role prompt ends with `prompts/shared/rules.md`, said once for all 17 roles: the source order (user, files, knowledge base, MCP, then ask), citations, the user's confirmation of a value no file gave, no defaults, units and physics left to gemini, and applying an error's fix.
