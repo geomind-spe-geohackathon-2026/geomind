@@ -62,3 +62,70 @@ async def test_a_column_named_by_its_old_name_gets_the_new_one():
     error = output["error"]
     assert error["path"] == "demand.heating.power.column"
     assert any("'heating'" in item and "columns" in item for item in error["suggestions"])
+
+
+async def test_a_run_goes_on_live_after_the_replayed_steps():
+    """After a fix, the recorded calls before the failure cost nothing and the rest is live."""
+    from geomind.providers import FakeLLM, ReplayThenLive
+    from tests.fixtures.runs import says
+
+    live = FakeLLM([says("live one"), says("live two")])
+    llm = ReplayThenLive(RECORDED[:3], live, steps=2)
+    first = await llm.complete([], [], model="m", settings={})
+    second = await llm.complete([], [], model="m", settings={})
+    third = await llm.complete([], [], model="m", settings={})
+    assert first.tool_calls == tuple(
+        type(first.tool_calls[0]).model_validate(item) for item in RECORDED[0]["tool_calls"]
+    )
+    assert first.usage.cost == 0 and second.usage.cost == 0
+    assert third.text == "live one" and len(live.calls) == 1
+
+
+async def test_a_different_tool_result_goes_live_at_that_step(tmp_path):
+    """A recorded line whose tool results differ from this run's is not replayed."""
+    from geomind.providers import FakeLLM, Recorder, ReplayThenLive
+    from geomind.types import Message
+    from geomind.utils.json import read_lines
+    from tests.fixtures.runs import says
+
+    path = tmp_path / "r.jsonl"
+    recorder = Recorder(FakeLLM([says("a"), says("b")]), path)
+    said = [Message(role="assistant", content="x"), Message(role="tool", content="old")]
+    await recorder.complete([], [], model="m", settings={})
+    await recorder.complete(said, [], model="m", settings={})
+    live = FakeLLM([says("live")])
+    llm = ReplayThenLive(read_lines(path), live, steps=2)
+    assert (await llm.complete([], [], model="m", settings={})).text == "a"
+    changed = [said[0], Message(role="tool", content="new")]
+    assert (await llm.complete(changed, [], model="m", settings={})).text == "live"
+
+
+def test_replay_needs_its_steps(capsys):
+    """``--replay`` without ``--replay-steps`` is refused: there is no default step."""
+    from geomind import cli
+
+    assert cli.main(["run", "x", "--replay", "r.jsonl", "--max-cost", "1"]) == 1
+    assert "--replay-steps" in capsys.readouterr().err
+
+
+async def test_a_table_is_not_searched_as_text():
+    """Test 6 got rows of the demand CSVs as matches for words of the brief."""
+    session = session_with({**FILES, "brief.md": BRIEF.encode()})
+    found = (await call(search_documents, {"query": "2027 heating"}, session, "p")).output
+    assert [match["name"] for match in found["matches"]] == ["brief.md"]
+
+
+def test_the_next_round_gets_what_the_last_round_handed_over():
+    """Each round of test 6 started from nothing; its task now carries the last round's answer."""
+    from geomind.engine import Context
+    from geomind.loops.design import answered_task
+    from geomind.types import Message, ToolCall
+
+    handover = "Read the brief; set_case failed on demand.heating.column (older shape)."
+    messages = [
+        Message(role="user", content="Design it"),
+        Message(role="assistant", tool_calls=(ToolCall(id="d1", name="designer", input={}),)),
+        Message(role="tool", tool_call_id="d1", content=handover),
+    ]
+    task = answered_task(Context(messages=messages), "use the files")
+    assert "use the files" in task and handover in task

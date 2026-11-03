@@ -70,6 +70,9 @@ the routing, for testing one agent by hand, and so does a `run.loop` set before 
   `--answer-retries N` times; unset, never. Then, or at the end of the input, the run stops as
   `waiting`: it prints the question and the `geomind resume` line, and exits 2 (`cli.WAITING`);
   done exits 0 and any other end 1.
+- `--replay FILE --replay-steps N` (on `run` and `resume`, both or neither) answers the first
+  `N` model calls from a recording, with zero usage, and the rest live (`ReplayThenLive`); a
+  recorded line carrying `input_digest` that differs from this run's tool results goes live there.
 - `geomind resume <run id> --request ID --answer TEXT` with the options of `run` (provider, mode,
   caps, `--answer-retries`) answers the request a run waits for, rebuilt from `.runs` with
   `Run.load`, and goes on as `run` does. A cap counts this process's calls, so pass what is left.

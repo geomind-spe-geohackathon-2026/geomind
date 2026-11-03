@@ -250,6 +250,14 @@
             "choices": null,
             "default": null
           },
+          "--replay": {
+            "choices": null,
+            "default": null
+          },
+          "--replay-steps": {
+            "choices": null,
+            "default": null
+          },
           "--request": {
             "choices": null,
             "default": null
@@ -325,6 +333,14 @@
             "default": null
           },
           "--recording": {
+            "choices": null,
+            "default": null
+          },
+          "--replay": {
+            "choices": null,
+            "default": null
+          },
+          "--replay-steps": {
             "choices": null,
             "default": null
           },
@@ -664,5 +680,5 @@
       "Model"
     ]
   },
-  "version": "0.4.22.dev1"
+  "version": "0.4.22.dev2"
 }

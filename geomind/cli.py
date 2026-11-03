@@ -20,7 +20,7 @@ from geomind.engine.hooks import CostBudget, ProjectBudget, TokenBudget
 from geomind.engine.replay import nested_runs_reused, version_differences
 from geomind.errors import GeomindError, RunError
 from geomind.export import models_by_agent, render_export
-from geomind.providers import FakeLLM, OpenRouter, Recorder
+from geomind.providers import FakeLLM, OpenRouter, Recorder, ReplayThenLive
 from geomind.run import LOOPS, Run, loop_of
 from geomind.sandbox import DockerSandbox, LocalSandbox
 from geomind.stores import FileUsageLedger, FileWorkspace
@@ -135,8 +135,22 @@ def _changes(args):
 
 
 def _run_provider(args):
-    """Return the provider of ``run``: OpenRouter, or a recording; ``--record`` keeps a copy."""
-    llm = FakeLLM.from_recording(args.recording) if args.recording else OpenRouter()
+    """Return the provider of ``run``: OpenRouter, or a recording; ``--record`` keeps a copy.
+
+    ``--replay FILE --replay-steps N`` answers the first ``N`` calls from a recording and the rest
+    live, so a run after a fix goes on from where it failed; both are given or neither.
+    """
+    replay, steps = getattr(args, "replay", None), getattr(args, "replay_steps", None)
+    if (replay is None) != (steps is None):
+        raise RunError("run: --replay and --replay-steps go together; expected both or neither")
+    if replay is not None and args.recording:
+        raise RunError("run: --replay goes on live; expected no --recording with it")
+    if args.recording:
+        llm = FakeLLM.from_recording(args.recording)
+    elif replay is not None:
+        llm = ReplayThenLive.from_recording(replay, OpenRouter(), steps)
+    else:
+        llm = OpenRouter()
     return Recorder(llm, Path(args.record)) if args.record else llm
 
 
@@ -577,6 +591,10 @@ def _run_options(command):
     )
     _add_project_caps(command)
     _answer_retries(command)
+    command.add_argument("--replay", help="a recording whose first calls answer this run")
+    command.add_argument(
+        "--replay-steps", type=int, help="how many calls of --replay answer before going live"
+    )
 
 
 def _answer_retries(command):

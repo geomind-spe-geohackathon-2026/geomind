@@ -254,12 +254,24 @@ def question_of(missing):
 
 
 def answered_task(context, answer):
-    """Return the designer's task after the user answered the driver's question on the case."""
+    """Return the designer's task after the user answered the driver's question on the case.
+
+    The last round's answer goes with it, at most ``HANDOVER_CHARACTERS``: what it read, set and
+    failed on, so the new round goes on from there instead of reading everything again.
+    """
     request = request_of(context)
-    return (
-        f"{request}\n\nThe user answered the question on the case: {answer}\n\nPut it into the "
-        "case with set_case, then design."
+    designed = [output for name, output in driver_calls(context.messages) if name == "designer"]
+    handover = (
+        f"\n\nThe last round handed over:\n{designed[-1][:HANDOVER_CHARACTERS]}" if designed else ""
     )
+    return (
+        f"{request}\n\nThe user answered the question on the case: {answer}{handover}\n\nPut it "
+        "into the case with set_case, then design."
+    )
+
+
+HANDOVER_CHARACTERS = 6000
+"""The most characters of the last round's answer that the next round's task carries."""
 
 
 def case_change(found):

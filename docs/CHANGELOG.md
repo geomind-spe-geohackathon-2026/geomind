@@ -10,6 +10,9 @@ What the fifth live run showed, each pinned by a test on its recorded calls.
 
 - `search_documents` returns `{matches, note}` instead of a list: without a match the note says the project does not state it (an assumption with its reason, or `ask_user`); the same words searched again in the run tree are noted; a file's name alone is no match.
 - A series naming a column by its old name after `columns` renamed it gets the new name in `suggestions`.
+- A table (CSV, TSV) is not searched as text: its rows matched words of the brief.
+- The design loop's next round after a question on the case carries the last round's answer (at most 6,000 characters), so it goes on from there instead of reading everything again.
+- `geomind run --replay FILE --replay-steps N` answers the first `N` calls from a recording at no cost and the rest live, so a run after a fix goes on from where it failed; both or neither, no default. `Recorder` writes an `input_digest` of the tool results each call answered; a line whose digest differs from this run's goes live at that step. `ReplayThenLive` is the provider.
 
 ## [0.4.21] - 2026-11-03
 

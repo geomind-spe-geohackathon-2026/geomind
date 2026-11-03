@@ -1,9 +1,11 @@
 """The tools over a project's results and documents."""
 
+from pathlib import Path
+
 from geomind.errors import ToolError
 from geomind.stores.workspace import WORD, search
 from geomind.tools.base import tool
-from geomind.tools.files import document_text
+from geomind.tools.files import TABLE_SUFFIXES, document_text
 from geomind.tools.gemini.references import reference_schema
 from geomind.tools.gemini.runs import parse_time
 from geomind.tools.gemini.stored import load_run
@@ -95,12 +97,14 @@ def file_passages(context):
     """Return the passages of the project's files that read as text, ``PASSAGE_CHARACTERS`` each.
 
     A passage is ``{name, start, title, text}`` with an empty ``title``, so the file name is no
-    match.
+    match. A table (CSV, TSV) holds data, not text to search: ``read_document`` shows its columns.
     """
     workspace = context.session.workspace
     files = workspace.files(context.project) if hasattr(workspace, "files") else []
     passages = []
     for entry in files:
+        if Path(entry["name"]).suffix.lower() in TABLE_SUFFIXES:
+            continue
         try:
             text = document_text(entry["name"], workspace.file(context.project, entry["name"]))
         except ToolError:
