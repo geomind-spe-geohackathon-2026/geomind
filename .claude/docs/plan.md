@@ -199,7 +199,7 @@ Open geomind items:
 - **Versions of a 0.3.0 log are not in the event log**; the export reads them from
   `run_manifest.json` (runs from 0.3.1 record them on `run.started`).
 - The Docker tests of the module sandbox need the `gemini-sandbox:<gemini version>` image
-  (`make sandbox-image` pulls it); they passed on 2026-11-03 with `gemini-sandbox:0.5.5`.
+  (`make sandbox-image` pulls it); they passed on 2026-11-03 with `gemini-sandbox:0.5.10`.
 - **A log of another geomind version** replays with recorded tool results (pure tools are not run
   again), so it checks the agents' decisions, not the tools' outputs.
 - **`ProjectBudget`** reads the ledger once per run: runs of one project running at the same time

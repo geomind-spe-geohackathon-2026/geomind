@@ -118,9 +118,14 @@ def minimize_design(plant, case, objective, evaluations, seed):
 
 
 def minimized(found):
-    """Return gemini's plain form of a search: the best without its plant, as a study keeps it."""
+    """Return gemini's plain form of a search: the best without its plant, as a study keeps it.
+
+    ``best``, ``feasible`` and ``evaluations`` are as before; ``history`` is every trial, from
+    gemini's ``Search.to_dict()``.
+    """
     best = found["best"].to_dict() | {"plant": None}
-    return {"best": best, "feasible": found["feasible"], "evaluations": found["evaluations"]}
+    kept = {"best": best, "feasible": found["feasible"], "evaluations": found["evaluations"]}
+    return {**kept, "history": found.to_dict()["history"]}
 
 
 @tool(

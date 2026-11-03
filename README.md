@@ -100,6 +100,11 @@ rejects again, up to N times.
 
 ## Configure the models
 
+`geomind run`, `chat` and `check-live` read a `.env` file in the repository they run in, then
+`~/.config/geomind/live.env`; a variable already set in the environment wins. Copy `.env.example`
+to `.env`, set the values and keep it to yourself (`chmod 600 .env`): `.env` is ignored by git, and
+a test fails if one is ever tracked. No command prints the key.
+
 geomind has no built-in model: a run on a real provider stops at the start until its models are set.
 
 | Variable | Meaning |

@@ -155,7 +155,7 @@ async def test_a_cost_whose_assumption_is_missing_is_a_case_gap_beside_the_other
     for name in ("npv", "payback"):
         assert output[name]["error"]["code"] == "case_incomplete"
         assert output[name]["error"]["path"] == "economics.revenue.heat"
-        assert output[name]["error"]["suggestions"] == ["economics.revenue.heat"]
+        assert "economics.revenue.heat" in output[name]["error"]["suggestions"]
 
 
 def test_costs_follow_the_cooling_demand():
@@ -219,7 +219,7 @@ async def test_a_kpi_the_case_cannot_give_is_in_errors_with_its_path():
     assert "error" not in output["lcoh"] and "npv" not in output
     error = output["errors"]["lcoh"]
     assert error["code"] == "case_incomplete" and error["path"].startswith("economics")
-    assert error["suggestions"] == [error["path"]]
+    assert len(error["suggestions"]) > 1
     assert output["errors"]["npv"]["code"] == "case_incomplete"
 
 
@@ -227,3 +227,22 @@ async def test_a_kpi_that_has_a_value_has_no_error():
     """Nothing is added where gemini gave a number."""
     output = assessed("compute_kpis", "shallow_district", "base")
     assert "lcts" not in output.get("errors", {}) and output["lcts"]["value"] is not None
+
+
+async def test_all_missing_economics_come_back_in_one_gap():
+    """Every value the costs need comes back in one error, as gemini lists them."""
+    context, _, result = await stored_run("shallow_district")
+    identifier = result.removeprefix("result/")
+    ran_on = dict(context.session.load_artifact(f"{identifier}.case"))
+    del ran_on["economics"]
+    await context.session.save_artifact(f"{identifier}.case", ran_on)
+    error = (await assess_in(context, TOOLS.estimate_costs, result)).output["error"]
+    assert error["code"] == "case_incomplete"
+    assert {"economics.discount_rate", "economics.energy.electricity"} <= set(error["suggestions"])
+
+
+async def test_each_kpi_gap_names_every_missing_value():
+    """``compute_kpis`` gives each cost the same, full list, not the first value of its metric."""
+    errors = (await without_economics())["errors"]
+    expected = {"economics.discount_rate", "economics.energy.electricity"}
+    assert all(expected <= set(error["suggestions"]) for error in errors.values())

@@ -4,8 +4,6 @@ import re
 from datetime import datetime, timezone
 
 _DURATION = re.compile(r"^(\d+(?:\.\d+)?)([a-z]+)$")
-DURATION_UNITS = ("s", "min", "h", "d")
-"""The units a duration may have; gemini converts each to seconds."""
 
 
 def utc_now():
@@ -16,8 +14,8 @@ def utc_now():
 def parse_duration(value):
     """Return seconds from a positive number or text such as ``"10min"``.
 
-    NOTE: gemini converts (``gm.units.Quantity``), and a duration has one of ``DURATION_UNITS``;
-    geomind holds no conversion factor.
+    NOTE: gemini converts (``gm.units.Quantity``), so a duration takes any time unit gemini knows,
+    such as ``ms``, ``s``, ``min``, ``h`` or ``d``; geomind holds no conversion factor.
     """
     import gemini as gm
 
@@ -26,6 +24,9 @@ def parse_duration(value):
     match = _DURATION.match(value) if isinstance(value, str) else None
     if match is None:
         raise ValueError(f"duration = {value!r}; expected a positive number or text like '10min'")
-    if match[2] not in DURATION_UNITS:
-        raise ValueError(f"duration = {value!r}; expected a unit of {', '.join(DURATION_UNITS)}")
-    return float(gm.units.Quantity(float(match[1]), match[2]).to("s").value)
+    try:
+        return float(gm.units.Quantity(float(match[1]), match[2]).to("s").value)
+    except gm.errors.ValidationError as error:
+        raise ValueError(
+            f"duration = {value!r}; expected a time unit gemini converts: {error}"
+        ) from error

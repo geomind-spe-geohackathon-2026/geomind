@@ -379,6 +379,15 @@ def test_an_optimize_keeps_its_best_without_the_plant_and_recommends_it():
     assert record["designs"]["wrote"] == ["design/best"]
 
 
+def test_an_optimize_keeps_the_history_of_its_search():
+    """Every trial of gemini's search is kept, in gemini's own plain form."""
+    context = slow_calls()["studies"]["shallow_context"]
+    record = context.session.load_artifact("study/best")
+    history = record["result"]["history"]
+    assert len(history) == record["result"]["evaluations"]
+    assert {"value", "unit", "parameters"} <= set(history[0])
+
+
 async def test_a_taken_design_name_is_refused_with_its_name_before_the_study_runs():
     """``optimize`` and ``size_plant`` name the design that is taken, and nothing runs."""
     context, reference = await started(SHALLOW)

@@ -16,3 +16,19 @@ def test_no_path_under_tmp_is_tracked():
 def test_gitignore_ignores_tmp():
     """The folder is ignored, so worktrees under it never show as changes."""
     assert ".tmp/" in (ROOT / ".gitignore").read_text().splitlines()
+
+
+def test_no_env_file_is_tracked():
+    """A key never reaches git: ``.env`` and every ``*.env`` stay untracked, the template aside."""
+    tracked = subprocess.run(
+        ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=True
+    ).stdout.splitlines()
+    names = [path.rsplit("/", 1)[-1] for path in tracked]
+    assert [name for name in names if name == ".env" or name.endswith(".env")] == []
+    assert ".env.example" in names
+
+
+def test_gitignore_ignores_env_files():
+    """``.env`` and ``*.env`` are ignored."""
+    lines = (ROOT / ".gitignore").read_text().splitlines()
+    assert ".env" in lines and "*.env" in lines
