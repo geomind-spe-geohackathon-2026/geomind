@@ -6,6 +6,11 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+What the fifth live run showed, each pinned by a test on its recorded calls.
+
+- `search_documents` returns `{matches, note}` instead of a list: without a match the note says the project does not state it (an assumption with its reason, or `ask_user`); the same words searched again in the run tree are noted; a file's name alone is no match.
+- A series naming a column by its old name after `columns` renamed it gets the new name in `suggestions`.
+
 ## [0.4.21] - 2026-11-03
 
 What the fourth live run showed, each pinned by a test on its recorded calls. CLI and tools only.

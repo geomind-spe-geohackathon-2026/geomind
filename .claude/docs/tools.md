@@ -29,7 +29,7 @@ the problem state as `update_state` does.
 | `save_profile` | `case.py` | `write` | `name, values, unit, start, step, service`, all required: `unit` a unit of power, `step` `{value, unit}`, `service` `heating` or `cooling` | `{demand, time, steps, version}`; gemini checks the values (`gm.case.from_values`), they are written in `unit` as the column `name` of `data/<name>.csv` (first column `time`) in the run's case files and the service's `power` becomes `{unit, file, column}`; a profile that does not cover the case's `time` sets it to the profile's span in the same call; gemini rejects a case that does not fit and nothing is stored | built |
 | `simulate` | `runs.py` | `compute` | `design=None, changes=None, start=None, end=None` | `{reference, summary}`; the run is stored; the summary gives the plant, the case's time span, the window, `steps`, `failed_steps` and the first `failures`, the `report` totals in display units, gemini's `verdict`, the `unmet` requirements (the checks with `passed` false) and the demand `coverage` | built |
 | `read_result` | `results.py` | `read` | `reference, path=None, field=None, start=None, end=None` (ISO 8601, inclusive) | `{time, value, unit}` with `path` and `field`, otherwise `{path: {field: {min, max, mean}}}`, in MW, degC, bar, m3/h and kg/s | built |
-| `search_documents` | `results.py` | `read` | `query` | documents `[{id, title, text, score}]` and passages of the project's files `[{name, start, title, text, score}]`, best first, at most 8 | built |
+| `search_documents` | `results.py` | `read` | `query` | `{matches, note}`: documents `{id, title, text, score}` and passages of the project's files `{name, start, text, score}`, best first, at most 8; `note` when nothing matches (the project does not state it: an assumption or `ask_user`) or the run tree searched the same words | built |
 | `list_files` | `files.py` (`geomind/tools/`) | `read` | none | `{files: [{name, size, media_type}]}` | built |
 | `read_document` | `files.py` (`geomind/tools/`) | `read` | `name, start=0, length=None` | `{name, start, total, text, next, table?}` | built |
 | `check_results` | `assessment.py` | `compute` | `reference` | gemini's verdict on the run's own case, in display units: `{feasible, reasons: [{kind, name, message, ...}], requirements: [check], failures: {total, groups}, metrics}` | built |
@@ -409,6 +409,15 @@ From the second live run (`tests/integration/test_live_regressions_b.py`, record
 - `build_plant` without a header: `old_format`, with the smallest plant file of
   `gm.plants.schema()` last in `suggestions` (`plant_skeleton`, `geomind/tools/gemini/skeleton.py`).
 - A nested run that passed the model's window: the delegate answers `context_exceeded`.
+
+From the fifth live run (`tests/integration/test_live_regressions_e.py`, recording
+`tests/fixtures/live/recording_e.jsonl`):
+
+- The run searched 147 times, mostly for values the brief does not hold. `search_documents` now
+  returns `{matches, note}`: no match says the project does not state it (choose an assumption
+  with its reason, or `ask_user`), and the same words again in the run tree are noted. A file's
+  name alone matches nothing.
+- A series naming a column by the name `columns` renamed gets the new name in `suggestions`.
 
 From the fourth live run (`tests/integration/test_live_regressions_d.py`, recording
 `tests/fixtures/live/recording_d.jsonl`):

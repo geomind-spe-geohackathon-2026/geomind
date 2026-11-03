@@ -76,6 +76,7 @@ class RunSession:
         self.limit_reached = None
         self.time_left = None
         self.documents_read = {}
+        self.searches = set()
 
     def limit_output(self, tokens):
         """Lower the output limit of the next provider call to ``tokens``, never raise it."""

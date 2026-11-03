@@ -105,9 +105,9 @@ async def test_search_documents_finds_the_project_s_attached_files():
     session = StubSession()
     session.workspace = MemoryWorkspace(files={"p": {"brief.md": brief.encode()}})
     query = recorded(76, "search_documents")
-    found = (await call(search_documents, query, session, "p")).output
-    assert found and found[0]["name"] == "brief.md" and "reservoir" in found[0]["text"]
-    assert found[0]["start"] == 0
+    [found] = (await call(search_documents, query, session, "p")).output["matches"]
+    assert found["name"] == "brief.md" and "reservoir" in found["text"]
+    assert found["start"] == 0
 
 
 async def test_a_part_read_from_a_stored_result_is_not_stored_again():

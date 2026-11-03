@@ -8,7 +8,7 @@ from typing import Protocol
 from geomind.stores.casefiles import is_safe_name, named_files
 from geomind.utils.json import read_json
 
-_WORD = re.compile(r"\w+")
+WORD = re.compile(r"\w+")
 DOCUMENT_SUFFIXES = (".md", ".txt")
 
 
@@ -51,11 +51,11 @@ def file_entry(name, size):
 
 def search(documents, query):
     """Return the documents that hold a word of ``query``, by keyword count, best first."""
-    words = {word.lower() for word in _WORD.findall(query)}
+    words = {word.lower() for word in WORD.findall(query)}
     found = []
     for document in documents:
         text = f"{document['title']} {document['text']}".lower()
-        score = sum(1 for word in _WORD.findall(text) if word in words)
+        score = sum(1 for word in WORD.findall(text) if word in words)
         if score:
             found.append({**document, "score": score})
     return sorted(found, key=lambda item: item["score"], reverse=True)

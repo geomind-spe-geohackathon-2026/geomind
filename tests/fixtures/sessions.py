@@ -29,6 +29,7 @@ class StubSession:
         self.artifacts = {}
         self.index_lock = asyncio.Lock()
         self.documents_read = {}
+        self.searches = set()
         self.changes = []
         self.errors = []
         self.child_limit = None

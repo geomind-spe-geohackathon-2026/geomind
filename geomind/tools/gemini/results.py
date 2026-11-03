@@ -1,7 +1,7 @@
 """The tools over a project's results and documents."""
 
 from geomind.errors import ToolError
-from geomind.stores.workspace import search
+from geomind.stores.workspace import WORD, search
 from geomind.tools.base import tool
 from geomind.tools.files import document_text
 from geomind.tools.gemini.references import reference_schema
@@ -22,6 +22,12 @@ PASSAGE_CHARACTERS = 1500
 """The characters of one passage of a project file that ``search_documents`` returns."""
 SHOWN_MATCHES = 8
 """The most matches ``search_documents`` returns, best first."""
+NO_MATCH = (
+    "no document or file of the project has these words, so it does not state this: choose a "
+    "value and record it as an assumption with its reason, or ask_user; another wording finds "
+    "nothing more"
+)
+SEARCHED = "already searched in this run with the same words:"
 
 
 @tool(effect="read", late_schemas={"reference": reference_schema("result")})
@@ -51,11 +57,12 @@ def read_result(
 
 @tool(effect="read")
 def search_documents(context, query: str):
-    """Search the documents and the files of the project; return the best matches first.
+    """Search the documents and the files of the project; return ``{matches, note}``, best first.
 
     A document match has ``id``, ``title``, ``text`` and ``score``. A file match is a passage of a
     file that reads as text, such as a PDF: ``name``, ``start`` (for ``read_document``), ``text``
-    and ``score``.
+    and ``score``; a file's name alone matches nothing. No match means the project does not state
+    these words, and the ``note`` says what to do instead; the same words again are noted too.
     """
     workspace = context.session.workspace
     if workspace is None or context.project is None:
@@ -64,14 +71,31 @@ def search_documents(context, query: str):
             code="not_allowed",
         )
     found = list(workspace.documents(context.project, query))
-    found += search(file_passages(context), query)
-    return sorted(found, key=lambda item: item["score"], reverse=True)[:SHOWN_MATCHES]
+    passages = search(file_passages(context), query)
+    found += [{key: value for key, value in item.items() if key != "title"} for item in passages]
+    matches = sorted(found, key=lambda item: item["score"], reverse=True)[:SHOWN_MATCHES]
+    result = {"matches": matches}
+    words = frozenset(word.lower() for word in WORD.findall(query))
+    searched = searches_of(context)
+    note = [NO_MATCH] if not matches else []
+    if searched is not None and words in searched:
+        note.insert(0, SEARCHED)
+    if searched is not None:
+        searched.add(words)
+    return {**result, "note": " ".join(note)} if note else result
+
+
+def searches_of(context):
+    """Return the word sets the run tree searched, kept on its root session, or ``None``."""
+    session = getattr(context.session, "root_session", context.session)
+    return getattr(session, "searches", None)
 
 
 def file_passages(context):
     """Return the passages of the project's files that read as text, ``PASSAGE_CHARACTERS`` each.
 
-    A passage is ``{name, start, title, text}``; ``title`` is the file name, for the search.
+    A passage is ``{name, start, title, text}`` with an empty ``title``, so the file name is no
+    match.
     """
     workspace = context.session.workspace
     files = workspace.files(context.project) if hasattr(workspace, "files") else []
@@ -83,7 +107,5 @@ def file_passages(context):
             continue
         for start in range(0, len(text), PASSAGE_CHARACTERS):
             passage = text[start : start + PASSAGE_CHARACTERS]
-            passages.append(
-                {"name": entry["name"], "start": start, "title": entry["name"], "text": passage}
-            )
+            passages.append({"name": entry["name"], "start": start, "title": "", "text": passage})
     return passages

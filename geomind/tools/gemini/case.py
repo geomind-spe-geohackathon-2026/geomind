@@ -373,7 +373,29 @@ def case_retries(error, data, supplied, files, columns, changes):
     if error.code == "invalid_unit":
         retries.extend(unit_retry(error, data))
     retries.append(zone_retry(error, files, columns))
+    retries.extend(renamed_columns(error, data, columns))
     return [retry for retry in retries if retry is not None]
+
+
+def renamed_columns(error, data, columns):
+    """Return the column a series names by the name ``columns`` gave it, for each one renamed."""
+    from geomind.tools.gemini.explain import field_of
+
+    problems = getattr(error, "problems", None) or [error.to_dict()]
+    retries = []
+    for problem in problems:
+        path = problem.get("path") or ""
+        if not path.endswith(".column"):
+            continue
+        named = field_of(data, path)
+        for file, renames in (columns or {}).items():
+            if named in renames:
+                new = renames[named]
+                retries.append(
+                    f"{path} = {new!r}: columns renamed {named!r} to {new!r} in {file}, so the "
+                    f"series names the new header"
+                )
+    return retries
 
 
 NO_OFFSET = "has no offset"

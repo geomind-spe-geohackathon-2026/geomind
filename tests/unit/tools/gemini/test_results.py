@@ -100,7 +100,7 @@ def test_search_documents_searches_the_project():
     """The workspace of the run answers."""
     documents = {"p1": [{"id": "a", "title": "Pumps", "text": "the pump runs at 50 Hz"}]}
     output = search_documents.function(context(MemoryWorkspace(documents=documents)), "pump")
-    assert output[0]["id"] == "a"
+    assert output["matches"][0]["id"] == "a"
 
 
 @pytest.mark.parametrize("options", [{"workspace": None}, {"project": None}])
