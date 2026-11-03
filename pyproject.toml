@@ -35,7 +35,7 @@ lint = [
 dev = [{ include-group = "test" }, { include-group = "lint" }]
 
 [tool.uv.sources]
-gemini-geothermal-suite-open = { url = "https://github.com/geomind-spe-geohackathon-2026/gemini/releases/download/v0.5.13/gemini_geothermal_suite_open-0.5.13-py3-none-any.whl" }
+gemini-geothermal-suite-open = { url = "https://github.com/geomind-spe-geohackathon-2026/gemini/releases/download/v0.5.14/gemini_geothermal_suite_open-0.5.14-py3-none-any.whl" }
 
 [tool.poetry]
 packages = [{ include = "geomind" }]

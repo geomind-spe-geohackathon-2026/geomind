@@ -6,6 +6,10 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### gemini 0.5.14
+
+- geomind runs on the gemini 0.5.14 release wheel (`requirements/gemini.txt`, sha256 `91b8cc2428d1bfde4da936fe49308de8ac0c736bfa205023f75ac261b0a7e6ec`; `[tool.uv.sources]` in `pyproject.toml`). 0.5.14 runs a `Study`'s plants and cases in worker processes when gemini's runtime `processes` setting is above 1, with the same results in the same order and no API change; geomind does not set it. No sandbox image is needed any more.
+
 ### What each agent alone showed, live (0.4.22.dev28)
 
 Every agent ran alone on a fixed input from the earlier runs (15 tasks, DeepSeek, 0.43 USD); all passed their criteria, and their outputs were read one by one. Each bug is pinned by a test.
