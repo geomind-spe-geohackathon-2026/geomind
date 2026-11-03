@@ -555,6 +555,11 @@
       "input_schema": {
         "additionalProperties": false,
         "properties": {
+          "force": {
+            "default": false,
+            "title": "Force",
+            "type": "boolean"
+          },
           "length": {
             "anyOf": [
               {
@@ -1173,6 +1178,24 @@
             "default": null,
             "title": "Changes"
           },
+          "columns": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Columns"
+          },
           "economics": {
             "anyOf": [
               {
@@ -1241,6 +1264,8 @@
         "type": "object"
       },
       "late_schemas": [
+        "changes",
+        "columns",
         "files"
       ],
       "name": "set_case"
@@ -1508,5 +1533,5 @@
       "name": "write_module"
     }
   },
-  "version": "0.4.17"
+  "version": "0.4.18"
 }

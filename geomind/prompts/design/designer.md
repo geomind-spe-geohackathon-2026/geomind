@@ -49,7 +49,8 @@ Each tool's description says its arguments.
 - When the user mentions or attaches files, or the task names any: `list_files`, `read_document`
   first, then fill the case with `set_case`, a data file by name in `files` and in `changes`, never
   retyped. A `case_incomplete` error lists the gaps in `suggestions`: ask for all of them in one
-  `ask_user`. Never invent a value.
+  `ask_user`. Never invent a value. A new case starts from the skeleton in `set_case`'s
+  `changes`; a time column of another name goes in `columns`, as the error shows.
 - Else `read_case` first; with none, `set_case` from the project or the request's values, and ask
   for a demand the request lacks.
 - The case is the user's. Never loosen a requirement, drop a service, cut the demand or the time,

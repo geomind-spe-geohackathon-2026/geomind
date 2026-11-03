@@ -14,6 +14,8 @@ from geomind.tools.base import tool
 from geomind.utils.json import to_jsonable
 
 STORE_CHARACTERS = 2000
+SHOWN_INDEXES = 10
+"""How many list indexes a wrong path lists."""
 SUMMARY_CHARACTERS = 600
 SMALL_CHARACTERS = 150
 MINIMUM_SHARE = 40
@@ -131,7 +133,17 @@ def _step(value, part):
         f"read_stored: path = {part!r}; expected a key or index of {outline(value, 200)}",
         code="unknown_name",
         path="path",
+        suggestions=parts_of(value),
     )
+
+
+def parts_of(value):
+    """Return what a path may name next in a stored value: its keys, or its first indexes."""
+    if isinstance(value, dict):
+        return [str(key) for key in value]
+    if isinstance(value, list):
+        return [str(index) for index in range(min(len(value), SHOWN_INDEXES))]
+    return []
 
 
 @tool(effect="read")

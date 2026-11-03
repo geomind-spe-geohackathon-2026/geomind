@@ -11,6 +11,7 @@ from pathlib import Path
 
 from geomind.errors import ToolError
 from geomind.tools.base import tool
+from geomind.tools.stored import reference_of
 from geomind.utils.strings import join_names
 
 PAGE_CHARACTERS = 20_000
@@ -143,8 +144,42 @@ def list_files(context):
     return {"files": sorted(workspace.files(context.project), key=lambda item: item["name"])}
 
 
+def read_before(context, name, start, end):
+    """Return the earlier reads of ``name`` in this run covering ``start`` to ``end``, or ``None``.
+
+    Each is ``{start, end, reference}``: ``reference`` is where the earlier result was stored, for
+    ``read_stored``, or ``None`` when it was short enough to stay in the conversation.
+    """
+    reads = getattr(context.session, "documents_read", {}).get(name, [])
+    covered, position = [], start
+    for read in sorted(reads, key=lambda item: item["start"]):
+        if read["start"] <= position < read["end"]:
+            covered.append(read)
+            position = read["end"]
+    if not covered or position < end:
+        return None
+    return [{**read, "reference": stored_reference(context, read)} for read in covered]
+
+
+def stored_reference(context, read):
+    """Return the reference of an earlier read if its result was stored, else ``None``."""
+    reference = read["reference"]
+    return reference if reference and context.session.load_artifact(reference) else None
+
+
+def remember_read(context, name, start, end):
+    """Keep that this run read ``name`` from ``start`` to ``end``, with where its result goes."""
+    if not hasattr(context.session, "documents_read"):
+        return
+    reference = reference_of(context.call_id) if context.call_id else None
+    read = {"start": start, "end": end, "reference": reference}
+    context.session.documents_read.setdefault(name, []).append(read)
+
+
 @tool(effect="read", late_schemas={"name": file_name_schema})
-def read_document(context, name: str, start: int = 0, length: int | None = None):
+def read_document(
+    context, name: str, start: int = 0, length: int | None = None, force: bool = False
+):
     """Read a project file as text, one page at a time.
 
     CSV, TSV, JSON, Markdown and text files read as they are, and a PDF as its extracted text with
@@ -152,13 +187,25 @@ def read_document(context, name: str, start: int = 0, length: int | None = None)
     first character and ``length`` the number of characters, at most 20,000. Returns ``name``,
     ``start``, ``total``, ``text`` and ``next``, where the following page starts (``null`` at the
     end). The first page of a CSV or TSV also has ``table``: ``columns``, the number of ``rows``
-    and the ``first_rows``.
+    and the ``first_rows``. A page this run already read comes back as ``already_read`` with a
+    ``note`` instead of its text; ``force`` reads it again.
     """
     if start < 0:
         raise ToolError(f"read_document: start = {start}; expected 0 or more", path="start")
     text = document_text(name, project_file(context, "read_document", name))
     size = min(length or PAGE_CHARACTERS, PAGE_CHARACTERS)
     end = min(start + size, len(text))
+    earlier = None if force else read_before(context, name, start, end)
+    if earlier is not None:
+        note = "already read in this run: read_stored a reference, or pass force=true"
+        return {
+            "name": name,
+            "start": start,
+            "total": len(text),
+            "already_read": earlier,
+            "note": note,
+        }
+    remember_read(context, name, start, end)
     page = {"name": name, "start": start, "total": len(text), "text": text[start:end]}
     page["next"] = end if end < len(text) else None
     table = table_of(name, text) if start == 0 else None

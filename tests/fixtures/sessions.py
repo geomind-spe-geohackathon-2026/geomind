@@ -28,6 +28,7 @@ class StubSession:
         self.workspace = workspace
         self.artifacts = {}
         self.index_lock = asyncio.Lock()
+        self.documents_read = {}
         self.changes = []
         self.errors = []
         self.child_limit = None

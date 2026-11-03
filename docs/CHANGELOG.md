@@ -6,6 +6,18 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.18] - 2026-11-03
+
+Additive: what the first live run showed, each pinned by a test on its recorded calls.
+
+- `set_case(columns={file: {old: new}})` renames CSV header names before gemini reads the file; gemini's error about a first column that is not `time` carries the exact retry call in `suggestions`.
+- `case_incomplete` for a case without its header adds a minimal case made from `gm.Case.schema()`; `set_case`'s `changes` description shows it, and the Analyst and Designer prompts point at it.
+- `read_stored` with a wrong path lists the keys or first indexes there.
+- `read_document` remembers the pages a run read: a repeat is `already_read` with the reference of the stored result, unless `force=true`.
+- `geomind run --loop design` takes a project with attached files and no `case.json`.
+- `GEOMIND_RETRY_COUNT` and `GEOMIND_RETRY_DELAY` set the provider backoff. The defaults stay 3 retries from 0.5 s: in the live run three retries did not outlast two OpenRouter 504s, so a host may raise them.
+- `tests/fixtures/live/` holds the run's recording and its two CSVs.
+
 ## [0.4.17] - 2026-11-03
 
 Additive. Runs on gemini 0.5.10 (wheel sha256 `4d46a750…fc0a84`, image `gemini-sandbox:0.5.10`), which changed nothing existing.

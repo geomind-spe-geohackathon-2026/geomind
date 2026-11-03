@@ -115,10 +115,16 @@ def build_case(data, files):
     return gm.Case.from_dict(copy.deepcopy(data), files=files)
 
 
+HEADER = {"format", "kind", "name"}
+TIME_COLUMN = "time"
+"""The column gemini reads a series' times from."""
+
+
 def readable_case(data, files):
     """Return the ``gm.Case`` of a case dict; missing values raise ``case_incomplete``.
 
-    The error keeps gemini's message, and ``suggestions`` lists every missing path.
+    The error keeps gemini's message, and ``suggestions`` lists every missing path; a missing
+    header adds the skeleton of a case from gemini's schema, as JSON.
     """
     import gemini as gm
 
@@ -128,9 +134,83 @@ def readable_case(data, files):
         missing = [issue.problem()["path"] for issue in gm.case.missing(data)]
         if not missing:
             raise
+        skeleton = [json.dumps(case_skeleton())] if HEADER & set(missing) else []
         raise ToolError(
-            str(error), code="case_incomplete", path=missing[0], suggestions=missing
+            str(error), code="case_incomplete", path=missing[0], suggestions=missing + skeleton
         ) from error
+
+
+def skeleton_of(schema, name):
+    """Return the smallest value of a JSON Schema: its constant, its required keys, or a name."""
+    if "const" in schema:
+        return schema["const"]
+    if schema.get("type") == "object" and schema.get("required"):
+        properties = schema.get("properties", {})
+        return {key: skeleton_of(properties.get(key, {}), key) for key in schema["required"]}
+    return f"<{name}>"
+
+
+def case_skeleton():
+    """Return the smallest case gemini's public schema accepts the shape of, from ``Case.schema``.
+
+    Its constants are gemini's own (``format``, ``kind``) and every other required leaf is named,
+    such as ``"<start>"``: the model fills them, geomind invents no value.
+    """
+    import gemini as gm
+
+    return skeleton_of(gm.Case.schema(), "case")
+
+
+def changes_schema():
+    """Return the JSON Schema of ``changes``, with the skeleton of a new case in its description."""
+    skeleton = json.dumps(case_skeleton())
+    return {
+        "anyOf": [{"type": "object"}, {"type": "null"}],
+        "default": None,
+        "description": f"A JSON merge patch on the case. A new case needs at least {skeleton}.",
+    }
+
+
+def columns_schema():
+    """Return the JSON Schema of ``columns``: per file, the header names to rename."""
+    renames = {"type": "object", "additionalProperties": {"type": "string"}}
+    return {
+        "anyOf": [{"type": "object", "additionalProperties": renames}, {"type": "null"}],
+        "default": None,
+        "description": (
+            "Per project file, header names to rename, e.g. {'demand.csv': {'date': 'time'}}."
+        ),
+    }
+
+
+def renamed_header(content, renames):
+    """Return a CSV's bytes with the names of its header row renamed, the rows untouched."""
+    text = content.decode("utf-8-sig")
+    header, newline, rest = text.partition("\n")
+    ending = "\r" if header.endswith("\r") else ""
+    names = [renames.get(name.strip(), name.strip()) for name in header.rstrip("\r").split(",")]
+    return (",".join(names) + ending + newline + rest).encode()
+
+
+def first_columns(supplied, names):
+    """Return ``{file: first column}`` of the CSV files ``names`` whose first is not ``time``."""
+    found = {}
+    for name in names:
+        first = supplied[name].decode("utf-8-sig").partition("\n")[0].split(",")[0].strip()
+        if first != TIME_COLUMN:
+            found[name] = first
+    return found
+
+
+def column_retry(error, supplied, names, changes):
+    """Return the ``set_case`` call that renames a file's time column, or ``None``."""
+    if "first column" not in str(error) or not names:
+        return None
+    renames = {name: {first: TIME_COLUMN} for name, first in first_columns(supplied, names).items()}
+    if not renames:
+        return None
+    shown = "<the same changes>" if changes else "None"
+    return f"set_case(files={list(names)!r}, columns={renames!r}, changes={shown})"
 
 
 def checked_case(data, files):
@@ -293,16 +373,23 @@ def edited_economics(context, data, supplied, patch):
     return {**supplied, name: text.encode()}
 
 
-def project_files_of(context, names):
-    """Return ``{name: bytes}`` of the project files ``set_case`` gives to the case."""
-    return {checked_name(name): project_file(context, "set_case", name) for name in names}
+def project_files_of(context, names, columns=None):
+    """Return ``{name: bytes}`` of the project files ``set_case`` gives to the case.
+
+    ``columns`` renames header names of a file first, so a time column gemini reads as ``time``.
+    """
+    found = {checked_name(name): project_file(context, "set_case", name) for name in names}
+    for name, renames in (columns or {}).items():
+        if name in found:
+            found[name] = renamed_header(found[name], renames)
+    return found
 
 
 @tool(
     effect="write",
     idempotent=False,
     reruns_in_replay=True,
-    late_schemas={"files": file_names_schema},
+    late_schemas={"files": file_names_schema, "changes": changes_schema, "columns": columns_schema},
 )
 async def set_case(
     context,
@@ -311,6 +398,7 @@ async def set_case(
     requirements: dict[str, dict[str, Any] | None] | None = None,
     economics: dict[str, Any] | None = None,
     files: list[str] | None = None,
+    columns: dict[str, dict[str, str]] | None = None,
 ):
     """Set the case of the problem state: the project's case, changes to it, or both.
 
@@ -323,7 +411,8 @@ async def set_case(
     ``economics`` is a merge patch on the content of the case's economics file. ``files`` names
     project files (``list_files``): their bytes go to gemini, under the same name, so a data file
     is given to the case and never retyped: name it in ``changes``, as the ``file`` of a series.
-    The sections are
+    ``columns`` renames header names of those files, such as ``{"demand.csv": {"date": "time"}}``:
+    gemini reads a series' times from a column named ``time``. The sections are
     in ``read_case(section="schema")``, the exact schema. gemini validates the result: a rejected
     case comes back with the path and message to fix, and nothing is stored; a case with values
     missing is ``case_incomplete``, every missing path in ``suggestions``. The project's case, or
@@ -331,15 +420,26 @@ async def set_case(
     later change of it, economics included, waits for the user's approval. Returns the case and
     the state version.
     """
+    import gemini as gm
+
     base, supplied = base_case(context, source)
     if files:
-        supplied = {**supplied, **await runtime.in_gemini_thread(project_files_of, context, files)}
+        given = await runtime.in_gemini_thread(project_files_of, context, files, columns)
+        supplied = {**supplied, **given}
     data = merge_patch(base, checked_changes(changes or {}))
     if requirements:
         data["requirements"] = edited_requirements(data.get("requirements"), requirements)
-    files = edited_economics(context, data, supplied, economics) if economics else supplied
-    origin = given_case(context, source, (base, supplied), (data, files))
-    version = await store_case(context, data, files, origin)
+    contents = edited_economics(context, data, supplied, economics) if economics else supplied
+    origin = given_case(context, source, (base, supplied), (data, contents))
+    try:
+        version = await store_case(context, data, contents, origin)
+    except gm.errors.ValidationError as error:
+        retry = column_retry(error, supplied, files or [], changes)
+        if retry is None:
+            raise
+        raise ToolError(
+            str(error), code=error.code, path=error.path, suggestions=[retry]
+        ) from error
     return {"case": data, "version": version}
 
 
