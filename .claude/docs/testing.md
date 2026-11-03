@@ -104,13 +104,18 @@ default.
 ## CI
 
 `.github/workflows/python_lint.yaml` runs Flake8, Black and isort. `python_test.yaml` runs on pushes
-to `dev` and `main` and on pull requests, on the Pythons `pyproject.toml` declares (3.11 to 3.14): a
-push to `dev` runs the fast tier and e2e (`-m "not slow and not docker"`), every other event the
-full suite (`-m "not docker"`), both in the release profile, since a shared runner is no measure
-of the one-second budget. The development profile against a base selected no test on a `dev`
-push, so it is not used in CI. It installs gemini from `requirements/gemini.txt`, geomind's
-runtime dependencies and the `test` group, and no project with `-e`; tests import geomind from the
-source folder. `tests/unit/test_install.py` keeps these files free of path and editable installs.
+to `dev` and `main` and on pull requests, on the Pythons `pyproject.toml` declares (3.11 to 3.14),
+in the release profile, since a shared runner is no measure of the one-second budget. Job `fast`
+runs the fast tier and e2e (`-m "not slow and not docker"`) on every event; job `slow` runs the slow
+tier in four shards (`--shard i/4`) on everything but a push to `dev`. Every job uses `-n auto`, has
+a `timeout-minutes` and `fail-fast: false`, so a runner that dies hides no other job.
+CI sets `MALLOC_ARENA_MAX=2`: glibc's per-thread arenas made one test process about twice as large
+([releasing.md](releasing.md#memory-on-a-long-running-host)).
+
+`--shard i/n` (`tests/conftest.py`) keeps shard `i` of the slow tests and every other test. The
+split is greedy by the seconds in `tests/fixtures/shard_times.json`, the longest first to the least
+loaded shard; a slow test without a time counts as 60 s. Refresh the file from
+`pytest -m "slow and not docker" --durations=0 --durations-min=0` when slow tests change a lot.
 CI turns NumPy's AVX-512 off as gemini's CI does: a few winter days split heat between heat pump and
 boiler non-uniquely, a known gemini bug. Releases are in [releasing.md](releasing.md).
 

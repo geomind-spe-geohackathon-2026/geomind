@@ -5,6 +5,7 @@ has now, and they cover every kind of criterion, pass and fail.
 """
 
 import json
+import os
 import re
 import shutil
 
@@ -297,10 +298,17 @@ def test_the_checked_in_report_has_every_task_under_each_loop():
 def test_the_checked_in_report_is_the_generated_one(gemini_loaded):
     """``evals/reports/summary.md`` is what ``python -m evals.run --report`` writes, but for time.
 
-    NOTE: slow, because every task runs through three loops; the cells run in eight processes.
+    NOTE: slow, because every task runs through three loops; the cells run in one process per
+    core this run may use, at most eight, so a small runner is not run out of memory.
     """
     checked_in = (evals.ROOT / "reports" / "summary.md").read_text()
-    assert without_times(evals.report(workers=8)) == without_times(checked_in)
+    assert without_times(evals.report(workers=report_workers())) == without_times(checked_in)
+
+
+def report_workers():
+    """Return the processes of the report: one per usable core, at most eight."""
+    cores = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
+    return min(cores or 1, 8)
 
 
 def run_recorded(tmp_path, task, recording):

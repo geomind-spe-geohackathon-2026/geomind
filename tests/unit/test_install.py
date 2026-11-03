@@ -52,13 +52,36 @@ def test_a_release_tag_must_name_the_version(monkeypatch):
         check_release.main("v1.2.3")
 
 
+def workflow_jobs():
+    """Return the jobs of the test workflow."""
+    import yaml
+
+    return yaml.safe_load((ROOT / ".github/workflows/python_test.yaml").read_text())["jobs"]
+
+
 def test_every_push_and_pull_request_runs_tests():
-    """A push to ``dev`` runs the fast tier and every other event the full suite, never nothing."""
-    workflow = (ROOT / ".github/workflows/python_test.yaml").read_text()
-    assert "test_changed.py" not in workflow
-    assert 'python -m pytest -m "not slow and not docker" --profile=release' in workflow
-    assert 'python -m pytest -n auto -m "not docker" --profile=release' in workflow
-    assert "refs/heads/dev' && 'fast') || 'full'" in workflow
+    """The fast tier runs on every event; the slow tier everywhere but a push to ``dev``."""
+    jobs = workflow_jobs()
+    assert "if" not in jobs["fast"]
+    assert '-m "not slow and not docker"' in jobs["fast"]["steps"][-1]["run"]
+    assert jobs["slow"]["if"] == "github.event_name != 'push' || github.ref != 'refs/heads/dev'"
+    assert '-m "slow and not docker"' in jobs["slow"]["steps"][-1]["run"]
+
+
+def test_the_slow_shards_cover_the_slow_tier():
+    """One job per shard, each naming its own index of the same count."""
+    slow = workflow_jobs()["slow"]
+    shards = slow["strategy"]["matrix"]["shard"]
+    assert shards == list(range(len(shards)))
+    assert f"--shard ${{{{ matrix.shard }}}}/{len(shards)}" in slow["steps"][-1]["run"]
+
+
+def test_every_job_has_a_timeout_and_runs_to_the_end():
+    """A dying runner times out and hides no other job."""
+    for job in workflow_jobs().values():
+        assert job["timeout-minutes"] <= 30
+        assert job["strategy"]["fail-fast"] is False
+        assert "-n auto" in job["steps"][-1]["run"]
 
 
 def test_the_ci_matrix_is_the_supported_pythons():
@@ -69,6 +92,13 @@ def test_the_ci_matrix_is_the_supported_pythons():
         for item in project["classifiers"]
         if re.fullmatch(r"Programming Language :: Python :: 3\.\d+", item)
     )
-    workflow = (ROOT / ".github/workflows/python_test.yaml").read_text()
-    listed = re.search(r"python: \[(.*)\]", workflow).group(1)
-    assert sorted(item.strip().strip('"') for item in listed.split(",")) == declared
+    for job in workflow_jobs().values():
+        assert sorted(job["strategy"]["matrix"]["python"]) == declared
+
+
+def test_ci_keeps_the_memory_of_worker_threads_small():
+    """Two glibc arenas, not one per thread, keep a test process near half its size."""
+    import yaml
+
+    workflow = yaml.safe_load((ROOT / ".github/workflows/python_test.yaml").read_text())
+    assert workflow["env"]["MALLOC_ARENA_MAX"] == "2"

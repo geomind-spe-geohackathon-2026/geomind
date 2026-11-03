@@ -112,4 +112,7 @@ geomind has no built-in model: a run on a real provider stops at the start until
 | `GEOMIND_COMPARE_CONCURRENCY` | How many families a comparison designs side by side; unset, one at a time |
 | `GEOMIND_COMPARE_RETRIES` | How often a comparison designs a rejected family again; unset, never |
 
+A long-running host, such as a backend worker, should also set `MALLOC_ARENA_MAX=2`: gemini runs
+in worker threads, and without it each process grows about twice as large.
+
 The team uses DeepSeek models. `python -m geomind check-live` shows what a live run would use.
