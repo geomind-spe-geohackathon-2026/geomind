@@ -85,3 +85,13 @@ def test_an_owner_named_with_params_in_front_is_found():
     assert owner_of("d0.depth", owners) == "well"
     patch = {"params": {"d0": {"reservoir": {"pressure": {"value": 1, "unit": "bar"}}}}}
     check_ownership(context_of("reservoir", owners), patch, "patch_plant")
+
+
+def test_the_superstructure_is_the_process_engineer_s():
+    """``optional`` and ``choices`` belong to the process engineer, like the modules."""
+    changes = {"optional": ["boiler"], "choices": {"cold": {"a": [], "b": []}}}
+    assert foreign_changes(changes, "process", OWNERS) == []
+    assert [path for path, _ in foreign_changes(changes, "energy", OWNERS)] == [
+        "optional",
+        "choices",
+    ]

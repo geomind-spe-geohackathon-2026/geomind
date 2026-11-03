@@ -68,6 +68,10 @@ ADDED_SETTINGS = frozenset(
         "gemini_threads",
         "design_concurrency",
         "engineer_max_steps",
+        "evolve_evaluations",
+        "evolve_population",
+        "evolve_seed",
+        "evolve_polish",
         *(f"{role}_model" for role in ROLES),
     }
 )
@@ -88,6 +92,10 @@ RETRY_SETTINGS = {
     "memory": "GEOMIND_MEMORY",
     "design_concurrency": "GEOMIND_DESIGN_CONCURRENCY",
     "engineer_max_steps": "GEOMIND_ENGINEER_MAX_STEPS",
+    "evolve_evaluations": "GEOMIND_EVOLVE_EVALUATIONS",
+    "evolve_population": "GEOMIND_EVOLVE_POPULATION",
+    "evolve_seed": "GEOMIND_EVOLVE_SEED",
+    "evolve_polish": "GEOMIND_EVOLVE_POLISH",
 }
 """The settings a live run needs beside its models, by the environment variable that sets each.
 
@@ -147,6 +155,10 @@ def _defaults():
         "max_output_tokens": _integer("GEOMIND_MAX_OUTPUT_TOKENS"),
         "design_concurrency": _integer("GEOMIND_DESIGN_CONCURRENCY"),
         "engineer_max_steps": _integer("GEOMIND_ENGINEER_MAX_STEPS"),
+        "evolve_evaluations": _integer("GEOMIND_EVOLVE_EVALUATIONS"),
+        "evolve_population": _integer("GEOMIND_EVOLVE_POPULATION"),
+        "evolve_seed": _integer("GEOMIND_EVOLVE_SEED"),
+        "evolve_polish": _integer("GEOMIND_EVOLVE_POLISH"),
         "memory": os.environ.get("GEOMIND_MEMORY") or None,
         "memory_dir": os.environ.get("GEOMIND_MEMORY_DIR") or None,
         "memory_similarity": _number("GEOMIND_MEMORY_SIMILARITY"),

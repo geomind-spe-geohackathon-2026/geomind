@@ -13,6 +13,30 @@ from geomind.tools import Delegate
 from geomind.tools.delegate import Team
 from geomind.tools.gemini.skeleton import trees
 
+GEMINI_TOOLS = (
+    "merge_designs",
+    "read_case",
+    "list_plants",
+    "read_plant",
+    "list_modules",
+    "describe_module",
+    "evaluate_module",
+    "build_plant",
+    "patch_plant",
+    "set_ranges",
+    "size_plant",
+    "list_profiles",
+    "read_profile",
+    "simulate",
+    "read_result",
+    "list_studies",
+    "read_study",
+    "check_results",
+    "optimize",
+    "evolve_structure",
+    "run_study",
+)
+"""The gemini tools of the design lead, in the order it is offered them."""
 SIDE_BY_SIDE = ("reservoir_engineer", "well_engineer", "energy_systems_engineer")
 """The engineers who fill their parts at the same time, from one connected design."""
 ENGINEER_TOKENS = 2000
@@ -81,26 +105,8 @@ class DesignLead(Agent):
         # Tools
         for name, delegate in team().items():
             setattr(self, name, delegate)
-        self.merge_designs = tools.gemini.merge_designs
-        self.read_case = tools.gemini.read_case
-        self.list_plants = tools.gemini.list_plants
-        self.read_plant = tools.gemini.read_plant
-        self.list_modules = tools.gemini.list_modules
-        self.describe_module = tools.gemini.describe_module
-        self.evaluate_module = tools.gemini.evaluate_module
-        self.build_plant = tools.gemini.build_plant
-        self.patch_plant = tools.gemini.patch_plant
-        self.set_ranges = tools.gemini.set_ranges
-        self.size_plant = tools.gemini.size_plant
-        self.list_profiles = tools.gemini.list_profiles
-        self.read_profile = tools.gemini.read_profile
-        self.simulate = tools.gemini.simulate
-        self.read_result = tools.read_result
-        self.list_studies = tools.gemini.list_studies
-        self.read_study = tools.gemini.read_study
-        self.check_results = tools.gemini.check_results
-        self.optimize = tools.gemini.optimize
-        self.run_study = tools.gemini.run_study
+        for name in GEMINI_TOOLS:
+            setattr(self, name, getattr(tools.gemini, name))
         self.update_state = tools.update_state
         self.read_skill = tools.read_skill
         self.read_stored = tools.read_stored

@@ -10,7 +10,9 @@ from geomind.errors import ToolError
 
 DISCIPLINES = ("process", "integration", "reservoir", "well", "energy")
 SECTIONS = {
-    "process": frozenset({"format", "kind", "name", "about", "type", "size", "modules"}),
+    "process": frozenset(
+        {"format", "kind", "name", "about", "type", "size", "modules", "optional", "choices"}
+    ),
     "integration": frozenset({"connections", "inlets", "outlets", "boundary", "fluids"}),
 }
 """The top-level keys of a plant file each discipline owns besides parameters."""

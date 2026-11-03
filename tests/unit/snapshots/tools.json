@@ -363,6 +363,42 @@
       "late_schemas": [],
       "name": "evaluate_module"
     },
+    "evolve_structure": {
+      "description": "Search a superstructure's structures and values by gemini's genetic algorithm.",
+      "effect": "compute",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "design": {
+            "title": "Design",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "objectives": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Objectives",
+            "type": "array"
+          }
+        },
+        "required": [
+          "design",
+          "objectives",
+          "name"
+        ],
+        "title": "evolve_structure_input",
+        "type": "object"
+      },
+      "late_schemas": [
+        "design"
+      ],
+      "name": "evolve_structure"
+    },
     "finish": {
       "description": "End the run with the final answer.",
       "effect": "read",
@@ -1651,5 +1687,5 @@
       "name": "write_memory"
     }
   },
-  "version": "0.4.22.dev33"
+  "version": "0.4.22.dev34"
 }

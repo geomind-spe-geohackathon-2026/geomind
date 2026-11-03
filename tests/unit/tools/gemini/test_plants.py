@@ -554,3 +554,13 @@ async def test_a_format_given_as_text_is_read_as_its_number(gm):
     plant = {"format": "1", "kind": "plant", "name": "p", "type": "HeatingPlant"}
     result = await call(TOOLS.build_plant, {"plant": plant, "name": "p0"}, StubSession())
     assert not result.is_error and result.output["design"] == "design/p0"
+
+
+async def test_a_superstructure_goes_through_build_plant_as_gemini_stores_it(gm):
+    """``optional`` and ``choices`` are keys of the plant file; they are kept when stored."""
+    plant = json.loads((ROOT / "evals/projects/hackathon/plants/HackathonPlant.json").read_text())
+    plant["optional"] = ["boiler"]
+    session = StubSession()
+    result = await call(TOOLS.build_plant, {"plant": plant, "name": "super"}, session)
+    assert not result.is_error, result.output
+    assert session.artifacts["design/super"]["optional"] == ["boiler"]

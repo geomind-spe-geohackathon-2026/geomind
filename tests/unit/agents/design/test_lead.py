@@ -29,6 +29,7 @@ TOOLS = [
     "read_study",
     "check_results",
     "optimize",
+    "evolve_structure",
     "run_study",
     "update_state",
     "read_skill",
@@ -149,5 +150,12 @@ async def test_fill_parts_refuses_a_brief_for_no_member():
 
 def test_one_family_unless_a_comparison_is_asked():
     """The first end-to-end run designed two families for a request that compared nothing."""
-    assert "Design one family" in DesignLead().prompt.content
-    assert "unless the request or your brief asks to compare" in DesignLead().prompt.content
+    text = " ".join(DesignLead().prompt.content.split())
+    assert "Design one family" in text and "not one design per family" in text
+
+
+def test_a_superstructure_is_searched_with_the_case_s_objectives():
+    """The lead calls evolve_structure with the objectives of the case or its brief only."""
+    text = DesignLead().prompt.content
+    assert "`evolve_structure` on the merged design" in text
+    assert "never ones you choose" in text

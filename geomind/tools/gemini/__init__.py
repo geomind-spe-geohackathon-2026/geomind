@@ -25,6 +25,7 @@ from geomind.tools.gemini.runs import list_profiles, read_profile, simulate
 from geomind.tools.gemini.studies import list_studies, read_study
 from geomind.tools.gemini.study import (
     compare,
+    evolve_structure,
     optimize,
     run_study,
     sample_uncertainty,
@@ -43,6 +44,7 @@ __all__ = [
     "describe_module",
     "estimate_costs",
     "evaluate_module",
+    "evolve_structure",
     "list_modules",
     "list_plants",
     "list_profiles",

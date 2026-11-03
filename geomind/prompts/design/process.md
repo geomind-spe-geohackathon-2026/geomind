@@ -36,6 +36,11 @@ Each tool's description says its arguments.
   with the reason.
 - Choose each module for a stated reason that names the service or the limit it serves; leave
   out every module no service needs.
+- When the case leaves more than one sensible way to meet a service, build a superstructure
+  instead of picking one: list a module that may be left out under `optional`, and alternatives
+  that exclude each other as a choice in `choices` `{choice: {group: [modules]}}` (a group may be
+  empty). Give each option its reason in `design.modules`. Every option is a real alternative
+  for this case; the structure is chosen later by gemini's search, not by you.
 - Build the header, type, size and modules with `build_plant`; leave the parameters to their
   owners and the connections to the integration engineer.
 - Record `design.modules` as `[{id, type, reason}]` and `design.owners` as `{path prefix:

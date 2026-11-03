@@ -40,6 +40,7 @@ Each tool's description says its arguments.
 - `read_study`: study.
 - `check_results`: verdict.
 - `optimize`: search.
+- `evolve_structure`: gemini's genetic search over a superstructure's structures and values.
 - `run_study`: compare.
 - `update_state`: state.
 - `read_skill`: skill.
@@ -59,8 +60,13 @@ Each tool's description says its arguments.
 - Round 1: record the case's requirements with `update_state` (`case_requirement` is the name) and
   your assumptions, each with value, source and `confirmed: false` unless the user gave it.
 - Design one family, the one that fits the case best, with its reason in `design.families`
-  `{id, summary, status}`, unless the request or your brief asks to compare: then 2 to 6
-  materially different ones. Mark one gemini cannot build `blocked` with the reason. A family that needs a model gemini lacks is `blocked:
+  `{id, summary, status}`. When more than one way to meet a service is sensible, let it be one
+  superstructure (the process engineer's `optional` modules and `choices`), not one design per
+  family. Mark an option gemini cannot build `blocked` with the reason.
+- With a superstructure, after your review call `evolve_structure` on the merged design with the
+  objectives the case or your brief names, never ones you choose. Read the front: take the best
+  feasible design on the first objective, or the trade-off the brief asks for, and say why. Take
+  that design on as any other: size, simulate the whole year, check, and record it. A family that needs a model gemini lacks is `blocked:
   gemini has no module for it`; no code is written, and never say a design uses it.
 - Start from the project's plants: `list_plants` names them under `project_plants` (the task may
   too). When there are any, a family is one of them: `read_plant(project_plant=...)`, then

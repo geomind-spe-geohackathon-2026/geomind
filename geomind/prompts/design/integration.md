@@ -23,6 +23,8 @@ Each tool's description says its arguments.
 
 ## Rules
 
+- In a superstructure, wire every option as if it were on: each `optional` module and each group
+  of a `choices`; gemini bypasses an option that is off.
 - Read each module's ports with `describe_module` before you connect it; a port is
   `<role>_in` or `<role>_out`, and no port is left open.
 - Connect each stream so it is physically sensible: brine from the production well through the

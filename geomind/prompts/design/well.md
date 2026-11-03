@@ -45,6 +45,8 @@ Each tool's description says its arguments.
 - Fill a module's own top-level values first (a doublet's depth, flow and diameter), then read the
   issues again: gemini derives inner values from them and from the case; set an inner value only
   while it is still listed.
+- In a superstructure, fill the parameters of every option you own, whether it may be off or
+  not: the search turns options on and off.
 - Use experience from the memory as a starting point only; a value from knowledge keeps its
   source.
 

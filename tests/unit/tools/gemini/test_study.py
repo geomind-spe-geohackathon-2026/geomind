@@ -540,3 +540,104 @@ def test_the_range_tools_say_ranges_come_from_the_user_or_the_case():
     assert "ask_user" in set_ranges.description
     for tool in (study.sample_uncertainty, study.sensitivity):
         assert "from the user or the case" in tool.description
+
+
+class FakeDesign(dict):
+    """A design of gemini's evolution, as ``evolve_structure`` reads it."""
+
+    def to_dict(self):
+        """Return the plain form, as gemini's ``Design.to_dict``."""
+        return {**self, "plant": "plant dict", "parameters": {"x": 1}}
+
+
+class FakeEvolution(dict):
+    """gemini's ``Evolution`` with a front of two designs."""
+
+    def to_dict(self):
+        """Return the plain form, as gemini's ``Evolution.to_dict``."""
+        return {
+            "front": [item.to_dict() for item in self["front"]],
+            "best": self["best"].to_dict(),
+            "history": [],
+            "evaluations": self["evaluations"],
+            "invalid": self["invalid"],
+        }
+
+
+async def test_evolve_structure_stores_each_design_of_the_front(monkeypatch):
+    """The front comes back compact, every design stored, the study recorded; gemini computes."""
+    from geomind.tools.gemini.stored import load_design
+
+    context, reference = await started(SHALLOW)
+    plant = load_design(context, reference, "test")
+    first = FakeDesign(
+        structure={"boiler": True}, plant=plant, metrics={"lcts": 1.0}, feasible=True, reason=None
+    )
+    second = FakeDesign(
+        structure={"boiler": False},
+        plant=plant,
+        metrics={"lcts": 2.0},
+        feasible=False,
+        reason="unmet heat",
+    )
+    found = FakeEvolution(front=[first, second], best=first, evaluations=40, invalid=1)
+    calls = []
+
+    def fake(*arguments):
+        calls.append(arguments)
+        return found
+
+    monkeypatch.setattr("geomind.tools.gemini.study.evolve_design", fake)
+    arguments = {"design": reference, "objectives": ["lcts"], "name": "evo"}
+    result = await run(study.evolve_structure, context, arguments)
+    output = result.output
+    assert not result.is_error, output
+    assert [item["design"] for item in output["front"]] == ["design/evo_1", "design/evo_2"]
+    assert output["best"] == "design/evo_1" and output["study"] == "study/evo"
+    assert output["front"][1] == {
+        "design": "design/evo_2",
+        "structure": {"boiler": False},
+        "metrics": {"lcts": 2.0},
+        "feasible": False,
+        "reason": "unmet heat",
+    }
+    assert calls[0][2] == ["lcts"]
+    assert calls[0][3] == {"evaluations": 40, "population": 8, "seed": 0, "polish": 0}
+
+
+async def test_evolve_structure_needs_its_settings():
+    """The evaluations, population, seed and polish have no default: unset, each is named."""
+    from geomind import runtime
+
+    context, reference = await started(SHALLOW)
+    with runtime.settings(evolve_population=None, evolve_polish=None):
+        result = await run(
+            study.evolve_structure,
+            context,
+            {"design": reference, "objectives": ["lcts"], "name": "evo"},
+        )
+    message = result.output["error"]["message"]
+    assert result.is_error and "GEOMIND_EVOLVE_POPULATION" in message
+    assert "GEOMIND_EVOLVE_POLISH" in message
+
+
+@pytest.mark.slow
+async def test_evolve_structure_runs_gemini_s_search_on_a_superstructure():
+    """A real, small search: a choice between two backup groups, a front from gemini."""
+    from geomind import runtime
+    from geomind.tools.gemini.stored import load_design
+
+    context, reference = await started(SHALLOW)
+    plant = load_design(context, reference, "test")
+    names = sorted(plant.to_dict(structure=True)["modules"])
+    optional = next(name for name in names if "boiler" in name or "storage" in name)
+    plant.set_optional(optional)
+    superstructure = await save_design(context, "super", plant)
+    with runtime.settings(evolve_evaluations=4, evolve_population=2, evolve_polish=0):
+        result = await run(
+            study.evolve_structure,
+            context,
+            {"design": superstructure, "objectives": ["lcts"], "name": "evo"},
+        )
+    assert not result.is_error, result.output
+    assert result.output["front"] and result.output["evaluations"] >= 1

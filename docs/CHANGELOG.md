@@ -6,6 +6,14 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### A superstructure searched by gemini's genetic algorithm (0.4.22.dev34)
+
+**Contract changes for the backend:** a new tool `evolve_structure` (design lead) and four new required settings, no default: `GEOMIND_EVOLVE_EVALUATIONS`, `GEOMIND_EVOLVE_POPULATION`, `GEOMIND_EVOLVE_SEED`, `GEOMIND_EVOLVE_POLISH` (a live run lacking one is refused; the tool names any unset one). A study `study/<name>` of `tool: evolve_structure` and gemini's `method: evolve` (`study.recorded` as any study); its front designs are stored as `design/<name>_<n>`. The plant file's `optional` and `choices` (gemini 0.6.1) pass through `build_plant` and `patch_plant` unchanged.
+
+- The process engineer builds a superstructure when more than one way to meet a service is sensible: `optional` modules and `choices` `{choice: {group: [modules]}}`, each option with its reason; `patch_plant` gives both keys to the process engineer. The integration engineer wires every option as if on; the reservoir, well and energy engineers fill every option they own.
+- `evolve_structure(design, objectives, name)` runs `gm.study.evolve` (the settings above) and returns the front compactly: each design's reference, `structure`, `metrics`, `feasible` and `reason`, then `best`, `evaluations`, `invalid` and the study key. The objectives come from the case or the brief, never the agent. The design lead takes the chosen design on to size, simulate and check, and the reviewer checks it from scratch.
+- With a superstructure there is no design per family; the project lead's `comparison` is for designs the user names.
+
 ### A flat layout for every agent (0.4.22.dev33)
 
 **Contract changes for the backend (module paths; `gd.agents.<Class>` is unchanged):**

@@ -168,6 +168,10 @@ def deployment_settings(monkeypatch):
     monkeypatch.setenv("GEOMIND_MAX_OUTPUT_TOKENS", "16000")
     monkeypatch.setenv("GEOMIND_DESIGN_CONCURRENCY", "3")
     monkeypatch.setenv("GEOMIND_ENGINEER_MAX_STEPS", "12")
+    monkeypatch.setenv("GEOMIND_EVOLVE_EVALUATIONS", "40")
+    monkeypatch.setenv("GEOMIND_EVOLVE_POPULATION", "8")
+    monkeypatch.setenv("GEOMIND_EVOLVE_SEED", "0")
+    monkeypatch.setenv("GEOMIND_EVOLVE_POLISH", "0")
 
 
 @pytest.fixture(autouse=True)
