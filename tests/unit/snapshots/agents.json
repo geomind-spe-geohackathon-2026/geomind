@@ -84,7 +84,7 @@
       "validate": "(self, answer)"
     },
     "Prompt": {
-      "__init__": "(self, role)",
+      "__init__": "(self, role, appendix=None)",
       "render": "(self)",
       "text": "(cls, content)"
     },
@@ -694,5 +694,5 @@
       "Model"
     ]
   },
-  "version": "0.4.22.dev11"
+  "version": "0.4.22.dev12"
 }

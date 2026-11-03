@@ -3,6 +3,7 @@
 from geomind import tools
 from geomind.agents.agent import Agent, Model
 from geomind.prompts import Prompt
+from geomind.tools.gemini.skeleton import case_tree
 
 
 class Formulator(Agent):
@@ -18,7 +19,7 @@ class Formulator(Agent):
         super().__init__()
 
         # Prompt
-        self.prompt = Prompt("formulator")
+        self.prompt = Prompt("formulator", appendix=case_tree)
 
         # Tools
         self.list_files = tools.list_files

@@ -37,8 +37,13 @@ class Prompt:
     A role has one file, in the folder of its area, as its agent has.
     """
 
-    def __init__(self, role):
-        """Load the role file; an unknown role raises with a close match."""
+    def __init__(self, role, appendix=None):
+        """Load the role file; an unknown role raises with a close match.
+
+        ``appendix`` returns text made when the prompt is rendered, such as a key tree read from
+        gemini's schema, so the prompt follows gemini without a copy of it.
+        """
+        self.appendix = appendix
         roles = role_files()
         if role not in roles:
             raise UnknownNameError(
@@ -51,8 +56,11 @@ class Prompt:
         """Return a prompt holding inline text."""
         prompt = cls.__new__(cls)
         prompt.content = content.strip()
+        prompt.appendix = None
         return prompt
 
     def render(self):
-        """Return the text of the system message."""
-        return self.content
+        """Return the text of the system message, with the appendix made now."""
+        if self.appendix is None:
+            return self.content
+        return f"{self.content}\n\n{self.appendix()}"
