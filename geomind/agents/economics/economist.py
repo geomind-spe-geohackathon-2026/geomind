@@ -3,6 +3,7 @@
 from geomind import tools
 from geomind.agents.agent import Agent, Model
 from geomind.prompts import Prompt
+from geomind.tools.gemini.skeleton import trees
 
 
 class Economist(Agent):
@@ -13,7 +14,7 @@ class Economist(Agent):
         super().__init__()
 
         # Prompt
-        self.prompt = Prompt("economist")
+        self.prompt = Prompt("economist", appendix=trees("study"))
 
         # Tools
         self.compute_kpis = tools.gemini.compute_kpis

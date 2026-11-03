@@ -3,7 +3,7 @@
 from geomind import tools
 from geomind.agents.agent import Agent, Model
 from geomind.prompts import Prompt
-from geomind.tools.gemini.skeleton import plant_tree
+from geomind.tools.gemini.skeleton import trees
 
 
 class Designer(Agent):
@@ -20,7 +20,7 @@ class Designer(Agent):
         super().__init__()
 
         # Prompt
-        self.prompt = Prompt("designer", appendix=plant_tree)
+        self.prompt = Prompt("designer", appendix=trees("plant", "study"))
 
         # Tools
         self.read_case = tools.gemini.read_case

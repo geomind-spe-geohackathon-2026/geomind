@@ -1,5 +1,7 @@
 """The smallest case and plant files, read from gemini's public schemas."""
 
+import pytest
+
 from geomind.tools.gemini.skeleton import case_skeleton, plant_skeleton, skeleton_of
 
 
@@ -66,3 +68,27 @@ def test_the_plant_tree_is_read_from_gemini_s_schema():
     assert "connections[]:" in tree and 'kind*: "plant"' in tree
     assert all(name in tree for name in gm.modules.names())
     assert "## Plant file keys" in Designer().prompt.render()
+
+
+@pytest.mark.parametrize("name", ["case", "plant", "study"])
+def test_each_tree_covers_every_top_level_key_of_its_schemas(name):
+    """No key of gemini's schema is left out of its tree, so no #35-like gap comes back."""
+    from geomind.tools.gemini.skeleton import schemas_of, tree_text
+
+    text = tree_text(name)
+    for _, schema in schemas_of(name):
+        for key in schema["properties"]:
+            assert any(
+                line.startswith((f"{key}:", f"{key}*:", f"{key}.", f"{key}[", f"{key}*["))
+                for line in text.splitlines()
+            ), key
+
+
+def test_each_agent_gets_only_the_trees_of_its_tools():
+    """The formulator gets the case keys, the designer the plant and study keys."""
+    from geomind.agents import Designer, Economist, Formulator
+
+    formulator, designer = Formulator().prompt.render(), Designer().prompt.render()
+    assert "## Case keys" in formulator and "## Plant file keys" not in formulator
+    assert "## Plant file keys" in designer and "## Study keys" in designer
+    assert "## Case keys" not in designer and "## Study keys" in Economist().prompt.render()

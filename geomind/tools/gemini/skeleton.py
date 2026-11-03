@@ -2,6 +2,8 @@
 
 import json
 
+from geomind.errors import UnknownNameError
+
 
 def skeleton_of(schema, name):
     """Return the smallest value of a JSON Schema: its constant, its required keys, or a name."""
@@ -74,7 +76,10 @@ def field_lines(schema, shown, path):
     if form is not None:
         return [f"{shown}: {form}"]
     if schema.get("type") == "array" and isinstance(schema.get("items"), dict):
-        return [f"{shown}[]:", *("  " + line for line in schema_tree(schema["items"]))]
+        items = schema["items"]
+        if not items.get("properties"):
+            return [f"{shown}[]: {leaf_form(items) or items.get('type', 'object')}"]
+        return [f"{shown}[]:", *("  " + line for line in schema_tree(items))]
     if schema.get("properties"):
         return schema_tree(schema, f"{path}.")
     if schema.get("additionalProperties") not in (None, False):
@@ -107,22 +112,80 @@ def leaf_form(schema):
     return None
 
 
-def case_tree():
-    """Return the case's key tree from gemini's public ``Case.schema()``, as prompt text."""
+def key_tree(schema):
+    """Return the compact key tree of any gemini public JSON Schema, one line per field.
+
+    A nested ``about`` (free notes of a section) is said once in the heading instead.
+    """
+    return [
+        line for line in schema_tree(schema) if not (".about" in line and line.endswith("object"))
+    ]
+
+
+def schemas_of(name):
+    """Return ``[(label, schema)]`` of one tree: gemini's public schemas, read now."""
     import gemini as gm
 
-    case = [line for line in schema_tree(gm.Case.schema()) if not line.endswith("about: object")]
-    economics = [
-        line
-        for line in schema_tree(gm.case.Economics.schema())
-        if not line.endswith("about: object")
-    ]
-    note = (
+    if name == "case":
+        return [
+            ("", gm.Case.schema()),
+            ("Economics (set_case economics=...):", gm.case.Economics.schema()),
+        ]
+    if name == "plant":
+        return [("", gm.plants.schema())]
+    if name == "study":
+        return [("", gm.study.Study.schema())]
+    raise UnknownNameError(f"key tree: name = {name!r}; expected case, plant or study")
+
+
+TREE_HEADINGS = {
+    "case": (
         "## Case keys\n\nThe keys of the case and of its economics, from gemini's schemas: these "
         "are all the keys, so never read the schema. * marks a required key, every {value, unit} "
         "also takes range and uncertainty, and every section takes about."
-    )
-    return "\n".join([note, *case, "", "Economics (set_case economics=...):", *economics])
+    ),
+    "plant": (
+        "## Plant file keys\n\nThe keys of a plant file, from gemini's schema; "
+        "`read_plant(plant_class=...)` gives a class's whole file and `describe_module` a "
+        "module's parameters (* has no default), units and ports:"
+    ),
+    "study": (
+        "## Study keys\n\nThe keys of a study file (`run_study`, `optimize`), from gemini's "
+        "schema; * marks a required key:"
+    ),
+}
+"""The heading of each tree in a system prompt."""
+
+
+def tree_text(name):
+    """Return one key tree as prompt text: its heading and the lines of each of its schemas."""
+    lines = [TREE_HEADINGS[name]]
+    for label, schema in schemas_of(name):
+        lines.extend([*([""] if label else []), *([label] if label else []), *key_tree(schema)])
+    if name == "plant":
+        import gemini as gm
+
+        lines.extend(["", f"Module types: {', '.join(sorted(gm.modules.names()))}."])
+    return "\n".join(lines)
+
+
+def trees(*names):
+    """Return the appendix of a prompt that holds the key trees ``names``, made when it renders."""
+
+    def text():
+        return "\n\n".join(tree_text(name) for name in names)
+
+    return text
+
+
+def case_tree():
+    """Return the case's key tree, from gemini's ``Case`` and ``Economics`` schemas."""
+    return tree_text("case")
+
+
+def plant_tree():
+    """Return the plant file's key tree from ``gm.plants.schema()`` and gemini's module types."""
+    return tree_text("plant")
 
 
 def field_line(name, field):
@@ -166,21 +229,3 @@ def module_tree(description):
         },
         "note": "* marks a parameter with no default: the plant file gives it",
     }
-
-
-def plant_tree():
-    """Return the plant file's key tree from ``gm.plants.schema()`` and gemini's module types."""
-    import gemini as gm
-
-    lines = [line for line in schema_tree(gm.plants.schema()) if not line.endswith("about: object")]
-    modules = sorted(gm.modules.names()) if hasattr(gm.modules, "names") else []
-    return "\n".join(
-        [
-            "## Plant file keys\n\nThe keys of a plant file, from gemini's schema; "
-            "`read_plant(plant_class=...)` gives a class's whole file and `describe_module` a "
-            "module's parameters (* has no default), units and ports:",
-            *lines,
-            "",
-            f"Module types: {', '.join(modules)}.",
-        ]
-    )
