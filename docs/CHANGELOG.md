@@ -6,6 +6,16 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.17] - 2026-11-03
+
+Additive. Runs on gemini 0.5.10 (wheel sha256 `4d46a750…fc0a84`, image `gemini-sandbox:0.5.10`), which changed nothing existing.
+
+- `optimize` keeps the history of gemini's search in its study (`history`, from `gm.study.Search.to_dict()`); `best`, `feasible` and `evaluations` are as before.
+- Costs: `gm.evaluate.missing` lists every economics value the costs need, so each `case_incomplete` of `estimate_costs` and of `compute_kpis` `errors` has the same, full list in `suggestions` instead of the first value of one metric.
+- Durations take any time unit gemini converts, `ms` again among them.
+- The CLI reads `<repository>/.env`, then `~/.config/geomind/live.env`, before a command; the real environment wins and no value is shown. `.env.example` lists the names; `.env` and `*.env` are ignored, and a test fails if one is tracked. Tests read no `.env` and have no key.
+- gemini's examples are the same in 0.5.10, so the test copies stay; the fast tier runs in about 60 s instead of 85 s, as gemini's report copies the plant once.
+
 ## [0.4.16] - 2026-11-03
 
 No output shape and no unit string of a tool changes; a duration in `ms` is refused.

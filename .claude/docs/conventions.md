@@ -57,8 +57,8 @@ occurrence in a tracked file. The shared `../docs/` research notes are outside t
 geomind chooses the units it shows (`READ_UNITS` in `tools/gemini/results.py`, the power and
 temperature of a profile) and gemini converts: `units=` of `Results.get` and `summary`,
 `gm.units.convert`, `Quantity.to`, a `Report`'s display. geomind holds no conversion factor;
-`tests/unit/test_no_unit_math.py` fails on one. A duration of the settings takes only the units
-gemini converts (`DURATION_UNITS` in `utils/time.py`: `s`, `min`, `h`, `d`).
+`tests/unit/test_no_unit_math.py` fails on one. A duration of the settings takes any time unit
+gemini converts (`ms`, `s`, `min`, `h`, `d`, ...).
 
 ## Comments
 

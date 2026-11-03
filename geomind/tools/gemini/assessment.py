@@ -59,7 +59,29 @@ def cost_errors(plant, case, results, metrics):
     if not missing:
         return {}
     _, errors = cost_values(plant, case, results, missing)
-    return {name: explained(errors[name]) for name in missing if name in errors}
+    return gap_problems(plant, case, results, errors)
+
+
+def gap_problems(plant, case, results, errors):
+    """Return ``{cost: problem}``; a case gap lists every value gemini says the costs need.
+
+    NOTE: ``gm.evaluate.missing`` asks all the costs at once, so each ``case_incomplete`` has the
+    same, full list in ``suggestions`` instead of the first value of its own metric only.
+    """
+    import gemini as gm
+
+    problems = {name: explained(error) for name, error in errors.items()}
+    if not any(problem["code"] == "case_incomplete" for problem in problems.values()):
+        return problems
+    gaps = [issue.problem()["path"] for issue in gm.evaluate.missing(plant, case, results)]
+    return {
+        name: (
+            {**problem, "suggestions": gaps}
+            if problem["code"] == "case_incomplete" and gaps
+            else problem
+        )
+        for name, problem in problems.items()
+    }
 
 
 @tool(effect="compute", late_schemas={"reference": reference_schema("result")})
@@ -108,16 +130,22 @@ def estimate_costs(context, reference: str):
     Every value is gemini's (``gm.evaluate``) on the run's case, in display units with its parts;
     prices, discount rate, analysis period and cost factors are the case's ``economics.json``.
     Nothing the file lacks is filled: a cost that needs it is ``{"error": {path, code, message}}``
-    with gemini's error (its code and the path in the case), and when no cost can be computed the
-    call fails with the first of them. Set the value in the case's economics or ask the user.
+    with gemini's error (its code and the path in the case; a missing value is ``case_incomplete``
+    with every value the costs need in ``suggestions``), and when no cost can be computed the call
+    fails with that error. Set the values in the case's economics or ask the user.
     """
     import gemini as gm
 
     plant, case, results = load_run(context, reference, "estimate_costs")
     values, errors = cost_values(plant, case, results)
+    problems = gap_problems(plant, case, results, errors)
     if not values:
-        raise next(iter(errors.values()))
+        first = next(iter(problems.values()))
+        raise ToolError(
+            first["message"],
+            code=first["code"],
+            path=first["path"],
+            suggestions=first["suggestions"],
+        )
     shown = displayed(gm.evaluate.report(plant, case, results), values)
-    return {
-        name: shown[name] if name in shown else {"error": explained(errors[name])} for name in COSTS
-    }
+    return {name: shown[name] if name in shown else {"error": problems[name]} for name in COSTS}

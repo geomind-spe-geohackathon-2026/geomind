@@ -8,6 +8,7 @@ poetry.lock
 build
 dist/
 .env
+*.env
 .pytest_cache/
 .tmp/
 .runs/

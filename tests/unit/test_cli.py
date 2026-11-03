@@ -453,3 +453,13 @@ def test_the_retries_of_a_comparison_are_a_setting_of_the_run():
     parsed = cli._parser().parse_args(["run", "x", "--retries", "2"])
     assert cli._changes(parsed)["compare_retries"] == 2
     assert "compare_retries" not in cli._changes(cli._parser().parse_args(["run", "x"]))
+
+
+def test_the_cli_reads_the_repository_s_env_file(tmp_path, monkeypatch):
+    """The ``.env`` of the repository the command runs in, then the user's live.env."""
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "sub").mkdir()
+    monkeypatch.chdir(tmp_path / "sub")
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    found = cli.real_env_files()
+    assert found == [tmp_path / ".env", tmp_path / "home" / ".config" / "geomind" / "live.env"]

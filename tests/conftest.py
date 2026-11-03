@@ -143,6 +143,13 @@ TEST_CONTEXT_WINDOW = "128000"
 
 
 @pytest.fixture(autouse=True)
+def no_env_files(monkeypatch):
+    """Keep a developer's ``.env`` and key out of every test: no file is read, no key is set."""
+    monkeypatch.setattr("geomind.cli.env_files", lambda: [])
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+
+
+@pytest.fixture(autouse=True)
 def deployment_settings(monkeypatch):
     """Name the models and the context window as a deployment does; geomind holds none."""
     monkeypatch.setenv("GEOMIND_MODEL", TEST_MODEL)

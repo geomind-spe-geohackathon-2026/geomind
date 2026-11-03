@@ -29,6 +29,7 @@ from geomind.stores.run import FileRunStore
 from geomind.stores.workspace import read_bytes
 from geomind.types import Message
 from geomind.types.runlog import runlog
+from geomind.utils.envfile import load_env_files
 from geomind.utils.json import read_json, write_json
 from geomind.utils.models import fetch_prices, load_prices
 
@@ -530,9 +531,26 @@ def _parser():
     return parser
 
 
+def real_env_files():
+    """Return the ``.env`` files a command reads: the repository's, then the user's ``live.env``.
+
+    The repository is the nearest folder above the working folder that holds ``.git``.
+    """
+    here = Path.cwd()
+    repository = next(
+        (folder for folder in (here, *here.parents) if (folder / ".git").exists()), None
+    )
+    files = [repository / ".env"] if repository is not None else []
+    return [*files, Path.home() / ".config" / "geomind" / "live.env"]
+
+
+env_files = real_env_files
+
+
 def main(argv=None):
-    """Run one command and return its exit code."""
+    """Run one command and return its exit code, the settings of ``env_files`` read first."""
     args = _parser().parse_args(argv)
+    load_env_files(env_files())
     try:
         return args.function(args)
     except GeomindError as error:

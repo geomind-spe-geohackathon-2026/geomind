@@ -14,7 +14,7 @@ def test_utc_now_is_aware():
 
 @pytest.mark.parametrize(
     ("value", "seconds"),
-    [(5, 5.0), ("10min", 600.0), ("0.5s", 0.5), ("1h", 3600.0), ("1d", 86400.0)],
+    [(5, 5.0), ("10min", 600.0), ("500ms", 0.5), ("0.5s", 0.5), ("1h", 3600.0), ("1d", 86400.0)],
 )
 def test_parse_duration(value, seconds):
     """Numbers are seconds and text has a unit."""
@@ -28,8 +28,8 @@ def test_parse_duration_rejects_the_rest(value):
         parse_duration(value)
 
 
-@pytest.mark.parametrize("value", ["500ms", "2yr", "1week"])
-def test_a_unit_gemini_does_not_convert_here_is_refused_with_the_accepted_ones(value):
-    """Only ``s``, ``min``, ``h`` and ``d``; the error names them."""
-    with pytest.raises(ValueError, match="s, min, h, d"):
+@pytest.mark.parametrize("value", ["1week", "3parsec"])
+def test_a_unit_gemini_does_not_know_is_refused_with_gemini_s_reason(value):
+    """A duration takes the time units gemini converts; the error says what gemini said."""
+    with pytest.raises(ValueError, match="time unit gemini converts"):
         parse_duration(value)
