@@ -232,6 +232,26 @@ async def test_a_design_run_replays_offline_from_its_log(verdicts):
     assert (replayed.status, replayed.answer) == (result.status, result.answer)
 
 
+def files_project():
+    """Return a project with the example's files and no case file, and the call that sets it."""
+    case, files = example_case("shallow_district")
+    economics = json.loads(files["economics.json"])
+    named = {
+        item["name"]: {k: v for k, v in item.items() if k != "name"}
+        for item in case["requirements"]
+    }
+    changes = {
+        key: value for key, value in case.items() if key not in ("requirements", "economics")
+    }
+    data = sorted(name for name in files if name != "economics.json")
+    setting = ToolCall(
+        id="s1",
+        name="set_case",
+        input={"changes": changes, "requirements": named, "economics": economics, "files": data},
+    )
+    return MemoryWorkspace(files={"p": files}), setting
+
+
 async def test_a_case_built_in_chat_alone_is_designed(verdicts):
     """No files: the formulator asks one grouped question, sets the case, the designer designs."""
     verdicts.append(PASSED)
@@ -272,12 +292,11 @@ async def test_a_case_built_in_chat_alone_is_designed(verdicts):
 async def test_files_and_chat_together_make_the_case(verdicts):
     """With files, the formulator still asks the user for what the files lack."""
     verdicts.append(PASSED)
-    case, files = example_case("shallow_district")
-    workspace = MemoryWorkspace(cases={"p": (case, files)}, files={"p": files})
+    workspace, setting = files_project()
     script = [
         uses(ToolCall(id="r1", name="read_document", input={"name": "economics.json"})),
         uses(call("ask_user", "q1", question="Which supply temperature, degC?")),
-        uses(call("set_case", "s1", source="project")),
+        uses(setting),
         says("case set from the files and your answer"),
         *designer_round(1),
         *verifier_round(1),
@@ -533,9 +552,8 @@ def test_the_designer_prompt_asks_instead_of_inventing_a_range():
 async def test_the_formulator_sets_the_case_from_the_files_before_the_designer(verdicts):
     """With files and no case the formulator runs once; the designer reads the case, not files."""
     verdicts.append(PASSED)
-    case, files = example_case("shallow_district")
-    workspace = MemoryWorkspace(cases={"p": (case, files)}, files={"p": files})
-    script = [uses(call("set_case", "s1", source="project")), says("case set")]
+    workspace, setting = files_project()
+    script = [uses(setting), says("case set")]
     script += [*designer_round(1), *verifier_round(1), says("costs"), says("explained")]
     engine = engine_for(script, workspace=workspace)
     start = context("Design the plant.", problem=ProblemState(), project="p")
@@ -587,3 +605,16 @@ def test_the_formulation_task_names_the_project_s_case_file():
         Context(messages=[Message(role="user", content="Design it")], session=session, project="p")
     )
     assert "set_case(source='project')" in task
+
+
+async def test_a_project_case_file_is_loaded_by_rule_before_any_agent(verdicts):
+    """The driver loads the project's case.json itself, so no model has to remember to."""
+    verdicts.append(PASSED)
+    case, files = example_case("shallow_district")
+    workspace = MemoryWorkspace(cases={"p": (case, files)})
+    script = [*designer_round(1), *verifier_round(1), says("costs"), says("explained")]
+    engine = engine_for(script, workspace=workspace)
+    start = context("Design the plant.", problem=ProblemState(), project="p")
+    result = await DesignLoop(Designer(), Verifier()).run(engine, start)
+    events = engine.store.load_events(start.run_id)
+    assert agents_of(events)[:2] == ["designer", "verifier"] and result.status == "done"

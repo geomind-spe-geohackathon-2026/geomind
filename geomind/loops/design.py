@@ -109,6 +109,7 @@ class DesignDriver(Agent):
         self.explainer = Delegate(Explainer(), max_summary_tokens=EXPLANATION_TOKENS)
         self.update_state = tools.update_state
         self.accept_case = tools.gemini.accept_case
+        self.set_case = tools.gemini.set_case
         self.ask_user = tools.ask_user
         self.finish = tools.finish
 
@@ -128,6 +129,8 @@ class DesignDriver(Agent):
         if not calls:
             return self.begin(context, note, index)
         name, output = calls[-1]
+        if name == "set_case":
+            return self.after_loading(context, note, index)
         if name == "formulator":
             return self.after_formulation(context, note, index, calls)
         if name == "designer":
@@ -144,9 +147,20 @@ class DesignDriver(Agent):
         return act(note, index, "finish", answer=stop_answer(notes(context.messages)[-1]))
 
     def begin(self, context, note, index):
-        """Set the case first when it is missing: the formulator, from the chat and any files."""
+        """Set a missing case first: the project's case file by rule, else the formulator.
+
+        The formulator works from the chat and any files.
+        """
         missing = missing_case(context.problem)
         if missing is None:
+            return act(note, index, "designer", task=self.first_task(context))
+        if has_project_case(context):
+            return act(note, index, "set_case", source="project")
+        return act(note, index, "formulator", task=formulation_task(context))
+
+    def after_loading(self, context, note, index):
+        """After the project's case is loaded, design; else the formulator completes the case."""
+        if missing_case(context.problem) is None:
             return act(note, index, "designer", task=self.first_task(context))
         return act(note, index, "formulator", task=formulation_task(context))
 
