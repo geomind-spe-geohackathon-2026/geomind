@@ -553,3 +553,19 @@ def test_a_live_eval_needs_a_cost_cap():
 
     with pytest.raises(RunError, match="--max-cost"):
         evals.live_caps(None)
+
+
+def test_a_question_no_rule_covers_is_answered_unknown_and_noted():
+    """The first rule that matches answers; an uncovered question gets an open option or unknown."""
+    from evals.tasks_format import AnswerRule
+    from geomind.types import Request
+
+    rules = [AnswerRule(match="supply temperature", answer="100 degC")]
+    noted = []
+    asked = Request(kind="question", message="What heating supply temperature?")
+    assert evals.ruled_answer(asked, rules, noted) == "100 degC" and noted == []
+    other = Request(kind="question", message="Which air pressure?")
+    assert evals.ruled_answer(other, rules, noted) == "unknown" and noted == [other.message]
+    options = [{"value": "set_it", "label": "x"}, {"value": "leave_unset", "label": "y"}]
+    choice = Request(kind="question", message="Gas composition?", options=options)
+    assert evals.ruled_answer(choice, rules, noted) == "leave_unset"

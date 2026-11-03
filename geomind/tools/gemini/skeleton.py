@@ -142,7 +142,9 @@ TREE_HEADINGS = {
     "case": (
         "## Case keys\n\nThe keys of the case and of its economics, from gemini's schemas: these "
         "are all the keys, so never read the schema. * marks a required key, every {value, unit} "
-        "also takes range and uncertainty, and every section takes about."
+        "also takes range and uncertainty, and every section takes about. After each key: what "
+        "it means and where its value comes from (brief, data, report, user, economics); "
+        "derived means gemini computes it, so leave it unset."
     ),
     "plant": (
         "## Plant file keys\n\nThe keys of a plant file, from gemini's schema; "
@@ -157,11 +159,45 @@ TREE_HEADINGS = {
 """The heading of each tree in a system prompt."""
 
 
+def described(lines, fields):
+    """Return the tree's lines with each field's meaning after it, where geomind has one.
+
+    A meaning that holds for a group (every ``capex.`` field) is said on the group's first line.
+    """
+    from geomind.tools.gemini.fields import meaning
+
+    shown, parent, last = [], "", None
+    for line in lines:
+        path = line.strip().split(":", 1)[0].replace("*", "")
+        if line.endswith("[]:"):
+            parent = path.removesuffix("[]")
+        elif not line.startswith("  "):
+            parent = ""
+        full = f"{parent}.{path}" if line.startswith("  ") and parent else path.removesuffix("[]")
+        text = meaning(full, fields)
+        if text and text == last:
+            text = None
+        last = text or last
+        shown.append(f"{line} — {text}" if text else line)
+    return shown
+
+
 def tree_text(name):
-    """Return one key tree as prompt text: its heading and the lines of each of its schemas."""
+    """Return one key tree as prompt text: its heading and the lines of each of its schemas.
+
+    The case's tree says what each field means and where its value comes from, and what each
+    option of the requirements means (``geomind/tools/gemini/fields.py``).
+    """
+    from geomind.tools.gemini.fields import CASE_FIELDS, ECONOMICS_FIELDS, options_text
+
     lines = [TREE_HEADINGS[name]]
     for label, schema in schemas_of(name):
-        lines.extend([*([""] if label else []), *([label] if label else []), *key_tree(schema)])
+        tree = key_tree(schema)
+        if name == "case":
+            tree = described(tree, ECONOMICS_FIELDS if label else CASE_FIELDS)
+        lines.extend([*([""] if label else []), *([label] if label else []), *tree])
+    if name == "case":
+        lines.extend(["", options_text()])
     if name == "plant":
         import gemini as gm
 

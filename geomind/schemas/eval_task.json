@@ -1,5 +1,25 @@
 {
   "$defs": {
+    "AnswerRule": {
+      "additionalProperties": false,
+      "description": "A user's answer by rule: the first rule whose ``match`` (a regex) is in the question.\n\nFor a question with options, ``answer`` must be one of their values.",
+      "properties": {
+        "answer": {
+          "title": "Answer",
+          "type": "string"
+        },
+        "match": {
+          "title": "Match",
+          "type": "string"
+        }
+      },
+      "required": [
+        "match",
+        "answer"
+      ],
+      "title": "AnswerRule",
+      "type": "object"
+    },
     "Message": {
       "additionalProperties": false,
       "description": "One message of a conversation.",
@@ -234,7 +254,14 @@
     "answers": {
       "default": [],
       "items": {
-        "type": "string"
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "$ref": "#/$defs/AnswerRule"
+          }
+        ]
       },
       "title": "Answers",
       "type": "array"

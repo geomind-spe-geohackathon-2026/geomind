@@ -9,6 +9,7 @@ tasks through a loop instead of one agent. ``--report`` runs every task through 
 import argparse
 import multiprocessing
 import os
+import re
 import sys
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field
@@ -59,6 +60,7 @@ class Outcome:
     time: float = 0.0
     problems: list = field(default_factory=list)
     verdict: dict = field(default_factory=dict)
+    unanswered: list = field(default_factory=list)
 
     @property
     def met(self):
@@ -85,22 +87,55 @@ def is_step_limit(request):
     return options == list(STEP_OPTIONS)
 
 
-def _drive(run, answers):
+UNKNOWN = "unknown"
+"""A rule-answered task's reply to a question no rule covers: the user does not know."""
+UNSET = re.compile(r"unset|unknown|leave|keep|skip", re.IGNORECASE)
+"""The options a question no rule covers is answered with: one that leaves the value open."""
+
+
+def ruled_answer(request, rules, unanswered):
+    """Return the reply a task's rules give to ``request``, and note one no rule covers."""
+    values = [option.value for option in request.options or ()]
+    for rule in rules:
+        if re.search(rule.match, request.message, re.IGNORECASE) and (
+            not values or rule.answer in values
+        ):
+            return rule.answer
+    unanswered.append(request.message)
+    if values:
+        return next((value for value in values if UNSET.search(value)), values[-1])
+    return UNKNOWN
+
+
+def _drive(run, answers, unanswered=None):
     """Start the run and reply to its questions; a question with no reply left ends it.
 
-    A task's ``max_steps`` is its limit: the question at the step limit is answered ``stop``,
-    and the task's replies go to the other questions.
+    A task's ``max_steps`` is its limit: the question at the step limit is answered ``stop``.
+    Plain replies go to the other questions in order; with rules (``AnswerRule``), every
+    question is answered by the first rule that matches it, else as the user who does not
+    know, and noted in ``unanswered``.
     """
-    replies = list(answers)
+    rules = [item for item in answers if not isinstance(item, str)]
+    replies = [item for item in answers if isinstance(item, str)]
+    unanswered = [] if unanswered is None else unanswered
     result = run.start()
-    while result.status == "waiting":
+    for _ in range(MAX_ANSWERS):
+        if result.status != "waiting":
+            break
         if is_step_limit(result.request):
-            result = run.resume(result.request.id, {"text": "stop"})
+            reply = "stop"
+        elif rules:
+            reply = ruled_answer(result.request, rules, unanswered)
         elif replies:
-            result = run.resume(result.request.id, {"text": replies.pop(0)})
+            reply = replies.pop(0)
         else:
             break
+        result = run.resume(result.request.id, {"text": reply})
     return result
+
+
+MAX_ANSWERS = 12
+"""The most questions one task answers, so a run that keeps asking ends."""
 
 
 class StoredArtifacts:
@@ -203,8 +238,9 @@ def run_task(name, task, agent_name, llm, loop=None, hooks=()):
     set_up(task, store)
     run = new_run(task, agent_name, llm, store, loop, hooks)
     started = perf_counter()
+    unanswered = []
     with runtime.settings(**({"max_steps": task.max_steps} if task.max_steps else {})):
-        result = _drive(run, task.answers)
+        result = _drive(run, task.answers, unanswered)
     events = store.load_events(result.run_id)
     outcome = Outcome(
         name=name,
@@ -216,6 +252,7 @@ def run_task(name, task, agent_name, llm, loop=None, hooks=()):
         criteria=len(task.criteria),
         usage=result.usage,
         time=perf_counter() - started,
+        unanswered=unanswered,
     )
     if any(isinstance(criterion, VerifiedCriterion) for criterion in task.criteria):
         outcome.verdict = verdict(store, CHAT, outcome.state)

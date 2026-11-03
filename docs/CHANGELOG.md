@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### The case team knows the case format (0.4.22.dev38)
+
+- The case's key tree (`case_tree`, in the case lead's and the geoscientist's prompts) says after each key what it means and where its value comes from (brief, data, report, user, economics), marks the keys gemini derives (leave them unset), and explains every option of the requirements (`on`, `quantity`, `over`, `when`), with how operating days and counts are written (`geomind/tools/gemini/fields.py`). gemini's schema has no descriptions; the texts are geomind's, from gemini's docstrings; `undescribed()` lists the fields gemini describes nowhere. About 13,500 characters, in the cached prefix.
+- The case lead's prompt holds the case format's facts and a checklist before it hands over: `time.end` exclusive and the span equal to the data; demand files (time column, unit, rows, time zone); supply and return sides; durations never counts; the brine's gas never the grid gas; flaws of an existing case asked about, never corrected silently; a change of one value changes nothing else.
+- Evals: a task's `answers` may be rules `{match, answer}`: the first rule whose pattern is in the question answers it; a question no rule covers is answered as a user who does not know (an option that leaves the value open, or `unknown`) and listed in the outcome's `unanswered`. `eval_task.json` gains the rule form (additive).
+
 ### MCP: the tools of the servers a run is given (0.4.22.dev37)
 
 **Contract changes for the backend (contract v2 and v3 names):**

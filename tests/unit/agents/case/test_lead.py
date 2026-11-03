@@ -46,7 +46,7 @@ def test_its_model_is_its_own_required_setting(monkeypatch):
 
 def test_values_no_file_gives_are_confirmed_in_one_question():
     """Every value not from the files is listed with its source or reason, and the user decides."""
-    text = CaseLead().prompt.render()
+    text = " ".join(CaseLead().prompt.render().split())
     assert "ONE confirmation question" in text
     assert "`approve all`, `change some` and `stop`" in text
     assert "confirmed: true" in text and "price year" in text
@@ -71,3 +71,17 @@ def test_time_end_is_exclusive_and_the_data_decides_the_span():
     """#58: the case lead read a year ending on 31 Dec as 364 steps and proposed to drop a day."""
     text = CaseLead().prompt.content
     assert "`time.end` is exclusive" in text and "never the data" in text
+
+
+def test_it_knows_the_case_format_s_traps():
+    """Durations are no counts; supply and return sides; the brine's gas is no grid gas."""
+    text = " ".join(CaseLead().prompt.content.split())
+    assert "never a `count`" in text and "cooling (chilled water) return is warmer" in text
+    assert "Never put one in the other" in text and "Checklist before you hand over" in text
+
+
+def test_its_key_tree_says_what_each_field_means():
+    """The case keys carry their meaning, the derived ones, and every requirement option."""
+    text = CaseLead().prompt.render()
+    assert "site.reservoir.temperature" in text and "derived from the ground" in text
+    assert "duration: the total time of the steps" in text and "count: how many units" in text

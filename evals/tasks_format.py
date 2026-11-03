@@ -114,6 +114,16 @@ class SetupCall(Record):
     input: dict[str, Any] = {}
 
 
+class AnswerRule(Record):
+    """A user's answer by rule: the first rule whose ``match`` (a regex) is in the question.
+
+    For a question with options, ``answer`` must be one of their values.
+    """
+
+    match: str
+    answer: str
+
+
 class Task(Record):
     """One task file; ``plant`` is a project folder and ``answers`` reply to questions in order.
 
@@ -125,7 +135,7 @@ class Task(Record):
     message: str
     plant: str | None = None
     history: tuple[gd.Message, ...] = ()
-    answers: tuple[str, ...] = ()
+    answers: tuple[str | AnswerRule, ...] = ()
     setup: tuple[SetupCall, ...] = ()
     max_steps: int | None = None
     criteria: tuple[Criterion, ...]
