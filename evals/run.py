@@ -62,6 +62,7 @@ class Outcome:
     problems: list = field(default_factory=list)
     verdict: dict = field(default_factory=dict)
     unanswered: list = field(default_factory=list)
+    read: str = ""
 
     @property
     def met(self):
@@ -72,6 +73,24 @@ class Outcome:
     def passed(self):
         """Tell whether every criterion held."""
         return not self.problems
+
+
+STATE_HEADING = "Problem state, version "
+
+
+def _read(events):
+    """Return the text of every message the agent was sent and did not write itself.
+
+    The problem state is left out: the agent writes its notes and questions there.
+    """
+    seen = {
+        (message.role, message.content)
+        for event in events
+        if event.type == "llm.completed"
+        for message in event.messages
+        if message.role != "assistant" and not message.content.startswith(STATE_HEADING)
+    }
+    return "\n".join(content for _, content in sorted(seen))
 
 
 def _workspace(task):
@@ -255,6 +274,7 @@ def run_task(name, task, agent_name, llm, loop=None, hooks=()):
         usage=result.usage,
         time=perf_counter() - started,
         unanswered=unanswered,
+        read=_read(events),
     )
     if any(isinstance(criterion, VerifiedCriterion) for criterion in task.criteria):
         outcome.verdict = verdict(store, CHAT, outcome.state)

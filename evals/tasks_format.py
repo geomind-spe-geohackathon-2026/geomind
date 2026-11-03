@@ -10,6 +10,8 @@ import geomind as gd
 from geomind.types import Record
 
 NUMBER = r"-?\d+(?:\.\d+)?"
+UNSIGNED = r"(?<![\d.])\d+(?:\.\d+)?"
+THOUSANDS = r"(?<=\d)[,\u00a0\u202f](?=\d{3}(?!\d))"
 
 
 class NumberCriterion(Record):
@@ -101,8 +103,41 @@ class VerifiedCriterion(Record):
         return f"verified: checks {missing} not among the passed checks" if missing else None
 
 
+def _numbers(text):
+    """Return the numbers of a text, without sign, reading ``1,030`` as one thousand and thirty."""
+    return {float(item) for item in re.findall(UNSIGNED, re.sub(THOUSANDS, "", text))}
+
+
+class SourcedCriterion(Record):
+    """Every number of the answer and the questions is one the agent read: the agent computed none.
+
+    What the agent read is every message it was sent that it did not write itself: the prompt,
+    the user's messages and answers, and the tools' results. A whole number up to ``small``
+    counts things or numbers a list, so it needs no source.
+    """
+
+    kind: Literal["sourced"]
+    small: int
+
+    def problem(self, outcome):
+        """Return what is wrong, or ``None``."""
+        read = _numbers(outcome.read)
+        found = _numbers(" ".join([outcome.answer, *outcome.questions]))
+        unread = sorted({item for item in found if item not in read and not self._is_small(item)})
+        return f"sourced: numbers no message holds {unread}" if unread else None
+
+    def _is_small(self, number):
+        """Tell whether a number is a whole one up to ``small``."""
+        return number.is_integer() and number <= self.small
+
+
 Criterion = Annotated[
-    NumberCriterion | ToolCriterion | QuestionCriterion | StateCriterion | VerifiedCriterion,
+    NumberCriterion
+    | ToolCriterion
+    | QuestionCriterion
+    | StateCriterion
+    | VerifiedCriterion
+    | SourcedCriterion,
     Field(discriminator="kind"),
 ]
 

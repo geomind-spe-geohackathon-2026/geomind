@@ -84,15 +84,68 @@ def project_file(context, tool_name, name):
     )
 
 
+STEP_UNITS = ("d", "h", "min", "s")
+
+
+def _step(seconds):
+    """Return a step as a case writes it, ``{value, unit}`` in the largest whole unit."""
+    import gemini as gm
+
+    for unit in STEP_UNITS:
+        value = gm.units.convert(seconds, "s", unit)
+        if float(value).is_integer():
+            return {"value": int(value), "unit": unit}
+    return {"value": seconds, "unit": "s"}
+
+
+def _time_text(time, like):
+    """Return ``time`` written as ``like`` is: a date alone, or a time with ``Z`` for UTC."""
+    if len(like) == len("2000-01-01"):
+        return time.date().isoformat()
+    text = time.isoformat()
+    return text.replace("+00:00", "Z") if like.endswith("Z") else text
+
+
+def span_of(rows):
+    """Return ``{start, end, step}`` of a first column of evenly spaced times, else ``None``.
+
+    ``end`` is exclusive, one step after the last row, as a case's ``time.end`` is, so the case's
+    span is copied from the file and never worked out by hand.
+    """
+    from datetime import datetime
+
+    try:
+        times = [datetime.fromisoformat(row[0]) for row in rows]
+    except ValueError:
+        return None
+    steps = {later - earlier for earlier, later in zip(times, times[1:], strict=False)}
+    if len(steps) != 1:
+        return None
+    seconds = int(steps.pop().total_seconds())
+    if seconds <= 0:
+        return None
+    end = times[-1] + (times[1] - times[0])
+    return {"start": rows[0][0], "end": _time_text(end, rows[-1][0]), "step": _step(seconds)}
+
+
 def table_of(name, text):
-    """Return ``{columns, rows, first_rows}`` of a CSV or TSV, or ``None`` for another file."""
+    """Return ``{columns, rows, first_rows, last_row, span}`` of a CSV or TSV, else ``None``.
+
+    ``span`` is the case's time the rows cover, from :func:`span_of`, or ``None``.
+    """
     delimiter = TABLE_SUFFIXES.get(Path(name).suffix.lower())
     if delimiter is None:
         return None
     rows = [row for row in csv.reader(io.StringIO(text), delimiter=delimiter) if row]
     if not rows:
         return None
-    return {"columns": rows[0], "rows": len(rows) - 1, "first_rows": rows[1:][:FIRST_ROWS]}
+    return {
+        "columns": rows[0],
+        "rows": len(rows) - 1,
+        "first_rows": rows[1:][:FIRST_ROWS],
+        "last_row": rows[-1] if len(rows) > 1 else None,
+        "span": span_of(rows[1:]),
+    }
 
 
 @tool(effect="read")
@@ -173,9 +226,12 @@ def rag_read(context, name: str, start: int = 0, length: int | None = None, forc
     a ``[page n]`` marker before each page; another file is a ``not_text`` error. ``start`` is the
     first character and ``length`` the number of characters, at most 20,000. Returns ``name``,
     ``start``, ``total``, ``text`` and ``next``, where the following page starts (``null`` at the
-    end). The first page of a CSV or TSV also has ``table``: ``columns``, the number of ``rows``
-    and the ``first_rows``. A page this run already read comes back as ``already_read`` with a
-    ``note`` instead of its text; ``force`` reads it again, until the whole document was read:
+    end). The first page of a CSV or TSV also has ``table``: ``columns``, the number of ``rows``,
+    the ``first_rows``, the ``last_row`` and the ``span`` its first column covers as a case's
+    time: ``start``, ``end`` (exclusive, one step after the last row) and ``step``, or ``null``
+    when that column is not evenly spaced times. A page this run already read comes back as
+    ``already_read`` with a ``note`` instead of its text; ``force`` reads it again, until the
+    whole document was read:
     then every page is ``already_read``, with the references of the stored results. Nested runs
     share what the run tree read.
     """

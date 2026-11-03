@@ -6,6 +6,14 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### Agents write no number they worked out (0.4.22.dev40)
+
+Round C2 of the case team passed 6 of 6, but in one question the case lead worked out a room dew point (14.6 degC) itself. Replaying C2 with the new eval criterion found more: a reservoir temperature worked out from the gradient, a GWP recalled from memory, an end date and a step count worked out by hand.
+
+- Fix (#64): the case lead's prompt forbids any number it worked out or knows from memory, in its questions, notes and answer as in the case; a derived number is left to gemini or asked for.
+- Contract (addition): `rag_read`'s `table` of a CSV or TSV has `last_row` and `span` (`start`, `end` exclusive, one step after the last row, and `step` as a case writes it, `{value, unit}`), or `span: null` when the first column is not evenly spaced times. The case lead copies the case's time from it.
+- Evals: a `sourced` criterion (`small`: the largest whole number that needs no source) fails when the answer or a question holds a number that no message the agent was sent holds; the agent's own turns and its problem state do not count. `Outcome.read` holds that text.
+
 ### What the case team alone showed (0.4.22.dev39)
 
 Round C1: the case lead and the geoscientist alone, six tasks live (DeepSeek, 0.062 USD): 6 of 6 passed. The case lead caught every flaw of a flawed case file (a duration stored as a count, a chilled-water return colder than its supply, a span one day short, a derived temperature set by hand) and asked; it invented no value. Each bug is pinned by a test.

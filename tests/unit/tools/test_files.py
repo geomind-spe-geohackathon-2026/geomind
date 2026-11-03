@@ -6,6 +6,7 @@ import pytest
 
 from geomind.stores import MemoryWorkspace
 from geomind.tools import list_files, rag_read
+from geomind.tools.files import span_of
 from tests.fixtures.calls import call
 from tests.fixtures.sessions import StubSession
 
@@ -153,3 +154,41 @@ def test_the_name_argument_has_a_pattern_and_an_example():
     """The schema teaches the form of a name, as the reference arguments do."""
     schema = rag_read.schema()["input_schema"]["properties"]["name"]
     assert schema["pattern"] and schema["examples"] == ["demand.csv"]
+
+
+async def test_a_csv_of_times_gives_the_case_span_with_an_exclusive_end():
+    """The case's time is copied from the file: the agent works out no date (#64)."""
+    table = (await read("demand.csv"))["table"]
+    assert table["last_row"] == ["2030-01-14T00:00:00Z", "6"]
+    assert table["span"] == {
+        "start": "2030-01-01T00:00:00Z",
+        "end": "2030-01-15T00:00:00Z",
+        "step": {"value": 1, "unit": "d"},
+    }
+
+
+@pytest.mark.parametrize(
+    "rows, span",
+    [
+        (
+            [["2027-01-01", "1"], ["2027-01-02", "2"], ["2027-12-31", "3"]],
+            None,
+        ),
+        (
+            [["2027-12-30", "1"], ["2027-12-31", "2"]],
+            {"start": "2027-12-30", "end": "2028-01-01", "step": {"value": 1, "unit": "d"}},
+        ),
+        (
+            [["2030-01-01T00:00:00Z", "1"], ["2030-01-01T00:15:00Z", "2"]],
+            {
+                "start": "2030-01-01T00:00:00Z",
+                "end": "2030-01-01T00:30:00Z",
+                "step": {"value": 15, "unit": "min"},
+            },
+        ),
+        ([["a", "1"], ["b", "2"]], None),
+    ],
+)
+def test_the_span_is_one_step_past_the_last_row_or_none(rows, span):
+    """Uneven steps or a column that is not times give no span."""
+    assert span_of(rows) == span

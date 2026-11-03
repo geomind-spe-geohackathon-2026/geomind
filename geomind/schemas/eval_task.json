@@ -151,6 +151,27 @@
       "title": "SetupCall",
       "type": "object"
     },
+    "SourcedCriterion": {
+      "additionalProperties": false,
+      "description": "Every number of the answer and the questions is one the agent read: the agent computed none.\n\nWhat the agent read is every message it was sent that it did not write itself: the prompt,\nthe user's messages and answers, and the tools' results. A whole number up to ``small``\ncounts things or numbers a list, so it needs no source.",
+      "properties": {
+        "kind": {
+          "const": "sourced",
+          "title": "Kind",
+          "type": "string"
+        },
+        "small": {
+          "title": "Small",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind",
+        "small"
+      ],
+      "title": "SourcedCriterion",
+      "type": "object"
+    },
     "StateCriterion": {
       "additionalProperties": false,
       "description": "A field of the final problem state is set, to ``equals`` if given.\n\n``path`` is a JSON Pointer, by id in lists.",
@@ -277,6 +298,7 @@
           "mapping": {
             "number": "#/$defs/NumberCriterion",
             "question": "#/$defs/QuestionCriterion",
+            "sourced": "#/$defs/SourcedCriterion",
             "state": "#/$defs/StateCriterion",
             "tool": "#/$defs/ToolCriterion",
             "verified": "#/$defs/VerifiedCriterion"
@@ -298,6 +320,9 @@
           },
           {
             "$ref": "#/$defs/VerifiedCriterion"
+          },
+          {
+            "$ref": "#/$defs/SourcedCriterion"
           }
         ]
       },

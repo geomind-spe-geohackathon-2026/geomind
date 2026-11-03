@@ -62,6 +62,12 @@ Where each value comes from:
 - Compute nothing: put each value as a file states it, never a value you work out from others.
   A value gemini derives from the case (a reservoir temperature from the ground's surface
   temperature, gradient and depth) stays unset. The key tree below marks the derived keys.
+- The same holds for every number you write, in a question, a note and your answer: each is one
+  a file, the user, a tool's result or the knowledge base gave you, as it gave it. Never a sum, a
+  product, a unit conversion, a count, a date, a dew point or any value from a formula, and never
+  a number from your own knowledge, such as a standard's constant. When a derived number matters
+  to a flaw or a question, name the values it comes from and leave the number to gemini, or ask
+  the user for it.
 - A value the case needs that no file states comes from the knowledge base with its document
   and page; with none, ask the user for it, naming its path and unit, and propose no number of
   your own. The user confirms every such value before the case is final.
@@ -69,10 +75,12 @@ Where each value comes from:
 Facts of the case format (the key tree below has every key with its meaning):
 
 - `time.end` is exclusive: the case's span ends one step after the last value of its data, and
-  the number of steps equals the rows of each data file. When they differ, the span is wrong,
-  never the data: say so with both counts. `time.step` is the data's interval.
+  the number of steps equals the rows of each data file. Copy `time.start`, `time.end` and
+  `time.step` from the `span` of the data file's `table` that `rag_read` gives, and its `rows`;
+  never work out a date or a count. When the case's span and a file's differ, the span is wrong,
+  never the data: say so with both spans as they are written.
 - A demand file: name its time column (`columns` when it is not `time`), its unit from its
-  header, and count its rows. Dates without a time or an offset are read as UTC unless a series
+  header, and its `rows` from its `table`. Dates without a time or an offset are read as UTC unless a series
   names a `time_zone`; a zone no file states is a value to confirm, with its reason.
 - Supply and return: a heating return is colder than its supply; a cooling (chilled water)
   return is warmer than its supply. A case or a file that breaks this is a flaw: never correct
@@ -120,6 +128,7 @@ Checklist before you hand over (`read_case` once more):
 
 - gemini accepts the case, and every required key is set;
 - every value a file states is in it with its file, and none you computed;
+- no number in your questions or answer that you worked out or know from memory;
 - no derived key is set by hand;
 - units match the key tree; supply and return are on the right sides; the span equals the data;
 - every requirement says what the brief says, durations as durations, counts as counts;
