@@ -25,10 +25,15 @@ def list_modules(category: str | None = None):
 
 @tool(effect="read")
 def describe_module(name: str):
-    """Describe one module: its parameters, ports, outputs and children."""
+    """Describe one module compactly: parameters and controls one per line, ports and outputs.
+
+    A line gives the type, quantity and units, bounds and options, with * when no default.
+    """
     import gemini as gm
 
-    return gm.modules.get(name)().describe()
+    from geomind.tools.gemini.skeleton import module_tree
+
+    return module_tree(gm.modules.get(name)().describe())
 
 
 def plain(found):

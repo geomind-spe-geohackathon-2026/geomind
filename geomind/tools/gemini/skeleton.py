@@ -123,3 +123,64 @@ def case_tree():
         "also takes range and uncertainty, and every section takes about."
     )
     return "\n".join([note, *case, "", "Economics (set_case economics=...):", *economics])
+
+
+def field_line(name, field):
+    """Return one parameter of a module description as a line: type, quantity, bounds, options."""
+    import gemini as gm
+
+    mark = "*" if field.get("default") is None and field.get("enum") is None else ""
+    parts = [field.get("type") or "value"]
+    if field.get("quantity"):
+        units = gm.units.names(field["quantity"])
+        parts.append(f"{{value, unit}} {field['quantity']} in {'|'.join(units)}")
+    if field.get("enum"):
+        parts.append("|".join(str(item) for item in field["enum"]))
+    bounds = [f">= {field['minimum']}" if field.get("minimum") is not None else ""]
+    bounds.append(f"<= {field['maximum']}" if field.get("maximum") is not None else "")
+    shown = " ".join(item for item in [*parts, *bounds] if item)
+    note = (field.get("description") or "").split(";")[0]
+    return f"{name}{mark}: {shown}" + (f" ({note})" if note else "")
+
+
+def module_tree(description):
+    """Return a module's compact description from gemini's ``describe()``.
+
+    Its parameters and controls come one per line, its ports, outputs and children by name.
+    """
+    lines = [field_line(name, field) for name, field in description["parameters"].items()]
+    controls = [field_line(name, field) for name, field in description["controls"].items()]
+    return {
+        "name": description["name"],
+        "type": description["type"],
+        "category": description["category"],
+        "summary": description["summary"],
+        "parameters": lines,
+        "controls": controls,
+        "inlets": {name: port.get("kind") for name, port in description["inlets"].items()},
+        "outlets": {name: port.get("kind") for name, port in description["outlets"].items()},
+        "outputs": sorted(description["outputs"]),
+        "children": {
+            name: child.get("type") if isinstance(child, dict) else child
+            for name, child in description["children"].items()
+        },
+        "note": "* marks a parameter with no default: the plant file gives it",
+    }
+
+
+def plant_tree():
+    """Return the plant file's key tree from ``gm.plants.schema()`` and gemini's module types."""
+    import gemini as gm
+
+    lines = [line for line in schema_tree(gm.plants.schema()) if not line.endswith("about: object")]
+    modules = sorted(gm.modules.names()) if hasattr(gm.modules, "names") else []
+    return "\n".join(
+        [
+            "## Plant file keys\n\nThe keys of a plant file, from gemini's schema; "
+            "`read_plant(plant_class=...)` gives a class's whole file and `describe_module` a "
+            "module's parameters (* has no default), units and ports:",
+            *lines,
+            "",
+            f"Module types: {', '.join(modules)}.",
+        ]
+    )

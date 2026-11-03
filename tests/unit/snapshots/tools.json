@@ -238,7 +238,7 @@
       "name": "compute_kpis"
     },
     "describe_module": {
-      "description": "Describe one module: its parameters, ports, outputs and children.",
+      "description": "Describe one module compactly: parameters and controls one per line, ports and outputs.",
       "effect": "read",
       "idempotent": true,
       "input_schema": {
@@ -1622,5 +1622,5 @@
       "name": "write_module"
     }
   },
-  "version": "0.4.22.dev14"
+  "version": "0.4.22.dev15"
 }

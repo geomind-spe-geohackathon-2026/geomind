@@ -53,3 +53,16 @@ def test_the_economics_keys_are_in_the_tree():
 
     economics = schema_tree(gm.case.Economics.schema())
     assert all(line in case_tree() for line in economics if not line.endswith("about: object"))
+
+
+def test_the_plant_tree_is_read_from_gemini_s_schema():
+    """The designer's prompt holds the plant file keys and every module type gemini has."""
+    import gemini as gm
+
+    from geomind.agents import Designer
+    from geomind.tools.gemini.skeleton import plant_tree
+
+    tree = plant_tree()
+    assert "connections[]:" in tree and 'kind*: "plant"' in tree
+    assert all(name in tree for name in gm.modules.names())
+    assert "## Plant file keys" in Designer().prompt.render()
