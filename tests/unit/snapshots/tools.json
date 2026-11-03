@@ -383,6 +383,19 @@
       "late_schemas": [],
       "name": "finish"
     },
+    "list_files": {
+      "description": "List the files of the project: ``files``, each with ``name``, ``size`` and ``media_type``.",
+      "effect": "read",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "title": "list_files_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "list_files"
+    },
     "list_modules": {
       "description": "List the modules gemini has, with their name, category and summary.",
       "effect": "read",
@@ -534,6 +547,46 @@
       },
       "late_schemas": [],
       "name": "read_case"
+    },
+    "read_document": {
+      "description": "Read a project file as text, one page at a time.",
+      "effect": "read",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "length": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Length"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "start": {
+            "default": 0,
+            "title": "Start",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "read_document_input",
+        "type": "object"
+      },
+      "late_schemas": [
+        "name"
+      ],
+      "name": "read_document"
     },
     "read_file": {
       "description": "Read a text file from the sandbox.",
@@ -1133,6 +1186,21 @@
             "default": null,
             "title": "Economics"
           },
+          "files": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Files"
+          },
           "requirements": {
             "anyOf": [
               {
@@ -1172,7 +1240,9 @@
         "title": "set_case_input",
         "type": "object"
       },
-      "late_schemas": [],
+      "late_schemas": [
+        "files"
+      ],
       "name": "set_case"
     },
     "set_ranges": {
@@ -1438,5 +1508,5 @@
       "name": "write_module"
     }
   },
-  "version": "0.4.3"
+  "version": "0.4.4"
 }

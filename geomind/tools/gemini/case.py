@@ -24,6 +24,7 @@ from typing import Any, Literal
 from geomind.errors import ToolError
 from geomind.stores.casefiles import case_files, is_safe_name, named_files
 from geomind.tools.base import tool
+from geomind.tools.files import file_names_schema, project_file
 from geomind.tools.gemini.explain import unit_error
 from geomind.utils.strings import did_you_mean, join_names
 
@@ -114,6 +115,24 @@ def build_case(data, files):
     return gm.Case.from_dict(copy.deepcopy(data), files=files)
 
 
+def readable_case(data, files):
+    """Return the ``gm.Case`` of a case dict; missing values raise ``case_incomplete``.
+
+    The error keeps gemini's message, and ``suggestions`` lists every missing path.
+    """
+    import gemini as gm
+
+    try:
+        return build_case(data, files)
+    except gm.errors.ValidationError as error:
+        missing = [issue.problem()["path"] for issue in gm.case.missing(data)]
+        if not missing:
+            raise
+        raise ToolError(
+            str(error), code="case_incomplete", path=missing[0], suggestions=missing
+        ) from error
+
+
 def checked_case(data, files):
     """Return the ``gm.Case`` of a case dict, or raise gemini's error for its first problem.
 
@@ -121,7 +140,7 @@ def checked_case(data, files):
     """
     import gemini as gm
 
-    case = build_case(data, files)
+    case = readable_case(data, files)
     issues = case.check()
     if issues:
         first = issues[0].problem()
@@ -138,22 +157,10 @@ def checked_case(data, files):
 def case_of(context):
     """Return the state's case as a ``gm.Case``; without a case, raise a ``ToolError``.
 
-    There is no fallback case: the model sets one with ``set_case`` or asks the user. A case
-    gemini cannot read for missing values raises ``case_incomplete`` with gemini's message and
-    the missing paths as ``suggestions``.
+    There is no fallback case: the model sets one with ``set_case`` or asks the user.
     """
-    import gemini as gm
-
     data = state_case(context)
-    try:
-        return build_case(data, file_contents(context, data, {}))
-    except gm.errors.ValidationError as error:
-        missing = [issue.problem()["path"] for issue in gm.case.missing(data)]
-        if not missing:
-            raise
-        raise ToolError(
-            str(error), code="case_incomplete", path=missing[0], suggestions=missing
-        ) from error
+    return readable_case(data, file_contents(context, data, {}))
 
 
 async def store_case(context, data, supplied, origin=None):
@@ -286,13 +293,24 @@ def edited_economics(context, data, supplied, patch):
     return {**supplied, name: text.encode()}
 
 
-@tool(effect="write", idempotent=False, reruns_in_replay=True)
+def project_files_of(context, names):
+    """Return ``{name: bytes}`` of the project files ``set_case`` gives to the case."""
+    return {checked_name(name): project_file(context, "set_case", name) for name in names}
+
+
+@tool(
+    effect="write",
+    idempotent=False,
+    reruns_in_replay=True,
+    late_schemas={"files": file_names_schema},
+)
 async def set_case(
     context,
     source: str | None = None,
     changes: dict[str, Any] | None = None,
     requirements: dict[str, dict[str, Any] | None] | None = None,
     economics: dict[str, Any] | None = None,
+    files: list[str] | None = None,
 ):
     """Set the case of the problem state: the project's case, changes to it, or both.
 
@@ -302,14 +320,20 @@ async def set_case(
     object merges into the case, a value replaces, null removes a key; it never holds
     ``requirements`` or ``economics``. ``requirements`` is ``{name: requirement or null}``: a
     requirement object adds or replaces the one of that name, null removes it, and the others stay.
-    ``economics`` is a merge patch on the content of the case's economics file. The sections are
+    ``economics`` is a merge patch on the content of the case's economics file. ``files`` names
+    project files (``list_files``): their bytes go to gemini, under the same name, so a data file
+    is given to the case and never retyped: name it in ``changes``, as the ``file`` of a series.
+    The sections are
     in ``read_case(section="schema")``, the exact schema. gemini validates the result: a rejected
-    case comes back with the path and message to fix, and nothing is stored. The project's case, or
+    case comes back with the path and message to fix, and nothing is stored; a case with values
+    missing is ``case_incomplete``, every missing path in ``suggestions``. The project's case, or
     the first case of a chat, is the case the user gave; a design is verified only on it, so any
     later change of it, economics included, waits for the user's approval. Returns the case and
     the state version.
     """
     base, supplied = base_case(context, source)
+    if files:
+        supplied = {**supplied, **await asyncio.to_thread(project_files_of, context, files)}
     data = merge_patch(base, checked_changes(changes or {}))
     if requirements:
         data["requirements"] = edited_requirements(data.get("requirements"), requirements)

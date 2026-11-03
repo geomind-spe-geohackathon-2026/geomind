@@ -737,6 +737,8 @@
       "Workspace": {
         "case": "(self, project_id)",
         "documents": "(self, project_id, query)",
+        "file": "(self, project_id, name)",
+        "files": "(self, project_id)",
         "plants": "(self, project_id)"
       }
     },
@@ -1084,5 +1086,5 @@
       "step_limit": "failed"
     }
   },
-  "version": "0.4.3"
+  "version": "0.4.4"
 }

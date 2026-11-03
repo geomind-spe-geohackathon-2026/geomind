@@ -85,11 +85,11 @@ def test_section_three_protocols_are_frozen(frozen):
     """``RunStore``, ``Workspace``, ``LLM`` and ``SandboxProvider``, as of 0.3.0.
 
     0.3.0 added the chat artifacts of ``RunStore`` and ``Workspace.plants``, and the files of
-    ``Workspace.case``.
+    ``Workspace.case``; 0.4.4 the optional ``Workspace.files`` and ``Workspace.file``.
     """
     protocols = frozen["protocols"]
     assert set(protocols["RunStore"]) == set(RUN_STORE_METHODS)
-    assert set(protocols["Workspace"]) == {"plants", "documents", "case"}
+    assert set(protocols["Workspace"]) == {"plants", "documents", "case", "files", "file"}
     assert (
         protocols["LLM"]["complete"] == "(self, messages, tools, *, model, settings, on_text=None)"
     )

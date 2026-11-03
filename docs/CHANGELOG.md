@@ -6,6 +6,16 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-11-03
+
+Additive: agents read the files the user attaches. Logs, stores and recordings of 0.4.x still load and replay.
+
+- Optional `Workspace.files(project_id)` -> `[{name, size, media_type}]` and `Workspace.file(project_id, name)` -> bytes or `None`, on `MemoryWorkspace` and `FileWorkspace` (`files/` of the project). A workspace without them keeps working.
+- New tools `list_files` and `read_document(name, start, length)`: CSV, TSV, JSON, Markdown and text as text, a CSV also with its columns, row count and first rows, a PDF as text with page markers. New dependency `pypdf`. Pages of at most 20,000 characters; long reads are stored by reference.
+- Error codes `files_unavailable` and `not_text`.
+- `set_case` takes `files`: project files whose bytes go to gemini, so a data file is never retyped. A case with values missing is `case_incomplete`, with every path in `suggestions`.
+- The design and compare loops send a project with files to the designer first, instead of asking for the case. The Analyst gets `set_case`.
+
 ## [0.4.3] - 2026-11-03
 
 Additive: geomind installs from releases and publishes its own.

@@ -16,7 +16,10 @@ class Analyst(Agent):
         self.prompt = Prompt("analyst")
 
         # Tools
+        self.list_files = tools.list_files
+        self.read_document = tools.read_document
         self.read_case = tools.gemini.read_case
+        self.set_case = tools.gemini.set_case
         self.list_modules = tools.gemini.list_modules
         self.describe_module = tools.gemini.describe_module
         self.evaluate_module = tools.gemini.evaluate_module

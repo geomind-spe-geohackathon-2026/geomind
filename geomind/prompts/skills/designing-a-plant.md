@@ -17,7 +17,7 @@ Reading the case:
   its value, `source: "default"` and `confirmed: false`.
 - Tools worth knowing: `list_modules`, `describe_module` and `evaluate_module` (a module's
   parameters, ports, units; run one at one point, every inlet with its fluid); `list_profiles`,
-  `read_profile`; `read_result`; `read_study`; `search_documents`; `write_module` and
+  `read_profile`; `read_result`; `read_study`; `search_documents`; `list_files`; `read_document`; `write_module` and
   `test_module` for a model gemini lacks (the skill `writing-a-gemini-module`).
 - Read the demand with `read_profile` before you size: the peak, the annual energy, and when
   heating and cooling overlap.

@@ -30,6 +30,8 @@ the problem state as `update_state` does.
 | `simulate` | `runs.py` | `compute` | `design=None, changes=None, start=None, end=None` | `{reference, summary}`; the run is stored; the summary gives the plant, the case's time span, the window, `steps`, `failed_steps` and the first `failures`, the `report` totals in display units, gemini's `verdict`, the `unmet` requirements (the checks with `passed` false) and the demand `coverage` | built |
 | `read_result` | `results.py` | `read` | `reference, path=None, field=None, start=None, end=None` (ISO 8601, inclusive) | `{time, value, unit}` with `path` and `field`, otherwise `{path: {field: {min, max, mean}}}`, in MW, degC, bar, m3/h and kg/s | built |
 | `search_documents` | `results.py` | `read` | `query` | `[{id, title, text, score}]` | built |
+| `list_files` | `files.py` (`geomind/tools/`) | `read` | none | `{files: [{name, size, media_type}]}` | built |
+| `read_document` | `files.py` (`geomind/tools/`) | `read` | `name, start=0, length=None` | `{name, start, total, text, next, table?}` | built |
 | `check_results` | `assessment.py` | `compute` | `reference` | gemini's verdict on the run's own case, in display units: `{feasible, reasons: [{kind, name, message, ...}], requirements: [check], failures: {total, groups}, metrics}` | built |
 | `compute_kpis` | `assessment.py` | `compute` | `reference, names=None` | `{name: Value}` in display units: `gm.evaluate.totals` and the metrics of `gm.evaluate.report`; an unknown name is `unknown_name` with a did-you-mean | built |
 | `estimate_costs` | `assessment.py` | `compute` | `reference` | `{capex, opex, annualised_cost, lcoh, lcoc, lcts, npv, payback, co2}` as Values in display units, from the case's `economics.json`; a cost whose figure is missing is `{error}` with gemini's `missing_assumption` and its path | built |
@@ -68,6 +70,7 @@ gemini's API is frozen from 0.5.0; a breaking gemini release needs a new geomind
 | `simulate` | `gm.schedule`, `gm.simulate` (which runs `gm.check`), `gm.evaluate.report`, `totals`, `failures`, `plant.set_params`, `Results.to_bytes` | real |
 | `read_result` | `Results.get`, `Results.summary` through `load_run` | real |
 | `search_documents` | none: it reads `Workspace.documents` | built |
+| `list_files`, `read_document` | none: they read the optional `Workspace.files` and `Workspace.file` | built |
 | `check_results` | `gm.evaluate.verdict`, `report`, `gm.Results.from_bytes` | real |
 | `compute_kpis` | `gm.evaluate.totals`, `gm.evaluate.report` | real |
 | `estimate_costs` | `gm.evaluate.capex`, `opex`, `annualised_cost`, `lcoh`, `lcoc`, `lcts`, `npv`, `payback`, `co2`, `report` | real |
@@ -301,6 +304,8 @@ A validation error takes `path` from the first input field that failed. Every ot
 | `not_allowed` | the run cannot do this: no sandbox, no project, or a path outside the sandbox |
 | `no_case` | the chat has no case: call `set_case` or ask the user |
 | `case_incomplete` | the case misses values gemini needs to read it; `path` is the first and `suggestions` lists every missing path, from `gm.case.missing` |
+| `files_unavailable` | the workspace has no `files` and `file`: an older backend; the run goes on without them |
+| `not_text` | `read_document`: the file gives no text (binary, encrypted, a scan) |
 | `timeout` | the tool passed its time limit |
 | `budget` | a budget or time limit stopped a delegate's nested run; the message names it with what was spent and the cap |
 | `internal` | a bug or a crash; the detail is in the log, never in the result |
@@ -354,3 +359,16 @@ needs no approval of its own: each nested tool is decided by the same permission
 and not idempotent: it runs alone, a replay reuses its recorded result, and after a crash it
 becomes an error result. A pause in the nested run pauses the parent on the same request. Usage of
 the nested run adds to the parent's.
+
+## Project files
+
+`read_document` returns the text by pages of at most 20,000 characters (`PAGE_CHARACTERS`, under
+`tool_result_limit`). A PDF goes through pypdf, each page after a `[page n]` marker; a long result is
+stored by reference like any other, so old reads shrink to their outline. `set_case(files=[...])`
+gives project files to the case: `set_case` passes their bytes to gemini under the same name, and
+`changes` names them as the `file` of a series. gemini validates, and geomind adds no unit alias.
+`save_profile` keeps taking values: a file goes through `set_case`.
+
+When a case misses values, `set_case` answers `case_incomplete` with every path in `suggestions`,
+from `gm.case.missing`, for one question to the user. The design loop asks for a missing case at
+its start only when the project has no files; with files the designer reads them first.

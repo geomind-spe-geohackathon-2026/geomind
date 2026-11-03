@@ -96,7 +96,7 @@ frozen; the tools themselves are in [tools.md](tools.md#catalogue). Every agent 
 
 | Agent | Tools |
 |---|---|
-| `Analyst` | `read_case`, `list_modules`, `describe_module`, `evaluate_module`, `list_plants`, `read_plant`, `list_profiles`, `read_profile`, `save_profile`, `simulate`, `read_result`, `list_studies`, `read_study`, `compute_kpis`, `write_module`, `test_module`, `search_documents`, `update_state`, `read_skill`, `ask_user`, `finish` |
+| `Analyst` | `list_files`, `read_document`, `read_case`, `set_case`, `list_modules`, `describe_module`, `evaluate_module`, `list_plants`, `read_plant`, `list_profiles`, `read_profile`, `save_profile`, `simulate`, `read_result`, `list_studies`, `read_study`, `compute_kpis`, `write_module`, `test_module`, `search_documents`, `update_state`, `read_skill`, `ask_user`, `finish` |
 | `Coordinator` | none: it answers with a `Route` |
 | `Designer` | `read_case`, `set_case`, `save_profile`, `list_plants`, `read_plant`, `list_modules`, `describe_module`, `evaluate_module`, `build_plant`, `set_ranges`, `size_plant`, `list_profiles`, `read_profile`, `simulate`, `read_result`, `list_studies`, `read_study`, `check_results`, `optimize`, `run_study`, `write_module`, `test_module`, `search_documents`, `update_state`, `read_skill`, `ask_user`, `finish` |
 | `Verifier` | `check_results`, `case_changes`, `read_case`, `compute_kpis`, `read_result`, `update_state`, `read_skill`, `finish` |

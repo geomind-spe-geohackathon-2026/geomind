@@ -1,6 +1,6 @@
 [project]
 name = "geomind"
-version = "0.4.3"
+version = "0.4.4"
 description = "Agent harness over an event log, with gemini as its physics library"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -17,6 +17,7 @@ dependencies = [
     "pydantic>=2.10",
     "pydantic>=2.12.0; python_version >= '3.14'",
     "httpx>=0.27.0",
+    "pypdf>=6,<7",
 ]
 
 [project.scripts]
