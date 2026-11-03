@@ -1102,7 +1102,7 @@
       "name": "save_profile"
     },
     "search_documents": {
-      "description": "Search the documents of the project; return the best matches with id, title and text.",
+      "description": "Search the documents and the files of the project; return the best matches first.",
       "effect": "read",
       "idempotent": true,
       "input_schema": {
@@ -1533,5 +1533,5 @@
       "name": "write_module"
     }
   },
-  "version": "0.4.20"
+  "version": "0.4.21"
 }

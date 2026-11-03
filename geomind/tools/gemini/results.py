@@ -1,7 +1,9 @@
 """The tools over a project's results and documents."""
 
 from geomind.errors import ToolError
+from geomind.stores.workspace import search
 from geomind.tools.base import tool
+from geomind.tools.files import document_text
 from geomind.tools.gemini.references import reference_schema
 from geomind.tools.gemini.runs import parse_time
 from geomind.tools.gemini.stored import load_run
@@ -14,6 +16,12 @@ READ_UNITS = {
     "mass_flow": "kg/s",
 }
 """The units in which the model reads a stored result: gemini's family keys for ``units=``."""
+
+
+PASSAGE_CHARACTERS = 1500
+"""The characters of one passage of a project file that ``search_documents`` returns."""
+SHOWN_MATCHES = 8
+"""The most matches ``search_documents`` returns, best first."""
 
 
 @tool(effect="read", late_schemas={"reference": reference_schema("result")})
@@ -43,11 +51,39 @@ def read_result(
 
 @tool(effect="read")
 def search_documents(context, query: str):
-    """Search the documents of the project; return the best matches with id, title and text."""
+    """Search the documents and the files of the project; return the best matches first.
+
+    A document match has ``id``, ``title``, ``text`` and ``score``. A file match is a passage of a
+    file that reads as text, such as a PDF: ``name``, ``start`` (for ``read_document``), ``text``
+    and ``score``.
+    """
     workspace = context.session.workspace
     if workspace is None or context.project is None:
         raise ToolError(
             "search_documents: this run has no project; expected a workspace and one",
             code="not_allowed",
         )
-    return workspace.documents(context.project, query)
+    found = list(workspace.documents(context.project, query))
+    found += search(file_passages(context), query)
+    return sorted(found, key=lambda item: item["score"], reverse=True)[:SHOWN_MATCHES]
+
+
+def file_passages(context):
+    """Return the passages of the project's files that read as text, ``PASSAGE_CHARACTERS`` each.
+
+    A passage is ``{name, start, title, text}``; ``title`` is the file name, for the search.
+    """
+    workspace = context.session.workspace
+    files = workspace.files(context.project) if hasattr(workspace, "files") else []
+    passages = []
+    for entry in files:
+        try:
+            text = document_text(entry["name"], workspace.file(context.project, entry["name"]))
+        except ToolError:
+            continue
+        for start in range(0, len(text), PASSAGE_CHARACTERS):
+            passage = text[start : start + PASSAGE_CHARACTERS]
+            passages.append(
+                {"name": entry["name"], "start": start, "title": entry["name"], "text": passage}
+            )
+    return passages

@@ -151,6 +151,10 @@
             "choices": null,
             "default": "analyst"
           },
+          "--answer-retries": {
+            "choices": null,
+            "default": null
+          },
           "--live": {
             "choices": null,
             "default": false
@@ -192,7 +196,81 @@
             "default": null
           }
         },
+        "resume": {
+          "--answer": {
+            "choices": null,
+            "default": null
+          },
+          "--answer-retries": {
+            "choices": null,
+            "default": null
+          },
+          "--max-cost": {
+            "choices": null,
+            "default": null
+          },
+          "--max-steps": {
+            "choices": null,
+            "default": null
+          },
+          "--max-tokens": {
+            "choices": null,
+            "default": null
+          },
+          "--mode": {
+            "choices": [
+              "ask",
+              "auto",
+              "readonly",
+              "plan"
+            ],
+            "default": "ask"
+          },
+          "--model": {
+            "choices": null,
+            "default": null
+          },
+          "--project": {
+            "choices": null,
+            "default": null
+          },
+          "--project-max-cost": {
+            "choices": null,
+            "default": null
+          },
+          "--project-max-tokens": {
+            "choices": null,
+            "default": null
+          },
+          "--record": {
+            "choices": null,
+            "default": null
+          },
+          "--recording": {
+            "choices": null,
+            "default": null
+          },
+          "--request": {
+            "choices": null,
+            "default": null
+          },
+          "--sandbox": {
+            "choices": [
+              "local",
+              "docker"
+            ],
+            "default": null
+          },
+          "run": {
+            "choices": null,
+            "default": null
+          }
+        },
         "run": {
+          "--answer-retries": {
+            "choices": null,
+            "default": null
+          },
           "--concurrency": {
             "choices": null,
             "default": null
@@ -586,5 +664,5 @@
       "Model"
     ]
   },
-  "version": "0.4.20"
+  "version": "0.4.21"
 }

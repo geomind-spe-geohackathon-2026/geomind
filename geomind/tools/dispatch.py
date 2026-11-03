@@ -94,18 +94,22 @@ async def _call(tool, arguments, context):
         return await runtime.in_gemini_thread(tool.function, *leading, **arguments)
 
 
-async def _bounded(context, call, output):
+async def _bounded(context, call, output, tool=None):
     """Return the output for the model, saving a long one as an artifact.
 
     A result over ``STORE_CHARACTERS`` is stored and carries its reference, whole while it is fresh;
-    one over ``tool_result_limit`` reaches the model only as ``stored_form``.
+    one over ``tool_result_limit`` reaches the model only as ``stored_form``. A part of a stored
+    result (``Tool.stored_input``) keeps the reference it was read from and is not stored again.
     """
     text = json.dumps(output)
     limit = runtime.get("tool_result_limit")
     if len(text) <= min(STORE_CHARACTERS, limit):
         return output, None
-    key = reference_of(call.id)
-    await context.session.save_artifact(key, output)
+    source = getattr(tool, "stored_input", None)
+    key = call.input.get(source) if source else None
+    if key is None:
+        key = reference_of(call.id)
+        await context.session.save_artifact(key, output)
     if len(text) <= limit:
         return output, key
     return stored_form(output, key), key
@@ -143,5 +147,5 @@ async def dispatch(tool, call, context):
         return _result(tool, call, started, error_output(hidden), is_error=True)
     if isinstance(output, (Request, Finish)):
         return output
-    bounded, reference = await _bounded(context, call, to_jsonable(output))
+    bounded, reference = await _bounded(context, call, to_jsonable(output), tool)
     return _result(tool, call, started, bounded, reference=reference)

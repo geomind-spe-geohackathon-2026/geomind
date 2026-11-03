@@ -6,6 +6,15 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.21] - 2026-11-03
+
+What the fourth live run showed, each pinned by a test on its recorded calls. CLI and tools only.
+
+- Fix: a free-text answer to a question with options ended `geomind run` with exit 1. The contract takes only an option's value, so the CLI asks again with the options shown, at most `--answer-retries N` times (no default: unset, never), and then, or at the end of the input, stops the run as `waiting` (exit 2) with the `geomind resume` line.
+- New `geomind resume <run id> --request ID --answer TEXT`: answers a waiting run in a new process, with the provider, mode and caps given again.
+- Fix: `search_documents` never searched the project's attached files, so the brief's values were not found (six searches, all `[]`); it now also returns passages of every project file that reads as text, with `name` and `start`.
+- `read_stored` no longer stores a long part again under a new reference (`Tool.stored_input`), which made the run read copies of copies.
+
 ## [0.4.20] - 2026-11-03
 
 What the third live run showed (run 9bc9e7b7), each pinned by a test on its recorded calls. Runs on gemini 0.5.13 (wheel sha256 `cc598bef…387c510`, image `gemini-sandbox:0.5.13`), whose only change is the optional series key `time_zone`.
