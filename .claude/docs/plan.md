@@ -216,6 +216,30 @@ Open, in order (the team layout agreed with Sahand on 2026-11-03, started on his
 5. [ ] gemini needs for Sahand to approve: `gm.Plant.from_dict` raises `KeyError('')` instead of
    `ValidationError` for an inlet given as a bare value such as `{"flue_out": "gas"}`.
 
+### Live runs of the agent team and their bugs
+
+DeepSeek only (`deepseek/deepseek-v4.1-flash-1017`), every live run capped; the live loop's total
+cap is 5 USD (1.66 USD spent before the team).
+
+| Run | What | Cost (USD) | Total (USD) | Outcome |
+|---|---|---|---|---|
+| A1 | each of the 15 agents alone, in parallel, on a fixed input from the earlier runs (`setup`), 0.10 cap each | 0.43 | 2.09 | 15 of 15 passed their criteria; bugs #42 to #50 |
+| A2 | the 6 agents the fixes touched, alone again | 0.29 | 2.38 | 5 passed; the case lead now asks for the values with no source (#44 working), so its task's fixed answer must change |
+
+Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/CHANGELOG.md)):
+
+| # | Found in | Bug | Fix | Commit |
+|---|---|---|---|---|
+| 42 | A1, every agent | memory tools offered while the memory is off; refused calls again and again | not offered, nor their prompt sections | `768f396` |
+| 43 | A1, case lead | computed the reservoir temperature from the gradient itself | computes nothing; a derived value stays unset for gemini | `768f396` |
+| 44 | A1, case lead | proposed capex unit costs with no source | knowledge with its source, else a question; no number of its own | `768f396` |
+| 45 | A1, reservoir engineer | computed a productivity index by Darcy's law by hand | engineers and the design lead compute nothing; top-level values first | `768f396` |
+| 46 | A1, energy systems engineer | ended with an empty answer, accepted as done | an empty text is no answer | `768f396` |
+| 47 | A1, engineers | `evaluate_module` inlets sent in a wrong form | the description shows a whole inlet with gemini's fluid fields | `768f396` |
+| 48 | A1, explainer | a reference in quotes refused | read as the reference | `768f396` |
+| 49 | A1, explainer | a made-up reference asked for six times with another `path` each | the same bad value counts as the same failure | `768f396` |
+| 50 | A1, all | models saw only the first paragraph of each tool's docstring | the whole docstring but its `NOTE:` paragraphs | `768f396` |
+
 ### The adaptation to gemini 0.5 (done) and what is open
 
 geomind 0.3.0 runs on gemini 0.5: the case is a project folder (`set_case`, `read_case`,
