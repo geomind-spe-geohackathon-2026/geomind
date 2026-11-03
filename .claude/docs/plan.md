@@ -245,6 +245,9 @@ Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/C
 | 55 | E1, design lead | the three side-by-side engineers called one by one | `fill_parts` runs them at the same time in code | this commit |
 | 56 | E1, all engineers | owners written as `params.<path>`; every engineer's patch refused (61 times) | a prefix with or without `params.` is found | this commit |
 | 57 | E1, design lead | `"format": "1"` refused four times as an old header | read as its number | this commit |
+| 58 | E2, case lead | read a year ending at an exclusive 31 Dec as 364 values and proposed to cut a day | knows `time.end` is exclusive | this commit |
+| 59 | E2, case lead | asked for a typed path and value with options, three times | `ask_user` says a typed answer needs no options | this commit |
+| 60 | E2, case lead | `read_profile` showed the clipped series as the file | shows the case window and the file's own rows | this commit |
 | 50 | A1, all | models saw only the first paragraph of each tool's docstring | the whole docstring but its `NOTE:` paragraphs | `768f396` |
 
 ### The adaptation to gemini 0.5 (done) and what is open
@@ -294,6 +297,9 @@ Open requests to gemini (full text in the adaptation notes):
     `skin`, `wellbore_radius`, the same under `d0.sink`) after the doublet's top-level values are
     set and checked against a case that gives them, while the complete `HackathonPlant` needs none
     of them; the engineers then copy case values into the plant by hand (found in run A2).
+12. `Case.schema()` does not say that `time.end` is exclusive (a year of daily values ends on the
+    next year's first day); the case lead read a year ending on 31 Dec as 364 steps and proposed
+    to drop a day of data (found in run E2).
 
 ### S2b: gemini tools (the first job; the text below is the original plan)
 

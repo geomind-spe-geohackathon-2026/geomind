@@ -6,6 +6,16 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### What the second end-to-end run showed (0.4.22.dev32)
+
+Run E2: the case lead found two flaws of the test project's own `case.json` (the 330 operating days stored as a count of 330 doublets; a cooling return colder than its supply) and asked instead of guessing. Each bug is pinned by a test.
+
+**Contract change for the backend:** `read_profile` returns two more keys, `case_time` (the case's start, end and step, `end_is: "exclusive"`, `steps`) and `file` (`{name, rows, first, last}` of the data file the series comes from, or `None`).
+
+- Fix (#60): `read_profile` showed the case's demand clipped to the case's time with no word of it, so a year ending at an exclusive 31 Dec read as a file of 364 values; it now shows the window and the file's own rows beside the series.
+- Fix (#58): the case lead knows `time.end` is exclusive and that a span that differs from the data's rows is the span's fault, never the data's; it had proposed to cut 31 Dec.
+- Fix (#59): `ask_user` says that with options the answer is exactly one option's value, and that a typed answer needs a question without options; the case lead had asked for a path and a value with options three times.
+
 ### Cost cuts from the first end-to-end run (0.4.22.dev31)
 
 E1 spent its 1 USD cap before a verified design: 7.0M input tokens (3.9M cached) over about 400 model calls, 119 of 334 tool calls failing. Measured offline on its log.

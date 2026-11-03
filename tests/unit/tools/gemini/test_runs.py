@@ -328,3 +328,19 @@ async def test_a_plant_that_gemini_s_check_rejects_comes_back_with_the_issue():
     error = result.output["error"]
     assert result.is_error and error["path"] == "economics.capex.drilling"
     assert error["code"] == "case_incomplete"
+
+
+@example_names
+async def test_a_profile_shows_the_case_window_and_its_file_s_own_rows(name):
+    """#60: a year ending at an exclusive 31 Dec read as a file of 364 values, and a day was cut.
+
+    Beside the series: the case's window, its end exclusive, and the data file's own rows.
+    """
+    session, problem = await designed(name)
+    output = (
+        await call(TOOLS.read_profile, {"service": "heating"}, session, problem=problem)
+    ).output
+    assert output["case_time"]["end_is"] == "exclusive"
+    assert output["case_time"]["steps"] == case_steps(name)
+    extent = output["file"]
+    assert extent is None or (extent["rows"] >= 1 and extent["first"] <= extent["last"])

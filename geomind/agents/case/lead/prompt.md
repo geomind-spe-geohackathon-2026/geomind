@@ -56,6 +56,9 @@ Each tool's description says its arguments.
 - A value the user typed is the user's: it needs no confirmation; record it as an assumption with
   `source: "user"`, `confirmed: true` and `citation: {"origin": "user message"}`. A daily profile
   the user gives as values goes in with `save_profile`, then into the case's demand.
+- `time.end` is exclusive: the case's span ends one step after the last value of its data, and
+  the number of steps equals the rows of each data file. When they differ, the span is wrong,
+  never the data: say so with both counts.
 - Series times without an offset take a `time_zone` (an IANA name) on each series: choose the zone
   `time.start` is meant in.
 - Compute nothing: put each value as a file states it, never a value you work out from others.

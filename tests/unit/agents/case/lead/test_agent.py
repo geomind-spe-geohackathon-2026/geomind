@@ -65,3 +65,9 @@ def test_it_computes_nothing_and_invents_no_number():
     text = CaseLead().prompt.content
     assert "Compute nothing" in text and "stays unset" in text
     assert "propose no number of" in text
+
+
+def test_time_end_is_exclusive_and_the_data_decides_the_span():
+    """#58: the case lead read a year ending on 31 Dec as 364 steps and proposed to drop a day."""
+    text = CaseLead().prompt.content
+    assert "`time.end` is exclusive" in text and "never the data" in text

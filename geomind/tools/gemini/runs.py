@@ -7,7 +7,7 @@ from typing import Any
 from geomind import runtime
 from geomind.errors import ToolError
 from geomind.tools.base import tool
-from geomind.tools.gemini.case import build_case, case_of
+from geomind.tools.gemini.case import CASE_FILE, build_case, case_of
 from geomind.tools.gemini.plants import load_plant
 from geomind.tools.gemini.references import reference_schema
 from geomind.tools.gemini.stored import ran_case, save_run
@@ -145,6 +145,29 @@ def read_profile(context, service: str, start: str | None = None, end: str | Non
         "time": [moment.isoformat() for moment in series.index],
         "value": [gm.units.convert(float(item), "W", POWER_UNIT) for item in series],
         "unit": POWER_UNIT,
+        "case_time": {**case_span(case), "end_is": "exclusive", "steps": len(case.demand.frame)},
+        "file": file_extent(context, service),
+    }
+
+
+def file_extent(context, service):
+    """Return the rows of the data file a service's power comes from, its first and last time.
+
+    The series above is the case's demand over the case's time; a file may hold more or fewer
+    rows, which this shows. ``None`` when the power names no stored file.
+    """
+    power = ((context.problem.case or {}).get("demand") or {}).get(service, {}).get("power")
+    name = power.get("file") if isinstance(power, dict) else None
+    data = context.session.load_artifact(f"{CASE_FILE}{name}") if name else None
+    if not isinstance(data, (bytes, str)):
+        return None
+    text = data.decode() if isinstance(data, bytes) else data
+    rows = [line.split(",", 1)[0] for line in text.splitlines()[1:] if line.strip()]
+    return {
+        "name": name,
+        "rows": len(rows),
+        "first": rows[0] if rows else None,
+        "last": rows[-1] if rows else None,
     }
 
 
