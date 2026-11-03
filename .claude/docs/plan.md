@@ -226,6 +226,7 @@ cap is 5 USD (1.66 USD spent before the team).
 |---|---|---|---|---|
 | A1 | each of the 15 agents alone, in parallel, on a fixed input from the earlier runs (`setup`), 0.10 cap each | 0.43 | 2.09 | 15 of 15 passed their criteria; bugs #42 to #50 |
 | E1 | end to end from the coordinator, memory off, 1 USD cap, three answers by the test operator | 1.00 | 3.38 | stopped at its cap before a verified design: two families planned, process, integration and reservoir engineers done; bugs #53 to #55 |
+| SD | the support team alone (support lead, summarizer, curator), nine tasks, rounds D0 to D3 | 0.03 | — | 9 of 9 passed by the end; bugs #95 to #98 |
 | C1 | the case lead and the geoscientist alone, six tasks (files, chat, one change, a question, a flawed case, the geoscientist on the brief) | 0.06 | 3.69 | 6 of 6 passed; every flaw caught and asked; no invented value; bugs #61 to #63 |
 | C2 | the case team alone again, after #61 to #63 | 0.08 | 3.77 | 6 of 6 passed; one self-computed dew point (#64) |
 | TA1 | Track A after dev43 (compact tree, run-long pages, columns), six tasks | 0.16 | 4.20 | 4 of 6; from_files at its cap; cache cold after the prompt change, 10 `read_stored` left |
@@ -268,6 +269,10 @@ Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/C
 | 73 | D2, process engineer | parallel `read_plant` calls came back with every argument null until the run stopped on repeated failures | it compares plants with `list_plants` and reads only the one it chooses, in one call | track-b |
 | 74 | D2, well engineer | 8 failed `evaluate_module` calls on a well path's section lists: gemini's `describe()` gives them as `number`, and its error asks for a Quantity for a list and for a list for a Quantity | the well engineer's prompt gives the form `{"value": [..], "unit": "m"}`; gemini request 14 | track-b |
 | 75 | D3, process engineer | two garbled calls in a row (`">site</</parameter_name...`) counted as invalid calls and ended the run as failed; `">HackathonPlant</` was not caught | a markup slip is an error but no validation failure; a lone `</` or a leading `">` counts as markup; prose tools (`finish`, `ask_user`, `update_state`, `write_lesson`) are not checked | track-b |
+| 95 | D0, curator | wrote a case lead's lesson the memory already held: `search_memory` gave it only the curator's own lessons | the curator reads every role's lessons; `write_lesson` refuses an unknown role | track-d |
+| 96 | D0, curator | a lesson named the project's brief ("the GEMINI brief") | the prompt says every field of an entry, lists the roles, and gives do and don't examples | track-d |
+| 97 | review, support lead | told to give the summarizer references, which it cannot read | hands the material itself, whole | track-d |
+| 98 | D1, summarizer | 16,000 output tokens of reasoning and no text for a 2.7k-character handover | temperature 0; one pass | track-d |
 | 50 | A1, all | models saw only the first paragraph of each tool's docstring | the whole docstring but its `NOTE:` paragraphs | `768f396` |
 
 ### The adaptation to gemini 0.5 (done) and what is open

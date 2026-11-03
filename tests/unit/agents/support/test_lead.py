@@ -30,3 +30,11 @@ def test_its_model_is_its_own_required_setting(monkeypatch):
     """``GEOMIND_SUPPORTLEAD_MODEL`` has no fallback."""
     monkeypatch.delenv("GEOMIND_SUPPORTLEAD_MODEL", raising=False)
     assert runtime.role_models()["supportlead"] is None
+
+
+def test_the_summarizer_gets_the_material_itself():
+    """#97: the prompt said to give references, but the summarizer has no tool to read one."""
+    from geomind.agents import SupportLead
+
+    text = " ".join(SupportLead().prompt.content.split())
+    assert "whole and word for word" in text and "it cannot read a reference" in text

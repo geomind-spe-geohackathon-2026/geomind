@@ -6,6 +6,16 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### The support team, D
+
+Rounds D0 to D3: the support lead, the summarizer and the curator alone, nine tasks, live (DeepSeek, 0.028 USD); the curator on a scratch memory. Each bug is pinned by a test.
+
+- Fix (#95): `search_memory` gave the curator only its own role's lessons, so it could not see a case lead's lesson and wrote it again; the curator now reads every role's lessons and the user's facts.
+- Contract (addition): `write_lesson` refuses a `role` that is no agent's snake name or `all` (`unknown_name`, with a close match): a lesson for `designlead` reached no agent.
+- Fix (#96): the curator wrote "the GEMINI brief" into a lesson; its prompt now says every field of an entry (`kind`, `role`, `text`, `source`, `id`), lists the roles from the agents themselves, and gives do and don't examples from the runs.
+- Fix (#97): the support lead was told to hand the summarizer references, which the summarizer, with no tools, cannot read; it now hands the material itself, whole.
+- Fix (#98): the summarizer spent 16,000 output tokens reasoning before a 2.7k-character handover and wrote nothing; it runs at temperature 0 and writes in one pass. Its prompt covers a handover as well as a compaction, and keeps every number, source, id and open question as written.
+
 ### Shared rules for every agent, gemini's module reference, and set_case loads the files the case names (0.4.22.dev47)
 
 - Prompts: every role prompt ends with `prompts/shared/rules.md`, said once for all 17 roles: the source order (user, files, knowledge base, MCP, then ask), citations, the user's confirmation of a value no file gave, no defaults, units and physics left to gemini, and applying an error's fix.

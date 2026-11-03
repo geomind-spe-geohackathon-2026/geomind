@@ -22,10 +22,28 @@ def test_its_prompt_keeps_method_never_numbers():
     """A lesson is method in words; the user's facts carry the source ``user``."""
     text = Curator().prompt.content
     assert "never keep a project's numbers as a rule" in text
-    assert "`user_fact` with `source` `user`" in text
+    assert "A user fact's source is `user`" in text
+
+
+def test_its_prompt_says_every_field_of_an_entry_and_the_roles():
+    """#96: a lesson named the project's brief; the fields and the roles come with their rules."""
+    from geomind.agents.support.curator import agent_roles
+
+    text = " ".join(Curator().prompt.render().split())
+    assert "no name of the project, its files or its brief" in text
+    assert all(f"`{role}`" in text for role in agent_roles())
+    assert "Don't: `geoscientist`" in text
 
 
 def test_its_model_is_its_own_required_setting(monkeypatch):
     """``GEOMIND_CURATOR_MODEL`` has no fallback."""
     monkeypatch.delenv("GEOMIND_CURATOR_MODEL", raising=False)
     assert runtime.role_models()["curator"] is None
+
+
+def test_every_agent_s_snake_name_is_a_role_a_lesson_may_name():
+    """The tool's check (the role settings) and the prompt's list (the agents) agree."""
+    from geomind.agents.support.curator import agent_roles
+    from geomind.tools.memory import is_role
+
+    assert all(is_role(role) for role in agent_roles()) and not is_role("designlead")
