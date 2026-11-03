@@ -51,10 +51,16 @@ def parse_time(value, field, where):
 
 
 def readable_step(seconds):
-    """Return a time step as ``{value, unit}`` in days, hours or seconds."""
-    for unit, length in (("d", 86400), ("h", 3600)):
-        if seconds % length == 0:
-            return {"value": seconds // length, "unit": unit}
+    """Return a time step as ``{value, unit}`` in whole days, whole hours or seconds.
+
+    gemini converts (``gm.units.convert``); geomind only picks the unit.
+    """
+    import gemini as gm
+
+    for unit in ("d", "h"):
+        value = gm.units.convert(seconds, "s", unit)
+        if float(value).is_integer():
+            return {"value": type(seconds)(value), "unit": unit}
     return {"value": seconds, "unit": "s"}
 
 

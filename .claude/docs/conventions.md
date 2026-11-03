@@ -52,6 +52,14 @@ code, docstrings, examples or documents; describe the concept itself.
 `test_no_framework_names_in_tracked_text_files` in `tests/unit/test_code_quality.py` fails on any
 occurrence in a tracked file. The shared `../docs/` research notes are outside this repository, so the test does not read them.
 
+## Units
+
+geomind chooses the units it shows (`READ_UNITS` in `tools/gemini/results.py`, the power and
+temperature of a profile) and gemini converts: `units=` of `Results.get` and `summary`,
+`gm.units.convert`, `Quantity.to`, a `Report`'s display. geomind holds no conversion factor;
+`tests/unit/test_no_unit_math.py` fails on one. A duration of the settings takes only the units
+gemini converts (`DURATION_UNITS` in `utils/time.py`: `s`, `min`, `h`, `d`).
+
 ## Comments
 
 The only comments allowed in code are:
