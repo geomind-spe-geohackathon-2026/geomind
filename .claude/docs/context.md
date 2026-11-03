@@ -20,7 +20,7 @@ and `case_origin`. It is frozen: a change is a new state.
 |---|---|
 | `goal` | text |
 | `requirements` | `[{id, text, case_requirement, status}]`: the user's words; `case_requirement` is the `name` of the case requirement that gemini judges, or null; `status` starts `open` |
-| `assumptions` | `[{id, text, value, source, confirmed}]`; `source` is `user`, `agent` or `default` |
+| `assumptions` | `[{id, text, value, source, confirmed, reason, citation}]`; `source` is `user`, `agent` or `default`; `reason` and `citation` (a published source's details) are optional |
 | `design` | an object, free in shape; `reference` names the current `design/<name>`, `result` its whole-year run, `start_result` the sized start's run and `alternatives` the other families simulated, `[{family, design, result}]` |
 | `results` | `[{id, summary, reference}]`; `reference` names the stored data |
 | `verification` | an object, free in shape; `result` names the `result/<id>` that verifies the design, which `Verified` checks again |

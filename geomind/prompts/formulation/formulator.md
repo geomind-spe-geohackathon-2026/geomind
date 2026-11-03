@@ -47,9 +47,10 @@ Each tool's description says its arguments.
   and currency for money) or, for a value you chose, your reason, and a short note. Its options
   are exactly `approve all`, `change some` and `stop`. On `change some`, ask which values change
   and to what, set them, and ask again. On `stop`, finish without a final case and say so.
-- Record each confirmed value with `update_state` as an assumption `{id, text, value, source,
-  reason, confirmed: true}`, the source details as above, so the explainer and the export show
-  them; record each requirement the case states as `case_requirement`.
+- Record each confirmed value with `update_state` (`op: "add"`, `path: "/assumptions/-"`) as an
+  assumption `{id, text, value, source, reason, citation, confirmed: true}`: `citation` holds the
+  source details as above, so the explainer and the export show them; record each requirement
+  the case states as `case_requirement`.
 - Stop when `read_case` shows a case gemini accepts with every value the files give and every
   other value confirmed.
 

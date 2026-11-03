@@ -25,13 +25,20 @@ class Requirement(Record):
 
 
 class Assumption(Record):
-    """A value the work relies on, and where it came from."""
+    """A value the work relies on, and where it came from.
+
+    ``reason`` says why a value was chosen; ``citation`` holds the details of a published source,
+    such as ``title``, ``publisher``, ``year``, ``price_year``, ``currency``, ``page`` or ``link``
+    and a ``note``, so the explainer and the export can show them.
+    """
 
     id: str
     text: str
     value: Any = None
     source: Literal["user", "agent", "default"] = "agent"
     confirmed: bool = False
+    reason: str | None = None
+    citation: dict[str, Any] | None = None
 
 
 class Result(Record):
@@ -300,7 +307,9 @@ def _assumption_line(item):
     """Return one assumption as a line."""
     status = "confirmed" if item.confirmed else "unconfirmed"
     value = f" = {json.dumps(item.value)}" if item.value is not None else ""
-    return f"Assumption {item.id} [{status}, {item.source}]: {item.text}{value}"
+    reason = f", because {item.reason}" if item.reason else ""
+    cited = f"; source: {json.dumps(item.citation)}" if item.citation else ""
+    return f"Assumption {item.id} [{status}, {item.source}]: {item.text}{value}{reason}{cited}"
 
 
 def _result_line(item):

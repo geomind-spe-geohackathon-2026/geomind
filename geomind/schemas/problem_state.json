@@ -2,8 +2,21 @@
   "$defs": {
     "Assumption": {
       "additionalProperties": false,
-      "description": "A value the work relies on, and where it came from.",
+      "description": "A value the work relies on, and where it came from.\n\n``reason`` says why a value was chosen; ``citation`` holds the details of a published source,\nsuch as ``title``, ``publisher``, ``year``, ``price_year``, ``currency``, ``page`` or ``link``\nand a ``note``, so the explainer and the export can show them.",
       "properties": {
+        "citation": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Citation"
+        },
         "confirmed": {
           "default": false,
           "title": "Confirmed",
@@ -12,6 +25,18 @@
         "id": {
           "title": "Id",
           "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
         },
         "source": {
           "default": "agent",
