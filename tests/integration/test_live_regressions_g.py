@@ -76,3 +76,45 @@ def test_a_pdf_table_drawn_word_by_word_reads_as_rows():
         ["Pipe", "length", "120", "m"],
         ["Pump", "head", "35", "m"],
     ]
+
+
+async def test_the_step_limit_waits_and_continue_gives_the_steps_again():
+    """A run at its step limit is not lost: it asks, and ``continue`` gives it as many again."""
+    from geomind.engine.engine import STEP_OPTIONS
+
+    script = [uses(call("lookup", f"c{index}", key="k")) for index in range(3)] + [says("done")]
+    result, engine, _ = await run(script, max_steps=2)
+    assert result.status == "waiting" and result.stop_reason == "request"
+    assert [option.value for option in result.request.options] == list(STEP_OPTIONS)
+    resumed = await engine.resume(result.run_id, result.request.id, {"text": STEP_OPTIONS[0]})
+    assert (resumed.status, resumed.answer, resumed.steps) == ("done", "done", 4)
+
+
+async def test_stop_at_the_step_limit_ends_the_run_as_before():
+    """``stop`` ends it with ``step_limit`` and its answer from the record."""
+    from geomind.engine.engine import STEP_OPTIONS
+
+    script = [uses(call("lookup", f"c{index}", key="k")) for index in range(3)]
+    result, engine, _ = await run(script, max_steps=2)
+    resumed = await engine.resume(result.run_id, result.request.id, {"text": STEP_OPTIONS[1]})
+    assert (resumed.status, resumed.stop_reason) == ("failed", "step_limit")
+
+
+def test_max_steps_has_no_default(monkeypatch):
+    """Without ``GEOMIND_MAX_STEPS`` the setting is unset and a live run names it as missing."""
+    from geomind import runtime
+
+    monkeypatch.delenv("GEOMIND_MAX_STEPS", raising=False)
+    assert runtime.get("max_steps") is None
+    assert "GEOMIND_MAX_STEPS" in runtime.missing_model_settings()
+
+
+async def test_a_run_without_max_steps_refuses_to_start(monkeypatch):
+    """No step limit at all is refused before any call: the cost needs a bound."""
+    import pytest
+
+    from geomind.errors import RunError
+
+    monkeypatch.delenv("GEOMIND_MAX_STEPS", raising=False)
+    with pytest.raises(RunError, match="GEOMIND_MAX_STEPS"):
+        await run([says("hi")])

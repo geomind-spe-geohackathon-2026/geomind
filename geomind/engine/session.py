@@ -122,6 +122,11 @@ class RunSession:
 
     async def start(self, context, *, max_steps, parent=None, parent_step=None, root=None):
         """Log the start of a new run; a real provider needs every role's model first."""
+        if max_steps is None:
+            raise RunError(
+                "run: max_steps = None; expected GEOMIND_MAX_STEPS or --max-steps: the steps an "
+                "agent takes before the run asks to continue"
+            )
         if parent is None:
             await self._require_models()
         self.state.run_id = context.run_id

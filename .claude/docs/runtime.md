@@ -5,7 +5,9 @@
 - `get(name)`, `state()`, `load_state(mapping)` and `settings(**changes)`, usable as `with` and as
   a decorator, built on `geomind.utils.context.ContextSetting`.
 - Settings: `default_model` (from `GEOMIND_MODEL`; unset is `None`, and a real provider refuses to call), `max_steps`,
-  `retry_count` and `retry_delay` (`GEOMIND_RETRY_COUNT`, `GEOMIND_RETRY_DELAY`; no value of
+  `max_steps` (`GEOMIND_MAX_STEPS`; no default: a run without it refuses to start; at the limit
+  the run waits on `continue` or `stop`), `retry_count` and `retry_delay` (`GEOMIND_RETRY_COUNT`,
+  `GEOMIND_RETRY_DELAY`; no value of
   geomind's own, required for a live run, as `runtime.model_problems()` and
   `missing_model_settings()` report), `request_timeout`, `prompt_caching` (true: see
   [providers.md](providers.md#openrouter)), `tool_result_limit` (characters, 40 000: a

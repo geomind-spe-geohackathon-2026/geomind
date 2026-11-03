@@ -57,6 +57,7 @@ class RunState:
     loop: str | None = None
     loop_state: dict[str, Any] = field(default_factory=dict)
     max_steps: int = 0
+    step_grant: int = 0
     questions: int = 0
     settings: dict[str, Any] = field(default_factory=dict)
     messages: list[Message] = field(default_factory=list)

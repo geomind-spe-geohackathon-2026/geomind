@@ -6,6 +6,10 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+**Required settings (backend):** `GEOMIND_MAX_STEPS` (or `--max-steps`) has no default any more: a run without it refuses to start. It is how many steps an agent takes before the run asks the user to continue; set it next to `GEOMIND_RETRY_COUNT` and `GEOMIND_RETRY_DELAY`.
+
+- The step limit no longer ends an agent's work: the run waits on a question with the options `continue` and `stop` (point `steps`). `continue` gives it as many steps again and `stop` ends it with `step_limit` as before; a budget still bounds the cost, and a replay takes the recorded decisions.
+
 What the fifth live run showed, each pinned by a test on its recorded calls.
 
 - `search_documents` returns `{matches, note}` instead of a list: without a match the note says the project does not state it (an assumption with its reason, or `ask_user`); the same words searched again in the run tree are noted; a file's name alone is no match.

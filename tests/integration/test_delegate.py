@@ -9,7 +9,7 @@ from geomind.engine.recovery import recover
 from geomind.providers import FakeLLM
 from geomind.sandbox import LocalSandbox
 from geomind.stores.run import MemoryRunStore
-from tests.fixtures.runs import EXECUTED, Lead, call, context, of_type, says, uses
+from tests.fixtures.runs import EXECUTED, Lead, call, context, of_type, says, stopped_at_limit, uses
 
 HELP = call("helper", "d1", task="find it")
 
@@ -27,7 +27,7 @@ async def nested(script, **options):
     options.setdefault("permissions", Permissions(mode="auto"))
     engine = Engine(llm=FakeLLM(script), **options)
     start = context("lead the work")
-    result = await engine.run(Lead(), start)
+    result = await stopped_at_limit(engine, await engine.run(Lead(), start))
     return result, engine, engine.store.load_events(start.run_id)
 
 

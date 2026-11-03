@@ -8,7 +8,7 @@ from geomind.tools import Delegate, dispatch
 from geomind.types import Request, RunResult, ToolCall
 from tests.fixtures.runs import Worker
 from tests.fixtures.runs import call as fixture_call
-from tests.fixtures.runs import context, engine_for, uses
+from tests.fixtures.runs import context, engine_for, stopped_at_limit, uses
 from tests.fixtures.sessions import StubSession
 
 
@@ -105,5 +105,5 @@ async def test_a_crash_leaves_no_message_on_the_result():
 async def test_a_step_limit_leaves_its_message_on_the_result():
     """A stop that is no crash says why, for the parent of a nested run."""
     engine = engine_for([uses(fixture_call("lookup", key="k"))] * 3)
-    result = await engine.run(Worker(), context(), max_steps=2)
+    result = await stopped_at_limit(engine, await engine.run(Worker(), context(), max_steps=2))
     assert result.stop_reason == "step_limit" and "2 steps" in result.message

@@ -11,6 +11,7 @@ import re
 
 import pytest
 
+from geomind import runtime
 from geomind.agents import Designer, Verifier
 from geomind.agents.coordination.coordinator import Route
 from geomind.context import ProblemState
@@ -22,7 +23,7 @@ from geomind.providers import FakeLLM
 from geomind.run import LOOPS, loop_of
 from geomind.types import ToolCall
 from tests.fixtures.cases import example_case, example_plant, warm_gemini
-from tests.fixtures.runs import context, of_type, says, uses
+from tests.fixtures.runs import STEPS, context, of_type, says, uses
 
 NAME = "hackathon_2026"
 FAMILIES = ("HeatingAbsorptionCoolingPlant", "HeatingCoolingPlant")
@@ -193,7 +194,8 @@ async def run_compare():
 def compared():
     """Run the loop once for the module: it simulates and searches."""
     warm_gemini()
-    return asyncio.run(run_compare())
+    with runtime.settings(max_steps=STEPS):
+        return asyncio.run(run_compare())
 
 
 def task_of(events, agent):

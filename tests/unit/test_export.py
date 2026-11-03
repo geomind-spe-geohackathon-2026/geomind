@@ -5,7 +5,16 @@ import asyncio
 from geomind.engine import Context, Engine, replay
 from geomind.export import models_by_agent, render_export
 from geomind.types import Message, Usage
-from tests.fixtures.runs import Lead, Worker, call, context, engine_for, says, uses
+from tests.fixtures.runs import (
+    Lead,
+    Worker,
+    call,
+    context,
+    engine_for,
+    says,
+    stopped_at_limit,
+    uses,
+)
 
 CACHED = Usage(input_tokens=100, output_tokens=20, cost=0.5, cached_tokens=60)
 
@@ -126,7 +135,7 @@ def test_a_run_that_a_limit_stopped_exports_its_reason_and_partial_answer():
     """The export shows the stop and the answer built from the record; an answered run has none."""
     engine = engine_for([uses(call("lookup", key="x")), uses(call("lookup", "c2", key="x"))])
     start = context("What is x?")
-    asyncio.run(engine.run(Worker(), start, max_steps=1))
+    asyncio.run(stopped_at_limit(engine, asyncio.run(engine.run(Worker(), start, max_steps=1))))
     text = render_export(engine.store.load_events(start.run_id))
     assert "## Stop" in text and "Stop reason: step_limit" in text and "Asked: What is x?" in text
     assert "## Stop" not in exported()[1]

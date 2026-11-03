@@ -307,6 +307,11 @@ def _arm(engine, tree, scripts):
             key: event for key, event in scripts[parent].results.items() if key not in children
         }
         engine.recorded_changes[parent] = _nested_changes(tree, parent)
+        engine.recorded_steps[parent] = [
+            e.decision
+            for e in tree
+            if e.type == "permission" and e.run_id == parent and e.point == "steps"
+        ]
         for child in children.values():
             task = started[child].messages[0].content if started[child].messages else None
             engine.recorded_children[(parent, started[child].parent_step, task)] = child

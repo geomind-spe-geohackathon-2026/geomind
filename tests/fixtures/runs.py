@@ -13,6 +13,8 @@ from geomind.types import Completion, Message, ToolCall, Usage
 from geomind.types.events import LLM_EVENTS
 
 USAGE = Usage(input_tokens=10, output_tokens=5, cost=0.01)
+STEPS = 30
+"""The step limit of a run a module-scoped fixture makes, before the per-test settings apply."""
 EXECUTED = []
 """Names of the tools that really ran in this process; tests clear it through a fixture."""
 
@@ -124,6 +126,18 @@ async def run(completions, agent=None, max_steps=None, **options):
     start = context()
     result = await engine.run(agent or Worker(), start, max_steps=max_steps)
     return result, engine, engine.store.load_events(start.run_id)
+
+
+async def stopped_at_limit(engine, result, agent=None):
+    """Answer ``stop`` to each step-limit question of a run; return its last result."""
+    from geomind.engine.engine import STEP_OPTIONS
+
+    while result.status == "waiting" and result.request.options:
+        if [option.value for option in result.request.options] != list(STEP_OPTIONS):
+            break
+        answer = {"text": STEP_OPTIONS[1]}
+        result = await engine.resume(result.run_id, result.request.id, answer, agent=agent)
+    return result
 
 
 def types(events):

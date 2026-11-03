@@ -28,6 +28,7 @@ def _run_started(state, event):
     state.loop = event.loop
     state.loop_state = dict(event.loop_state)
     state.max_steps = event.max_steps
+    state.step_grant = event.max_steps
     state.settings = dict(event.settings)
     state.messages = list(event.messages)
     state.problem = ProblemState.model_validate(event.problem)
@@ -141,6 +142,10 @@ def _permission(state, event):
         state.pending = PendingAction(
             request=event.request, point=event.point, call=event.call, child=event.child
         )
+        return
+    if event.point == "steps":
+        state.pending = None if event.request is not None else state.pending
+        state.max_steps += state.step_grant if event.decision == "allow" else 0
         return
     if event.request is not None:
         if event.decision == "answer" and event.request.kind == "question":

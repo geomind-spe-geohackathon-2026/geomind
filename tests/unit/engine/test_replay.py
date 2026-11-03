@@ -25,6 +25,7 @@ from tests.fixtures.runs import (
     lookup,
     run,
     says,
+    stopped_at_limit,
     uses,
 )
 
@@ -708,6 +709,7 @@ async def test_a_step_limit_replays():
     """A run that hit its step limit ends there again, with the same partial answer."""
     script = [uses(call("lookup", "c1", key="k")), uses(call("lookup", "c2", key="j"))]
     result, engine, _ = await run(script, max_steps=1)
+    result = await stopped_at_limit(engine, result)
     assert result.stop_reason == "step_limit"
     replayed = await Engine.replay(engine.store, result.run_id)
     assert ended(replayed) == ended(result)

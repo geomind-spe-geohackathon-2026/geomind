@@ -18,7 +18,6 @@ from geomind.utils.strings import did_you_mean
 
 ROLES = ("analyst", "coordinator", "designer", "economist", "explainer", "summarizer", "verifier")
 _FIXED = {
-    "max_steps": 30,
     "request_timeout": 120.0,
     "prompt_caching": True,
     "tool_result_limit": 40_000,
@@ -54,8 +53,15 @@ def _listed(name):
     return items or None
 
 
-RETRY_SETTINGS = {"retry_count": "GEOMIND_RETRY_COUNT", "retry_delay": "GEOMIND_RETRY_DELAY"}
-"""The retry settings a live run needs, by the environment variable that sets each."""
+RETRY_SETTINGS = {
+    "retry_count": "GEOMIND_RETRY_COUNT",
+    "retry_delay": "GEOMIND_RETRY_DELAY",
+    "max_steps": "GEOMIND_MAX_STEPS",
+}
+"""The settings a live run needs beside its models, by the environment variable that sets each.
+
+NOTE: ``max_steps`` is the steps an agent takes before the run asks the user to continue; every
+run needs it, so a run without it refuses to start."""
 """The retries of a failed provider call and the first delay, doubled each time, unless set."""
 
 
@@ -99,6 +105,7 @@ def _defaults():
         "compare_concurrency": _integer("GEOMIND_COMPARE_CONCURRENCY"),
         "compare_retries": _integer("GEOMIND_COMPARE_RETRIES"),
         "gemini_threads": _integer("GEOMIND_GEMINI_THREADS"),
+        "max_steps": _integer("GEOMIND_MAX_STEPS"),
         "retry_count": _integer("GEOMIND_RETRY_COUNT"),
         "retry_delay": _number("GEOMIND_RETRY_DELAY"),
     }

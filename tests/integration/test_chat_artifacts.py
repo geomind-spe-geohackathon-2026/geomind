@@ -4,6 +4,7 @@ import json
 
 import pytest
 
+from geomind import runtime
 from geomind.agents import Agent
 from geomind.engine import Permissions
 from geomind.prompts import Prompt
@@ -17,7 +18,7 @@ from geomind.tools.gemini.results import read_result
 from geomind.tools.gemini.runs import simulate
 from geomind.types import ToolCall
 from tests.fixtures.cases import example_case, example_plant_files
-from tests.fixtures.runs import call, of_type, says, uses
+from tests.fixtures.runs import STEPS, call, of_type, says, uses
 
 PLANT_FILE = "plants/HeatingHeatPumpCoolingPlant.json"
 CASE_FILE = "case/data/demand.csv"
@@ -63,7 +64,8 @@ def message(store, completions, chat="chat"):
         permissions=Permissions("auto"),
         agent=Designer(),
     )
-    run.start()
+    with runtime.settings(max_steps=STEPS):
+        run.start()
     results = of_type(store.load_events(run.id), "tool.result")
     return run, {event.call_id: event.output for event in results}
 

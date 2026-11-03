@@ -18,7 +18,7 @@ from geomind.engine.step import record_result, run_step, settle_interrupted, tex
 from geomind.errors import NotImplementedYet, ProviderError, RequestError, RunError
 from geomind.providers import with_retries
 from geomind.stores.run import MemoryRunStore
-from geomind.types import RunResult, Usage, status_of, validate_answer
+from geomind.types import Request, RunResult, Usage, status_of, validate_answer
 from geomind.types.events import PermissionDecided, RunFinished, ToolRecorded
 from geomind.utils.hooks import RemovableHandle
 
@@ -55,6 +55,12 @@ def run_result(session, stop):
     )
 
 
+STEP_OPTIONS = ("continue", "stop")
+"""The answers to the question a run asks at its step limit."""
+STEPS_POINT = "steps"
+"""The point a run pauses at when it took its steps."""
+
+
 class Engine:
     """Drives one agent over steps, with one log for the run and its nested runs.
 
@@ -62,7 +68,8 @@ class Engine:
     ``store`` and ``workspace`` are added keywords, since a run needs them and they are not
     arguments of ``run``. The ``recorded*`` attributes are used by replay, each keyed by run id:
     ``recorded`` and ``recorded_changes`` by run, then (step, call id), ``recorded_llms`` by run id,
-    and ``recorded_children`` by the parent run id, step and task of a nested run, to its run id.
+    ``recorded_children`` by the parent run id, step and task of a nested run, to its run id, and
+    ``recorded_steps`` by run id, the decisions at its step limit, in order.
     ``reuses_tools`` makes a replay keep the result of every pure tool.
     """
 
@@ -91,6 +98,7 @@ class Engine:
         self.recorded_changes = {}
         self.recorded_children = {}
         self.recorded_llms = {}
+        self.recorded_steps = {}
         self.reuses_tools = False
         self._sequences = {}
         self._usages = {}
@@ -164,16 +172,33 @@ class Engine:
         """Run steps until one returns a stop or the step limit is reached.
 
         A step that asked the user a question gives its step back, so the answer is acted on even
-        when the question came at the last step.
+        when the question came at the last step. At the limit the run is not lost: it waits on a
+        question, ``continue`` gives it as many steps again and ``stop`` ends it with
+        ``step_limit``. A budget still bounds the cost.
         """
         state = session.state
         if state.has_answer and not state.in_step:
             return Stop(state.stop_reason, answer=state.answer)
-        while state.in_step or state.step < state.max_steps + state.questions:
-            stop = await run_step(session, session.agent)
+        while True:
+            while state.in_step or state.step < state.max_steps + state.questions:
+                stop = await run_step(session, session.agent)
+                if stop is not None:
+                    return stop
+            recorded = self.recorded_steps.get(state.run_id)
+            if not recorded:
+                break
+            stop = await self._decide_steps(session, recorded.pop(0) == "allow", None)
             if stop is not None:
                 return stop
-        return Stop("step_limit", f"stopped after {state.step} steps")
+        request = Request(
+            kind="question",
+            message=(
+                f"{state.agent}: the run took its {state.step} steps; continue with "
+                f"{state.step_grant} more, or stop and answer from what it has?"
+            ),
+            options=list(STEP_OPTIONS),
+        )
+        return await session.pause(request, STEPS_POINT)
 
     async def end(self, session, stop):
         """Close the sandbox and log the end, unless the run only pauses."""
@@ -242,6 +267,8 @@ class Engine:
         if request_id != pending.request.id:
             raise RequestError(f"resume: request = {request_id!r}; expected {pending.request.id!r}")
         answer = validate_answer(pending.request, answer)
+        if pending.point == STEPS_POINT:
+            return await self._take_steps(session, pending, answer["text"])
         fields = dict(
             index=session.state.step,
             rule="user",
@@ -258,6 +285,25 @@ class Engine:
         reason = answer.get("reason") or "denied by the user"
         await session.emit(PermissionDecided, decision="deny", reason=reason, **fields)
         return await self._take_denial(session, pending, reason)
+
+    async def _take_steps(self, session, pending, text):
+        """Give the run its steps again on ``continue``; on ``stop`` end it at its step limit."""
+        return await self._decide_steps(session, text == STEP_OPTIONS[0], pending.request)
+
+    async def _decide_steps(self, session, is_continued, request):
+        """Log the decision at the step limit; return the stop of ``stop``, else ``None``."""
+        await session.emit(
+            PermissionDecided,
+            index=session.state.step,
+            decision="allow" if is_continued else "deny",
+            rule="user",
+            point=STEPS_POINT,
+            request=request,
+            reason=None if is_continued else "the user stopped the run at its step limit",
+        )
+        if is_continued:
+            return None
+        return Stop("step_limit", f"stopped after {session.state.step} steps")
 
     async def _take_text(self, session, pending, text, fields):
         """Make a user's reply the tool result, or a message at the other points."""
