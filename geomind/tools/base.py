@@ -32,7 +32,9 @@ class Tool:
     schema of an input as a function, called when the tool is offered, for a schema that belongs to
     a package too slow to import with geomind. ``stored_input`` names the input that is the
     reference of a stored result the tool reads: its own long result is a part of that one, so it
-    is not stored again and carries that reference.
+    is not stored again and carries that reference. ``keeps_result`` keeps a result up to
+    ``tool_result_limit`` whole in the history, unstored, for source material the model reads
+    again and again, such as a document page.
     NOTE: the class is shaped like a protocol, so tools from other sources fit without changes.
     """
 
@@ -52,6 +54,7 @@ class Tool:
         reruns_in_replay=False,
         late_schemas=None,
         stored_input=None,
+        keeps_result=False,
     ):
         """Store the definition; an unknown effect raises."""
         if effect not in EFFECTS:
@@ -74,6 +77,7 @@ class Tool:
         self.reruns_in_replay = reruns_in_replay
         self.late_schemas = late_schemas or {}
         self.stored_input = stored_input
+        self.keeps_result = keeps_result
 
     @property
     def is_pure(self):
@@ -182,6 +186,7 @@ def tool(
     reruns_in_replay=False,
     late_schemas=None,
     stored_input=None,
+    keeps_result=False,
 ):
     """Return a decorator that builds a ``Tool`` from a typed function.
 
@@ -206,6 +211,7 @@ def tool(
             reruns_in_replay=reruns_in_replay,
             late_schemas=late_schemas,
             stored_input=stored_input,
+            keeps_result=keeps_result,
         )
 
     return build

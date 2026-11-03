@@ -96,7 +96,7 @@ async def test_a_forced_read_of_a_document_read_whole_is_a_note():
     assert whole["next"] is None
     again = (await call(read_document, {"name": HEATING, "force": True}, session, "p")).output
     assert "text" not in again and again["already_read"]
-    assert "whole" in again["note"]
+    assert "already read" in again["note"]
 
 
 async def test_a_later_round_sees_what_an_earlier_round_read():

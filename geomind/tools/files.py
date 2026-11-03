@@ -157,6 +157,7 @@ def list_files(context):
 
 PAGE_NOTE = "already read in this run: read_stored a reference, or pass force=true"
 WHOLE_NOTE = "the whole document was already read in this run: read_stored the references"
+IN_CONVERSATION = "already read in this run: its text is in the conversation above"
 
 
 def reads_of(context):
@@ -205,7 +206,7 @@ def remember_read(context, name, start, end):
     reads.setdefault(name, []).append(read)
 
 
-@tool(effect="read", late_schemas={"name": file_name_schema})
+@tool(effect="read", late_schemas={"name": file_name_schema}, keeps_result=True)
 def read_document(
     context, name: str, start: int = 0, length: int | None = None, force: bool = False
 ):
@@ -230,6 +231,8 @@ def read_document(
     earlier = whole or (None if force else read_before(context, name, start, end))
     if earlier is not None:
         note = WHOLE_NOTE if whole else PAGE_NOTE
+        if all(read["reference"] is None for read in earlier):
+            note = IN_CONVERSATION
         return {
             "name": name,
             "start": start,

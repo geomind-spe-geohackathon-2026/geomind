@@ -118,3 +118,20 @@ async def test_a_run_without_max_steps_refuses_to_start(monkeypatch):
     monkeypatch.delenv("GEOMIND_MAX_STEPS", raising=False)
     with pytest.raises(RunError, match="GEOMIND_MAX_STEPS"):
         await run([says("hi")])
+
+
+async def test_a_document_read_stays_whole_in_the_history():
+    """The formulator re-read a 3.6k brief 16 times: its page left the history after one step."""
+    from geomind.engine import Context
+    from geomind.stores import MemoryWorkspace
+    from geomind.tools import dispatch, read_document, read_stored
+    from tests.fixtures.sessions import StubSession
+
+    session = StubSession()
+    session.workspace = MemoryWorkspace(files={"p": {"brief.md": ("word " * 1000).encode()}})
+    page = ToolCall(id="r1", name="read_document", input={"name": "brief.md"})
+    result = await dispatch(read_document, page, Context(project="p", session=session))
+    assert result.reference is None and len(result.output["text"]) == 5000
+    await session.save_artifact("result-9", {"text": "x" * 5000})
+    part = ToolCall(id="r2", name="read_stored", input={"reference": "result-9"})
+    assert (await dispatch(read_stored, part, Context(session=session))).reference is None

@@ -152,7 +152,7 @@ def parts_of(value):
     return []
 
 
-@tool(effect="read", stored_input="reference")
+@tool(effect="read", stored_input="reference", keeps_result=True)
 def read_stored(context, reference: str, path: str | None = None):
     """Return a result that was stored by reference, whole or one part of it.
 

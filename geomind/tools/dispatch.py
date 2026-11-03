@@ -117,11 +117,14 @@ async def _bounded(context, call, output, tool=None):
 
     A result over ``STORE_CHARACTERS`` is stored and carries its reference, whole while it is fresh;
     one over ``tool_result_limit`` reaches the model only as ``stored_form``. A part of a stored
-    result (``Tool.stored_input``) keeps the reference it was read from and is not stored again.
+    result (``Tool.stored_input``) keeps the reference it was read from and is not stored again,
+    and a tool that keeps its results (``Tool.keeps_result``) stays whole in the history.
     """
     text = json.dumps(output)
     limit = runtime.get("tool_result_limit")
     if len(text) <= min(STORE_CHARACTERS, limit):
+        return output, None
+    if getattr(tool, "keeps_result", False) and len(text) <= limit:
         return output, None
     source = getattr(tool, "stored_input", None)
     key = call.input.get(source) if source else None
