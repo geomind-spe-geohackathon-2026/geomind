@@ -11,8 +11,8 @@ Every test belongs to one automatically marked folder tier:
 - `tests/e2e/` runs complete public workflows and receives `e2e`.
 - `tests/fixtures/` contains recorded completions as JSON.
 - `tests/fixtures/contracts/shared.md` is a copy of the shared contract, `backend/docs/app-build/contracts.md`
-  version 51: `tests/unit/types/test_events.py` checks the event table against it. Copy it again when
-  the contract changes. Its table has no `study.recorded` row yet, so the two checks of that row skip.
+  version 52 (backend commit `7f0bc92`): `tests/unit/types/test_events.py` checks the event table,
+  `study.recorded` included, against it. Copy it again when the contract changes.
 - `tests/fixtures/gemini_examples/` is a copy of gemini's two example projects from tag v0.5.5: the
   published wheel ships no examples, and tests never read a sibling gemini folder. Refresh the copy
   when the gemini pin moves and the examples change.

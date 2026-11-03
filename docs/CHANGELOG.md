@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.14] - 2026-11-03
+
+Tests only; the package is unchanged.
+
+- The copy of the shared contract is version 52 (backend `7f0bc92`), which has the `study.recorded` row. The event-table tests check it with the other types, and its two checks no longer skip: no test is skipped.
+
 ## [0.4.13] - 2026-11-03
 
 Additive; it takes back the change of shape of 0.4.12.
