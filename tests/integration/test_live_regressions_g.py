@@ -272,3 +272,28 @@ async def test_the_same_failing_call_again_and_again_ends_the_agent_s_run():
     script.append(says("never reached"))
     result, _, _ = await run(script)
     assert result.stop_reason == "error" and "same call failed 3 times" in result.message
+
+
+def test_build_plant_s_schema_names_the_plant_file_s_keys():
+    """The plant was a bare object in the schema, and the model sent {} 35 times."""
+    import gemini as gm
+
+    from geomind.tools.gemini.plants import plant_schema
+
+    schema = plant_schema()
+    assert set(schema["required"]) == {"format", "kind", "name"}
+    assert set(schema["properties"]) == set(gm.plants.schema()["properties"])
+    assert schema["minProperties"] == 3
+
+
+async def test_an_empty_plant_says_what_a_plant_file_needs():
+    """An empty plant is named as such, with the smallest file that builds as an example."""
+    import json
+
+    from geomind.tools.gemini.plants import build_plant
+    from geomind.tools.gemini.skeleton import plant_skeleton
+    from tests.fixtures.calls import call as dispatched
+
+    error = (await dispatched(build_plant, {"name": "p", "plant": {}})).output["error"]
+    assert error["path"] == "plant" and "empty" in error["message"]
+    assert json.loads(error["suggestions"][0]) == {**plant_skeleton(), "type": "<plant class>"}

@@ -81,7 +81,7 @@ def test_build_plant_offers_a_short_schema_and_list_plants_gives_gemini_full_one
     """The offered ``plant`` is small; gemini's whole schema is one call away."""
     schema = gm.plants.schema()
     offered = TOOLS.build_plant.schema()["input_schema"]
-    assert offered["properties"]["plant"]["anyOf"] == schema["anyOf"]
+    assert set(offered["properties"]["plant"]["properties"]) == set(schema["properties"])
     assert "$defs" not in offered
     assert len(str(offered)) < len(str(schema)) / 4
     full = asyncio.run(call(TOOLS.list_plants, {"with_schema": True}))

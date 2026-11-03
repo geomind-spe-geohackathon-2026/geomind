@@ -15,19 +15,34 @@ from geomind.utils.strings import did_you_mean, join_names
 
 
 def plant_schema():
-    """Return the short schema ``build_plant`` offers as the input ``plant``.
+    """Return the schema ``build_plant`` offers as the input ``plant``: gemini's top-level keys.
 
-    The full schema is large and is sent with every call, so the tool offers an object and the
-    two ways a plant file is given; ``list_plants`` ``schema`` returns gemini's whole schema and
-    ``read_plant`` a class's file. Validation is gemini's, when the plant is built.
+    Each key of ``gm.plants.schema()`` is named with its own short schema and the header is
+    required, so a model writes the file's keys instead of an empty object; the nested parts
+    are gemini's to validate, when the plant is built. ``read_plant`` gives a class's file.
     """
+    import gemini as gm
+
+    schema = gm.plants.schema()
+    properties = {
+        key: {
+            key_name: value
+            for key_name, value in sub.items()
+            if key_name in ("type", "const", "enum", "description")
+        }
+        or {"type": "object"}
+        for key, sub in schema["properties"].items()
+    }
     return {
         "type": "object",
         "description": (
-            "The plant file: a class file has type, a module file has modules and connections. "
-            "Read one with read_plant; list_plants(with_schema=true) gives the full schema."
+            "The plant file: the header format, kind and name, then either type (a class, with "
+            "size and params) or modules and connections. Read one with read_plant."
         ),
-        "anyOf": [{"required": ["type"]}, {"required": ["modules", "connections"]}],
+        "properties": properties,
+        "required": list(schema["required"]),
+        "minProperties": len(schema["required"]),
+        "anyOf": schema["anyOf"],
     }
 
 
@@ -285,6 +300,14 @@ async def build_plant(context, plant: dict[str, Any], name: str):
     """
     import gemini as gm
 
+    if not plant:
+        example = {**plant_skeleton(), "type": "<plant class>"}
+        raise ToolError(
+            "build_plant: plant = {}; it is empty: expected the plant file, its header and its "
+            "type or its modules and connections",
+            path="plant",
+            suggestions=[json.dumps(example)],
+        )
     try:
         built = await runtime.in_gemini_thread(gm.Plant.from_dict, plant)
     except gm.errors.ValidationError as error:
