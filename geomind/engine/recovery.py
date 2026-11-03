@@ -4,6 +4,8 @@
 is saved, and ``recover`` calls it on stored events, so the engine holds nothing the log does not.
 """
 
+import json
+
 from geomind.context import Compaction, ProblemState, apply_changes
 from geomind.context.history import replace_older
 from geomind.engine.state import PendingAction, RunState
@@ -88,11 +90,27 @@ def _feedback(state, event):
 
 
 def _count_failure(state, event):
-    """Count validation failures of one tool in a row."""
+    """Count validation failures of one tool in a row, and the same failing call in a row."""
+    _count_repeat(state, event)
     if event.is_validation:
         state.failures[event.tool] = state.failures.get(event.tool, 0) + 1
         return
     state.failures.pop(event.tool, None)
+
+
+def _count_repeat(state, event):
+    """Count how often in a row the same call (tool and input) failed with the same output."""
+    if not event.is_error or event.call_id is None:
+        state.last_failure, state.repeated = None, 0
+        return
+    call = next((item for item in state.calls if item.id == event.call_id), None)
+    if call is None:
+        return
+    key = json.dumps(
+        [call.name, call.input, to_jsonable(event.output)], sort_keys=True, default=str
+    )
+    state.repeated = state.repeated + 1 if key == state.last_failure else 1
+    state.last_failure = key
 
 
 def _remember_stored(state, event):

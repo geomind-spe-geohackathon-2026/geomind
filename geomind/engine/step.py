@@ -97,7 +97,17 @@ async def _admit(session, agent, tool, call):
 
 
 def _over_retries(session, tool):
-    """Return the stop of a tool that failed validation too often in a row, or ``None``."""
+    """Return the stop of a tool that failed validation too often in a row, or ``None``.
+
+    The same call failing the same way more than the tool's ``max_retries`` times in a row stops
+    the run too: the model is not learning from the error, so going on only spends.
+    """
+    if session.state.repeated > tool.max_retries:
+        return Stop(
+            "error",
+            f"{tool.name}: the same call failed {session.state.repeated} times in a row with the "
+            "same error; the run stops instead of spending more",
+        )
     failures = session.state.failures.get(tool.name, 0)
     if failures < tool.max_retries:
         return None

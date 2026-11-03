@@ -264,3 +264,11 @@ async def test_a_plant_s_issues_are_compact_enough_to_stay_in_the_history():
     first = next(item for item in issues if item["path"] == "params.d0.drainage_radius")
     assert first["units"] == "ft|in|km|m|mm" and not first["message"].startswith("d0.")
     assert read_plant.keeps_result
+
+
+async def test_the_same_failing_call_again_and_again_ends_the_agent_s_run():
+    """Round 2 sent build_plant with an empty plant 35 times; the third identical failure stops."""
+    script = [uses(call("run_python", f"c{index}", code="print(1)")) for index in range(5)]
+    script.append(says("never reached"))
+    result, _, _ = await run(script)
+    assert result.stop_reason == "error" and "same call failed 3 times" in result.message

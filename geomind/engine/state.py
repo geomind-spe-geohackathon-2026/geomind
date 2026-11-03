@@ -59,6 +59,8 @@ class RunState:
     max_steps: int = 0
     step_grant: int = 0
     is_cut: bool = False
+    last_failure: str | None = None
+    repeated: int = 0
     questions: int = 0
     settings: dict[str, Any] = field(default_factory=dict)
     messages: list[Message] = field(default_factory=list)
