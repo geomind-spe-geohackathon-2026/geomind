@@ -9,6 +9,7 @@ small top-level values and an outline of the rest. ``read_stored`` returns the w
 import hashlib
 import json
 
+from geomind import runtime
 from geomind.errors import ToolError
 from geomind.tools.base import tool
 from geomind.utils.json import to_jsonable
@@ -158,7 +159,8 @@ def read_stored(context, reference: str, path: str | None = None):
 
     ``reference`` is the ``result-...`` (or ``output-...``) key of a result that came back as a
     reference and an outline. ``path`` is dotted keys and list indexes into it, such as
-    ``capabilities.HeatingPlant``; a long part comes back as a reference again, so read it deeper.
+    ``capabilities.HeatingPlant`` (``/`` reads as ``.``). A part too long to show whole comes
+    back as its keys (or its length) and an outline, with the path to read deeper.
     """
     stored = context.session.load_artifact(reference)
     if stored is None:
@@ -167,6 +169,27 @@ def read_stored(context, reference: str, path: str | None = None):
             code="unknown_name",
             path="reference",
         )
-    for part in (path or "").split("."):
+    path = (path or "").replace("/", ".").strip(".")
+    for part in path.split("."):
         stored = _step(stored, part) if part else stored
-    return to_jsonable(stored)
+    value = to_jsonable(stored)
+    if len(json.dumps(value)) <= runtime.get("tool_result_limit"):
+        return value
+    return deeper(reference, path, value)
+
+
+def deeper(reference, path, value):
+    """Return the keys or length of a part too long to show, with the call that reads one."""
+    keys = parts_of(value)
+    first = keys[0] if keys else "0"
+    prefix = f"{path}." if path else ""
+    return {
+        "reference": reference,
+        "path": path or None,
+        "keys": keys,
+        "summary": outline(value),
+        "note": (
+            "too long to show whole: read one part, such as "
+            f"read_stored(reference={reference!r}, path='{prefix}{first}')"
+        ),
+    }

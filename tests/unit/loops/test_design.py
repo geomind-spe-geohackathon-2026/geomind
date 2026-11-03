@@ -19,7 +19,7 @@ from geomind.loops.design import (
     routed_task,
 )
 from geomind.stores import MemoryWorkspace
-from geomind.types import Message
+from geomind.types import Message, ToolCall
 from tests.fixtures.cases import example_case
 from tests.fixtures.runs import call, context, engine_for, logged, of_type, same_usage, says, uses
 from tests.fixtures.sessions import StubSession
@@ -232,8 +232,8 @@ async def test_a_design_run_replays_offline_from_its_log(verdicts):
     assert (replayed.status, replayed.answer) == (result.status, result.answer)
 
 
-async def test_a_run_without_a_case_asks_the_user_before_designing(verdicts):
-    """No agent runs before the question; the answer goes to the designer, which sets the case."""
+async def test_a_case_built_in_chat_alone_is_designed(verdicts):
+    """No files: the formulator asks one grouped question, sets the case, the designer designs."""
     verdicts.append(PASSED)
     case, files = example_case("shallow_district")
     economics = json.loads(files["economics.json"])
@@ -244,9 +244,11 @@ async def test_a_run_without_a_case_asks_the_user_before_designing(verdicts):
     changes = {
         key: value for key, value in case.items() if key not in ("requirements", "economics")
     }
+    asked = "Give the demand (MW, a daily profile), the site (depth m, gradient K/km) and limits."
     script = [
+        uses(call("ask_user", "q1", question=asked)),
         uses(call("set_case", "c1", changes=changes, requirements=named, economics=economics)),
-        says("case set"),
+        says("case set from the user's answer"),
         *designer_round(1),
         *verifier_round(1),
         says("costs"),
@@ -255,26 +257,51 @@ async def test_a_run_without_a_case_asks_the_user_before_designing(verdicts):
     result, engine, events = await run_loop(script, case=None)
     for name, content in files.items():
         engine.store.save_chat_artifact(result.run_id, f"case/{name}", content)
-    assert result.status == "waiting"
-    assert "no case" in result.request.message
-    assert agents_of(events) == []
+    assert result.status == "waiting" and result.request.message == asked
+    assert agents_of(events) == ["formulator"]
     resumed = await DesignLoop(Designer(), Verifier()).resume(
-        engine, result.run_id, result.request.id, {"text": "the project's heating"}
+        engine, result.run_id, result.request.id, {"text": "the values of my district"}
     )
     events = engine.store.load_events(result.run_id)
-    first = tasks_of(events, "formulator")[0]
-    assert "The user answered the question on the case: the project's heating" in first
+    assert agents_of(events)[:2] == ["formulator", "designer"]
     assert resumed.status == "done" and "stop: verified" in resumed.answer
     problem = recover(events).problem
     assert problem.case == problem.case_origin["case"] == case
 
 
+async def test_files_and_chat_together_make_the_case(verdicts):
+    """With files, the formulator still asks the user for what the files lack."""
+    verdicts.append(PASSED)
+    case, files = example_case("shallow_district")
+    workspace = MemoryWorkspace(cases={"p": (case, files)}, files={"p": files})
+    script = [
+        uses(ToolCall(id="r1", name="read_document", input={"name": "economics.json"})),
+        uses(call("ask_user", "q1", question="Which supply temperature, degC?")),
+        uses(call("set_case", "s1", source="project")),
+        says("case set from the files and your answer"),
+        *designer_round(1),
+        *verifier_round(1),
+        says("costs"),
+        says("explained"),
+    ]
+    engine = engine_for(script, workspace=workspace)
+    start = context("Design the plant.", problem=ProblemState(), project="p")
+    result = await DesignLoop(Designer(), Verifier()).run(engine, start)
+    assert result.status == "waiting"
+    resumed = await DesignLoop(Designer(), Verifier()).resume(
+        engine, result.run_id, result.request.id, {"text": "the files' value"}
+    )
+    events = engine.store.load_events(start.run_id)
+    assert agents_of(events)[:2] == ["formulator", "designer"] and resumed.status == "done"
+
+
 async def test_a_case_without_demand_asks_the_user():
-    """A case that demands nothing is not designed for."""
-    result, _, events = await run_loop([], case=NO_DEMAND)
+    """A case that demands nothing goes to the formulator, which asks the user for the demand."""
+    asked = uses(call("ask_user", "q1", question="The case has no demand: which one, in MW?"))
+    result, _, events = await run_loop([asked], case=NO_DEMAND)
     assert result.status == "waiting"
     assert "no demand" in result.request.message
-    assert agents_of(events) == []
+    assert agents_of(events) == ["formulator"]
 
 
 async def test_a_project_with_files_goes_to_the_formulator_before_any_question():
@@ -290,9 +317,10 @@ async def test_a_project_with_files_goes_to_the_formulator_before_any_question()
 
 
 async def test_a_workspace_without_files_still_asks_for_the_case():
-    """A backend that has not added ``files`` behaves as before."""
+    """A backend that has not added ``files``: the formulator asks the user for the case."""
     workspace = type("Old", (), {"plants": lambda self, project: {}})()
-    engine = engine_for([], workspace=workspace)
+    asked = uses(call("ask_user", "q1", question="Which demand? There is no case yet."))
+    engine = engine_for([asked], workspace=workspace)
     start = context("Design the plant.", problem=ProblemState(), project="p")
     result = await DesignLoop(Designer(), Verifier()).run(engine, start)
     assert result.status == "waiting" and "no case" in result.request.message

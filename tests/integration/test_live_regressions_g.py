@@ -135,3 +135,32 @@ async def test_a_document_read_stays_whole_in_the_history():
     await session.save_artifact("result-9", {"text": "x" * 5000})
     part = ToolCall(id="r2", name="read_stored", input={"reference": "result-9"})
     assert (await dispatch(read_stored, part, Context(session=session))).reference is None
+
+
+async def test_a_part_too_long_to_show_names_the_deeper_paths():
+    """The formulator read the schema's ``properties`` 7 times; now the part names its keys."""
+    from geomind import runtime
+    from geomind.tools import read_stored
+    from tests.fixtures.calls import call as dispatched
+    from tests.fixtures.sessions import StubSession
+
+    session = StubSession()
+    big = {"properties": {"site": {"x": "y" * 3000}, "demand": {"z": "w" * 3000}}}
+    await session.save_artifact("result-9", big)
+    with runtime.settings(tool_result_limit=1500):
+        tool_input = {"reference": "result-9", "path": "properties"}
+        output = (await dispatched(read_stored, tool_input, session)).output
+    assert output["keys"] == ["site", "demand"]
+    assert "path='properties.site'" in output["note"]
+
+
+async def test_a_path_with_slashes_reads_as_dots():
+    """``properties/site`` is read as ``properties.site``."""
+    from geomind.tools import read_stored
+    from tests.fixtures.calls import call as dispatched
+    from tests.fixtures.sessions import StubSession
+
+    session = StubSession()
+    await session.save_artifact("result-9", {"properties": {"site": {"a": 1}}})
+    tool_input = {"reference": "result-9", "path": "properties/site"}
+    assert (await dispatched(read_stored, tool_input, session)).output == {"a": 1}

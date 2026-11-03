@@ -144,13 +144,11 @@ class DesignDriver(Agent):
         return act(note, index, "finish", answer=stop_answer(notes(context.messages)[-1]))
 
     def begin(self, context, note, index):
-        """Set the case first when it is missing: the formulator from the files, else the user."""
+        """Set the case first when it is missing: the formulator, from the chat and any files."""
         missing = missing_case(context.problem)
         if missing is None:
             return act(note, index, "designer", task=self.first_task(context))
-        if project_file_names(context) or has_project_case(context):
-            return act(note, index, "formulator", task=formulation_task(context))
-        return act({**note, "missing": missing}, index, "ask_user", question=question_of(missing))
+        return act(note, index, "formulator", task=formulation_task(context))
 
     def after_formulation(self, context, note, index, calls):
         """Design once the case is set; ask the user once for a case still missing, then stop."""
