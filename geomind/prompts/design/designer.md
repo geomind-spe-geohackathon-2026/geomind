@@ -21,6 +21,7 @@ Each tool's description says its arguments.
 - `describe_module`: module.
 - `evaluate_module`: run module.
 - `build_plant`: store plant.
+- `patch_plant`: change plant.
 - `set_ranges`: ranges.
 - `size_plant`: size.
 - `list_profiles`: profiles.
@@ -59,6 +60,9 @@ Each tool's description says its arguments.
   `build_plant` its `plant` (with `params.backup` set if `issues` lists it) under a new name,
   before any sizing or search. Build a plant of a class or of your own only when no project plant
   fits, and record why in an assumption.
+- Build a plant in small steps: `build_plant` with the header and the `type` (or the modules
+  and connections) only, then `patch_plant` with one module's values at a time, each under a
+  new name, until `missing` is 0. Never send the whole plant file in one call.
 - Per family: complete the plant file (`{value, unit}`, a fluid on every inlet, `params.backup`),
   `build_plant`, fix its `issues`, `size_plant`, `simulate` the whole year, `check_results`.
   Record the first sized family's year as `design.start_result`.

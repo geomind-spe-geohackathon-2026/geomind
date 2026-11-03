@@ -321,6 +321,28 @@ async def build_plant(context, plant: dict[str, Any], name: str):
 
 
 @tool(effect="write", late_schemas={"design": reference_schema("design")})
+async def patch_plant(context, design: str, changes: dict[str, Any], name: str):
+    """Change a stored design by a small patch, stored as design/<name>, and list what is missing.
+
+    ``changes`` is a JSON merge patch (RFC 7386) on the plant file of ``design``, such as
+    ``{"params": {"d0": {"drainage_radius": {"value": 500, "unit": "m"}}}}``: one module's
+    values at a time, never the whole file. gemini builds the result: a patch it refuses is its
+    error, and nothing is stored. Returns the new design, its ``issues`` (what is still missing,
+    checked as in ``read_plant``) and their count, ``missing``.
+    """
+    import gemini as gm
+
+    from geomind.tools.gemini.case import merge_patch
+
+    plant = load_design(context, design, "patch_plant").to_dict(structure=True)
+    patched = merge_patch(plant, changes)
+    built = await runtime.in_gemini_thread(gm.Plant.from_dict, patched)
+    stored = await save_design(context, name, built)
+    issues = plant_issues(context, built)
+    return {"design": stored, **issues, "missing": len(issues["issues"])}
+
+
+@tool(effect="write", late_schemas={"design": reference_schema("design")})
 async def set_ranges(
     context,
     design: str,

@@ -446,3 +446,39 @@ def test_a_file_workspace_project_with_several_plants_needs_a_name(tmp_path):
         workspace_plant(context, "read_plant")
     plant = workspace_plant(context, "read_plant", "HeatingPlant")
     assert plant.to_dict()["type"] == "HeatingPlant"
+
+
+async def test_a_plant_is_built_step_by_step_with_small_patches(gm):
+    """A class plant starts small; a patch fills one module's values and only the rest is listed."""
+    session = StubSession()
+    start = {
+        "name": "p0",
+        "plant": {"format": 1, "kind": "plant", "name": "p", "type": "HeatingPlant"},
+    }
+    first = (await call(TOOLS.build_plant, start, session)).output
+    missing = {issue["path"] for issue in first["issues"]}
+    assert "params.d0.drainage_radius" in missing
+    patch = {"params": {"d0": {"drainage_radius": {"value": 500, "unit": "m"}}}}
+    step = {"design": "design/p0", "changes": patch, "name": "p1"}
+    second = (await call(TOOLS.patch_plant, step, session)).output
+    assert second["design"] == "design/p1"
+    still = {issue["path"] for issue in second["issues"]}
+    assert "params.d0.drainage_radius" not in still and still < missing
+    assert second["missing"] == len(still)
+
+
+async def test_a_patch_gemini_refuses_stores_nothing(gm):
+    """A wrong key comes back as gemini's error; the earlier design stays as it was."""
+    session = StubSession()
+    start = {
+        "name": "p0",
+        "plant": {"format": 1, "kind": "plant", "name": "p", "type": "HeatingPlant"},
+    }
+    await call(TOOLS.build_plant, start, session)
+    step = {
+        "design": "design/p0",
+        "changes": {"params": {"d0": {"nope": {"value": 1}}}},
+        "name": "p1",
+    }
+    result = await call(TOOLS.patch_plant, step, session)
+    assert result.is_error and "design/p1" not in session.artifacts

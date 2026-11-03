@@ -17,6 +17,7 @@ def test_it_is_complete():
             "describe_module",
             "evaluate_module",
             "build_plant",
+            "patch_plant",
             "set_ranges",
             "size_plant",
             "list_profiles",

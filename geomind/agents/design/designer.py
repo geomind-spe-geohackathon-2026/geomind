@@ -30,6 +30,7 @@ class Designer(Agent):
         self.describe_module = tools.gemini.describe_module
         self.evaluate_module = tools.gemini.evaluate_module
         self.build_plant = tools.gemini.build_plant
+        self.patch_plant = tools.gemini.patch_plant
         self.set_ranges = tools.gemini.set_ranges
         self.size_plant = tools.gemini.size_plant
         self.list_profiles = tools.gemini.list_profiles

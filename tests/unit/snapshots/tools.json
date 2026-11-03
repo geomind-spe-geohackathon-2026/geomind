@@ -522,6 +522,40 @@
       ],
       "name": "optimize"
     },
+    "patch_plant": {
+      "description": "Change a stored design by a small patch, stored as design/<name>, and list what is missing.",
+      "effect": "write",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "changes": {
+            "additionalProperties": true,
+            "title": "Changes",
+            "type": "object"
+          },
+          "design": {
+            "title": "Design",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "design",
+          "changes",
+          "name"
+        ],
+        "title": "patch_plant_input",
+        "type": "object"
+      },
+      "late_schemas": [
+        "design"
+      ],
+      "name": "patch_plant"
+    },
     "read_case": {
       "description": "Return the case of the problem state, one of its sections, its economics or the schema.",
       "effect": "read",
@@ -1622,5 +1656,5 @@
       "name": "write_module"
     }
   },
-  "version": "0.4.22.dev22"
+  "version": "0.4.22.dev23"
 }
