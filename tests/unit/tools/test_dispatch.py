@@ -222,3 +222,19 @@ async def test_a_value_with_leaked_tool_call_markup_is_refused_with_the_value_be
     assert error.code == "invalid_input" and list(error.suggestions) == ["HeatingCoolingPlant"]
     assert leaked_markup({"plant": {"params": {"a": [1, "x < y"]}}}) is None
     assert leaked_markup({"a": ["ok", {"b": "v</parameter>"}]}) == ("a.1.b", "v</parameter>")
+    assert leaked_markup({"project_plant": ">HackathonPlant</"}) is not None
+    assert leaked_markup({"section": '">site'}) is not None
+    assert leaked_markup({"section": "site"}) is None
+
+
+async def test_a_markup_slip_is_an_error_but_no_validation_failure():
+    """#75: two garbled calls in a row counted as invalid calls and ended the run."""
+    from geomind.tools import read_rag
+
+    result = await dispatch(
+        read_rag, ToolCall(id="c1", name="read_rag", input={"name": ">a.md</"}), Context()
+    )
+    assert result.is_error and not result.is_validation
+    assert list(result.output["error"]["suggestions"]) == ["a.md"]
+    answer = ToolCall(id="c2", name="finish", input={"answer": "Use </br> in HTML."})
+    assert isinstance(await dispatch(finish, answer, Context(session=StubSession())), Finish)

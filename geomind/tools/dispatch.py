@@ -19,8 +19,11 @@ from geomind.tools.stored import STORE_CHARACTERS, reference_of, stored_form
 from geomind.types import Finish, Problem, Request, ToolResult
 from geomind.utils.json import to_jsonable
 
-MARKUP = re.compile(r"</?(?:parameter|invoke|function_calls|function)\b|</?\s*(?:parameter_name)")
+MARKUP = re.compile(r"</|<(?:parameter|invoke|function_calls|function)\b|^\s*\"?>")
 """Tool-call markup a model leaks into an argument's value instead of ending the value (#70)."""
+
+PROSE_TOOLS = frozenset({"finish", "ask_user", "update_state", "write_lesson"})
+"""Tools whose inputs are prose, where ``</`` may be meant: no markup check for them."""
 
 CODE_OF_ERROR = {
     NotImplementedYet: "not_implemented",
@@ -158,7 +161,11 @@ def leaked_markup(value, path=""):
 
 
 def markup_error(tool, found):
-    """Return the error of a value with leaked markup, suggesting the value before it (#70)."""
+    """Return the error of a value with leaked markup, suggesting the value before it (#70).
+
+    NOTE: it is no validation failure, which two in a row end the run: the call is right but for
+    a slip of the model's formatting, and the next call is usually clean (#75).
+    """
     path, value = found
     guess = value.split("<", 1)[0].strip().strip('">').strip()
     return ToolError(
@@ -178,10 +185,11 @@ async def dispatch(tool, call, context):
     reported through the run and the model reads only that an internal error happened.
     """
     started = perf_counter()
+    found = None if tool.name in PROSE_TOOLS else leaked_markup(call.input)
+    if found is not None:
+        output = error_output(markup_error(tool, found))
+        return _result(tool, call, started, output, is_error=True)
     try:
-        found = leaked_markup(call.input)
-        if found is not None:
-            raise markup_error(tool, found)
         arguments = tool.validate(call.input)
     except (pydantic.ValidationError, ToolError) as error:
         output = error_output(error)

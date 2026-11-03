@@ -14,6 +14,7 @@ Rounds D1 and D2: each design agent alone on the C1 case, live (DeepSeek). Each 
 - Fix (#71), contract (addition): `read_profile` gives `summary`: `peak` and `minimum` `{value, time}`, `mean`, `energy` `{value, unit: "MWh"}` and `unit`, computed by code over the window. `Tool.kept()` returns a copy whose results stay whole for a few turns; the design engineers keep `read_case`, `read_plant` and `describe_module` so, and read each once. They had read the case up to 16 times.
 - Fix (#72): the design lead records a design handed to it complete, once checked, as `design.reference` and `design.result`.
 - Fix (#73): the process engineer compares plants with `list_plants` and reads only the one it chooses, in one call.
+- Fix (#75): a markup slip is an error result but no validation failure, so two in a row no longer end the run; a lone `</` or a leading `">` counts as markup; `finish`, `ask_user`, `update_state` and `write_lesson`, whose inputs are prose, are not checked.
 - Fix (#74): the well engineer's prompt gives the form of a well path's section lists, `{"value": [..], "unit": "m"}`; gemini describes them as numbers (gemini request 14).
 
 ### Verb-first RAG tools and three MCP tools (0.4.22.dev42)

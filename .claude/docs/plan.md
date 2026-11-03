@@ -230,6 +230,7 @@ cap is 5 USD (1.66 USD spent before the team).
 | A2 | the 6 agents the fixes touched, alone again | 0.29 | 2.38 | 5 passed; the case lead now asks for the values with no source (#44 working), so its task's fixed answer must change |
 | D1 | the design team alone: process, integration, reservoir, well and energy engineers and the design lead, one task each on the C1 case, 0.08 cap each | 0.38 | — | 1 of 6 passed (integration); four engineers stopped at their cap; bugs #70 to #72 |
 | D2 | the same six after #70 to #72, 0.065 cap each | 0.26 | — | the lead's verdict and records right at a third of D1's cost; the engineers still at their cap; bugs #73 and #74 |
+| D3 | the process and well engineers after #73 and #74, 0.06 cap each | 0.09 | — | the well engineer's failed module calls fell from 8 to 1 and it patched; the process engineer's run still ended on two garbled calls (#75) |
 
 Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/CHANGELOG.md)):
 
@@ -260,6 +261,7 @@ Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/C
 | 72 | D1, design lead | checked a design handed to it complete, then recorded it only as a note, not as `design.reference` and `design.result` | the prompt says a checked handed design is final too | track-b |
 | 73 | D2, process engineer | parallel `read_plant` calls came back with every argument null until the run stopped on repeated failures | it compares plants with `list_plants` and reads only the one it chooses, in one call | track-b |
 | 74 | D2, well engineer | 8 failed `evaluate_module` calls on a well path's section lists: gemini's `describe()` gives them as `number`, and its error asks for a Quantity for a list and for a list for a Quantity | the well engineer's prompt gives the form `{"value": [..], "unit": "m"}`; gemini request 14 | track-b |
+| 75 | D3, process engineer | two garbled calls in a row (`">site</</parameter_name...`) counted as invalid calls and ended the run as failed; `">HackathonPlant</` was not caught | a markup slip is an error but no validation failure; a lone `</` or a leading `">` counts as markup; prose tools (`finish`, `ask_user`, `update_state`, `write_lesson`) are not checked | track-b |
 | 50 | A1, all | models saw only the first paragraph of each tool's docstring | the whole docstring but its `NOTE:` paragraphs | `768f396` |
 
 ### The adaptation to gemini 0.5 (done) and what is open
