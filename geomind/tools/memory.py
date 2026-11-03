@@ -10,7 +10,9 @@ from geomind import runtime
 from geomind.errors import ToolError
 from geomind.stores.memory import (
     checked_knowledge,
+    checked_lesson,
     checked_section,
+    lessons_for,
     search_experience,
 )
 from geomind.stores.memory import search_knowledge as search_knowledge_entries
@@ -76,7 +78,8 @@ def search_memory(context, query: str, section: Literal["knowledge", "experience
     publisher, year, page or link, price year and currency for money) and ``status``
     (``verified``, ``secondary`` or ``placeholder``). ``experience`` returns past designs whose
     case is at least the ``memory_similarity`` setting alike to the state's case, each with its
-    ``similarity``: a starting point only, never a result. Without ``section``, both.
+    ``similarity``: a starting point only, never a result; with it come ``lessons``, the general
+    lessons of your role and the facts the user gave. Without ``section``, both.
     """
     memory = memory_of(context, "search_memory")
     found = {}
@@ -92,7 +95,14 @@ def search_memory(context, query: str, section: Literal["knowledge", "experience
             entries = search_experience(memory, features, threshold)
             found["experience"] = entries[:SHOWN_ENTRIES]
             found["threshold"] = threshold
+        found["lessons"] = lessons_for(memory, role_of(context))[:SHOWN_ENTRIES]
     return found
+
+
+def role_of(context):
+    """Return the snake name of the agent that makes the call, or ``None``."""
+    agent = getattr(context.session, "agent", None)
+    return getattr(agent, "name", None)
 
 
 @tool(effect="read")
@@ -148,3 +158,65 @@ def write_memory(context, entry: dict[str, Any]):
     entry = {**checked_knowledge(entry), "origin_run": context.session.state.run_id}
     memory.add("knowledge", entry)
     return {"written": entry["id"]}
+
+
+@tool(effect="write", idempotent=True)
+def write_lesson(
+    context,
+    id: str,
+    kind: Literal["lesson", "user_fact"],
+    role: str,
+    text: str,
+    source: str,
+):
+    """Keep a general lesson for one role, or a fact the user gave, in the memory's experience.
+
+    A ``lesson`` is method for ``role`` (an agent's snake name such as ``design_lead``, or
+    ``all``) in words, with no number: a project's values never become a rule. A ``user_fact``
+    is what the user said (``source`` ``user``), such as the units they read. ``source`` says
+    where it came from: ``user``, ``reviewer``, ``gemini`` or the agent that learned it. Past
+    designs are written by code alone, after the reviewer passed them.
+    """
+    memory = memory_of(context, "write_lesson")
+    origin = {"run": context.session.state.run_id, "source": source}
+    entry = {"id": id, "kind": kind, "role": role, "text": text, "origin": origin}
+    memory.add("experience", checked_lesson(entry))
+    return {"written": id, "kind": kind}
+
+
+def keep_design(context, found, rejected):
+    """Keep a design that passed gemini's checks and the reviewer as experience, when on.
+
+    The entry holds the case's general features, the design and its result, the KPIs, the
+    verdict and the failures of the rejected rounds (``rejected``, lists of check names), never a
+    rule made of the case's numbers. Code writes it, never a model; a replay keeps nothing, since
+    its run was kept the first time.
+    """
+    from geomind.tools.gemini.case import case_of
+
+    session = context.session
+    memory = getattr(session, "memory", None)
+    if memory is None or getattr(session.engine, "recorded", None):
+        return
+    problem = context.problem
+    memory.add(
+        "experience",
+        {
+            "id": session.state.run_id,
+            "features": case_features(case_of(context)),
+            "case": case_summary(problem.case),
+            "design": problem.design_state.reference,
+            "result": problem.verification.get("result"),
+            "kpis": problem.verification.get("kpis"),
+            "verdict": "passed",
+            "families": problem.design.get("families") if problem.design else None,
+            "lessons": [f"rejected before: {', '.join(names)}" for names in rejected],
+            "origin_run": session.state.run_id,
+        },
+    )
+
+
+def case_summary(case):
+    """Return the sections a case sets and the name of each demand service, as general features."""
+    demand = case.get("demand") or {}
+    return {"sections": sorted(case), "services": sorted(demand)}

@@ -6,6 +6,11 @@ import json
 import pytest
 
 from geomind.agents import DesignLead, Reviewer
+from geomind.agents.project.lead.comparison_driver import (
+    alternatives_table,
+    family_task,
+    plan_instructions,
+)
 from geomind.context import ProblemState
 from geomind.engine import Engine
 from geomind.engine.hooks import TokenBudget
@@ -13,7 +18,6 @@ from geomind.engine.permissions import Permissions
 from geomind.engine.recovery import recover
 from geomind.export import render_export
 from geomind.loops import CompareLoop
-from geomind.loops.compare import alternatives_table, family_task, plan_instructions
 from geomind.providers.fake import FakeLLM
 from geomind.types import Completion, ToolCall, Usage
 from tests.fixtures.runs import context, engine_for, of_type, says, uses
@@ -101,7 +105,9 @@ def script():
 @pytest.fixture
 def verdicts(monkeypatch):
     """Let gemini pass every design, and the ``Verified`` hook too."""
-    monkeypatch.setattr("geomind.loops.compare.verify_design", lambda _: PASSED)
+    monkeypatch.setattr(
+        "geomind.agents.project.lead.comparison_driver.verify_design", lambda _: PASSED
+    )
     monkeypatch.setattr("geomind.engine.hooks.verify_design", lambda _: PASSED)
 
 
@@ -166,7 +172,7 @@ async def test_a_family_that_gemini_rejects_is_kept_with_the_failures(monkeypatc
     def verify(found):
         return verdict.get(found.problem.design["reference"], PASSED)
 
-    monkeypatch.setattr("geomind.loops.compare.verify_design", verify)
+    monkeypatch.setattr("geomind.agents.project.lead.comparison_driver.verify_design", verify)
     monkeypatch.setattr("geomind.engine.hooks.verify_design", lambda _: PASSED)
     _, _, events = await run_loop(script())
     alpha = next(item for item in alternatives(events) if item["family"] == "alpha")
@@ -216,7 +222,9 @@ async def test_the_table_reaches_the_explainer_and_the_export(verdicts):
 
 async def test_no_verified_design_still_explains_the_table(monkeypatch):
     """With nothing verified the answer says so, and no design reaches the user."""
-    monkeypatch.setattr("geomind.loops.compare.verify_design", lambda _: FAILED)
+    monkeypatch.setattr(
+        "geomind.agents.project.lead.comparison_driver.verify_design", lambda _: FAILED
+    )
     monkeypatch.setattr("geomind.engine.hooks.verify_design", lambda _: FAILED)
     completions = [*script()[:-3], says("nothing passed")]
     result, _, events = await run_loop(completions)
@@ -443,7 +451,7 @@ def rejecting_once(monkeypatch):
             else PASSED
         )
 
-    monkeypatch.setattr("geomind.loops.compare.verify_design", verify)
+    monkeypatch.setattr("geomind.agents.project.lead.comparison_driver.verify_design", verify)
     monkeypatch.setattr("geomind.engine.hooks.verify_design", lambda _: PASSED)
 
 
@@ -475,7 +483,7 @@ async def test_without_retries_a_rejected_family_stays_rejected(monkeypatch):
 async def test_retries_are_bounded(monkeypatch):
     """A family rejected every time runs once more per retry, then stays rejected."""
     monkeypatch.setattr(
-        "geomind.loops.compare.verify_design",
+        "geomind.agents.project.lead.comparison_driver.verify_design",
         lambda found: (
             FAILED if found.problem.design["reference"].startswith("design/alpha") else PASSED
         ),

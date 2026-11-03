@@ -44,3 +44,33 @@ async def test_experience_needs_a_case_and_the_threshold():
         found = (await call(search_memory, {"query": "drilling"}, session)).output
     assert found["knowledge"][0]["id"] == "k1" and found["experience"] == []
     assert "case" in found["note"]
+
+
+async def test_write_lesson_keeps_its_origin_and_search_returns_it_to_the_role():
+    """The curator's lesson names its run and source; the role reads it with ``search_memory``."""
+    from geomind.stores.memory import MemoryMemory
+    from geomind.tools import search_memory, write_lesson
+    from tests.fixtures.calls import call
+    from tests.fixtures.sessions import StubSession
+
+    session = StubSession()
+    session.memory = MemoryMemory()
+    lesson = {
+        "id": "l1",
+        "kind": "lesson",
+        "role": "design_lead",
+        "text": "review coupled values before sizing",
+        "source": "reviewer",
+    }
+    assert (await call(write_lesson, lesson, session)).output == {"written": "l1", "kind": "lesson"}
+    entry = session.memory.entries("experience")[0]
+    assert entry["origin"] == {"run": "r1", "source": "reviewer"}
+
+    class Lead:
+        name = "design_lead"
+
+    session.agent = Lead()
+    found = (await call(search_memory, {"query": "x", "section": "experience"}, session)).output
+    assert [item["id"] for item in found["lessons"]] == ["l1"]
+    refused = await call(write_lesson, {**lesson, "id": "l2", "text": "use 3 doublets"}, session)
+    assert refused.is_error

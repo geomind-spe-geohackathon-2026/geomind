@@ -14,6 +14,7 @@ from tests.unit.agents.structure import HEADINGS, headings
 def test_it_declares_the_tools_it_needs():
     """The case, the gemini catalogue, plants, profiles, runs, results, documents, state, answer."""
     assert list(AnalysisLead().tools()) == [
+        "economist",
         "list_files",
         "read_document",
         "read_case",
@@ -38,6 +39,7 @@ def test_it_declares_the_tools_it_needs():
         "search_memory",
         "read_memory",
         "write_memory",
+        "support_lead",
         "ask_user",
         "finish",
     ]

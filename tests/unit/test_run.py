@@ -218,7 +218,7 @@ def test_a_route_to_the_tool_loop_runs_its_agent():
 
 def test_the_tables_hold_only_loops_that_are_built():
     """A route can name no unbuilt loop, so a live request never ends in ``not_implemented``."""
-    assert set(LOOPS) == {"tool", "design", "compare"}
+    assert set(LOOPS) == {"tool", "project", "design", "compare"}
     assert set(Route.model_fields["loop"].annotation.__args__) == set(LOOPS)
     assert "brief" not in Route.model_fields
 
@@ -244,6 +244,38 @@ def test_a_design_request_starts_the_design_loop():
     run = gd.Run(message="design", llm=FakeLLM([routed("design")]))
     asyncio.run(run._route_message())
     assert isinstance(run.loop, DesignLoop)
+
+
+def test_a_project_request_starts_the_project_lead():
+    """The coordinator's ``project`` route runs the project lead in the project loop."""
+    from geomind.agents import ProjectLead
+    from geomind.loops import ProjectLoop
+
+    run = gd.Run(message="design", llm=FakeLLM([routed("project")]))
+    asyncio.run(run._route_message())
+    assert isinstance(run.loop, ProjectLoop) and isinstance(run.loop.agent, ProjectLead)
+
+
+def test_the_brief_follows_the_message_and_preferences_join_the_state():
+    """An app event gets the coordinator's brief; the user's preferences reach every agent."""
+    from geomind.context import render
+
+    route = routed(
+        "project",
+        task="The user saved the case form; check the design.",
+        preferences={"display_units": "degC"},
+    )
+    store = MemoryRunStore()
+    run = gd.Run(message="saved", llm=FakeLLM([route, says("ok")]), store=store, chat="c")
+    result = run.start()
+    started = of_type(store.load_events(result.run_id), "run.started")[-1]
+    assert [message.content for message in started.messages][-2:] == [
+        "saved",
+        "The coordinator's brief: The user saved the case form; check the design.",
+    ]
+    assert started.problem["preferences"] == {"display_units": "degC"}
+    shown = render(gd.context.ProblemState.model_validate(started.problem))
+    assert 'User preferences: {"display_units": "degC"}' in shown
 
 
 def test_a_short_answer_route_ends_the_run_with_it():

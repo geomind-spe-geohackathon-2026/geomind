@@ -15,6 +15,7 @@ from geomind.tools.memory import (
     read_memory,
     search_knowledge,
     search_memory,
+    write_lesson,
     write_memory,
 )
 from geomind.tools.skills import read_skill
@@ -38,6 +39,7 @@ __all__ = [
     "read_memory",
     "search_knowledge",
     "search_memory",
+    "write_lesson",
     "write_memory",
     "search_documents",
     "tool",

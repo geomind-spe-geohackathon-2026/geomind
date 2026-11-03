@@ -271,6 +271,13 @@ RENAMED_CLASSES = {
     "geomind.agents.coordination.coordinator:Answer": (
         "geomind.agents.project.coordinator.agent:Answer"
     ),
+    "geomind.loops.design:DesignDriver": ("geomind.agents.project.lead.design_driver:DesignDriver"),
+    "geomind.loops.compare:CompareDriver": (
+        "geomind.agents.project.lead.comparison_driver:CompareDriver"
+    ),
+    "geomind.loops.compare:ComparisonDriver": (
+        "geomind.agents.project.lead.comparison_driver:ComparisonDriver"
+    ),
     "geomind.agents.general.summarizer:Summarizer": (
         "geomind.agents.support.summarizer.agent:Summarizer"
     ),

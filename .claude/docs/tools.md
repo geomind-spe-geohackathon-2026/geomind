@@ -464,5 +464,7 @@ From the third live run (`tests/integration/test_live_regressions_c.py`, recordi
 The case, design and analysis teams have `search_memory(query, section=None)`,
 `read_memory(section, id)` and `write_memory(entry)`; the reviewer and the explainer have
 `search_knowledge(query)` and `read_knowledge(id)`, the knowledge only, never experience
-(`geomind/tools/memory.py`); see [memory.md](memory.md). With the memory off they answer
+(`geomind/tools/memory.py`); the curator alone has `write_lesson(id, kind, role, text, source)`,
+which keeps a general lesson for one role (no digit) or a fact the user gave in experience, with
+its origin `{run, source}`; see [memory.md](memory.md). With the memory off they answer
 `not_allowed`.

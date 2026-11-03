@@ -42,6 +42,7 @@ Each tool's description says its arguments.
 - `run_study`: compare.
 - `update_state`: state.
 - `read_skill`: skill.
+- `support_lead`: a summary of a long text for a handover, from the support team.
 - `ask_user`: ask.
 - `finish`: hand over.
 

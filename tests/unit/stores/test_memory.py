@@ -70,3 +70,33 @@ def test_a_recalled_design_is_not_offered_for_a_clearly_different_case():
         MemoryMemory(experience=[{"id": "e2", "features": CASE}]), CASE, threshold=0.8
     )
     assert alike["similarity"] == 1.0
+
+
+def test_a_lesson_holds_method_and_no_number():
+    """A digit in a lesson is refused; a user fact may hold one, as the user said it."""
+    import pytest
+
+    from geomind.errors import ToolError
+    from geomind.stores.memory import checked_lesson
+
+    lesson = {"id": "l1", "kind": "lesson", "role": "design_lead", "origin": {"source": "x"}}
+    assert checked_lesson({**lesson, "text": "review coupled values before sizing"})
+    with pytest.raises(ToolError, match="no number"):
+        checked_lesson({**lesson, "text": "use 3 doublets"})
+    assert checked_lesson({**lesson, "kind": "user_fact", "text": "reads 2 decimals"})
+
+
+def test_lessons_come_by_role_and_never_as_designs():
+    """A role reads its own lessons, ``all`` and the user's facts; designs ignore lessons."""
+    from geomind.stores.memory import MemoryMemory, lessons_for, search_experience
+
+    memory = MemoryMemory(
+        experience=[
+            {"id": "a", "kind": "lesson", "role": "design_lead", "text": "x"},
+            {"id": "b", "kind": "lesson", "role": "case_lead", "text": "y"},
+            {"id": "c", "kind": "lesson", "role": "all", "text": "z"},
+            {"id": "d", "kind": "user_fact", "role": "all", "text": "w"},
+        ]
+    )
+    assert [entry["id"] for entry in lessons_for(memory, "design_lead")] == ["a", "c", "d"]
+    assert search_experience(memory, {}, 0.0) == []

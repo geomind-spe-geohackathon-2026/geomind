@@ -1583,6 +1583,51 @@
       ],
       "name": "update_state"
     },
+    "write_lesson": {
+      "description": "Keep a general lesson for one role, or a fact the user gave, in the memory's experience.",
+      "effect": "write",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "lesson",
+              "user_fact"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "role",
+          "text",
+          "source"
+        ],
+        "title": "write_lesson_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "write_lesson"
+    },
     "write_memory": {
       "description": "Add a cited reference value to the memory's knowledge, for later runs.",
       "effect": "write",
@@ -1606,5 +1651,5 @@
       "name": "write_memory"
     }
   },
-  "version": "0.4.22.dev26"
+  "version": "0.4.22.dev27"
 }

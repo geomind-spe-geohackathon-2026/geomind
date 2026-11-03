@@ -3,12 +3,15 @@
 from geomind import tools
 from geomind.agents.agent import Agent, Model
 from geomind.agents.case.geoscientist.agent import Geoscientist
+from geomind.agents.support.lead.agent import SupportLead
 from geomind.prompts import Prompt
 from geomind.tools import Delegate
 from geomind.tools.gemini.skeleton import trees
 
 FINDINGS_TOKENS = 8000
 """The most tokens of the geoscientist's findings the case lead reads back."""
+SUPPORT_TOKENS = 1500
+"""The most tokens of the support lead's answer a lead reads back."""
 
 
 class CaseLead(Agent):
@@ -41,6 +44,7 @@ class CaseLead(Agent):
         self.read_memory = tools.read_memory
         self.write_memory = tools.write_memory
         self.update_state = tools.update_state
+        self.support_lead = Delegate(SupportLead(), max_summary_tokens=SUPPORT_TOKENS)
         self.ask_user = tools.ask_user
         self.finish = tools.finish
 

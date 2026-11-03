@@ -41,6 +41,7 @@ def test_it_is_complete():
             "search_memory",
             "read_memory",
             "write_memory",
+            "support_lead",
             "ask_user",
             "finish",
         ],

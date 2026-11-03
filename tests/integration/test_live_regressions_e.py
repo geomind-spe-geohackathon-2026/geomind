@@ -117,8 +117,8 @@ async def test_a_table_is_not_searched_as_text():
 
 def test_the_next_round_gets_what_the_last_round_handed_over():
     """Each round of test 6 started from nothing; its task now carries the last round's answer."""
+    from geomind.agents.project.lead.design_driver import answered_task
     from geomind.engine import Context
-    from geomind.loops.design import answered_task
     from geomind.types import Message, ToolCall
 
     handover = "Read the brief; set_case failed on demand.heating.column (older shape)."

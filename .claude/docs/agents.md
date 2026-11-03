@@ -84,7 +84,8 @@ under `tests/unit/agents/<team>/<name>/`. Class names stay whole and the import 
 
 | Agent | Folder | Status | In `AGENTS` of `run.py` |
 |---|---|---|---|
-| `Coordinator` | `project/coordinator/` | complete; answers with a `Route`, called by `Run.start` | no |
+| `ProjectLead` | `project/lead/` | complete; a model: plans case, design, review, analysis and explanation, writes each team a brief, routes each failure to its owner, asks the user only what the teams cannot settle, stops when the review passed and the analysis is done or a failure repeats after a real change; run by `ProjectLoop` (route `project`) | no |
+| `Coordinator` | `project/coordinator/` | complete; answers with a `Route` (`task`, a brief for an app event; `preferences`, the user's way of working, put in the problem state), called by `Run.start` | no |
 | `Reviewer` | `project/reviewer/` | complete (the `Verifier` until 0.4.22); checks the final design once with gemini, reads knowledge only, never experience | no |
 | `Explainer` | `project/explainer/` | complete; the explanation, from the state and the tools; reads knowledge only, to cite sources | no |
 | `CaseLead` | `case/lead/` | complete (the `Formulator` until 0.4.22); sets the case from the project's files and the user's answers, confirms every value no file gives in one question | no |
@@ -97,7 +98,21 @@ under `tests/unit/agents/<team>/<name>/`. Class names stay whole and the import 
 | `EnergySystemsEngineer` | `design/energy/` | complete; heat pump, chiller, boiler, storage, exchangers, surface pipes and network | no |
 | `AnalysisLead` | `analysis/lead/` | complete (the `Analyst` until 0.4.22), the sample, with the gemini tools | yes, the default route |
 | `Economist` | `analysis/economist/` | complete; costs, compares, samples uncertainty | no |
-| `Summarizer` | `support/summarizer/` | complete; only compaction calls it | no |
+| `SupportLead` | `support/lead/` | complete; takes the other leads' support requests (every lead has `support_lead`), routes each to the summarizer or the curator, checks the answer and sends it back once when wrong | no |
+| `Curator` | `support/curator/` | complete; at the end of a run keeps general per-role lessons and the user's facts in experience with their origin (`write_lesson`); never a design or a number as a rule | no |
+| `Summarizer` | `support/summarizer/` | complete; compaction calls it, and the support lead for a handover summary | no |
+
+The project lead's guards are code: before its first model call it loads the project's case
+file by rule (`set_case(source="project")`) when the state has no case; its `reviewer` tool
+(`agents/project/lead/review.py`) runs the `Reviewer`, then gemini's verdict (`verify_design`)
+on the state, lists each failure with the team it goes to first (a hint by gemini's domain),
+flags `repeated_failure` when a changed design fails exactly as before, and keeps a passed design
+in experience (`keep_design`); the `Verified` hook of `ProjectLoop` keeps an unverified design
+from the user; the budget, the step limit, the output limit and the stop on repeated identical
+calls are the engine's. Its `comparison` tool runs the rule-driven `ComparisonDriver`, which
+moved with `DesignDriver` and `CompareDriver` to `agents/project/lead/` (`DesignLoop` and
+`CompareLoop` still run them alone, and old logs find them by their old paths). The analysis
+lead has the `economist` as its member.
 
 The design team works in order: the `DesignLead` asks the `ProcessEngineer`, then the
 `IntegrationEngineer`, then the `ReservoirEngineer`, `WellEngineer` and `EnergySystemsEngineer`

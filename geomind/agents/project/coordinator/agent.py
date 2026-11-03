@@ -12,13 +12,18 @@ class Route(Record):
 
     ``loop`` and ``agent`` name rows of ``LOOPS`` and ``AGENTS`` in ``run.py``, which sits to the
     right of this package, so a test keeps the two lists equal. The delegate reads the user's
-    message itself, never a retelling of it.
+    message itself, never a retelling of it; ``task`` is the coordinator's brief beside it, for
+    a message that is an event of the app (a form saved, a file added) rather than words.
+    ``preferences`` are what the user said about how they work, such as the units they read,
+    kept in the problem state for every agent.
     """
 
     kind: Literal["answer", "loop"]
     answer: str | None = None
-    loop: Literal["tool", "design", "compare"] = "tool"
+    loop: Literal["tool", "project", "design", "compare"] = "tool"
     agent: Literal["analysis_lead"] = "analysis_lead"
+    task: str | None = None
+    preferences: dict[str, str] | None = None
 
 
 class Coordinator(Agent):

@@ -7,6 +7,7 @@ from geomind.agents.design.integration.agent import IntegrationEngineer
 from geomind.agents.design.process.agent import ProcessEngineer
 from geomind.agents.design.reservoir.agent import ReservoirEngineer
 from geomind.agents.design.well.agent import WellEngineer
+from geomind.agents.support.lead.agent import SupportLead
 from geomind.prompts import Prompt
 from geomind.tools import Delegate
 from geomind.tools.gemini.skeleton import trees
@@ -15,6 +16,8 @@ ENGINEER_TOKENS = 2000
 """The most tokens of an engineer's answer the design lead reads back."""
 LIMIT = "design_concurrency"
 """The setting that bounds how many engineers fill their parts side by side."""
+SUPPORT_TOKENS = 1500
+"""The most tokens of the support lead's answer a lead reads back."""
 
 
 def beside(agent):
@@ -81,6 +84,7 @@ class DesignLead(Agent):
         self.search_memory = tools.search_memory
         self.read_memory = tools.read_memory
         self.write_memory = tools.write_memory
+        self.support_lead = Delegate(SupportLead(), max_summary_tokens=SUPPORT_TOKENS)
         self.ask_user = tools.ask_user
         self.finish = tools.finish
 

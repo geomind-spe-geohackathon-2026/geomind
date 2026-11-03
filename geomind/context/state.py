@@ -149,7 +149,9 @@ class ProblemState(Record):
     """The notes of one chat; ``version`` is raised by one with every change.
 
     NOTE: the state is frozen, so a change is always a new state and the only writer is ``apply`` of
-    the engine, over events. ``case_origin`` is ``{case, files}``, the case the user or the project
+    the engine, over events. ``preferences`` are what the user said about how they work, such as
+    the units they read, set from the coordinator's route. ``case_origin`` is ``{case, files}``,
+    the case the user or the project
     gave, which ``set_case`` writes and verification compares the case with. NOTE: ``compaction``
     is kept here because ``save_state`` is the only
     per-chat storage of the contract, and ``load_history`` always returns every message. It is no
@@ -166,6 +168,7 @@ class ProblemState(Record):
     questions: tuple[Question, ...] = ()
     case: dict[str, Any] | None = None
     case_origin: dict[str, Any] | None = None
+    preferences: dict[str, Any] = {}
     compaction: Compaction | None = None
 
     @field_validator("design", mode="before")
@@ -339,10 +342,15 @@ def _case_line(case):
 
 
 def render(state):
-    """Return compact text, one line per item, or ``""`` for an untouched state."""
-    if state.version == 0:
+    """Return compact text, one line per item, or ``""`` for an untouched state.
+
+    The user's preferences show even before the first change, so every agent follows them.
+    """
+    if state.version == 0 and not state.preferences:
         return ""
     lines = [f"Problem state, version {state.version}"]
+    if state.preferences:
+        lines.append(f"User preferences: {json.dumps(state.preferences)}")
     if state.goal:
         lines.append(f"Goal: {state.goal}")
     lines += [_requirement_line(item) for item in state.requirements]

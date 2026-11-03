@@ -207,7 +207,7 @@ Open, in order (the team layout agreed with Sahand on 2026-11-03, started on his
    - [x] 2. `Geoscientist` in `case/`.
    - [x] 3. The design team (`process`, `integration`, `reservoir`, `well`, `energy`) with parallel
      `patch_plant`.
-   - [ ] 4. `ProjectLead`, `SupportLead`, `Curator`.
+   - [x] 4. `ProjectLead`, `SupportLead`, `Curator`.
    - [ ] 5. Each agent tested alone on a fixed input from earlier runs, then end to end.
 2. [ ] A live run to a verified, costed and explained design, with replay from each failure.
 3. [ ] One full run from the start, the memory off, then the full suite, the release (an

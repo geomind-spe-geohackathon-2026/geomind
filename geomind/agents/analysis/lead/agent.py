@@ -2,7 +2,15 @@
 
 from geomind import tools
 from geomind.agents.agent import Agent, Model, Output
+from geomind.agents.analysis.economist.agent import Economist
+from geomind.agents.support.lead.agent import SupportLead
 from geomind.prompts import Prompt
+from geomind.tools import Delegate
+
+ECONOMIST_TOKENS = 2000
+"""The most tokens of the economist's answer the analysis lead reads back."""
+SUPPORT_TOKENS = 1500
+"""The most tokens of the support lead's answer a lead reads back."""
 
 
 class AnalysisLead(Agent):
@@ -16,6 +24,7 @@ class AnalysisLead(Agent):
         self.prompt = Prompt("analysis/lead")
 
         # Tools
+        self.economist = Delegate(Economist(), max_summary_tokens=ECONOMIST_TOKENS)
         self.list_files = tools.list_files
         self.read_document = tools.read_document
         self.read_case = tools.gemini.read_case
@@ -40,6 +49,7 @@ class AnalysisLead(Agent):
         self.search_memory = tools.search_memory
         self.read_memory = tools.read_memory
         self.write_memory = tools.write_memory
+        self.support_lead = Delegate(SupportLead(), max_summary_tokens=SUPPORT_TOKENS)
         self.ask_user = tools.ask_user
         self.finish = tools.finish
 

@@ -16,7 +16,10 @@ from geomind.agents.design.reservoir.agent import ReservoirEngineer
 from geomind.agents.design.well.agent import WellEngineer
 from geomind.agents.project.coordinator.agent import Coordinator, Route
 from geomind.agents.project.explainer.agent import Explainer
+from geomind.agents.project.lead.agent import ProjectLead
 from geomind.agents.project.reviewer.agent import Reviewer
+from geomind.agents.support.curator.agent import Curator
+from geomind.agents.support.lead.agent import SupportLead
 from geomind.agents.support.summarizer.agent import Summarizer
 from geomind.errors import UnknownNameError
 from geomind.utils.strings import did_you_mean, snake_case
@@ -27,6 +30,7 @@ __all__ = [
     "AnalysisLead",
     "CaseLead",
     "Coordinator",
+    "Curator",
     "DesignLead",
     "Economist",
     "EnergySystemsEngineer",
@@ -36,11 +40,13 @@ __all__ = [
     "Model",
     "Output",
     "ProcessEngineer",
+    "ProjectLead",
     "ReservoirEngineer",
     "named",
     "Reviewer",
     "Route",
     "Summarizer",
+    "SupportLead",
     "WellEngineer",
 ]
 

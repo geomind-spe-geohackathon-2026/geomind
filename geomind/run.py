@@ -2,23 +2,30 @@
 
 import asyncio
 
-from geomind.agents import AnalysisLead, Coordinator, DesignLead, Reviewer, Route
+from geomind.agents import AnalysisLead, Coordinator, DesignLead, ProjectLead, Reviewer, Route
 from geomind.agents.project.coordinator.agent import Answer
+from geomind.agents.project.lead.comparison_driver import CompareDriver
+from geomind.agents.project.lead.design_driver import DesignDriver
 from geomind.context import ProblemState, restore
 from geomind.engine import Context, Engine, Permissions
 from geomind.engine.context import new_run_id
 from geomind.engine.hooks import Cancellation
 from geomind.engine.recovery import agent_class, recover
 from geomind.errors import NotImplementedYet, RunError
-from geomind.loops import CompareLoop, DesignLoop, StudyCompareLoop, ToolLoop
-from geomind.loops.compare import CompareDriver
-from geomind.loops.design import DesignDriver
+from geomind.loops import CompareLoop, DesignLoop, ProjectLoop, StudyCompareLoop, ToolLoop
 from geomind.providers import OpenRouter
 from geomind.stores.run import MemoryRunStore
 from geomind.types import Message
 
-LOOPS = {"tool": ToolLoop, "design": DesignLoop, "compare": CompareLoop}
+LOOPS = {
+    "tool": ToolLoop,
+    "project": ProjectLoop,
+    "design": DesignLoop,
+    "compare": CompareLoop,
+}
 AGENTS = {"analysis_lead": AnalysisLead}
+BRIEF = "The coordinator's brief: "
+"""How the coordinator's ``task`` starts, as a second message after the user's own."""
 
 
 def _sync(coroutine):
@@ -37,12 +44,16 @@ def loop_of(route):
         return LOOPS["tool"](Answer(route.answer or ""))
     if route.loop == "tool":
         return LOOPS["tool"](AGENTS[route.agent]())
+    if route.loop == "project":
+        return LOOPS["project"](ProjectLead())
     return LOOPS[route.loop](DesignLead(), Reviewer())
 
 
 def loop_for(state):
     """Return the loop a stored run was started with, around the agent it names."""
     agent = agent_class(state)()
+    if state.loop == "project":
+        return LOOPS["project"](agent)
     if state.loop in ("design", "compare") and isinstance(agent, DesignDriver):
         agents = agent.tools()
         limit = {key: value for key, value in state.loop_state.items() if key == "max_rounds"}
@@ -93,6 +104,7 @@ class Run:
         )
         self._loop = LOOPS["tool"](agent if agent is not None else AGENTS["analysis_lead"]())
         self._is_routed = agent is not None
+        self._route = None
 
     @property
     def loop(self):
@@ -106,9 +118,18 @@ class Run:
         self._is_routed = True
 
     def _context(self, problem):
-        """Return the context of this run's message, after the chat's history."""
+        """Return the context of this run's message, after the chat's history.
+
+        The route's brief follows the message, and its preferences join the problem state.
+        """
         history = restore(self.history, problem.compaction)
         messages = [*history, Message(role="user", content=self.message)]
+        route = self._route
+        if route is not None and route.task:
+            messages.append(Message(role="user", content=f"{BRIEF}{route.task}"))
+        if route is not None and route.preferences:
+            preferences = {**problem.preferences, **route.preferences}
+            problem = problem.model_copy(update={"preferences": preferences})
         return Context(self.id, messages, chat=self.chat, project=self.project, problem=problem)
 
     async def _route_message(self):
@@ -131,6 +152,7 @@ class Run:
             return None
         route = Route.model_validate(result.answer)
         self._loop = loop_of(route)
+        self._route = route
         return route
 
     @classmethod

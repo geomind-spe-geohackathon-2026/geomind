@@ -19,6 +19,7 @@ TOOLS = [
     "read_memory",
     "write_memory",
     "update_state",
+    "support_lead",
     "ask_user",
     "finish",
 ]

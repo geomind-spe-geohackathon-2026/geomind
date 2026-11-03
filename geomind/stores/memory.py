@@ -186,10 +186,50 @@ def similarity(first, second):
     return total / len(keys)
 
 
+LESSON_KINDS = ("lesson", "user_fact")
+"""The experience entries that are no design: a role's general lesson, or a fact the user gave."""
+
+
+def checked_lesson(entry):
+    """Return a lesson or a user fact if it is general and says where it came from, else raise.
+
+    A ``lesson`` names its ``role`` (an agent's snake name, or ``all``) and its ``text``, and holds
+    no digit: a project's numbers are never stored as a rule. A ``user_fact`` is what the user
+    said, as they said it. Both name their ``origin`` ``{run, source}``, ``source`` being ``user``
+    for a user fact.
+    """
+    missing = [key for key in ("id", "kind", "role", "text", "origin") if not entry.get(key)]
+    if missing:
+        raise ToolError(f"memory: experience entry lacks {', '.join(missing)}", path=missing[0])
+    if entry["kind"] not in LESSON_KINDS:
+        raise ToolError(
+            f"memory: kind = {entry['kind']!r}; expected one of {', '.join(LESSON_KINDS)}",
+            path="kind",
+        )
+    if entry["kind"] == "lesson" and any(character.isdigit() for character in entry["text"]):
+        raise ToolError(
+            "memory: a lesson holds no number; write the method, never a project's values",
+            path="text",
+        )
+    return entry
+
+
+def lessons_for(memory, role):
+    """Return the lessons of ``role`` and of every role, and the user's facts, in order."""
+    return [
+        entry
+        for entry in memory.entries("experience")
+        if entry.get("kind") == "user_fact"
+        or (entry.get("kind") == "lesson" and entry.get("role") in (role, "all"))
+    ]
+
+
 def search_experience(memory, features, threshold):
-    """Return the experience entries at least ``threshold`` alike to ``features``, best first."""
+    """Return the past designs at least ``threshold`` alike to ``features``, best first."""
     found = []
     for entry in memory.entries("experience"):
+        if entry.get("kind") in LESSON_KINDS:
+            continue
         score = similarity(features, entry.get("features") or {})
         if score >= threshold:
             found.append({**entry, "similarity": round(score, 3)})

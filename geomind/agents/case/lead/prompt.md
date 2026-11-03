@@ -25,6 +25,7 @@ Each tool's description says its arguments.
 - `list_profiles`: profiles.
 - `read_profile`: profile.
 - `update_state`: state.
+- `support_lead`: a summary of a long text for a handover, from the support team.
 - `ask_user`: ask.
 - `finish`: hand over.
 

@@ -18,6 +18,7 @@
     "LOOPS": {
       "compare": "(self, design_lead, reviewer, max_rounds=5, concurrency=None, retries=None)",
       "design": "(self, design_lead, reviewer, max_rounds=5)",
+      "project": "(self, agent, max_steps=None)",
       "tool": "(self, agent, max_steps=None)"
     },
     "Model": {
@@ -89,7 +90,7 @@
     },
     "Route": {
       "additionalProperties": false,
-      "description": "Where a message goes: a short direct answer, or a loop with an agent.\n\n``loop`` and ``agent`` name rows of ``LOOPS`` and ``AGENTS`` in ``run.py``, which sits to the\nright of this package, so a test keeps the two lists equal. The delegate reads the user's\nmessage itself, never a retelling of it.",
+      "description": "Where a message goes: a short direct answer, or a loop with an agent.\n\n``loop`` and ``agent`` name rows of ``LOOPS`` and ``AGENTS`` in ``run.py``, which sits to the\nright of this package, so a test keeps the two lists equal. The delegate reads the user's\nmessage itself, never a retelling of it; ``task`` is the coordinator's brief beside it, for\na message that is an event of the app (a form saved, a file added) rather than words.\n``preferences`` are what the user said about how they work, such as the units they read,\nkept in the problem state for every agent.",
       "properties": {
         "agent": {
           "const": "analysis_lead",
@@ -121,11 +122,39 @@
           "default": "tool",
           "enum": [
             "tool",
+            "project",
             "design",
             "compare"
           ],
           "title": "Loop",
           "type": "string"
+        },
+        "preferences": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Preferences"
+        },
+        "task": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Task"
         }
       },
       "required": [
@@ -289,6 +318,7 @@
           "--loop": {
             "choices": [
               "tool",
+              "project",
               "design",
               "compare"
             ],
@@ -676,5 +706,5 @@
       "Model"
     ]
   },
-  "version": "0.4.22.dev26"
+  "version": "0.4.22.dev27"
 }

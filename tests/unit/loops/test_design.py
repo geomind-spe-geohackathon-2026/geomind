@@ -6,18 +6,18 @@ from pathlib import Path
 import pytest
 
 from geomind.agents import DesignLead, Reviewer
-from geomind.context import ProblemState
-from geomind.engine import Context, Engine
-from geomind.engine.hooks import Verified
-from geomind.engine.recovery import recover
-from geomind.loops import DesignLoop
-from geomind.loops.design import (
+from geomind.agents.project.lead.design_driver import (
     DesignDriver,
     economist_task,
     repeated,
     request_of,
     routed_task,
 )
+from geomind.context import ProblemState
+from geomind.engine import Context, Engine
+from geomind.engine.hooks import Verified
+from geomind.engine.recovery import recover
+from geomind.loops import DesignLoop
 from geomind.stores import MemoryWorkspace
 from geomind.types import Message, ToolCall
 from tests.fixtures.cases import example_case
@@ -54,7 +54,7 @@ def verdicts(monkeypatch):
     def verdict(_):
         return queue[0] if len(queue) == 1 else queue.pop(0)
 
-    monkeypatch.setattr("geomind.loops.design.verify_design", verdict)
+    monkeypatch.setattr("geomind.agents.project.lead.design_driver.verify_design", verdict)
     monkeypatch.setattr("geomind.engine.hooks.verify_design", lambda _: PASSED)
     return queue
 
@@ -596,7 +596,7 @@ async def test_a_verified_design_is_kept_as_experience(verdicts):
 
 def test_the_formulation_task_names_the_project_s_case_file():
     """A project with a case.json: the case lead is told to load it, not to ask the user."""
-    from geomind.loops.design import formulation_task
+    from geomind.agents.project.lead.design_driver import formulation_task
 
     case, files = example_case("shallow_district")
     session = StubSession(workspace=MemoryWorkspace(cases={"p": (case, files)}))

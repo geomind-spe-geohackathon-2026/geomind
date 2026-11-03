@@ -31,6 +31,9 @@ ROLES = (
     "reservoirengineer",
     "wellengineer",
     "energysystemsengineer",
+    "projectlead",
+    "supportlead",
+    "curator",
 )
 """Every agent that calls a model, by its class name in lower case; each has its own setting."""
 _FIXED = {

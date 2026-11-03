@@ -6,6 +6,24 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### The engineering team, step 4: ProjectLead, SupportLead, Curator (0.4.22.dev27)
+
+**Contract changes for the backend:**
+
+- New required settings, no fallback: `GEOMIND_PROJECTLEAD_MODEL`, `GEOMIND_SUPPORTLEAD_MODEL`, `GEOMIND_CURATOR_MODEL`.
+- `Route.loop` has a new value `project` (the coordinator's route for design, comparison and case changes), and `LOOPS["project"]` is `ProjectLoop` with the `ProjectLead`. `run.started.loop` is `project` for such a run, and its agent `project_lead`, with the nested teams below it (`project_lead.case_lead`, `project_lead.design_lead`, `project_lead.reviewer`, `project_lead.analysis_lead`, `project_lead.explainer`, `project_lead.support_lead`, `project_lead.comparison`). `design` and `compare` stay as the rule-driven loops.
+- `Route` gains optional `task` (the coordinator's brief for an app event; it follows the user's message as a second user message starting `The coordinator's brief: `) and `preferences` (`{name: value}`).
+- The problem state gains `preferences` (`{name: value}`, default `{}`), rendered for every agent; `problem_state.json` is regenerated (additive).
+- New tools: `write_lesson` (curator); `support_lead` on the project, case, design and analysis leads; `economist` on the analysis lead.
+- Experience gains lesson entries `{id, kind: lesson|user_fact, role, text, origin: {run, source}}`; `search_memory` returns `lessons` with the experience section.
+- `DesignDriver`, `CompareDriver` and `ComparisonDriver` moved from `geomind.loops.design`/`geomind.loops.compare` to `geomind.agents.project.lead.design_driver`/`comparison_driver`; old logs naming the old class paths still resume and replay.
+
+- New agent `ProjectLead` (`agents/project/lead/`), a model that plans case, design, review, analysis and explanation, writes each team a brief, routes each failure to its owner, never loosens the case, asks the user only what teams cannot settle (one question, options, recommendation first) and stops when the review passed and analysis is done, or on `repeated_failure`. Code guards: the project's case file loaded by rule before its first call; its `reviewer` tool runs gemini's verdict after the `Reviewer`, lists each failure with the team it goes to first (gemini's domain as a hint), flags a repeated failure on a changed design, and keeps a passed design as experience by code; the `Verified` hook; the engine's budget, step limit, output limit and repeated-call stop. Its `comparison` tool runs the rule-driven comparison.
+- New agents `SupportLead` (`agents/support/lead/`: routes the other leads' support requests to the summarizer or the curator and checks the answer) and `Curator` (`agents/support/curator/`: the run's general per-role lessons and the user's facts into experience with their origin; a digit in a lesson is refused).
+- The `Coordinator` routes design work to `project`, writes a brief for app events and keeps the user's preferences.
+- The `AnalysisLead` leads the analysis team: its `economist`, and improvement proposals for the design lead.
+- `remember_design` became `keep_design(context, found, rejected)` in `geomind/tools/memory.py`.
+
 ### The engineering team, step 3: the design team (0.4.22.dev26)
 
 **Contract changes for the backend:** new required settings `GEOMIND_PROCESSENGINEER_MODEL`, `GEOMIND_INTEGRATIONENGINEER_MODEL`, `GEOMIND_RESERVOIRENGINEER_MODEL`, `GEOMIND_WELLENGINEER_MODEL`, `GEOMIND_ENERGYSYSTEMSENGINEER_MODEL` (no fallback) and `GEOMIND_DESIGN_CONCURRENCY` (how many engineers run side by side; required for a live run, no default). New nested agents under `design_lead`: `process_engineer`, `integration_engineer`, `reservoir_engineer`, `well_engineer`, `energy_systems_engineer`; the three last run at the same time, so their events interleave. A new tool `merge_designs` (`tool.started`/`tool.finished` as any tool).
