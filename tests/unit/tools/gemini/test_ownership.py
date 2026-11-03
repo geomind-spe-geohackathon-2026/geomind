@@ -76,3 +76,12 @@ def test_a_part_with_no_owner_yet_says_so():
 def test_the_design_lead_and_other_agents_change_anything():
     """An agent of no discipline is not checked."""
     check_ownership(context_of(None), {"modules": {}, "params": {"x": {}}}, "patch_plant")
+
+
+def test_an_owner_named_with_params_in_front_is_found():
+    """#56: owners were recorded as ``params.d0.reservoir``; every engineer's patch was refused."""
+    owners = {"params.d0.reservoir": "reservoir", "params.d0": "well"}
+    assert owner_of("d0.reservoir.pressure", owners) == "reservoir"
+    assert owner_of("d0.depth", owners) == "well"
+    patch = {"params": {"d0": {"reservoir": {"pressure": {"value": 1, "unit": "bar"}}}}}
+    check_ownership(context_of("reservoir", owners), patch, "patch_plant")

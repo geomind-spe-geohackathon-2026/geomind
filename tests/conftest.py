@@ -167,6 +167,7 @@ def deployment_settings(monkeypatch):
     monkeypatch.setenv("GEOMIND_MEMORY", "off")
     monkeypatch.setenv("GEOMIND_MAX_OUTPUT_TOKENS", "16000")
     monkeypatch.setenv("GEOMIND_DESIGN_CONCURRENCY", "3")
+    monkeypatch.setenv("GEOMIND_ENGINEER_MAX_STEPS", "12")
 
 
 @pytest.fixture(autouse=True)

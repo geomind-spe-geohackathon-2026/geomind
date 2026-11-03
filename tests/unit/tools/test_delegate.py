@@ -2,6 +2,7 @@
 
 import pytest
 
+import geomind as gd
 from geomind import runtime
 from geomind.engine import Context
 from geomind.tools import Delegate, dispatch
@@ -137,7 +138,7 @@ async def test_limited_delegates_run_at_most_the_setting_at_once():
     running, most = [0], [0]
 
     class Session(StubSession):
-        async def delegate(self, agent, task):
+        async def delegate(self, agent, task, max_steps=None):
             running[0] += 1
             most[0] = max(most[0], running[0])
             await asyncio.sleep(0.01)
@@ -151,3 +152,36 @@ async def test_limited_delegates_run_at_most_the_setting_at_once():
             *(dispatch(delegate, call(f"t{n}"), Context(session=session)) for n in range(3))
         )
     assert [result.output for result in results] == ["t0", "t1", "t2"] and most[0] == 2
+
+
+async def test_a_delegate_s_own_step_limit_ends_the_nested_run_without_a_question():
+    """An engineer at its own limit hands back what it has; the run asks the user nothing."""
+    from tests.fixtures.runs import Worker, of_type, run, says
+
+    class Lead(gd.Agent):
+        """Delegates to a worker with its own step limit."""
+
+        def __init__(self):
+            super().__init__()
+            self.helper = Delegate(Worker(), steps="engineer_max_steps")
+            self.model = gd.Model("fake/model")
+
+    looping = [uses(fixture_call("lookup", f"l{n}", key="k")) for n in range(3)]
+    script = [uses(fixture_call("helper", "h", task="go")), *looping, says("lead done")]
+    with runtime.settings(engineer_max_steps=2):
+        result, _, events = await run(script, agent=Lead())
+    assert result.status == "done" and result.answer == "lead done"
+    assert of_type(events, "request") == []
+    nested = [e for e in of_type(events, "run.finished") if e.agent == "worker"]
+    assert nested[0].stop_reason == "step_limit"
+
+
+async def test_a_delegate_s_step_setting_unset_is_refused_with_its_variable():
+    """``engineer_max_steps`` has no default."""
+    session = StubSession()
+    session.result = RunResult(run_id="c", status="done", answer="x")
+    with runtime.settings(engineer_max_steps=None):
+        result = await dispatch(
+            Delegate(Helper(), steps="engineer_max_steps"), call(), Context(session=session)
+        )
+    assert result.is_error and "GEOMIND_ENGINEER_MAX_STEPS" in result.output["error"]["message"]

@@ -145,3 +145,9 @@ async def test_fill_parts_refuses_a_brief_for_no_member():
     _, _, events = await run(script, agent=DesignLead())
     result = next(e for e in of_type(events, "tool.result") if e.tool == "fill_parts")
     assert result.is_error and "reservoir_engineer" in str(result.output)
+
+
+def test_one_family_unless_a_comparison_is_asked():
+    """The first end-to-end run designed two families for a request that compared nothing."""
+    assert "Design one family" in DesignLead().prompt.content
+    assert "unless the request or your brief asks to compare" in DesignLead().prompt.content

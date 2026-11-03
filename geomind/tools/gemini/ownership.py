@@ -15,6 +15,7 @@ SECTIONS = {
 }
 """The top-level keys of a plant file each discipline owns besides parameters."""
 LEAF_KEYS = frozenset({"value", "unit", "min", "max", "options"})
+PARAMS = "params."
 
 
 def discipline_of(context):
@@ -35,10 +36,15 @@ def parameter_paths(params, prefix=""):
 
 
 def owner_of(path, owners):
-    """Return the discipline of the longest prefix of ``path`` in ``owners``, or ``None``."""
+    """Return the discipline of the longest prefix of ``path`` in ``owners``, or ``None``.
+
+    A prefix is a parameter path with or without its ``params.`` in front, as the process
+    engineer may write either.
+    """
+    named = {key.removeprefix(PARAMS): owner for key, owner in owners.items()}
     parts = path.split(".")
     for end in range(len(parts), 0, -1):
-        owner = owners.get(".".join(parts[:end]))
+        owner = named.get(".".join(parts[:end]))
         if owner is not None:
             return owner
     return None

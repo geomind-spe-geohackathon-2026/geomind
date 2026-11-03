@@ -58,8 +58,9 @@ Each tool's description says its arguments.
 - Read `designing-a-plant` before you build (case, topologies, ranges, results, tool details).
 - Round 1: record the case's requirements with `update_state` (`case_requirement` is the name) and
   your assumptions, each with value, source and `confirmed: false` unless the user gave it.
-- Propose 2 to 6 materially different `design.families` `{id, summary, status}`; mark one gemini
-  cannot build `blocked` with the reason. A family that needs a model gemini lacks is `blocked:
+- Design one family, the one that fits the case best, with its reason in `design.families`
+  `{id, summary, status}`, unless the request or your brief asks to compare: then 2 to 6
+  materially different ones. Mark one gemini cannot build `blocked` with the reason. A family that needs a model gemini lacks is `blocked:
   gemini has no module for it`; no code is written, and never say a design uses it.
 - Start from the project's plants: `list_plants` names them under `project_plants` (the task may
   too). When there are any, a family is one of them: `read_plant(project_plant=...)`, then

@@ -14,8 +14,12 @@ from geomind.tools.dispatch import error_output
 from geomind.types import Message, RunResult
 
 
-async def run_child(session, agent, task):
-    """Run ``agent`` as a nested run with a clean context: the task text only."""
+async def run_child(session, agent, task, max_steps=None):
+    """Run ``agent`` as a nested run with a clean context: the task text only.
+
+    ``max_steps`` gives the nested run its own step limit, at which it ends and answers from
+    what it has instead of asking to continue; unset, it takes the run's ``max_steps`` and asks.
+    """
     state = session.state
     context = Context(
         run_id=session.engine.recorded_children.get((state.run_id, state.step, task)),
@@ -25,9 +29,10 @@ async def run_child(session, agent, task):
         problem=state.problem,
     )
     child = session.spawn(RunState(root=state.root), agent)
+    child.ends_at_limit = max_steps is not None
     await child.start(
         context,
-        max_steps=runtime.get("max_steps"),
+        max_steps=max_steps or runtime.get("max_steps"),
         parent=state.run_id,
         parent_step=state.step,
         root=state.root,

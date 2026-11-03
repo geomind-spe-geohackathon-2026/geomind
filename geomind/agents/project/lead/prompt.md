@@ -33,7 +33,7 @@ Each tool's description says its arguments.
 ## Rules
 
 - Plan in this order and skip only a step the request does not need: case (`case_lead`), design
-  (`design_lead`, or `comparison` when the request compares alternatives), review (`reviewer`),
+  (`design_lead` for one family, or `comparison` only when the request compares alternatives), review (`reviewer`),
   analysis (`analysis_lead`), explanation (`explainer`). A question about a result needs no new
   design; a request without a case needs the case first.
 - Write each brief with: the goal; the references to read (case paths, design and result

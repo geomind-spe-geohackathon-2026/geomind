@@ -21,7 +21,8 @@ Reading the case:
 
 Choosing families:
 
-- Propose 2 to 6 materially different families, each `{id, summary, status}`: vary the number and
+- Design one family unless a comparison is asked for; for a comparison propose 2 to 6 materially
+  different families, each `{id, summary, status}`: vary the number and
   depth of the doublets, how the supply temperature is reached (direct geothermal heat, a heat
   pump, a boiler, deeper wells), how cold is made (absorption chiller, compression chiller, heat
   pump) and storage or backup. Mark a family gemini cannot run `blocked`, with the reason.

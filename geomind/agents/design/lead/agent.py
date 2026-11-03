@@ -17,22 +17,31 @@ SIDE_BY_SIDE = ("reservoir_engineer", "well_engineer", "energy_systems_engineer"
 """The engineers who fill their parts at the same time, from one connected design."""
 ENGINEER_TOKENS = 2000
 """The most tokens of an engineer's answer the design lead reads back."""
+STEPS = "engineer_max_steps"
+"""The setting of an engineer's own step limit, at which it hands back what it has."""
 LIMIT = "design_concurrency"
 """The setting that bounds how many engineers fill their parts side by side."""
 SUPPORT_TOKENS = 1500
 """The most tokens of the support lead's answer a lead reads back."""
 
 
+def engineer(agent):
+    """Return the delegate of an engineer, with the engineers' own step limit."""
+    return Delegate(agent, max_summary_tokens=ENGINEER_TOKENS, steps=STEPS)
+
+
 def beside(agent):
     """Return the delegate of an engineer that fills its part beside others, within the limit."""
-    return Delegate(agent, max_summary_tokens=ENGINEER_TOKENS, runs_beside=True, limit=LIMIT)
+    return Delegate(
+        agent, max_summary_tokens=ENGINEER_TOKENS, runs_beside=True, limit=LIMIT, steps=STEPS
+    )
 
 
 def team():
     """Return the design team as tools by name, in the order the lead calls them."""
     members = {
-        "process_engineer": Delegate(ProcessEngineer(), max_summary_tokens=ENGINEER_TOKENS),
-        "integration_engineer": Delegate(IntegrationEngineer(), max_summary_tokens=ENGINEER_TOKENS),
+        "process_engineer": engineer(ProcessEngineer()),
+        "integration_engineer": engineer(IntegrationEngineer()),
         "reservoir_engineer": beside(ReservoirEngineer()),
         "well_engineer": beside(WellEngineer()),
         "energy_systems_engineer": beside(EnergySystemsEngineer()),

@@ -243,6 +243,8 @@ Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/C
 | 53 | E1, project lead | asked again about a value approved through the case lead | a confirmed change is accepted | this commit |
 | 54 | E1, design lead | made up a grid gas composition and put the case value under plant paths | handed over at once, never into the plant | this commit |
 | 55 | E1, design lead | the three side-by-side engineers called one by one | `fill_parts` runs them at the same time in code | this commit |
+| 56 | E1, all engineers | owners written as `params.<path>`; every engineer's patch refused (61 times) | a prefix with or without `params.` is found | this commit |
+| 57 | E1, design lead | `"format": "1"` refused four times as an old header | read as its number | this commit |
 | 50 | A1, all | models saw only the first paragraph of each tool's docstring | the whole docstring but its `NOTE:` paragraphs | `768f396` |
 
 ### The adaptation to gemini 0.5 (done) and what is open

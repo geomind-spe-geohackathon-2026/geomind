@@ -67,6 +67,7 @@ ADDED_SETTINGS = frozenset(
         "compare_retries",
         "gemini_threads",
         "design_concurrency",
+        "engineer_max_steps",
         *(f"{role}_model" for role in ROLES),
     }
 )
@@ -86,6 +87,7 @@ RETRY_SETTINGS = {
     "max_output_tokens": "GEOMIND_MAX_OUTPUT_TOKENS",
     "memory": "GEOMIND_MEMORY",
     "design_concurrency": "GEOMIND_DESIGN_CONCURRENCY",
+    "engineer_max_steps": "GEOMIND_ENGINEER_MAX_STEPS",
 }
 """The settings a live run needs beside its models, by the environment variable that sets each.
 
@@ -144,6 +146,7 @@ def _defaults():
         "max_steps": _integer("GEOMIND_MAX_STEPS"),
         "max_output_tokens": _integer("GEOMIND_MAX_OUTPUT_TOKENS"),
         "design_concurrency": _integer("GEOMIND_DESIGN_CONCURRENCY"),
+        "engineer_max_steps": _integer("GEOMIND_ENGINEER_MAX_STEPS"),
         "memory": os.environ.get("GEOMIND_MEMORY") or None,
         "memory_dir": os.environ.get("GEOMIND_MEMORY_DIR") or None,
         "memory_similarity": _number("GEOMIND_MEMORY_SIMILARITY"),

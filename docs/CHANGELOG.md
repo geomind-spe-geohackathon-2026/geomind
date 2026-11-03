@@ -6,6 +6,18 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### Cost cuts from the first end-to-end run (0.4.22.dev31)
+
+E1 spent its 1 USD cap before a verified design: 7.0M input tokens (3.9M cached) over about 400 model calls, 119 of 334 tool calls failing. Measured offline on its log.
+
+**Contract changes for the backend:** a new required setting `GEOMIND_ENGINEER_MAX_STEPS` (required for a live run, no default): the steps of one engineer's run, at which it ends with what it has instead of asking the user to continue.
+
+- Fix (#56): the process engineer recorded owners as `params.d0.reservoir`, and the ownership check looked up `d0.reservoir...`: every engineer's patch was refused as owned by no discipline (61 refusals in the last segment, 21 on one path). A prefix with or without `params.` is found.
+- Fix (#57): `build_plant` reads a `format` given as text (`"1"`) as its number; it had been refused as an old header four times.
+- `Delegate(..., steps=SETTING)`: a nested run with its own step limit that ends at it and answers from what it has (`step_limit`), with no question; the design team's delegates use `engineer_max_steps`. `RunSession.delegate` and `run_child` take `max_steps`.
+- The design lead designs one family unless the request or its brief asks to compare (then 2 to 6); the project lead uses `comparison` only when the request compares. E1 designed two families for a request that compared nothing.
+- Tool descriptions keep the whole docstring (#50): the design lead's tools are about 7,400 tokens, sent from the cache; E1's cost came from the calls and the refusals, not from them.
+
 ### gemini 0.6.0 (0.4.22.dev30)
 
 **Contract change for the backend (breaking):** geomind now needs gemini `>=0.6,<0.7` (was `>=0.5,<0.6`) and pins the 0.6.0 release wheel (`requirements/gemini.txt`, sha256 `738567e46cc706ca48051bcf115926774d9d8013534ed0bee1713edc2451f2a8`; `[tool.uv.sources]`). The backend moves to gemini 0.6.0 together with this geomind. gemini 0.6 replaces `Inlet` and `Outlet` with one `Port`; geomind used neither outside a test fixture of the removed module sandbox, now deleted. The plant file format is unchanged: every example and project plant builds, and results are byte-identical to 0.5.14.

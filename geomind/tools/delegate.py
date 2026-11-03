@@ -14,19 +14,23 @@ STOP_CODES = ("context_exceeded",)
 """Codes a nested run's message may start with, which its delegate passes on."""
 
 
+def required_setting(name, where):
+    """Return a setting a delegate needs, or refuse naming its environment variable."""
+    value = runtime.get(name)
+    if value is None:
+        raise ToolError(
+            f"{where}: {name} = None; expected GEOMIND_{name.upper()}", code="not_allowed"
+        )
+    return value
+
+
 def bound(session, limit, where):
     """Return the semaphore of one run that the setting ``limit`` sizes; unset, refuse.
 
     NOTE: it lives on the session, so the delegates of one step share it, and a new run starts
     with a new one.
     """
-    size = runtime.get(limit)
-    if size is None:
-        variable = f"GEOMIND_{limit.upper()}"
-        raise ToolError(
-            f"{where}: {limit} = None; expected {variable}, how many such runs go side by side",
-            code="not_allowed",
-        )
+    size = required_setting(limit, where)
     limits = session.limits
     if limit not in limits:
         limits[limit] = asyncio.Semaphore(size)
@@ -50,9 +54,12 @@ class Delegate(Tool):
     that never wait for a user: ``is_pure`` stays false, so a replay still runs them again.
     ``limit`` names the runtime setting that bounds how many delegates of that limit run at once
     in one run, such as ``design_concurrency``; it is required when given, with no default.
+    ``steps`` names the runtime setting of the nested run's own step limit, such as
+    ``engineer_max_steps``: at it the nested run ends with what it has instead of asking to go
+    on; required when given, with no default.
     """
 
-    def __init__(self, agent, max_summary_tokens=None, runs_beside=False, limit=None):
+    def __init__(self, agent, max_summary_tokens=None, runs_beside=False, limit=None, steps=None):
         """Offer ``agent`` as a tool named after it."""
         super().__init__(
             agent.name,
@@ -67,6 +74,7 @@ class Delegate(Tool):
         self.max_summary_tokens = max_summary_tokens
         self.runs_beside = runs_beside
         self.limit = limit
+        self.steps = steps
 
     @property
     def is_pure(self):
@@ -75,11 +83,12 @@ class Delegate(Tool):
 
     async def _delegate(self, context, task):
         """Run the nested agent through the run of ``context``, within its limit if it has one."""
+        max_steps = required_setting(self.steps, self.name) if self.steps else None
         if self.limit is None:
-            result = await context.session.delegate(self.agent, task)
+            result = await context.session.delegate(self.agent, task, max_steps)
         else:
             async with bound(context.session, self.limit, self.name):
-                result = await context.session.delegate(self.agent, task)
+                result = await context.session.delegate(self.agent, task, max_steps)
         return self.outcome(result, context.session.child_limit)
 
     def outcome(self, result, limit=None):

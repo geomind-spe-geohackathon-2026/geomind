@@ -547,3 +547,10 @@ async def test_a_stream_mismatch_reaches_the_agent_with_both_ends_and_suggestion
     assert result.is_error and error["code"] == "stream_mismatch"
     assert "grid.power_out" in error["message"] and "degasser.fluid_in" in error["message"]
     assert error["suggestions"] and len(json.dumps(error)) < 1500
+
+
+async def test_a_format_given_as_text_is_read_as_its_number(gm):
+    """#57: the design lead sent ``"format": "1"`` four times and was told the header was old."""
+    plant = {"format": "1", "kind": "plant", "name": "p", "type": "HeatingPlant"}
+    result = await call(TOOLS.build_plant, {"plant": plant, "name": "p0"}, StubSession())
+    assert not result.is_error and result.output["design"] == "design/p0"

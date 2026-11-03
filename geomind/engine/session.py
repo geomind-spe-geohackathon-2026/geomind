@@ -70,6 +70,7 @@ class RunSession:
         self._index_lock = asyncio.Lock()
         self.child_limit = None
         self.limits = {}
+        self.ends_at_limit = False
         self._held_text = ""
         self._output_limit = None
         self.limit_reached = None
@@ -482,9 +483,9 @@ class RunSession:
         """Return the session of a nested run on the same log."""
         return RunSession(self.engine, self.log, state, agent, parent=self)
 
-    async def delegate(self, agent, task):
+    async def delegate(self, agent, task, max_steps=None):
         """Run a nested agent and keep what the parent needs of its result."""
-        result = await run_child(self, agent, task)
+        result = await run_child(self, agent, task, max_steps)
         self.add_child_usage(result.usage)
         if result.request is not None:
             self.waiting_child = result.run_id

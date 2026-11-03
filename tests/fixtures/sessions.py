@@ -62,7 +62,7 @@ class StubSession:
         """Keep an internal error."""
         self.errors.append((error, where))
 
-    async def delegate(self, agent, task):
+    async def delegate(self, agent, task, max_steps=None):
         """Return the scripted nested result."""
         self.delegated = (agent, task)
         return self.result

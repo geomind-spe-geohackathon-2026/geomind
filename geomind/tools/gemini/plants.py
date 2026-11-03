@@ -305,6 +305,8 @@ async def build_plant(context, plant: dict[str, Any], name: str):
             path="plant",
             suggestions=[json.dumps(example)],
         )
+    if isinstance(plant.get("format"), str) and plant["format"].strip().isdigit():
+        plant = {**plant, "format": int(plant["format"])}
     try:
         built = await runtime.in_gemini_thread(gm.Plant.from_dict, plant)
     except gm.errors.ValidationError as error:

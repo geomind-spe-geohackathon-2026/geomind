@@ -185,6 +185,8 @@ class Engine:
                 if stop is not None:
                     return stop
             recorded = self.recorded_steps.get(state.run_id)
+            if not recorded and session.ends_at_limit:
+                return Stop("step_limit", f"stopped after {state.step} steps")
             if not recorded:
                 break
             stop = await self._decide_steps(session, recorded.pop(0) == "allow", None)
