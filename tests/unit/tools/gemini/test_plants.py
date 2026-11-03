@@ -13,6 +13,7 @@ from geomind.engine import Context
 from geomind.errors import ToolError
 from geomind.stores import FileWorkspace, MemoryWorkspace
 from geomind.tools.gemini.plants import load_plant, set_ranges, workspace_plant
+from tests.fixtures import ROOT
 from tests.fixtures.calls import call
 from tests.fixtures.cases import (
     PLANTS,
@@ -534,3 +535,15 @@ def test_a_merge_patch_of_two_plant_files_holds_only_what_differs():
     patch = plant_difference(base, other)
     assert patch == {"a": {"c": 5}, "d": [1, 2], "e": None, "f": 4}
     assert leaf_changes(patch) == {"a.c": 5, "d": [1, 2], "e": None, "f": 4}
+
+
+async def test_a_stream_mismatch_reaches_the_agent_with_both_ends_and_suggestions(gm):
+    """A connection gemini 0.6 refuses, electricity into a brine inlet, names both ends."""
+    plant = json.loads((ROOT / "evals/projects/hackathon/plants/HackathonPlant.json").read_text())
+    wrong = next(item for item in plant["connections"] if item["target"] == "degasser.fluid_in")
+    wrong["source"] = "grid.power_out"
+    result = await call(TOOLS.build_plant, {"plant": plant, "name": "wrong"}, StubSession())
+    error = result.output["error"]
+    assert result.is_error and error["code"] == "stream_mismatch"
+    assert "grid.power_out" in error["message"] and "degasser.fluid_in" in error["message"]
+    assert error["suggestions"] and len(json.dumps(error)) < 1500

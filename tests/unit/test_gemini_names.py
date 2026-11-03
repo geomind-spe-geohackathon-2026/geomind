@@ -213,10 +213,10 @@ def test_the_hackathon_check_sees_a_violation():
 
 
 def test_the_installed_gemini_is_in_the_supported_range():
-    """``pyproject.toml`` pins gemini to 0.5 and the installed version satisfies the pin."""
+    """``pyproject.toml`` pins gemini to 0.6 and the installed version satisfies the pin."""
     import gemini as gm
 
     dependencies = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["dependencies"]
     pins = [Requirement(item) for item in dependencies if "gemini" in item]
-    assert [pin.specifier for pin in pins] == [SpecifierSet(">=0.5,<0.6")]
+    assert [pin.specifier for pin in pins] == [SpecifierSet(">=0.6,<0.7")]
     assert Version(gm.__version__) in pins[0].specifier, f"unsupported gemini {gm.__version__}"

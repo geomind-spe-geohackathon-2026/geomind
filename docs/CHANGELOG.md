@@ -6,6 +6,13 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### gemini 0.6.0 (0.4.22.dev30)
+
+**Contract change for the backend (breaking):** geomind now needs gemini `>=0.6,<0.7` (was `>=0.5,<0.6`) and pins the 0.6.0 release wheel (`requirements/gemini.txt`, sha256 `738567e46cc706ca48051bcf115926774d9d8013534ed0bee1713edc2451f2a8`; `[tool.uv.sources]`). The backend moves to gemini 0.6.0 together with this geomind. gemini 0.6 replaces `Inlet` and `Outlet` with one `Port`; geomind used neither outside a test fixture of the removed module sandbox, now deleted. The plant file format is unchanged: every example and project plant builds, and results are byte-identical to 0.5.14.
+
+- A connection gemini 0.6 refuses comes back as `stream_mismatch` at its path, naming both ends and what each carries, with gemini's suggested ports (`build_plant`, `patch_plant`, `merge_designs`); `plant_issues` (`gm.check`, or `plant.check()` without a case) also lists `generic_conflict` and `unconnected_port` before the design lead's review. No tool for `plant.suggest` yet (waits for Sahand).
+- Old logs replay: a log of another version replays with its recorded tool results.
+
 ### What the first end-to-end run showed (0.4.22.dev29)
 
 Run E1: the coordinator, then the project lead with every team, DeepSeek, memory off, capped at 1 USD (it stopped there, 0.997 USD, before a verified design). Each bug is pinned by a test.
