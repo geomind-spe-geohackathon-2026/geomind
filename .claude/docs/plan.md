@@ -177,6 +177,36 @@ body, and remove its `stub` status in the table of [tools.md](tools.md#catalogue
 a different signature follows the [change rule](api.md#frozen-interfaces). Task tests go in the
 mirrored `tests/unit/...` file that already exists for the stub.
 
+### Task list (updated 2026-11-03, live loop)
+
+Done on `dev` (0.4.22.dev23), each with tests; 41 bugs of the live loop found and fixed:
+
+- [x] Formulator: one agent sets the case, from the chat and any files; the project's
+  `case.json` is loaded by rule; values no file gives are confirmed by the user in one question
+  with their source or reason and kept as assumptions with a citation.
+- [x] The Designer reads the case and never sets it; a case it lacks goes back as
+  `case change needed: <path>: <why>`.
+- [x] Key trees from gemini's public schemas in the system prompts: case and economics
+  (Formulator), plant file and study (Designer), study (Economist); compact `describe_module`.
+- [x] Shared memory: `knowledge` (cited values; gemini's cost catalogue copied into
+  `data/knowledge/` and loaded with `geomind memory seed`) and `experience` (verified designs,
+  written by the loop in code, recalled only above `memory_similarity`).
+- [x] Step limit asks to continue; `geomind resume`; replay then live (`--replay`).
+- [x] Required settings with no default: `GEOMIND_MAX_STEPS`, `GEOMIND_MAX_OUTPUT_TOKENS`,
+  `GEOMIND_MEMORY` (with its folder and similarity), `GEOMIND_FORMULATOR_MODEL`, the retries.
+- [x] `patch_plant`: a plant built in small checked steps, one module's values at a time.
+
+Open, in order:
+
+1. [ ] The plant design team: the layout of agents modelled on a geothermal systems
+   engineering team, with the Designer as lead engineer and reviewer (Sahand decides the roles).
+2. [ ] A live run to a verified, costed and explained design, with replay from each failure.
+3. [ ] One full run from the start, the memory off, then the full suite, the release (an
+   annotated tag) and the version for the backend.
+4. [ ] MCP connectors for every agent (S5 below).
+5. [ ] gemini needs for Sahand to approve: `gm.Plant.from_dict` raises `KeyError('')` instead of
+   `ValidationError` for an inlet given as a bare value such as `{"flue_out": "gas"}`.
+
 ### The adaptation to gemini 0.5 (done) and what is open
 
 geomind 0.3.0 runs on gemini 0.5: the case is a project folder (`set_case`, `read_case`,
