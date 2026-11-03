@@ -79,6 +79,7 @@
  "tests/integration/test_old_log.py::test_the_log_exports_with_its_study_call": 0.1,
  "tests/integration/test_old_log.py::test_the_log_loads_and_has_a_study_call_without_a_name": 0.08,
  "tests/integration/test_old_log.py::test_the_log_replays_without_validating_the_recorded_input": 1.04,
+ "tests/integration/test_scripted_recording.py::test_the_script_writes_the_checked_in_recording_again": 72.6,
  "tests/integration/test_studies.py::test_a_log_without_the_study_event_replays_and_exports": 0.63,
  "tests/integration/test_studies.py::test_the_event_comes_once_after_the_tool_starts_and_before_it_finishes": 0.76,
  "tests/integration/test_studies.py::test_the_study_is_listed_and_read_back_in_the_same_run": 0.01

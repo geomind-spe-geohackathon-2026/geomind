@@ -80,6 +80,8 @@ def _changes(args):
         changes["max_steps"] = args.max_steps
     if getattr(args, "concurrency", None):
         changes["compare_concurrency"] = args.concurrency
+    if getattr(args, "retries", None) is not None:
+        changes["compare_retries"] = args.retries
     return changes
 
 
@@ -478,6 +480,11 @@ def _comparison_arguments(run):
         "--concurrency",
         type=int,
         help="families a comparison designs side by side; unset, one at a time",
+    )
+    run.add_argument(
+        "--retries",
+        type=int,
+        help="how often a comparison designs a rejected family again; unset, never",
     )
 
 

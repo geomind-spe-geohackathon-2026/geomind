@@ -219,10 +219,13 @@ class CostBudget(Capped):
 
 
 class TimeLimit(Hook):
-    """Stop a run before an LLM call once ``max_seconds`` have passed since its first call.
+    """Stop a run once ``max_seconds`` have passed since its first LLM call.
 
     The clock starts at the first LLM call of a root run, in this process; a run resumed in
-    another process starts it anew. There is no default: the limit is required.
+    another process starts it anew. There is no default: the limit is required. A model call or
+    an async tool in flight is cancelled when the time is up. NOTE: a sync tool or gemini work
+    runs in a worker thread, which Python cannot stop: the run stops waiting for it at the limit
+    and the thread runs on to its end, its result unused.
     """
 
     def __init__(self, max_seconds, clock=monotonic):
@@ -232,12 +235,24 @@ class TimeLimit(Hook):
         self._started = {}
 
     def before_llm_call(self, context, agent, messages):
-        """Deny the call once the time is up."""
+        """Deny the call once the time is up, else bound it to the time left."""
         root = context.session.state.root
-        elapsed = self.clock() - self._started.setdefault(root, self.clock())
-        if elapsed < self.max_seconds:
+        self._started.setdefault(root, self.clock())
+        return self._bound(context, root)
+
+    def before_tool_call(self, context, agent, call):
+        """Deny a tool call once the time is up, else bound it to the time left."""
+        root = context.session.state.root
+        return self._bound(context, root) if root in self._started else None
+
+    def _bound(self, context, root):
+        """Deny once the time is up; else give the call the seconds left."""
+        elapsed = self.clock() - self._started[root]
+        cut = context.session.limit_reached
+        if elapsed < self.max_seconds and not cut:
+            context.session.limit_time(self.max_seconds - elapsed)
             return None
-        reason = f"time limit: {elapsed:.0f} s of {self.max_seconds} s"
+        reason = cut or f"time limit: {elapsed:.0f} s of {self.max_seconds} s"
         context.session.note_limit(reason)
         return Deny(reason=reason)
 

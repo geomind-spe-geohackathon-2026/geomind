@@ -6,6 +6,15 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.15] - 2026-11-03
+
+Additive.
+
+- `TimeLimit` bounds the call in flight: a model call or an async tool that passes the time left is cancelled, and the run stops with its partial answer (new `gd.errors.TimeLimitReached`). A sync tool or gemini work in a worker thread cannot be cancelled: the run stops waiting at the limit and the thread finishes on its own.
+- `geomind run --retries N` sets `compare_retries`.
+- `evals/scripted.py`, the scripted model that wrote the `alternatives/three_families` recording, is committed, with a slow test that runs it offline.
+- `AGENTS.md` and `.claude/docs` point at `docs/rules.md`, `.claude/docs` and the copy of the shared contract instead of a `../docs` folder no clone has. `.claude/docs/evals.md` says why old tasks meet fewer criteria in the report's `CompareLoop` table: their recordings belong to other loops.
+
 ## [0.4.14] - 2026-11-03
 
 Tests only; the package is unchanged.

@@ -446,3 +446,10 @@ def test_the_concurrency_of_a_comparison_is_a_setting_of_the_run():
     unset = cli._parser().parse_args(["run", "x"])
     assert "compare_concurrency" not in cli._changes(unset)
     assert runtime.get("compare_concurrency") is None
+
+
+def test_the_retries_of_a_comparison_are_a_setting_of_the_run():
+    """``--retries`` sets ``compare_retries``; without it the run keeps the setting's."""
+    parsed = cli._parser().parse_args(["run", "x", "--retries", "2"])
+    assert cli._changes(parsed)["compare_retries"] == 2
+    assert "compare_retries" not in cli._changes(cli._parser().parse_args(["run", "x"]))

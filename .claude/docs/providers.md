@@ -7,7 +7,7 @@ prompt, an event or a log.
 ## Protocol
 
 `LLM.complete(messages, tools, *, model, settings, on_text=None) -> Completion`, exactly as in
-[contracts.md](../../../docs/contracts.md) section 3. `tools` is a list of
+[contracts.md](../../tests/fixtures/contracts/shared.md) section 3. `tools` is a list of
 `{name, description, input_schema}`, `settings` holds `temperature` and `max_tokens`, and
 `on_text(delta)` is a plain function. A provider may have `secrets`, a tuple of values the engine
 redacts from every event.

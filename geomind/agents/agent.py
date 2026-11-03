@@ -13,10 +13,10 @@ from typing import Any
 import pydantic
 
 from geomind import runtime
-from geomind.errors import DeclarationError, OutputError
+from geomind.errors import DeclarationError, OutputError, TimeLimitReached
 from geomind.prompts import Prompt
 from geomind.tools import Tool
-from geomind.types import Action, Record, Usage
+from geomind.types import Action, Deny, Record, Usage
 from geomind.utils.json import to_jsonable
 from geomind.utils.strings import did_you_mean, first_paragraph, join_names, join_path, snake_case
 
@@ -235,7 +235,10 @@ class Agent:
         if decision is not None:
             return AgentResult(messages=messages, decision=decision)
         started = perf_counter()
-        action = await self.forward(context)
+        try:
+            action = await self.forward(context)
+        except TimeLimitReached as error:
+            return AgentResult(messages=messages, decision=Deny(reason=str(error)))
         return AgentResult(
             action=action,
             messages=messages,
