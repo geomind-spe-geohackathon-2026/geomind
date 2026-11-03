@@ -99,20 +99,21 @@ async def test_a_forced_read_of_a_document_read_whole_is_a_note():
     assert "already read" in again["note"]
 
 
-async def test_a_later_round_sees_what_an_earlier_round_read():
-    """Each design lead round is a nested run; the reads of the tree are one memory."""
+async def test_a_later_round_reads_a_page_itself_once():
+    """A page another round read is not in this round's conversation: it reads the text once.
+
+    Each design lead round is a nested run; no ``read_stored`` call, then never again. Track A:
+    the geoscientist got a note and a reference, and spent a call on ``read_stored``.
+    """
     root = session_with_files()
     child = session_with_files()
     child.root_session = root
     child.state.run_id = "r2"
-    first = (await call(read_rag, {"name": HEATING}, root, "p")).output
-    reference = next(iter(root.artifacts), None)
-    if reference is None:
-        root.artifacts["stored"] = first
-        root.documents_read[HEATING][0]["reference"] = "stored"
-    child.artifacts = root.artifacts
+    await call(read_rag, {"name": HEATING}, root, "p")
+    first = (await call(read_rag, {"name": HEATING}, child, "p")).output
     again = (await call(read_rag, {"name": HEATING}, child, "p")).output
-    assert "text" not in again and again["already_read"][0]["reference"]
+    assert first["text"].startswith("date,") and "text" not in again
+    assert again["already_read"][0]["run"] == "r2"
 
 
 async def test_a_short_read_of_another_round_is_read_again():

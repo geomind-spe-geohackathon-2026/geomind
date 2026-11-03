@@ -66,3 +66,9 @@ def test_a_search_must_come_before_the_first_question():
     assert rule.problem(searched) is None
     assert rule.problem(Outcome(name="t", tools=["read_rag"])) is None
     assert rule.problem(asked).startswith("before: no search_rag before the first ask_user")
+
+
+def test_names_and_list_markers_are_no_numbers():
+    """``A14``, ``CO2`` and a list's ``13.`` are no values the agent states."""
+    answer = "13. assumption A14 holds CO2 and CH4\n14) done"
+    assert CRITERION.problem(outcome(answer, "")) is None

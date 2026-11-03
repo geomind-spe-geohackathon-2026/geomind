@@ -6,6 +6,14 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### The case team re-reads nothing (0.4.22.dev44)
+
+The first live round after dev43 still spent 10 `read_stored` calls in from_files: on pages the case lead read before its geoscientist, on search results, on `describe_case` answers and on the geoscientist's findings, each shrunk to a reference one step after it came.
+
+- Behaviour: `read_rag` counts only this run's reads as already read. A nested run (a delegate, a design round) reads a page another run read itself, once, instead of getting a note and spending a `read_stored` call.
+- Behaviour: `search_rag` keeps its results whole for `compaction_keep_turns` turns, `describe_case` for the run, and the case lead keeps its geoscientist's findings for the run.
+- Evals: the `sourced` criterion skips numbers joined to a word (`A14`, `CO2`) and list markers (`13.`).
+
 ### The case team: fewer calls, fewer tokens (0.4.22.dev43)
 
 The case lead's from_files run took 39 model calls and 1.15M input tokens. It read the brief again four times with `read_stored` once the page shrank after six turns, read the 40k-character cost catalogue three times, asked for the same missing values three times, and rounded catalogue prices.

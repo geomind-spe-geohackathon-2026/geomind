@@ -10,7 +10,8 @@ import geomind as gd
 from geomind.types import Record
 
 NUMBER = r"-?\d+(?:\.\d+)?"
-UNSIGNED = r"(?<![\d.])\d+(?:\.\d+)?"
+UNSIGNED = r"(?<![\w.])\d+(?:\.\d+)?"
+LIST_MARKER = r"(?m)^\s*\d+[.)]\s"
 THOUSANDS = r"(?<=\d)[,\u00a0\u202f](?=\d{3}(?!\d))"
 
 
@@ -104,8 +105,13 @@ class VerifiedCriterion(Record):
 
 
 def _numbers(text):
-    """Return the numbers of a text, without sign, reading ``1,030`` as one thousand and thirty."""
-    return {float(item) for item in re.findall(UNSIGNED, re.sub(THOUSANDS, "", text))}
+    """Return the numbers of a text, without sign, reading ``1,030`` as one thousand and thirty.
+
+    A number joined to a word is a name, such as ``A14`` or ``CO2``, and a list's ``13.`` counts
+    items: neither is a number the agent states.
+    """
+    text = re.sub(LIST_MARKER, " ", re.sub(THOUSANDS, "", text))
+    return {float(item) for item in re.findall(UNSIGNED, text)}
 
 
 class SourcedCriterion(Record):

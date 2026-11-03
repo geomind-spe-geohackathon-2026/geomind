@@ -204,16 +204,12 @@ def read_before(context, name, start, end):
     """Return the earlier reads of ``name`` in this run covering ``start`` to ``end``, or ``None``.
 
     Each is ``{start, end, reference}``: ``reference`` is where the earlier result was stored, for
-    ``read_stored``, or ``None`` when it was short enough to stay in the conversation. A read
-    of another run of the tree counts only when its result was stored, as this run's
-    conversation does not hold it.
+    ``read_stored`` after a compaction, or ``None``. Only this run's reads count: a page another
+    run of the tree read is not in this run's conversation, so this run reads it itself, once,
+    instead of a note and a ``read_stored`` call.
     """
     run = context.session.state.run_id
-    reads = [
-        read
-        for read in (reads_of(context) or {}).get(name, [])
-        if read.get("run") == run or stored_reference(context, read)
-    ]
+    reads = [read for read in (reads_of(context) or {}).get(name, []) if read.get("run") == run]
     covered, position = [], start
     for read in sorted(reads, key=lambda item: item["start"]):
         if read["start"] <= position < read["end"]:

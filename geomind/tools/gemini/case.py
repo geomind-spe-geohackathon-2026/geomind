@@ -579,7 +579,7 @@ def economics_of(context, data):
     return json.loads(content)
 
 
-@tool(effect="read")
+@tool(effect="read", keeps_result="run")
 def describe_case(path: str):
     """Say what each key of the case or its economics under ``path`` means, with its units.
 

@@ -61,7 +61,7 @@ def read_result(
     return results.get(path, field, start=first, end=last, units=READ_UNITS)
 
 
-@tool(effect="read")
+@tool(effect="read", keeps_result=True)
 def search_rag(context, query: str):
     """Search the project's documents and files and the knowledge base; return ``{matches, note}``.
 
