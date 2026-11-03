@@ -249,3 +249,18 @@ async def test_a_missing_case_value_in_a_plant_s_issues_says_how_to_get_it():
     assert "case change needed: site.air.pressure" in routed["suggestions"][0]
     plant_issue = {"path": "d0.drainage_radius", "code": "missing_value", "message": "missing"}
     assert routed_issue(plant_issue) == plant_issue
+
+
+async def test_a_plant_s_issues_are_compact_enough_to_stay_in_the_history():
+    """Round 2 re-read one read_plant result 29 times: its 110 issues took 30k characters."""
+    import json
+
+    from geomind.tools.gemini.plants import read_plant
+    from tests.fixtures.calls import call as dispatched
+
+    output = (await dispatched(read_plant, {"plant_class": "HeatingHeatPumpCoolingPlant"})).output
+    issues = output["issues"]
+    assert len(json.dumps(issues)) < 22000
+    first = next(item for item in issues if item["path"] == "params.d0.drainage_radius")
+    assert first["units"] == "ft|in|km|m|mm" and not first["message"].startswith("d0.")
+    assert read_plant.keeps_result

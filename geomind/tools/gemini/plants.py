@@ -164,15 +164,22 @@ def routed_issue(issue):
 
 
 def issue_dict(issue):
-    """Return an ``Issue`` of gemini as plain data: its problem with its kind and accepted units."""
-    return routed_issue(
-        {
-            **issue.problem(),
-            "kind": issue.kind,
-            "quantity": issue.quantity,
-            "accepted": list(issue.accepted),
-        }
-    )
+    """Return an ``Issue`` of gemini as compact data: path, code, kind, message, units.
+
+    The message drops the path it starts with, and the accepted units are one ``a|b`` text, so a
+    plant's many issues stay small enough for the model to keep.
+    """
+    problem = issue.problem()
+    path, message = problem["path"] or "", problem["message"]
+    short = path.removeprefix("params.")
+    for prefix in (f"{path}: ", f"{short}: "):
+        message = message.removeprefix(prefix)
+    item = {"path": path, "code": problem["code"], "kind": issue.kind, "message": message}
+    if problem.get("suggestions"):
+        item["suggestions"] = list(problem["suggestions"])
+    if issue.accepted:
+        item["units"] = "|".join(issue.accepted)
+    return routed_issue(item)
 
 
 def plant_issues(context, plant):
@@ -226,7 +233,11 @@ def plant_view(plant):
     }
 
 
-@tool(effect="read", late_schemas={"design": reference_schema("design", optional=True)})
+@tool(
+    effect="read",
+    late_schemas={"design": reference_schema("design", optional=True)},
+    keeps_result=True,
+)
 def read_plant(
     context,
     design: str | None = None,

@@ -131,9 +131,9 @@ def test_without_a_case_the_issues_are_those_of_the_plant(gm, reads, example, pl
     without_case, _ = reads[(example, plant)]
     expected = [issue.problem() for issue in example_plant(example, plant).check()]
     assert without_case["checked_against"] == "plant"
-    assert [
-        {key: issue[key] for key in expected[0]} for issue in without_case["issues"]
-    ] == expected
+    assert [(issue["path"], issue["code"]) for issue in without_case["issues"]] == [
+        (item["path"], item["code"]) for item in expected
+    ]
 
 
 @pytest.mark.parametrize("example", ["hackathon_2026", "shallow_district"])
@@ -170,15 +170,7 @@ async def test_a_class_name_reads_as_a_plant_with_its_missing_values(gm):
     assert result.output["plant"] == plant.to_dict(structure=True)
     assert result.output["checked_against"] == "plant"
     assert {issue["kind"] for issue in result.output["issues"]} == {"missing"}
-    assert set(result.output["issues"][0]) == {
-        "path",
-        "code",
-        "message",
-        "suggestions",
-        "kind",
-        "quantity",
-        "accepted",
-    }
+    assert set(result.output["issues"][0]) == {"path", "code", "message", "kind", "units"}
 
 
 @pytest.mark.parametrize("example", ["hackathon_2026", "shallow_district"])
