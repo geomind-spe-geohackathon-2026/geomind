@@ -190,6 +190,7 @@ class Engine:
         if loop is not None:
             loop.load_state_dict(state.loop_state)
         agent = agent or agent_class(state)()
+        agent.load_loop_state(state.loop_state)
         with runtime.settings(**state.settings):
             log = RunLog(self, state.root, state.sequence)
             session = RunSession(self, log, state, agent, loop)

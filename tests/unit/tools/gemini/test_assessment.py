@@ -162,7 +162,7 @@ def test_costs_follow_the_cooling_demand():
     assert peak["opex"]["value"] > base["opex"]["value"]
 
 
-async def test_a_case_without_economics_gives_gemini_s_missing_assumption():
+async def test_a_case_without_economics_is_incomplete():
     """The model reads the path to ask the user for; nothing is filled in."""
     context, _, result = await stored_run("shallow_district")
     identifier = result.removeprefix("result/")
@@ -170,5 +170,5 @@ async def test_a_case_without_economics_gives_gemini_s_missing_assumption():
     del ran_on["economics"]
     await context.session.save_artifact(f"{identifier}.case", ran_on)
     output = (await assess_in(context, TOOLS.estimate_costs, result)).output
-    assert output["error"]["code"] == "missing_assumption"
+    assert output["error"]["code"] == "case_incomplete"
     assert output["error"]["path"].startswith("economics")

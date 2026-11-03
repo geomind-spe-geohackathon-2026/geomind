@@ -327,4 +327,4 @@ async def test_a_plant_that_gemini_s_check_rejects_comes_back_with_the_issue():
     )
     error = result.output["error"]
     assert result.is_error and error["path"] == "economics.capex.drilling"
-    assert error["code"] == "missing_assumption"
+    assert error["code"] == "case_incomplete"

@@ -197,6 +197,32 @@ async def test_the_same_failures_twice_stop_the_loop(verdicts):
     assert len(tasks_of(events, "designer")) == 2
 
 
+async def test_a_run_stopped_at_its_own_max_rounds_replays(verdicts):
+    """The replay's driver takes the recorded limit, not the default of a new driver."""
+    verdicts.append(FAILED)
+    result, engine, _ = await run_loop([says("x"), says("checked")], max_rounds=1)
+    assert "stop: max_rounds" in result.answer
+    replayed = await Engine.replay(engine.store, result.run_id)
+    assert (replayed.status, replayed.answer) == (result.status, result.answer)
+
+
+async def test_a_new_loop_resumes_with_the_recorded_limit():
+    """A loop of another process takes ``max_rounds`` from the log, as ``Loop`` promises."""
+    script = [says("no case"), says("still none")]
+    result, engine, _ = await run_loop(script, case=None, max_rounds=1)
+    resumed = await DesignLoop(Designer(), Verifier()).resume(
+        engine, result.run_id, result.request.id, {"text": "nothing"}
+    )
+    assert "stop: no_case" in resumed.answer
+
+
+def test_a_log_without_a_limit_keeps_the_driver_s():
+    """A state with no ``max_rounds`` changes nothing."""
+    driver = DesignDriver(Designer(), Verifier(), 3)
+    driver.load_loop_state({})
+    assert driver._max_rounds == 3
+
+
 async def test_a_design_run_replays_offline_from_its_log(verdicts):
     """The rule steps and the nested runs give the same calls again, with no model."""
     verdicts.append(PASSED)
@@ -273,7 +299,8 @@ async def test_a_workspace_without_files_still_asks_for_the_case():
 
 async def test_a_designer_that_leaves_no_case_stops_with_no_case_at_the_limit():
     """At the last round the driver stops with a clear answer instead of asking again."""
-    result, engine, _ = await run_loop([says("no case"), says("still none")], case=None)
+    script = [says("no case"), says("still none")]
+    result, engine, _ = await run_loop(script, case=None, max_rounds=1)
     resumed = await DesignLoop(Designer(), Verifier(), max_rounds=1).resume(
         engine, result.run_id, result.request.id, {"text": "nothing"}
     )

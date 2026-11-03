@@ -215,3 +215,11 @@ project folder `<root>/<project id>/`: the plant files `plants/*.json` as dicts 
 text files in `documents/`, searched by keyword count.
 `gd.testing.check_run_store` and `check_workspace` are the
 conformance checks.
+
+## Replays of stopped runs
+
+`load_loop_state` gives an agent what its loop logged: a replay or a resume rebuilds the driver from
+its class, so `DesignDriver` takes `max_rounds` from `run.started.loop_state` and decides as the run
+did. A log without it keeps the constructor's value. A run that stopped at a budget, a time limit
+or a pending question replays up to the end of its log and ends `cancelled` there: the replay
+compares the calls, repeats no hook and asks no model for more.

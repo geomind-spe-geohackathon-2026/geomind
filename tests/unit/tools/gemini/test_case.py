@@ -519,3 +519,37 @@ async def test_set_case_on_a_partial_case_lists_every_gap():
     error = (await call(set_case, {"changes": changes})).output["error"]
     assert error["code"] == "case_incomplete"
     assert error["suggestions"] == ["time.start", "time.end", "time.step"]
+
+
+async def test_a_case_that_lacks_what_a_plant_needs_is_incomplete():
+    """A case that reads but misses a value of the run says so, with gemini's message and path."""
+    import gemini as gm
+
+    from geomind.tools.dispatch import error_output
+
+    error = gm.errors.ValidationError(
+        "site.fluid.density is missing; expected a value in the case (it has no default)",
+        path="site.fluid.density",
+        code="missing_value",
+        problems=[{"path": "site.fluid.density", "code": "missing_value"}],
+    )
+    found = error_output(error)["error"]
+    assert found["code"] == "case_incomplete"
+    assert found["path"] == "site.fluid.density"
+    assert found["suggestions"] == ["site.fluid.density"]
+    assert found["message"].startswith("site.fluid.density is missing")
+
+
+async def test_a_missing_search_range_stays_gemini_s_error():
+    """A range belongs to the plant, so it is no gap of the case."""
+    import gemini as gm
+
+    from geomind.tools.dispatch import error_output
+
+    error = gm.errors.ValidationError(
+        "depth.range is missing",
+        path="params.depth.range",
+        code="missing_value",
+        problems=[{"path": "params.depth.range", "code": "missing_value"}],
+    )
+    assert error_output(error)["error"]["code"] == "missing_value"

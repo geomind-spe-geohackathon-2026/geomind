@@ -126,6 +126,6 @@ and to read one back `event_from_dict`.
   artifacts. Nothing else of the case needs storing.
 - **Tool errors.** A gemini `ValidationError` passes through with its `path`, `code` and message
   (`missing_value`, `invalid_design`, `unknown_name`...). A gap in gemini is a `ToolError` with
-  code `not_implemented`; a missing case is `invalid_input` telling the model to call `set_case` or
-  `ask_user`. See [tools.md](tools.md#error-results).
+  code `not_implemented`; a missing case is `no_case` telling the model to call `set_case` or
+  `ask_user`, and a case missing values is `case_incomplete`. See [tools.md](tools.md#error-results).
 - `RunResult.stop_reason` may be `not_implemented`, with `status="failed"`.

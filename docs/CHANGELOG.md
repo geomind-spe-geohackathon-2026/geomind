@@ -6,6 +6,14 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.5] - 2026-11-03
+
+Additive, with one changed code.
+
+- A design run replays and resumes with its recorded `max_rounds`: replay rebuilt the driver with the default, so a run stopped at its own limit did not replay. New `Agent.load_loop_state`; `DesignLoop.load_state_dict` takes the logged limit, so a resumed run keeps it over the new loop's.
+- Tests pin the replay of a budget stop, a time limit stop and a pending question.
+- A case that reads but lacks what a plant needs is `case_incomplete` too, with gemini's message and the paths in `suggestions`. A tool that returned `missing_value` or `missing_assumption` on a case path now returns `case_incomplete`; a missing search range keeps gemini's code.
+
 ## [0.4.4] - 2026-11-03
 
 Additive: agents read the files the user attaches. Logs, stores and recordings of 0.4.x still load and replay.

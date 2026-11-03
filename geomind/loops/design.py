@@ -114,6 +114,10 @@ class DesignDriver(Agent):
         self.model = Model(name="rule")
         self._max_rounds = max_rounds
 
+    def load_loop_state(self, state):
+        """Take the logged limit, so a replay or a resume decides as the run did."""
+        self._max_rounds = state.get("max_rounds", self._max_rounds)
+
     async def forward(self, context):
         """Decide the next move from the calls made so far."""
         calls = driver_calls(context.messages)
@@ -441,3 +445,7 @@ class DesignLoop(Loop):
     def state_dict(self):
         """Return the limit of this loop; its position is the run's own history."""
         return {"max_rounds": self.max_rounds}
+
+    def load_state_dict(self, state):
+        """Take the logged limit; a log without one keeps this loop's."""
+        self.max_rounds = state.get("max_rounds", self.max_rounds)

@@ -292,7 +292,9 @@ functions.
 An error result has gemini's Problem shape, `{"error": {path, code, message, suggestions}}`
 (`geomind/types/problems.py`, schema `geomind/schemas/tool_error.json`).
 
-A gemini error passes through its own `to_dict()` unchanged, with its code from `gm.errors.CODES`.
+A gemini error passes through its own `to_dict()` unchanged, with its code from `gm.errors.CODES`,
+except that a missing value of the case (`missing_value`, `missing_assumption` on a path of a case
+section) becomes `case_incomplete`; a missing search range keeps gemini's code.
 A validation error takes `path` from the first input field that failed. Every other error takes
 `code` from this fixed list, and `path` is the input field at fault or `null`:
 
@@ -303,7 +305,7 @@ A validation error takes `path` from the first input field that failed. Every ot
 | `not_implemented` | the capability has its final signature and is not built yet; do not retry |
 | `not_allowed` | the run cannot do this: no sandbox, no project, or a path outside the sandbox |
 | `no_case` | the chat has no case: call `set_case` or ask the user |
-| `case_incomplete` | the case misses values gemini needs to read it; `path` is the first and `suggestions` lists every missing path, from `gm.case.missing` |
+| `case_incomplete` | the case misses values gemini needs, to read it or for this plant; `path` is the first and `suggestions` lists every missing path, from `gm.case.missing` or gemini's check; the message stays gemini's |
 | `files_unavailable` | the workspace has no `files` and `file`: an older backend; the run goes on without them |
 | `not_text` | `read_document`: the file gives no text (binary, encrypted, a scan) |
 | `timeout` | the tool passed its time limit |

@@ -361,6 +361,7 @@ async def replay_run(engine_class, store, run_id, *, replayed=None, workspace=No
     )
     with runtime.settings(**started.settings):
         agent = agent_class(started)()
+        agent.load_loop_state(started.loop_state)
         loop = _RecordedLoop(started) if started.loop else None
         result = await engine.run(agent, context, max_steps=started.max_steps, loop=loop)
     if recording.failure is not None:

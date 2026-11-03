@@ -21,6 +21,8 @@ ASK = (
     "ask_user, proposing values with a one-line reason, and after the user confirms call"
 )
 NO_RANGE = "states no range and no options"
+MISSING_CODES = ("missing_value", "missing_assumption")
+CASE_SECTIONS = ("time", "site", "demand", "utilities", "economics", "requirements", "uncertainty")
 
 
 def leaf_node(plant, path):
@@ -177,9 +179,27 @@ def unit_text(error, quantity=None):
     return f"{message}; did you mean {unit!r}? units of its dimension that gemini accepts: {units}"
 
 
+def case_gaps(error):
+    """Return the case paths a run lacks, the error's first, from gemini's problems."""
+    paths = [
+        problem.get("path")
+        for problem in error.problems or ()
+        if problem.get("code") in MISSING_CODES
+    ]
+    found = dict.fromkeys(path for path in [error.path, *paths] if path)
+    return [path for path in found if re.split(r"[.\[]", path)[0] in CASE_SECTIONS]
+
+
 def explained(error, quantity=None):
-    """Return the error as gemini's problem dict, its message extended with the units it accepts."""
+    """Return the error as gemini's problem dict, its message extended with the units it accepts.
+
+    A value the case lacks is ``case_incomplete``, with gemini's message and every missing path in
+    ``suggestions``.
+    """
     problem = error.to_dict()
+    gaps = case_gaps(error) if error.code in MISSING_CODES else []
+    if gaps:
+        problem = {**problem, "code": "case_incomplete", "path": gaps[0], "suggestions": gaps}
     text = unit_text(error, quantity)
     return {**problem, "message": text} if text else problem
 

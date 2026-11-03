@@ -217,6 +217,9 @@ class Agent:
         completion = await context.session.complete(self, messages)
         return Action(text=completion.text, tool_calls=completion.tool_calls)
 
+    def load_loop_state(self, state):
+        """Take what a loop logged for this agent; most agents hold none of it."""
+
     async def forward(self, context):
         """Render the context and ask the model; override only for a rule-based step."""
         return await self.complete(context, context.messages_for(self))
