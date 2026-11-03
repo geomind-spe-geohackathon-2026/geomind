@@ -26,6 +26,7 @@ Each tool's description says its arguments.
 
 ## Rules
 
+- Read the case, the plant and each module once: their results stay in the conversation for several turns. `read_profile`'s `summary` has the peak, the mean and the energy; a stored result is read by its `path` with `read_stored`, never whole again.
 - Take every reservoir and brine value from the case; a value the case lacks is a case change:
   name it as `case change needed: <path>: <why>` in your answer, never a typical value.
 - Size the flow from the demand and the temperature drop the case allows, and check the flow a

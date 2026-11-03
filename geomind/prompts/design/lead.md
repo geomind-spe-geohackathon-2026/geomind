@@ -121,7 +121,9 @@ Each tool's description says its arguments.
   study in `design.study` as returned.
 - After any change every earlier result is stale: simulate the whole year (no `start`, `end`).
 - Record the final design with `update_state`: `design.reference` (`design/<name>`),
-  `design.result` (`result/<id>`), `design.family` and a one-paragraph `design.schematic`. Record other families you simulated for the whole year as
+  `design.result` (`result/<id>`), `design.family` and a one-paragraph `design.schematic`. A
+  design handed to you complete that you simulate and check is final too: record it the same
+  way, never only as a note. Record other families you simulated for the whole year as
   `design.alternatives` `[{family, design, result}]`; never one you did not simulate.
 - Every study gets a new name (`name` on `size_plant`, `optimize`, `run_study`); it is stored as
   `study/<name>` and never changes. `list_studies` shows whether each is `current`; an older one is no evidence. Cite the `study/<name>` that a comparison,

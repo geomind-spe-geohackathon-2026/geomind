@@ -6,6 +6,16 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### Design team alone (Track B)
+
+Rounds D1 and D2: each design agent alone on the C1 case, live (DeepSeek). Each bug is pinned by a test.
+
+- Fix (#70): an input whose string holds tool-call markup (`</parameter`, `</invoke`, `function_calls`) is refused before the tool runs, `invalid_input` with the value before the markup as its suggestion; DeepSeek had sent a garbled plant name three times alike.
+- Fix (#71), contract (addition): `read_profile` gives `summary`: `peak` and `minimum` `{value, time}`, `mean`, `energy` `{value, unit: "MWh"}` and `unit`, computed by code over the window. `Tool.kept()` returns a copy whose results stay whole for a few turns; the design engineers keep `read_case`, `read_plant` and `describe_module` so, and read each once. They had read the case up to 16 times.
+- Fix (#72): the design lead records a design handed to it complete, once checked, as `design.reference` and `design.result`.
+- Fix (#73): the process engineer compares plants with `list_plants` and reads only the one it chooses, in one call.
+- Fix (#74): the well engineer's prompt gives the form of a well path's section lists, `{"value": [..], "unit": "m"}`; gemini describes them as numbers (gemini request 14).
+
 ### Verb-first RAG tools and three MCP tools (0.4.22.dev42)
 
 Sahand's naming: a tool's name starts with its verb.

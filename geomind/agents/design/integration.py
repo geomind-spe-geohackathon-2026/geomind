@@ -24,10 +24,10 @@ class IntegrationEngineer(Agent):
         self.prompt = Prompt("design/integration", appendix=trees("plant"))
 
         # Tools
-        self.read_case = tools.gemini.read_case
-        self.read_plant = tools.gemini.read_plant
+        self.read_case = tools.gemini.read_case.kept()
+        self.read_plant = tools.gemini.read_plant.kept()
         self.list_modules = tools.gemini.list_modules
-        self.describe_module = tools.gemini.describe_module
+        self.describe_module = tools.gemini.describe_module.kept()
         self.patch_plant = tools.gemini.patch_plant
         self.read_stored = tools.read_stored
         self.search_memory = tools.search_memory

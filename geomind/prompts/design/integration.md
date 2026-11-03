@@ -24,6 +24,7 @@ Each tool's description says its arguments.
 
 ## Rules
 
+- Read the case, the plant and each module once: their results stay in the conversation for several turns. `read_profile`'s `summary` has the peak, the mean and the energy; a stored result is read by its `path` with `read_stored`, never whole again.
 - In a superstructure, wire every option as if it were on: each `optional` module and each group
   of a `choices`; gemini bypasses an option that is off.
 - Read each module's ports with `describe_module` before you connect it; a port is

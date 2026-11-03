@@ -53,3 +53,10 @@ def test_it_computes_nothing_by_hand():
     """#45: no formula or conversion; numbers from the case, gemini, or a named assumption."""
     text = WellEngineer().prompt.content
     assert "Compute nothing by hand" in text and "top-level values first" in text
+
+
+def test_it_knows_the_form_of_a_well_path_s_section_lists():
+    """#74: eight evaluate_module calls failed on section lists, which gemini calls numbers."""
+    text = " ".join(WellEngineer().prompt.render().split())
+    assert '`{"value": [500, 2000], "unit": "m"}`, never a list of quantities' in text
+    assert "`correction_factors` is a plain pair" in text

@@ -209,3 +209,16 @@ async def test_builtins_return_what_the_engine_understands(session, context):
     request = await dispatch(ask_user, call(question="which?", options=["a"]), context)
     assert isinstance(request, Request) and request.options[0].value == "a"
     assert await dispatch(finish, call(answer="done"), context) == Finish(answer="done")
+
+
+async def test_a_value_with_leaked_tool_call_markup_is_refused_with_the_value_before_it():
+    """#70: DeepSeek wrote ``">Plant</</parameter name=`` as a plant name, three times alike."""
+    from geomind.tools.dispatch import leaked_markup, markup_error
+
+    value = '">HeatingCoolingPlant</</parameter name=</invoke</function_calls>Let me retry.'
+    found = leaked_markup({"project_plant": value})
+    assert found == ("project_plant", value)
+    error = markup_error(type("T", (), {"name": "read_plant"})(), found)
+    assert error.code == "invalid_input" and list(error.suggestions) == ["HeatingCoolingPlant"]
+    assert leaked_markup({"plant": {"params": {"a": [1, "x < y"]}}}) is None
+    assert leaked_markup({"a": ["ok", {"b": "v</parameter>"}]}) == ("a.1.b", "v</parameter>")

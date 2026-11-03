@@ -228,6 +228,8 @@ cap is 5 USD (1.66 USD spent before the team).
 | E1 | end to end from the coordinator, memory off, 1 USD cap, three answers by the test operator | 1.00 | 3.38 | stopped at its cap before a verified design: two families planned, process, integration and reservoir engineers done; bugs #53 to #55 |
 | C1 | the case lead and the geoscientist alone, six tasks (files, chat, one change, a question, a flawed case, the geoscientist on the brief) | 0.06 | 3.69 | 6 of 6 passed; every flaw caught and asked; no invented value; bugs #61 to #63 |
 | A2 | the 6 agents the fixes touched, alone again | 0.29 | 2.38 | 5 passed; the case lead now asks for the values with no source (#44 working), so its task's fixed answer must change |
+| D1 | the design team alone: process, integration, reservoir, well and energy engineers and the design lead, one task each on the C1 case, 0.08 cap each | 0.38 | — | 1 of 6 passed (integration); four engineers stopped at their cap; bugs #70 to #72 |
+| D2 | the same six after #70 to #72, 0.065 cap each | 0.26 | — | the lead's verdict and records right at a third of D1's cost; the engineers still at their cap; bugs #73 and #74 |
 
 Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/CHANGELOG.md)):
 
@@ -253,6 +255,11 @@ Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/C
 | 61 | C1, case lead | the data files `case.json` names were no project files | listed and read beside `files/` | this commit |
 | 62 | C1, case lead | reported a value before a change it never read | reads before and after | this commit |
 | 63 | C1, evals | an eval workspace had no knowledge base | the settings' knowledge base | this commit |
+| 70 | D1, process engineer | DeepSeek leaked tool-call markup into an argument (`">HeatingCoolingPlant</</parameter name=`) and sent it again three times | an input holding markup is refused before the tool runs, with the value before the markup as the suggestion | track-b |
+| 71 | D1, design engineers | each engineer read the case 4 to 16 times and its profiles again and again: a long result shrinks to an outline after one step | the engineers keep the case, the plant and the module descriptions whole for a few turns (`Tool.kept()`); `read_profile` gives a `summary` (peak, minimum, mean, energy) computed by code | track-b |
+| 72 | D1, design lead | checked a design handed to it complete, then recorded it only as a note, not as `design.reference` and `design.result` | the prompt says a checked handed design is final too | track-b |
+| 73 | D2, process engineer | parallel `read_plant` calls came back with every argument null until the run stopped on repeated failures | it compares plants with `list_plants` and reads only the one it chooses, in one call | track-b |
+| 74 | D2, well engineer | 8 failed `evaluate_module` calls on a well path's section lists: gemini's `describe()` gives them as `number`, and its error asks for a Quantity for a list and for a list for a Quantity | the well engineer's prompt gives the form `{"value": [..], "unit": "m"}`; gemini request 14 | track-b |
 | 50 | A1, all | models saw only the first paragraph of each tool's docstring | the whole docstring but its `NOTE:` paragraphs | `768f396` |
 
 ### The adaptation to gemini 0.5 (done) and what is open
@@ -305,6 +312,12 @@ Open requests to gemini (full text in the adaptation notes):
 12. `Case.schema()` does not say that `time.end` is exclusive (a year of daily values ends on the
     next year's first day); the case lead read a year ending on 31 Dec as 364 steps and proposed
     to drop a day of data (found in run E2).
+14. `describe()` gives a list parameter of quantities (`ProductionWell.section_length`,
+    `section_diameter`, ...: one value per section) as `type: number` with a unit, and
+    `gemini/units/bare.py`'s error for a list of quantities asks for a Quantity, for a Quantity
+    asks for a list; the form that works, `{"value": [500, 2000], "unit": "m"}`, is said nowhere.
+    Asked: `type: array` with the item's quantity and unit in `describe()`, and that form in the
+    error (found in run D2, bug #74).
 
 ### S2b: gemini tools (the first job; the text below is the original plan)
 

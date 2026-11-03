@@ -25,6 +25,11 @@ Each tool's description says its arguments.
 
 ## Rules
 
+- A parameter of each section of a well path (`section_length`, `section_inclination`,
+  `section_diameter`, `section_roughness`) is one quantity holding a list, one item per section:
+  `{"value": [500, 2000], "unit": "m"}`, never a list of quantities. `correction_factors` is a
+  plain pair `[1.0, 0.0]`. `evaluate_module` takes a module type, such as `ESP`, never a path.
+- Read the case, the plant and each module once: their results stay in the conversation for several turns. `read_profile`'s `summary` has the peak, the mean and the energy; a stored result is read by its `path` with `read_stored`, never whole again.
 - The well reaches the reservoir the case names; a deeper or shallower well is a choice with
   its reason and the case's limits.
 - Choose the sections and diameters for the design flow and an acceptable pressure loss; check

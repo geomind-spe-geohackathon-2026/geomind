@@ -24,11 +24,11 @@ class ProcessEngineer(Agent):
         self.prompt = Prompt("design/process", appendix=trees("plant"))
 
         # Tools
-        self.read_case = tools.gemini.read_case
+        self.read_case = tools.gemini.read_case.kept()
         self.list_plants = tools.gemini.list_plants
-        self.read_plant = tools.gemini.read_plant
+        self.read_plant = tools.gemini.read_plant.kept()
         self.list_modules = tools.gemini.list_modules
-        self.describe_module = tools.gemini.describe_module
+        self.describe_module = tools.gemini.describe_module.kept()
         self.build_plant = tools.gemini.build_plant
         self.patch_plant = tools.gemini.patch_plant
         self.update_state = tools.update_state

@@ -130,6 +130,16 @@ class Tool:
         """
         return self
 
+    def kept(self):
+        """Return a copy whose results stay whole for a few turns (``keeps_result``).
+
+        For an agent that works from them step after step, such as an engineer from the case and
+        the plant.
+        """
+        kept = copy.copy(self)
+        kept.keeps_result = True
+        return kept
+
     def renamed(self, name):
         """Return a copy under another name; an agent names a tool by its attribute."""
         renamed = copy.copy(self)
