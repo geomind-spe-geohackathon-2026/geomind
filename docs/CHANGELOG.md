@@ -6,6 +6,16 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### The design team, B2
+
+Rounds D1 to D3 had started the engineers from a class plant given by its header alone, so gemini listed about a hundred inner values as missing and every engineer ran out of budget inventing them. The class's whole project file checks clean against the case.
+
+- Prompts: each design agent's appendix is made from gemini when its prompt renders (`geomind/agents/design/reference.py`): the plant file's keys and gemini's `describe()` of the modules the engineer owns (`OWNED_MODULES`, with parameters, units, list forms and ports); the plant classes with their summary and children for the process engineer; every module's ports for the integration engineer. A test fails when gemini drops or renames a module.
+- Prompts: the reservoir, well and energy engineers work in four steps (read the case and the plant together, decide, one `patch_plant` with every change, stop when no issue names their own path), answer in at most twelve lines, and carry do/don't examples from D1 to D3 (a case value is no plant value; a stored name is not reused; `evaluate_module` is not run on a whole `Doublet`).
+- Fix (#76): `evaluate_module` checks parameter and control names before gemini: a control given as a parameter (`temperature_setpoint` of a heat pump) raised a bare `KeyError` in gemini, seen as `internal`; it is `invalid_input` now, saying to give it in `controls`, and an unknown name gets close matches.
+- Fix (#77): the process engineer builds from the project's plant file of the chosen class (`read_plant(project_plant=...)`), which holds every value; `read_plant(plant_class=...)` gives a header and modules only.
+- Docs: `patch_plant` takes every value of one module or several in one patch.
+
 ### Shared rules for every agent, gemini's module reference, and set_case loads the files the case names (0.4.22.dev47)
 
 - Prompts: every role prompt ends with `prompts/shared/rules.md`, said once for all 17 roles: the source order (user, files, knowledge base, MCP, then ask), citations, the user's confirmation of a value no file gave, no defaults, units and physics left to gemini, and applying an error's fix.

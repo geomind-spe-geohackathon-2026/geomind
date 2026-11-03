@@ -1,0 +1,73 @@
+{
+ "control_as_parameter": {
+  "name": "HeatPump",
+  "parameters": {
+   "capacity": {
+    "value": 15,
+    "unit": "MW"
+   },
+   "mode": "heating",
+   "cop_model": "carnot",
+   "carnot_fraction": 0.5,
+   "lorenz_fraction": 0.5,
+   "minimum_temperature_lift": {
+    "value": 10,
+    "unit": "K"
+   },
+   "minimum_part_load": 0.1,
+   "minimum_source_outlet_temperature": {
+    "value": 47,
+    "unit": "degC"
+   },
+   "supply_margin": {
+    "value": 0,
+    "unit": "K"
+   },
+   "temperature_setpoint": {
+    "value": 100,
+    "unit": "degC"
+   }
+  },
+  "inlets": {
+   "source_in": {
+    "fluid": {
+     "kind": "brine"
+    },
+    "T": {
+     "value": 47,
+     "unit": "degC"
+    },
+    "p": {
+     "value": 6,
+     "unit": "bar"
+    },
+    "m_dot": {
+     "value": 171.7,
+     "unit": "kg/s"
+    }
+   },
+   "sink_in": {
+    "fluid": {
+     "kind": "water"
+    },
+    "T": {
+     "value": 60,
+     "unit": "degC"
+    },
+    "p": {
+     "value": 6,
+     "unit": "bar"
+    },
+    "m_dot": {
+     "value": 178,
+     "unit": "kg/s"
+    }
+   },
+   "power_in": {
+    "fluid": {
+     "kind": "electricity"
+    }
+   }
+  }
+ }
+}

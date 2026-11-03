@@ -1,7 +1,9 @@
 """The tools over gemini's module catalogue."""
 
+import difflib
 from typing import Any
 
+from geomind.errors import ToolError
 from geomind.tools.base import tool
 
 
@@ -34,6 +36,30 @@ def describe_module(name: str):
     from geomind.tools.gemini.skeleton import module_tree
 
     return module_tree(gm.modules.get(name)().describe())
+
+
+def checked_names(name, description, parameters, controls):
+    """Raise ``invalid_input`` for a parameter or control the module does not have.
+
+    gemini raises a bare ``KeyError`` for a control given as a parameter
+    (``temperature_setpoint`` of a heat pump); the energy engineer saw ``internal`` three times
+    and could not fix it (#76).
+    """
+    owned = {"parameters": set(description["parameters"]), "controls": set(description["controls"])}
+    given = {"parameters": set(parameters or {}), "controls": set(controls or {})}
+    for kind, other in (("parameters", "controls"), ("controls", "parameters")):
+        for key in sorted(given[kind] - owned[kind]):
+            where = (
+                f"; it is a {other[:-1]} of {name}: give it in `{other}`"
+                if key in owned[other]
+                else f"; expected one of {', '.join(sorted(owned[kind])) or 'none'}"
+            )
+            raise ToolError(
+                f"evaluate_module: {kind}.{key} is not a {kind[:-1]} of {name}{where}",
+                code="invalid_input",
+                path=f"{kind}.{key}",
+                suggestions=difflib.get_close_matches(key, sorted(owned[kind] | owned[other])),
+            )
 
 
 def plain(found):
@@ -73,6 +99,7 @@ def evaluate_module(
     """
     import gemini as gm
 
+    checked_names(name, gm.modules.get(name)().describe(), parameters, controls)
     called = gm.call(
         gm.modules.get(name),
         parameters,

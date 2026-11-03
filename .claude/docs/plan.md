@@ -268,6 +268,8 @@ Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/C
 | 73 | D2, process engineer | parallel `read_plant` calls came back with every argument null until the run stopped on repeated failures | it compares plants with `list_plants` and reads only the one it chooses, in one call | track-b |
 | 74 | D2, well engineer | 8 failed `evaluate_module` calls on a well path's section lists: gemini's `describe()` gives them as `number`, and its error asks for a Quantity for a list and for a list for a Quantity | the well engineer's prompt gives the form `{"value": [..], "unit": "m"}`; gemini request 14 | track-b |
 | 75 | D3, process engineer | two garbled calls in a row (`">site</</parameter_name...`) counted as invalid calls and ended the run as failed; `">HackathonPlant</` was not caught | a markup slip is an error but no validation failure; a lone `</` or a leading `">` counts as markup; prose tools (`finish`, `ask_user`, `update_state`, `write_lesson`) are not checked | track-b |
+| 76 | B2, energy engineer | `evaluate_module` with a control as a parameter (`temperature_setpoint`) gave `internal` (gemini's bare `KeyError`), then misleading "missing inlets", five times until the run stopped | names checked before gemini: `invalid_input` with where it goes | track-b2 |
+| 77 | B2, process engineer | built from `read_plant(plant_class=...)`, a header with 110 values missing, while the project held the class's whole file | the prompt prefers the project plant of the class | track-b2 |
 | 50 | A1, all | models saw only the first paragraph of each tool's docstring | the whole docstring but its `NOTE:` paragraphs | `768f396` |
 
 ### The adaptation to gemini 0.5 (done) and what is open
@@ -332,6 +334,14 @@ Open requests to gemini (full text in the adaptation notes):
 15. `site.fluid.dissolved_gas.*` take a bare `{value}` (a mole fraction) with no unit, while
     briefs give `mol%`: the agents must turn 20 mol% into 0.2 by hand, which their rules forbid.
     A `unit` (`mol%`, `-`) on those fields, converted by gemini (Track A).
+B2-1. `gm.call` (`evaluate_module`) raises a bare `KeyError: 'temperature_setpoint'` for a
+    control given in `parameters`; a `ValidationError` naming the control and `controls` would
+    let a caller fix it (geomind checks the names itself now, #76).
+B2-2. `read_plant`-style class files: `gm.modules.get(<plant class>)` gives a header and modules
+    only, and a plant built from it lists every inner value as missing (`d0.well.section_length`,
+    `d0.esp.head_coefficients`, ...), while the hackathon project file of the same class holds
+    them; a class default file with every value, or the values derived from the doublet's
+    top-level ones (request 11).
 
 ### S2b: gemini tools (the first job; the text below is the original plan)
 

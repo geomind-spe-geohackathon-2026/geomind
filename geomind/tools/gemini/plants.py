@@ -327,10 +327,11 @@ async def patch_plant(context, design: str, changes: dict[str, Any], name: str):
     """Change a stored design by a small patch, stored as design/<name>, and list what is missing.
 
     ``changes`` is a JSON merge patch (RFC 7386) on the plant file of ``design``, such as
-    ``{"params": {"d0": {"drainage_radius": {"value": 500, "unit": "m"}}}}``: one module's
-    values at a time, never the whole file. gemini builds the result: a patch it refuses is its
-    error, and nothing is stored. Returns the new design, its ``issues`` (what is still missing,
-    checked as in ``read_plant``) and their count, ``missing``. An engineer of the design team
+    ``{"params": {"d0": {"drainage_radius": {"value": 500, "unit": "m"}}}}``: every value you
+    change, of one module or several, in one patch, never the whole file. gemini builds the
+    result: a patch it refuses is its error, and nothing is stored. Returns the new design, its
+    ``issues`` (what is still missing, checked as in ``read_plant``) and their count,
+    ``missing``. An engineer of the design team
     patches only its own part (``design.owners``); another part is ``not_allowed``.
     """
     import gemini as gm
