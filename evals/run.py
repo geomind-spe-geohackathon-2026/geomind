@@ -77,12 +77,14 @@ class Outcome:
 
 
 STATE_HEADING = "Problem state, version "
+CASE_LINE = "Case: "
 
 
 def _read(events):
     """Return the text of every message the agent was sent and did not write itself.
 
-    The problem state is left out: the agent writes its notes and questions there.
+    The problem state is left out, as the agent writes its notes and questions there, but for its
+    ``Case:`` line: the case's span and parts, which tools set from the files and the user.
     """
     seen = {
         (message.role, message.content)
@@ -91,7 +93,16 @@ def _read(events):
         for message in event.messages
         if message.role != "assistant" and not message.content.startswith(STATE_HEADING)
     }
-    return "\n".join(content for _, content in sorted(seen))
+    cases = {
+        line
+        for event in events
+        if event.type == "llm.completed"
+        for message in event.messages
+        if message.content.startswith(STATE_HEADING)
+        for line in message.content.splitlines()
+        if line.startswith(CASE_LINE)
+    }
+    return "\n".join([*(content for _, content in sorted(seen)), *sorted(cases)])
 
 
 def _workspace(task):
