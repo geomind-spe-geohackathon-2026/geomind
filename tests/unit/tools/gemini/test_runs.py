@@ -203,6 +203,21 @@ async def test_read_profile_gives_the_peak_in_megawatts(name):
     assert output["unit"] == "MW"
     assert len(output["time"]) == len(output["value"]) == case_steps(name)
     assert max(output["value"]) == pytest.approx(HEATING_PEAK_MW[name])
+    assert output["summary"]["peak"]["value"] == pytest.approx(HEATING_PEAK_MW[name])
+
+
+def test_a_profile_s_summary_is_computed_by_code_not_by_the_agent():
+    """#71: engineers read a year of values again and again to find its peak and energy."""
+    import pandas as pd
+
+    from geomind.tools.gemini.runs import profile_summary
+
+    times = pd.date_range("2027-01-01", periods=3, freq="D", tz="UTC")
+    summary = profile_summary(times, [2.0, 5.0, 1.0])
+    assert summary["peak"] == {"value": 5.0, "time": "2027-01-02T00:00:00+00:00"}
+    assert summary["minimum"]["value"] == 1.0 and summary["mean"] == pytest.approx(8 / 3)
+    assert summary["energy"] == {"value": pytest.approx(8.0 * 24), "unit": "MWh"}
+    assert profile_summary(times[:0], []) is None
 
 
 @example_names

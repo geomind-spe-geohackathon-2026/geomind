@@ -3,6 +3,7 @@
 import asyncio
 import inspect
 import json
+import re
 from time import perf_counter
 
 import pydantic
@@ -17,6 +18,12 @@ from geomind.errors import (
 from geomind.tools.stored import STORE_CHARACTERS, reference_of, stored_form
 from geomind.types import Finish, Problem, Request, ToolResult
 from geomind.utils.json import to_jsonable
+
+MARKUP = re.compile(r"</|<(?:parameter|invoke|function_calls|function)\b|^\s*\"?>")
+"""Tool-call markup a model leaks into an argument's value instead of ending the value (#70)."""
+
+PROSE_TOOLS = frozenset({"finish", "ask_user", "update_state", "write_lesson"})
+"""Tools whose inputs are prose, where ``</`` may be meant: no markup check for them."""
 
 CODE_OF_ERROR = {
     NotImplementedYet: "not_implemented",
@@ -139,6 +146,37 @@ def _result(tool, call, started, output, **fields):
     return ToolResult(call_id=call.id, tool=tool.name, output=output, duration=duration, **fields)
 
 
+def leaked_markup(value, path=""):
+    """Return ``(path, value)`` of the first string of an input holding tool-call markup."""
+    if isinstance(value, str):
+        return (path or None, value) if MARKUP.search(value) else None
+    if not isinstance(value, (dict, list, tuple)):
+        return None
+    items = value.items() if isinstance(value, dict) else enumerate(value)
+    for key, item in items:
+        found = leaked_markup(item, f"{path}.{key}" if path else str(key))
+        if found is not None:
+            return found
+    return None
+
+
+def markup_error(tool, found):
+    """Return the error of a value with leaked markup, suggesting the value before it (#70).
+
+    NOTE: it is no validation failure, which two in a row end the run: the call is right but for
+    a slip of the model's formatting, and the next call is usually clean (#75).
+    """
+    path, value = found
+    guess = value.split("<", 1)[0].strip().strip('">').strip()
+    return ToolError(
+        f"{tool.name}: {path} = {value[:80]!r}...; it holds tool-call markup, not only the "
+        "value: send the call again with the value alone",
+        code="invalid_input",
+        path=path,
+        suggestions=[guess] if guess else [],
+    )
+
+
 async def dispatch(tool, call, context):
     """Validate, run and time one call.
 
@@ -147,6 +185,10 @@ async def dispatch(tool, call, context):
     reported through the run and the model reads only that an internal error happened.
     """
     started = perf_counter()
+    found = None if tool.name in PROSE_TOOLS else leaked_markup(call.input)
+    if found is not None:
+        output = error_output(markup_error(tool, found))
+        return _result(tool, call, started, output, is_error=True)
     try:
         arguments = tool.validate(call.input)
     except (pydantic.ValidationError, ToolError) as error:

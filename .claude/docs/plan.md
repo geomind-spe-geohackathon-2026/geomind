@@ -231,6 +231,9 @@ cap is 5 USD (1.66 USD spent before the team).
 | TA1 | Track A after dev43 (compact tree, run-long pages, columns), six tasks | 0.16 | 4.20 | 4 of 6; from_files at its cap; cache cold after the prompt change, 10 `read_stored` left |
 | TA2 | Track A after dev44, provider pinned to DeepSeek (`GEOMIND_PROVIDER=deepseek`) | 0.035 | 4.24 | 4 of 6 by the criteria; from_files 39 → 15 model calls and 0.069 → 0.011 USD, but stopped on #65; total 0.112 → 0.035 USD |
 | A2 | the 6 agents the fixes touched, alone again | 0.29 | 2.38 | 5 passed; the case lead now asks for the values with no source (#44 working), so its task's fixed answer must change |
+| D1 | the design team alone: process, integration, reservoir, well and energy engineers and the design lead, one task each on the C1 case, 0.08 cap each | 0.38 | — | 1 of 6 passed (integration); four engineers stopped at their cap; bugs #70 to #72 |
+| D2 | the same six after #70 to #72, 0.065 cap each | 0.26 | — | the lead's verdict and records right at a third of D1's cost; the engineers still at their cap; bugs #73 and #74 |
+| D3 | the process and well engineers after #73 and #74, 0.06 cap each | 0.09 | — | the well engineer's failed module calls fell from 8 to 1 and it patched; the process engineer's run still ended on two garbled calls (#75) |
 
 Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/CHANGELOG.md)):
 
@@ -257,8 +260,14 @@ Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/C
 | 62 | C1, case lead | reported a value before a change it never read | reads before and after | this commit |
 | 63 | C1, evals | an eval workspace had no knowledge base | the settings' knowledge base | this commit |
 | 64 | C2, case lead | worked out a room dew point (14.6 degC) inside a question; with the new `sourced` criterion also a temperature from the gradient, a GWP from memory, an end date and a step count | prompt forbids any number it worked out or knows from memory; `read_rag`'s table gives the case span; eval criterion `sourced` | de37595 |
-| 65 | Track A, case lead | told `changes=<the same changes>` after a missing file, sent the files alone three times and the run stopped | the retry names everything to send again; files alone on no case are `invalid_input` | dev45 |
+| 65 | Track A, case lead | told `changes=<the same changes>` after a missing file, sent the files alone three times and the run stopped | the retry names everything to send again; files alone on no case say they go with the changes | dev45 |
 | 66 | Track A, case lead | a gradient in `degC/km` got `{'unit': 'degC'}` and the units of temperature as its fix | the quantity of a two-word unit message (`temperature gradient`) is read whole | dev45 |
+| 70 | D1, process engineer | DeepSeek leaked tool-call markup into an argument (`">HeatingCoolingPlant</</parameter name=`) and sent it again three times | an input holding markup is refused before the tool runs, with the value before the markup as the suggestion | track-b |
+| 71 | D1, design engineers | each engineer read the case 4 to 16 times and its profiles again and again: a long result shrinks to an outline after one step | the engineers keep the case, the plant and the module descriptions whole for a few turns (`Tool.kept()`); `read_profile` gives a `summary` (peak, minimum, mean, energy) computed by code | track-b |
+| 72 | D1, design lead | checked a design handed to it complete, then recorded it only as a note, not as `design.reference` and `design.result` | the prompt says a checked handed design is final too | track-b |
+| 73 | D2, process engineer | parallel `read_plant` calls came back with every argument null until the run stopped on repeated failures | it compares plants with `list_plants` and reads only the one it chooses, in one call | track-b |
+| 74 | D2, well engineer | 8 failed `evaluate_module` calls on a well path's section lists: gemini's `describe()` gives them as `number`, and its error asks for a Quantity for a list and for a list for a Quantity | the well engineer's prompt gives the form `{"value": [..], "unit": "m"}`; gemini request 14 | track-b |
+| 75 | D3, process engineer | two garbled calls in a row (`">site</</parameter_name...`) counted as invalid calls and ended the run as failed; `">HackathonPlant</` was not caught | a markup slip is an error but no validation failure; a lone `</` or a leading `">` counts as markup; prose tools (`finish`, `ask_user`, `update_state`, `write_lesson`) are not checked | track-b |
 | 50 | A1, all | models saw only the first paragraph of each tool's docstring | the whole docstring but its `NOTE:` paragraphs | `768f396` |
 
 ### The adaptation to gemini 0.5 (done) and what is open
@@ -314,7 +323,13 @@ Open requests to gemini (full text in the adaptation notes):
 13. A way to validate a whole case at once: `Case.from_dict` raises the first wrong value only
     (`gm.case.missing` lists every missing path, but not wrong units or values), so a case lead
     that sets the case in one call learns its errors one call at a time (Track A).
-14. `site.fluid.dissolved_gas.*` take a bare `{value}` (a mole fraction) with no unit, while
+14. `describe()` gives a list parameter of quantities (`ProductionWell.section_length`,
+    `section_diameter`, ...: one value per section) as `type: number` with a unit, and
+    `gemini/units/bare.py`'s error for a list of quantities asks for a Quantity, for a Quantity
+    asks for a list; the form that works, `{"value": [500, 2000], "unit": "m"}`, is said nowhere.
+    Asked: `type: array` with the item's quantity and unit in `describe()`, and that form in the
+    error (found in run D2, bug #74).
+15. `site.fluid.dissolved_gas.*` take a bare `{value}` (a mole fraction) with no unit, while
     briefs give `mol%`: the agents must turn 20 mol% into 0.2 by hand, which their rules forbid.
     A `unit` (`mol%`, `-`) on those fields, converted by gemini (Track A).
 

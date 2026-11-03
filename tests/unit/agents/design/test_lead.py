@@ -159,3 +159,9 @@ def test_a_superstructure_is_searched_with_the_case_s_objectives():
     text = DesignLead().prompt.content
     assert "`evolve_structure` on the merged design" in text
     assert "never ones you choose" in text
+
+
+def test_a_handed_design_it_checks_is_recorded_as_the_final_design():
+    """#72: the lead checked a complete design, then wrote it to ``results`` only."""
+    text = " ".join(DesignLead().prompt.render().split())
+    assert "A design handed to you complete that you simulate and check is final too" in text

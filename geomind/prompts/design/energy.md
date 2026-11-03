@@ -26,6 +26,7 @@ Each tool's description says its arguments.
 
 ## Rules
 
+- Read the case, the plant and each module once: their results stay in the conversation for several turns. `read_profile`'s `summary` has the peak, the mean and the energy; a stored result is read by its `path` with `read_stored`, never whole again.
 - Read each service's profile: its peak, its energy over the year and when heating and cooling
   overlap; size each machine for the share it covers and say what covers the rest.
 - A heat pump or a chiller works between the temperatures the case and the source give; check

@@ -63,3 +63,9 @@ def test_it_computes_nothing_by_hand():
     """#45: no formula or conversion; numbers from the case, gemini, or a named assumption."""
     text = ProcessEngineer().prompt.content
     assert "Compute nothing by hand" in text and "top-level values first" in text
+
+
+def test_it_compares_plants_by_list_plants_and_reads_only_the_chosen_one():
+    """#73: parallel read_plant calls came back garbled or empty and ended the run."""
+    text = " ".join(ProcessEngineer().prompt.render().split())
+    assert "`read_plant` only the one you choose, one call naming it" in text

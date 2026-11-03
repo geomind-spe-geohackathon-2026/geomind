@@ -29,9 +29,12 @@ Each tool's description says its arguments.
 
 ## Rules
 
+- Read the case, the plant and each module once: their results stay in the conversation for several turns. `read_profile`'s `summary` has the peak, the mean and the energy; a stored result is read by its `path` with `read_stored`, never whole again.
 - Start from the case's services: each heating, cooling or other demand needs a source, a way to
   reach its supply temperature, and a backup or a reason why none is needed. Read
   `designing-a-plant` once.
+- Compare the plant classes and the project's plants with `list_plants` (their capabilities and
+  roles); `read_plant` only the one you choose, one call naming it, never several at once.
 - Prefer a gemini plant class or a project plant that fits; build a free plant only when none
   does, and say why. Never invent a module gemini lacks: a need gemini cannot meet is `blocked`
   with the reason.

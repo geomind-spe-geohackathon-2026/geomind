@@ -24,9 +24,9 @@ class ReservoirEngineer(Agent):
         self.prompt = Prompt("design/reservoir", appendix=trees("plant"))
 
         # Tools
-        self.read_case = tools.gemini.read_case
-        self.read_plant = tools.gemini.read_plant
-        self.describe_module = tools.gemini.describe_module
+        self.read_case = tools.gemini.read_case.kept()
+        self.read_plant = tools.gemini.read_plant.kept()
+        self.describe_module = tools.gemini.describe_module.kept()
         self.evaluate_module = tools.gemini.evaluate_module
         self.read_profile = tools.gemini.read_profile
         self.patch_plant = tools.gemini.patch_plant
