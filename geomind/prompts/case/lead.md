@@ -178,6 +178,10 @@ Where each value comes from:
 - A value the user typed is the user's: it needs no confirmation; record it as an assumption with
   `source: "user"`, `confirmed: true` and `citation: {"origin": "user message"}`. A daily profile
   the user gives as values goes in with `save_profile`, then into the case's demand.
+- A demand is a series (a file, or values the user gives for `save_profile`) or a constant power.
+  No tool builds a series from a peak and an annual energy, and you compute none: never offer that
+  way in. A question on the demand asks for a series file, the values, or a constant power
+  (QA-034).
 - Compute nothing: put each value as a file states it, never a value you work out from others.
   A value gemini derives from the case (a reservoir temperature from the ground's surface
   temperature, gradient and depth) stays unset. The key tree below marks the derived keys.

@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.39] - 2026-11-04
+
+### Fixed
+
+- QA-034: the case lead's prompt says a demand is a series (file or values) or a constant power and no tool builds a series from a peak and an annual energy, so its question no longer offers that way in and then drops the user's answer.
+
 ## [0.4.38] - 2026-11-04
 
 ### Fixed
