@@ -12,6 +12,7 @@ asks for them (E2E-9). Each value's unit is checked against its key before the u
 every refused one named at once, and a basis word after a row's unit is shown (E2E-10).
 """
 
+import functools
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -198,6 +199,9 @@ def from_catalogue(context, values):
     read = []
     for item in values:
         key = short(item.key)
+        if not is_economics(key):
+            read.append(item)
+            continue
         update = _row_fields(rows, key, item.row) if item.row else {}
         others = [
             other.model_copy(update=_row_fields(rows, key, other.row))
@@ -298,9 +302,46 @@ def fitted_units(values):
     return fitted, notes
 
 
-def prepared(values, open_keys):
-    """Return ``(values, open keys, notes)`` of the question, or raise what the model must fix."""
+@functools.lru_cache(maxsize=512)
+def is_economics(key):
+    """Tell whether ``key`` (with or without ``economics.``) is a key of the case's economics."""
+    from geomind.tools.gemini.skeleton import keys_under
+
+    return bool(keys_under(f"economics.{short(key)}"))
+
+
+def not_economics(values, open_keys):
+    """Return ``(values, open keys, dropped)`` without the keys that are not economics keys.
+
+    A case value put in the question (``utilities.electricity.co2_intensity``) is left out with a
+    note instead of refusing the whole question, which the case lead retried again and again
+    (QA-007); it is set with ``set_case`` at its own path.
+    """
+    dropped = [short(item.key) for item in values if not is_economics(item.key)]
+    dropped += [short(key) for key in open_keys if not is_economics(key)]
+    kept = [item for item in values if is_economics(item.key)]
+    return kept, [key for key in open_keys if is_economics(key)], list(dict.fromkeys(dropped))
+
+
+def dropped_note(dropped):
+    """Return the line that names the keys left out as not economics keys, or None."""
+    if not dropped:
+        return None
+    return (
+        f"Left out, not economics keys (set each with set_case at its own path): "
+        f"{', '.join(dropped)}"
+    )
+
+
+def prepared(values, open_keys, dropped=None):
+    """Return ``(values, open keys, notes)`` of the question, or raise what the model must fix.
+
+    ``dropped``, a list, gets the keys left out as not economics keys (``not_economics``).
+    """
     values, open_keys = given_values(values, open_keys)
+    values, open_keys, left_out = not_economics(values, open_keys)
+    if dropped is not None:
+        dropped += left_out
     values, open_keys = catalogue_basis(values, open_keys)
     values, notes = fitted_units(values)
     _checked(values, open_keys)
@@ -410,8 +451,13 @@ def ask_economics(
     ``about.sources``, and each becomes a confirmed assumption with its citation; the result says
     what was set. On change some, ask which values change and to what, without options.
     """
-    values, open_keys, notes = prepared(from_catalogue(context, values), list(open or []))
+    dropped = []
+    values, open_keys, notes = prepared(
+        from_catalogue(context, values), list(open or []), dropped
+    )
     message = question_text(values, open_keys, note, notes)
+    if dropped:
+        message += "\n\n" + dropped_note(dropped)
     return Request(kind="question", message=message, options=list(OPTIONS))
 
 
@@ -489,7 +535,8 @@ async def economics_answered(context, tool_input, text):
         return {"answer": text, **({"typed": True} if typed else {})}
     values = [EconomicsValue.model_validate(item) for item in tool_input.get("values") or []]
     values = from_catalogue(context, values)
-    values, open_keys, notes = prepared(values, list(tool_input.get("open") or []))
+    dropped = []
+    values, open_keys, notes = prepared(values, list(tool_input.get("open") or []), dropped)
     stored = await set_case.function(context, economics=approved_economics(values, notes))
     changes = assumption_changes(context.problem, values, notes)
     version = await context.session.change_state(changes) if changes else stored["version"]
@@ -501,6 +548,7 @@ async def economics_answered(context, tool_input, text):
         "open": open_keys,
         "assumptions": len(changes),
         "version": version,
+        **({"not_set": dropped, "note": dropped_note(dropped)} if dropped else {}),
     }
 
 

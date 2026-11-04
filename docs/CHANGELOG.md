@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.27] - 2026-11-04
+
+### Fixed
+
+- QA-007: `ask_economics` no longer refuses the whole question when a key in `values` or `open` is not an economics key (`utilities.electricity.co2_intensity`). The key is left out, the question names it ("Left out, not economics keys"), and the approve-all result lists it in `not_set` so the case lead sets it with `set_case` at its own path.
+
 ## [0.4.26] - 2026-11-04
 
 ### Contract changes for the backend
