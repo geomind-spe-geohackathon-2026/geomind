@@ -14,6 +14,7 @@ from geomind.engine.hooks import ask_hooks, input_bound
 from geomind.engine.recovery import apply
 from geomind.engine.state import Stop
 from geomind.errors import RunError, TimeLimitReached, ToolError
+from geomind.mcp.client import server_headers, server_name
 from geomind.providers import needs_models
 from geomind.stores.memory import FileMemory, has_memory
 from geomind.tools.base import with_old_names
@@ -40,7 +41,7 @@ FROZEN = ("design/", "study/")
 
 def keys_of(servers):
     """Return the header values of the servers: secrets, never logged, stored or shown."""
-    return tuple(value for server in servers for value in server.headers.values() if value)
+    return tuple(value for server in servers for value in server_headers(server))
 
 
 def mcp_timeout():
@@ -370,7 +371,7 @@ class RunSession:
             servers, mcp_timeout(), engine.mcp_transport
         )
         for server, error in failures:
-            await self.report_error(error, f"mcp:{server.name}")
+            await self.report_error(error, f"mcp:{server_name(server)}")
 
     def knows(self):
         """Tell whether this run's workspace has a knowledge base with documents."""

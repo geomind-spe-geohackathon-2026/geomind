@@ -61,7 +61,9 @@ Workflow (few calls, short answers):
 - Fill a doublet's design values first (depth, flow, well diameter, roughness, pump efficiency,
   wellhead pressure): gemini derives its inner values from them and from the case, and names a
   missing design value alone (`d0.well_diameter`); set an inner value only while gemini lists it.
+<!-- memory -->
 - Use experience from the memory as a starting point only.
+<!-- /memory -->
 - No number of your own.
 
 ## Output

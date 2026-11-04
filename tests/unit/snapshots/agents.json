@@ -86,7 +86,7 @@
     },
     "Prompt": {
       "__init__": "(self, role, appendix=None)",
-      "render": "(self)",
+      "render": "(self, memory=True)",
       "text": "(cls, content)"
     },
     "Route": {

@@ -96,3 +96,72 @@ async def test_a_lesson_for_a_role_no_agent_has_is_refused():
     lesson = {"id": "l1", "kind": "lesson", "role": "designlead", "text": "check", "source": "user"}
     error = (await call(write_lesson, lesson, session)).output["error"]
     assert error["code"] == "unknown_name" and "designlead" in error["suggestions"]
+
+
+class BrokenMemory:
+    """A backend's memory store that fails on every read and write."""
+
+    def entries(self, section):
+        """Fail as a store whose database is gone."""
+        raise ConnectionError("memory database unreachable")
+
+    def add(self, section, entry):
+        """Fail as a store whose database is gone."""
+        raise ConnectionError("memory database unreachable")
+
+
+async def test_a_failing_memory_store_is_memory_unavailable_never_internal():
+    """B4: a store that raises answers ``memory_unavailable`` with its error, never ``internal``."""
+    from geomind.tools import write_lesson
+
+    session = session_with(BrokenMemory())
+    lesson = {"id": "l1", "kind": "lesson", "role": "all", "text": "t", "source": "user"}
+    for tool, arguments in ((search_memory, {}), (read_memory, {"id": "e1"})):
+        error = (await call(tool, arguments, session)).output["error"]
+        assert error["code"] == "memory_unavailable" and "unreachable" in error["message"]
+    error = (await call(write_lesson, lesson, session)).output["error"]
+    assert error["code"] == "memory_unavailable"
+
+
+def test_an_entry_whose_features_are_no_numbers_is_far_never_a_crash():
+    """B4: a backend's entry with text or nested features scores as missing, never a TypeError."""
+    from geomind.stores.memory import search_experience
+
+    stored = MemoryMemory(
+        experience=[
+            {"id": "e1", "features": {"heating_peak": "3e6", "depth": 1000.0}},
+            {"id": "e2", "features": "not a dict"},
+            {"id": "e3", "features": {"heating_peak": 3e6, "depth": True}},
+        ]
+    )
+    found = search_experience(stored, {"heating_peak": 3e6, "depth": 1000.0}, 0.4)
+    assert [entry["id"] for entry in found] == ["e1", "e3"]
+    assert [entry["similarity"] for entry in found] == [0.5, 0.5]
+
+
+async def test_search_memory_with_a_workspace_memory_method_is_never_internal():
+    """B4, run c8bf2381: 0.4.22 took the bound ``Workspace.memory`` itself as the memory.
+
+    ``memory.entries`` then failed and ``search_memory`` answered ``internal``. The method is
+    called for the project, and its memory is searched.
+    """
+    from geomind.engine import Context
+    from geomind.engine.session import RunSession
+    from geomind.engine.state import RunState
+    from geomind.stores import MemoryWorkspace
+    from geomind.tools import dispatch
+    from geomind.types import ToolCall
+    from tests.fixtures.runs import engine_for, says
+
+    class Backend(MemoryWorkspace):
+        """A workspace that gives each project's memory, as the backend does."""
+
+        def memory(self, project_id):
+            """Return the project's memory."""
+            return MemoryMemory(experience=[PAST])
+
+    session = RunSession(engine_for([says()], workspace=Backend()), None, RunState(), None)
+    session.state.project = "p1"
+    asked = ToolCall(id="c1", name="read_memory", input={"id": "e1"})
+    result = await dispatch(read_memory, asked, Context(project="p1", session=session))
+    assert not result.is_error and result.output["design"] == "design/a"

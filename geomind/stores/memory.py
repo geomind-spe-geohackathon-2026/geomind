@@ -52,13 +52,25 @@ def checked_section(section):
     return section
 
 
+def numbers_of(features):
+    """Return the features that are numbers; a store's text, flag or other shape counts as none."""
+    if not isinstance(features, dict):
+        return {}
+    return {
+        key: value
+        for key, value in features.items()
+        if isinstance(value, (int, float)) and not isinstance(value, bool)
+    }
+
+
 def similarity(first, second):
     """Return how alike two cases are, 0 to 1, over the features both have.
 
     Each feature counts ``1 - |a - b| / max(|a|, |b|)``; a feature only one case has counts 0, so
-    a case with cooling and one without are far apart.
+    a case with cooling and one without are far apart. A feature that is no number is missing.
     """
-    keys = [key for key in FEATURES if first.get(key) is not None or second.get(key) is not None]
+    first, second = numbers_of(first), numbers_of(second)
+    keys = [key for key in FEATURES if key in first or key in second]
     if not keys:
         return 0.0
     total = 0.0
@@ -115,7 +127,7 @@ def search_experience(memory, features, threshold):
     for entry in memory.entries("experience"):
         if entry.get("kind") in LESSON_KINDS:
             continue
-        score = similarity(features, entry.get("features") or {})
+        score = similarity(features, entry.get("features"))
         if score >= threshold:
             found.append({**entry, "similarity": round(score, 3)})
     return sorted(found, key=lambda item: item["similarity"], reverse=True)

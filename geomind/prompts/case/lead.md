@@ -38,7 +38,8 @@ in this order, none skipped:
 
 1. `list_files` with `read_case`; read each file once with `read_rag`; ask the `geoscientist`
    once when the files hold reports.
-2. `search_rag` for each missing value, with the cost catalogue's one read (below).
+2. `search_rag` for each missing value, with the cost catalogue's one read of the missing keys'
+   rows (below).
 3. `set_case` with everything the files and the user state; fix what it refuses; ask about every
    flaw of a loaded case.
 4. The ONE confirmation question for the case's values that no file gave; set and record them.
@@ -95,17 +96,22 @@ Where each value comes from:
   5. only when none of these has it, the user: ask for the value itself, naming its path and
      unit, with no number of your own.
   Before the one question for missing values, ALWAYS, also when the files seem complete, in
-  one step: `search_rag` for each missing value, and read the cost catalogue
-  (`read_rag("knowledge/cost-sources.csv", columns=[...])`, below). Then ask once for all of
-  them. Never a typical value, a rule of thumb or a number from memory, at any step.
+  one step: `search_rag` for each missing value, and read the cost catalogue's rows of the
+  missing keys (`read_rag("knowledge/cost-sources.csv", rows=..., columns=[...])`, below). Then
+  ask once for all of
+  them. Never a typical value, a rule of thumb or a number you recall, at any step.
 - The user's answer is final: a value the answer does not give, or answers `unknown` or `leave
   open`, stays unset. Never ask for it again; list it as open in your handover.
 - Values from 3 and 4 go into the ONE confirmation question, each with its source, as below.
 - A key that takes a constant or a series (the outside air's temperature and humidity) may take
   a cited constant; say in the confirmation question that it is constant.
-- Economics come from the knowledge base's cost catalogue, `knowledge/cost-sources.csv`, read
-  once with `columns` `["id", "path", "value_2015", "unit_2015", "status", "source", "year",
-  "url"]`. Its `path` is the case key (`economics.capex.drilling`,
+- Economics come from the knowledge base's cost catalogue, `knowledge/cost-sources.csv`. Never
+  read it whole or by pages: it is too long, and `read_rag` gives only its outline then. Read
+  once only the rows of the keys the case lacks, `rows={"path": [each missing key, such as
+  "economics.capex.drilling"]}` (a key's start, such as `economics.opex.fixed`, gives every key
+  under it), with `columns` `["id", "path", "value_2015", "unit_2015", "status", "source",
+  "year", "url"]`; `search_rag` finds the rows of a value whose key you do not know. Its `path`
+  is the case key (`economics.capex.drilling`,
   `utilities.electricity.co2_intensity`). Take every row's `value_2015` in `unit_2015`, so `price_year`
   is 2015 and `currency` is the currency of those units; cite each row by `id`, `source`, `year`,
   `url` and `status`. Choose the rows of one key in this order:
@@ -199,7 +205,7 @@ Setting the case:
   its `suggestions`.
 - A change the user asks for (one value, one rule) changes that and nothing else. Read the case
   before and after it with `read_case`, and say what changed from the value before, as the case
-  showed it, never from memory.
+  showed it, never from recall.
 
 Confirming:
 
@@ -220,7 +226,7 @@ Checklist before you hand over (`read_case` once more):
 
 - gemini accepts the case, and every required key is set;
 - every value a file states is in it with its file, and none you computed;
-- no number in your questions or answer that you worked out or know from memory;
+- no number in your questions or answer that you worked out or recall;
 - no derived key is set by hand;
 - units match the key tree; supply and return are on the right sides; the span equals the data;
 - every flaw found was asked about with `ask_user`, never only named in the answer;

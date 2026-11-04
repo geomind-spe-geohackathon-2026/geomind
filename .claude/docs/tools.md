@@ -35,7 +35,7 @@ the problem state as `update_state` does.
 | `read_result` | `results.py` | `read` | `reference, path=None, field=None, start=None, end=None` (ISO 8601, inclusive) | `{time, value, unit}` with `path` and `field`, otherwise `{path: {field: {min, max, mean}}}`, in MW, degC, bar, m3/h and kg/s | built |
 | `search_rag` | `results.py` | `read` | `query` | `{matches, note}`: documents `{id, title, text, score}` and passages of the project's files `{name, start, text, score}`, best first, at most 8; `note` when nothing matches (the project does not state it: an assumption or `ask_user`) or the run tree searched the same words | built |
 | `list_files` | `files.py` (`geomind/tools/`) | `read` | none | `{files: [{name, size, media_type}]}` | built |
-| `read_rag` | `files.py` (`geomind/tools/`) | `read` | `name, start=0, length=None` | `{name, start, total, text, next, table?}` | built |
+| `read_rag` | `files.py` (`geomind/tools/`) | `read` | `name, start=0, length=None, force=False, columns=None, rows=None` | `{name, start, total, text, next, table?}`, or `{name, start, total, table, note}` for a large table | built |
 | `check_results` | `assessment.py` | `compute` | `reference` | gemini's verdict on the run's own case, in display units: `{feasible, reasons: [{kind, name, message, ...}], requirements: [check], failures: {total, groups}, metrics}` | built |
 | `compute_kpis` | `assessment.py` | `compute` | `reference, names=None` | `{name: Value}` in display units: `gm.evaluate.totals` and the metrics of `gm.evaluate.report`; an unknown name is `unknown_name` with a did-you-mean | built |
 | `estimate_costs` | `assessment.py` | `compute` | `reference` | `{capex, opex, annualised_cost, lcoh, lcoc, lcts, npv, payback, co2}` as Values in display units, from the case's `economics.json`; a cost whose figure is missing is `{error}` with gemini's `missing_assumption` and its path | built |
@@ -329,6 +329,7 @@ A validation error takes `path` from the first input field that failed. Every ot
 | `case_incomplete` | the case misses values gemini needs, to read it or for this plant; `path` is the first and `suggestions` lists every missing path, from `gm.case.missing` or gemini's check; the message stays gemini's |
 | `files_unavailable` | the workspace has no `files` and `file`: an older backend; the run goes on without them |
 | `knowledge_unavailable` | the workspace has no `knowledge_search`, `knowledge_files` and `knowledge_file`, or no document: the run goes on without a knowledge base |
+| `memory_unavailable` | `search_memory`, `read_memory`, `write_lesson`: the memory store raised (a backend's database gone); the message keeps its error, and the run goes on without the memory |
 | `not_text` | `read_rag`: the file gives no text (binary, encrypted, a scan) |
 | `timeout` | the tool passed its time limit |
 | `budget` | a budget or time limit stopped a delegate's nested run; the message names it with what was spent and the cap |
@@ -401,6 +402,14 @@ stored by reference like any other, so old reads shrink to their outline. `set_c
 gives project files to the case: `set_case` passes their bytes to gemini under the same name, and
 `changes` names them as the `file` of a series. gemini validates, and geomind adds no unit alias.
 `save_profile` keeps taking values: a file goes through `set_case`.
+
+A CSV or TSV is narrowed before it is paged: `rows={column: [text, ...]}` keeps the header and the
+rows whose value in each named column starts with one of the texts (such as the catalogue's
+`path` of the keys a case lacks), then `columns` keeps those columns in order. A table still longer
+than `LARGE_TABLE_CHARACTERS` (20,000, a page) is never returned as text or by pages: the answer is
+its `table` outline (columns, rows, first and last rows) and a `note` naming `search_rag`, `rows`
+and `columns`, and it counts as no read (B6: a case lead read the 79,000-character cost catalogue
+whole and by pages, and carried it for 21 steps at 55-80k input tokens each).
 
 When a case misses values, `set_case` answers `case_incomplete` with every path in `suggestions`,
 from `gm.case.missing`, for one question to the user. The design loop asks for a missing case at

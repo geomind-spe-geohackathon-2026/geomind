@@ -150,3 +150,36 @@ async def test_an_agent_with_servers_reads_how_to_use_their_values():
     system = of_type(events, "llm.completed")[0].messages[0].content
     assert "## Connected servers" in system and "confirms it" in system
     assert "`read_mcp(server, tool, arguments)`" in system
+
+
+def plain(item):
+    """Return a server as the plain dict ``Workspace.mcp``'s contract names."""
+    return {
+        "name": item.name,
+        "url": item.url,
+        "transport": item.transport,
+        "headers": dict(item.headers),
+    }
+
+
+async def test_load_servers_takes_dicts_and_leaves_a_bad_one_out_by_name():
+    """B10: a dict loads as a ``Server``; a bad one fails alone, named, with no header value."""
+    bad = {**plain(server()), "name": "broken", "transport": "websocket"}
+    servers, failures = await load_servers([plain(server()), bad], 5, http_server())
+    assert set(servers.rows) == {"market"}
+    [(failed, error)] = failures
+    assert failed.get("name") == "broken" and str(error).startswith("broken:")
+    assert SECRET not in str(error)
+
+
+async def test_a_run_whose_workspace_gives_dicts_offers_their_tools_and_hides_the_headers():
+    """B10: the run path from ``Workspace.mcp`` takes dicts; the header values stay secrets."""
+    script = [uses(call("read_mcp", server="market", tool="price", arguments={"market": "TTF"}))]
+    engine = engine_for([*script, says("done")], workspace=MemoryWorkspace(mcp=[plain(server())]))
+    engine.mcp_transport = http_server()
+    start = run_context()
+    result = await engine.run(Worker(), start)
+    events = engine.store.load_events(start.run_id)
+    assert result.status == "done" and set(engine.mcp_servers.servers) == {"market"}
+    assert results(events)["read_mcp"]["text"].startswith("TTF")
+    assert SECRET not in json.dumps([event.to_dict() for event in events])

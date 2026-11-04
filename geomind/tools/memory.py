@@ -31,6 +31,24 @@ def memory_of(context, tool_name):
     return memory
 
 
+def from_store(tool_name, action, *arguments):
+    """Call the memory store, answering ``memory_unavailable`` with its error when it fails.
+
+    A backend's store can fail (a database gone); the model reads why and goes on without the
+    memory, never an ``internal`` error (B4).
+    """
+    try:
+        return action(*arguments)
+    except ToolError:
+        raise
+    except Exception as error:
+        raise ToolError(
+            f"{tool_name}: the memory store failed ({type(error).__name__}: {error}); go on "
+            "without the memory",
+            code="memory_unavailable",
+        ) from error
+
+
 def case_features(case):
     """Return the general features of a ``gm.Case`` in SI units, ``None`` where it has none.
 
@@ -79,14 +97,17 @@ def search_memory(context):
     """
     memory = memory_of(context, "search_memory")
     role = role_of(context)
-    lessons = memory_lessons(memory) if role == CURATOR else lessons_for(memory, role)
+    if role == CURATOR:
+        lessons = from_store("search_memory", memory_lessons, memory)
+    else:
+        lessons = from_store("search_memory", lessons_for, memory, role)
     found = {"lessons": lessons[:SHOWN_ENTRIES]}
     features = state_features(context)
     threshold = runtime.get("memory_similarity")
     if features is None or threshold is None:
         note = "past designs need the state's case and the memory_similarity setting"
         return {"experience": [], "note": note, **found}
-    entries = search_experience(memory, features, threshold)
+    entries = from_store("search_memory", search_experience, memory, features, threshold)
     return {"experience": entries[:SHOWN_ENTRIES], "threshold": threshold, **found}
 
 
@@ -131,7 +152,7 @@ def role_of(context):
 def read_memory(context, id: str):
     """Return one experience entry by the id ``search_memory`` gave."""
     memory = memory_of(context, "read_memory")
-    for entry in memory.entries("experience"):
+    for entry in from_store("read_memory", memory.entries, "experience"):
         if entry.get("id") == id:
             return entry
     raise ToolError(
@@ -170,7 +191,7 @@ def write_lesson(
     origin = {"run": context.session.state.run_id, "source": source}
     entry = {"id": id, "kind": kind, "role": role, "text": text, "origin": origin}
     entry["project_id"] = context.project
-    memory.add("experience", checked_lesson(entry))
+    from_store("write_lesson", memory.add, "experience", checked_lesson(entry))
     return {"written": id, "kind": kind}
 
 

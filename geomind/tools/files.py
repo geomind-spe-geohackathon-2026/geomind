@@ -17,6 +17,18 @@ from geomind.utils.strings import join_names
 
 PAGE_CHARACTERS = 20_000
 """The most text one ``read_rag`` call returns; a longer file is read by pages."""
+LARGE_TABLE_CHARACTERS = PAGE_CHARACTERS
+"""The longest CSV or TSV ``read_rag`` returns as text; a longer one gives its outline only.
+
+A model read a 79,000-character cost catalogue whole and by pages, and every later step carried
+it (B6): a larger table is read by ``rows`` and ``columns``, after ``search_rag`` found the rows.
+"""
+LARGE_TABLE_NOTE = (
+    "this table is {total} characters, more than the {limit} read_rag returns as text, so only its "
+    "outline is here (table: columns, rows, first rows). Find the rows you need with "
+    "search_rag(query), then read only them: rows={{column: [start of the value, ...]}}, such as "
+    "the keys you miss in a column of paths, and columns=[...] with the fields you need"
+)
 FIRST_ROWS = 5
 TABLE_SUFFIXES = {".csv": ",", ".tsv": "\t"}
 
@@ -130,12 +142,7 @@ def span_of(rows):
 
 def only_columns(name, text, columns):
     """Return a table's text with only ``columns``, in that order; another file is an error."""
-    delimiter = TABLE_SUFFIXES.get(Path(name).suffix.lower())
-    if delimiter is None:
-        raise ToolError(
-            f"read_rag: columns = {columns!r}; expected none for {name!r}, which is no CSV or TSV",
-            path="columns",
-        )
+    delimiter = table_delimiter(name, "columns", columns)
     rows = [row for row in csv.reader(io.StringIO(text), delimiter=delimiter) if row]
     header = rows[0] if rows else []
     unknown = [column for column in columns if column not in header]
@@ -154,6 +161,68 @@ def only_columns(name, text, columns):
     for row in rows:
         writer.writerow([row[index] if index < len(row) else "" for index in picked])
     return out.getvalue()
+
+
+def table_delimiter(name, argument, value):
+    """Return the delimiter of a CSV or TSV; ``argument`` given for another file is an error."""
+    delimiter = TABLE_SUFFIXES.get(Path(name).suffix.lower())
+    if delimiter is None:
+        raise ToolError(
+            f"read_rag: {argument} = {value!r}; expected none for {name!r}, which is no CSV or TSV",
+            path=argument,
+        )
+    return delimiter
+
+
+def only_rows(name, text, rows):
+    """Return a table's text with its header and the rows ``rows`` asks for.
+
+    ``rows`` is ``{column: [text, ...]}``: a row is kept when, in every named column, its value
+    starts with one of the texts, such as the paths of the keys a case lacks.
+    """
+    delimiter = table_delimiter(name, "rows", rows)
+    table = [row for row in csv.reader(io.StringIO(text), delimiter=delimiter) if row]
+    header = table[0] if table else []
+    unknown = [column for column in rows if column not in header]
+    if unknown or not rows:
+        raise ToolError(
+            f"read_rag: rows = {rows!r}; expected columns among {join_names(header)}",
+            code="unknown_name",
+            path="rows",
+            suggestions=[
+                match for item in unknown for match in difflib.get_close_matches(item, header)
+            ],
+        )
+    starts = {
+        header.index(column): (texts,) if isinstance(texts, str) else tuple(texts)
+        for column, texts in rows.items()
+    }
+    kept = [
+        row
+        for row in table[1:]
+        if all(index < len(row) and row[index].startswith(texts) for index, texts in starts.items())
+    ]
+    out = io.StringIO()
+    csv.writer(out, delimiter=delimiter, lineterminator="\n").writerows([header, *kept])
+    return out.getvalue()
+
+
+def narrowed(name, text, rows, columns):
+    """Return a document's text after ``rows`` and ``columns``, and the key its reads go by."""
+    key = name
+    if rows is not None:
+        text = only_rows(name, text, rows)
+        key = f"{key}#rows={sorted(rows.items())}"
+    if columns is not None:
+        text = only_columns(name, text, columns)
+        key = f"{key}#{','.join(columns)}"
+    return text, key
+
+
+def large_table(name, text):
+    """Return what a table over ``LARGE_TABLE_CHARACTERS`` gives: its size, outline and note."""
+    note = LARGE_TABLE_NOTE.format(total=len(text), limit=LARGE_TABLE_CHARACTERS)
+    return {"total": len(text), "table": table_of(name, text), "note": note}
 
 
 def table_of(name, text):
@@ -286,6 +355,7 @@ def read_rag(
     length: int | None = None,
     force: bool = False,
     columns: list[str] | None = None,
+    rows: dict[str, list[str] | str] | None = None,
 ):
     """Read a project file, or a document of the knowledge base as ``knowledge/<name>``, as text.
 
@@ -298,26 +368,29 @@ def read_rag(
     time: ``start``, ``end`` (exclusive, one step after the last row) and ``step``, or ``null``
     when that column is not evenly spaced times. ``columns`` reads only those columns of a CSV or
     TSV, in that order, such as the ``id``, ``path`` and price of a cost table: a wide table costs
-    far fewer tokens so. A page this run already read comes back as ``already_read`` with a
-    ``note`` instead of its text: its text is in the conversation, even with ``force``, unless a
-    compaction summarized it since; after one, ``force`` reads it again until the whole document
-    was read, then every page is ``already_read`` with the references of the stored results.
-    Nested runs share what the run tree read.
+    far fewer tokens so. ``rows`` (``{column: [text, ...]}``) reads only the rows whose value in
+    each named column starts with one of the texts, such as the paths of the keys a case lacks.
+    A CSV or TSV still longer than 20,000 characters after them gives no ``text``: its ``table``
+    outline and a ``note``; find its rows with ``search_rag`` and read them by ``rows``. A page
+    this run already read comes back as ``already_read`` with a ``note`` instead of its text: its
+    text is in the conversation, even with ``force``, unless a compaction summarized it since;
+    after one, ``force`` reads it again until the whole document was read, then every page is
+    ``already_read`` with the references of the stored results. Nested runs share what the run
+    tree read.
     """
     if start < 0:
         raise ToolError(f"read_rag: start = {start}; expected 0 or more", path="start")
-    text = document_text(name, document_bytes(context, name))
-    key = name
-    if columns is not None:
-        text = only_columns(name, text, columns)
-        key = f"{name}#{','.join(columns)}"
+    text, key = narrowed(name, document_text(name, document_bytes(context, name)), rows, columns)
+    shown = {"name": name, **({"columns": columns} if columns is not None else {})}
+    shown = {**shown, **({"rows": rows} if rows is not None else {})}
+    if len(text) > LARGE_TABLE_CHARACTERS and Path(name).suffix.lower() in TABLE_SUFFIXES:
+        return {**shown, "start": start, **large_table(name, text)}
     size = min(length or PAGE_CHARACTERS, PAGE_CHARACTERS)
     end = min(start + size, len(text))
     whole = read_before(context, key, 0, len(text))
     earlier = whole or read_before(context, key, start, end)
     if earlier is not None and force and not whole and compacted_since(context, earlier):
         earlier = None
-    shown = {"name": name, **({"columns": columns} if columns is not None else {})}
     if earlier is not None:
         note = WHOLE_NOTE if whole else PAGE_NOTE
         this_run = context.session.state.run_id

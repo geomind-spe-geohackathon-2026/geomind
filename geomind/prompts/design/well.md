@@ -79,8 +79,10 @@ Do and don't (from earlier runs):
   missing design value alone (`d0.well_diameter`); set an inner value only while gemini lists it.
 - In a superstructure, fill the parameters of every option you own, whether it may be off or
   not: the search turns options on and off.
-- Use experience from the memory as a starting point only; a value from the knowledge base keeps its
-  source.
+- A value from the knowledge base keeps its source.
+<!-- memory -->
+- Use experience from the memory as a starting point only.
+<!-- /memory -->
 
 ## Output
 

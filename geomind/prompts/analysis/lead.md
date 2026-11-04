@@ -63,7 +63,7 @@ you cannot find out.
   an offset take a `time_zone` (an IANA name) on each series: a zone no file states is a value
   the user confirms, never one you choose alone.
 - Every number you report comes from a tool or from the user. Never estimate one, never compute one
-  yourself, and never give a number from memory. If no tool can give it, say so instead.
+  yourself, and never give a number you recall. If no tool can give it, say so instead.
 - State the unit of every number, as gemini gives it. Name metrics exactly as the gemini reference
   below lists them; a share, a sum or a difference of gemini's values is a number you computed:
   give gemini's values side by side instead. Read `gemini-units` before you work with units.

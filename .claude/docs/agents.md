@@ -59,7 +59,10 @@ hook stopped the call, and then `action` is `None`. Agent code never constructs 
 
 `Prompt("design/lead")` loads `geomind/prompts/design/lead.md`: a role has one file,
 `geomind/prompts/<team>/<name>.md`, as its agent is `geomind/agents/<team>/<name>.py`. Skills stay in
-`geomind/prompts/skills/`. `Prompt.text(...)` holds inline text. A role file has the headings
+`geomind/prompts/skills/`. `Prompt.text(...)` holds inline text. A part of a role file only a run
+with the memory on reads sits between the lines `<!-- memory -->` and `<!-- /memory -->`:
+`Prompt.render(memory=False)`, which the run's context uses when the memory is off, leaves it out,
+so no prompt speaks of the memory then; with it on the marks are dropped. A role file has the headings
 Role, Inputs, Tools, Rules, Output and Examples, and holds engineering method only: every number
 comes from the case, the files, knowledge with its source, or a gemini tool.
 
