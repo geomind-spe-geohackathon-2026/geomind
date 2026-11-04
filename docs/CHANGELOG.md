@@ -6,6 +6,10 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### Old logs are read, M
+
+- Behaviour: a replay of a log recorded before the case lead (geomind older than 0.4.22.dev7, or no version) that differs raises `ReplayError` saying the log was recorded by geomind <version> before the case lead and can be read, shown and exported but not re-run, with the first difference after it. Tests: the 0.3.1 compare log loads, maps its class paths (`RENAMED_CLASSES`), shows (`geomind show`, text and md) and exports (JSON run log, Markdown), and its replay raises that message.
+
 ### The slow tier green again (0.4.22.dev63)
 
 The release profile's slow tests failed on dev62; none ran on a push to dev. No version bump in this piece.

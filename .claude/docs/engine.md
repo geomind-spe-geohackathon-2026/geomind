@@ -208,6 +208,16 @@ completions, the calls, the step order and the answers are still compared. A dif
 alone only reports (`versions differ`) and runs the tools. `Engine.reuses_tools` carries this and
 `reuses_tool_results` decides it.
 
+**A log from before the case lead is read, not re-run.** A log whose root `run.started` records a
+geomind older than `CASE_LEAD_VERSION` (0.4.22.dev7, the case lead then named formulator), or none,
+still loads, shows (`geomind show`, text and `--format md`) and exports (`runlog`, `render_export`),
+its old class paths found through `RENAMED_CLASSES` and its old tool names through
+`RENAMED_TOOLS`. Its replay differs by design (the case lead, the case by rule, `design_lead` and
+`reviewer`), so a difference raises `ReplayError("replay: this log was recorded by geomind 0.3.1
+before the case lead (0.4.22.dev7); it can be read, shown and exported, but not re-run (first
+difference: ...)")`; `predates_case_lead` decides it. The 0.3.1 compare log of
+`tests/integration/test_old_log.py` pins all of it.
+
 ## Stores and workspaces
 
 `RunStore` is the nine-method protocol of the contract, `load_events` and the two chat-artifact
