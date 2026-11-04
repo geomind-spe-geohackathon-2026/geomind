@@ -278,6 +278,35 @@ Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/C
 | 111 | E2, project lead | asked the user for the air humidity "in %, e.g. 70": a typical value | a case value is the case lead's to ask; a question offers no value | track-e |
 | 50 | A1, all | models saw only the first paragraph of each tool's docstring | the whole docstring but its `NOTE:` paragraphs | `768f396` |
 
+### Model comparison
+
+Each agent alone on the same fixtures, prompts and commit (track E: 9e69fb3 to d0645df), on
+`deepseek/deepseek-v4.1-flash-1017` (provider DeepSeek) and `nvidia/nemotron-3.5-super-vl:free`
+(no pin, two at a time, retries 6 x 10 s; no 429 in track E). Round in brackets; tokens are
+input/cached/output; DeepSeek's coordinator and lead `needs_case` rows are their E1/E2 recordings
+scored again with the corrected criteria (e6, no new call).
+
+| agent | track | model | pass | correctness | model calls | tool calls | failed | tokens | seconds | USD |
+|---|---|---|---|---|---|---|---|---|---|---|
+| coordinator/case_question | E | deepseek (e6) | pass | yes | 1 | 0 | 0 | 1865/0/39 | 5.3 | 0.0001 |
+| coordinator/case_question | E | nemotron (n1) | pass | yes | 1 | 0 | 0 | 1843/0/129 | 21.0 | 0.0000 |
+| coordinator/cost | E | deepseek (e6) | pass | yes | 1 | 0 | 0 | 1870/0/39 | 4.9 | 0.0001 |
+| coordinator/cost | E | nemotron (n1) | pass | yes | 1 | 0 | 0 | 1848/0/84 | 21.3 | 0.0000 |
+| coordinator/design | E | deepseek (e6) | pass | yes | 1 | 0 | 0 | 1870/0/52 | 4.3 | 0.0001 |
+| coordinator/design | E | nemotron (n1) | pass | yes | 1 | 0 | 0 | 1849/0/130 | 17.6 | 0.0000 |
+| coordinator/greeting | E | deepseek (e6) | pass | yes | 1 | 0 | 0 | 1859/0/25 | 5.1 | 0.0001 |
+| coordinator/greeting | E | nemotron (n1) | pass | yes | 1 | 0 | 0 | 1837/0/63 | 16.4 | 0.0000 |
+| explainer/explain | E | deepseek (e3) | pass | yes | 6 | 15 | 1 | 97724/0/12851 | 243.5 | 0.0086 |
+| explainer/explain | E | nemotron (n1) | pass | yes | 2 | 5 | 0 | 21115/0/15317 | 109.9 | 0.0000 |
+| project_lead/case_change | E | deepseek (e3) | pass | yes | 13 | 14 | 0 | 75752/16892/4855 | 194.9 | 0.0042 |
+| project_lead/case_change | E | nemotron (n1) | pass | yes | 11 | 17 | 2 | 81136/39024/5152 | 163.7 | 0.0000 |
+| project_lead/needs_case | E | deepseek (e6) | pass | yes | 9 | 12 | 0 | 55444/8187/5450 | 175.8 | 0.0042 |
+| project_lead/needs_case | E | nemotron (n1) | pass | yes | 7 | 15 | 0 | 52293/30352/4469 | 28.9 | 0.0000 |
+| reviewer/fails | E | deepseek (e5) | pass | yes | 7 | 11 | 0 | 90195/12794/10898 | 98.0 | 0.0078 |
+| reviewer/fails | E | nemotron (n3) | pass | yes | 4 | 6 | 0 | 45776/8672/7947 | 47.6 | 0.0000 |
+| reviewer/passes | E | deepseek (e4) | pass | yes | 10 | 15 | 1 | 130589/44022/13019 | 161.0 | 0.0093 |
+| reviewer/passes | E | nemotron (n2) | pass | yes | 3 | 6 | 0 | 34632/4336/4076 | 22.7 | 0.0000 |
+
 ### The adaptation to gemini 0.5 (done) and what is open
 
 geomind 0.3.0 runs on gemini 0.5: the case is a project folder (`set_case`, `read_case`,
