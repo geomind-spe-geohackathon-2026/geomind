@@ -188,14 +188,29 @@ def list_files(context):
 
 PAGE_NOTE = "already read in this run: read_stored a reference, or pass force=true"
 WHOLE_NOTE = "the whole document was already read in this run: read_stored the references"
-IN_CONVERSATION = (
-    "already read in this run: its text is in the conversation above, kept whole for the run: "
-    "work from it, reading it again gives nothing new"
-)
-"""The note of a page this run read with no compaction since: no reference to read (#120)."""
+IN_CONVERSATION = "already read at step {step}; its text is in your context; {next}"
+"""The note of a page this run read with no compaction since, ``force`` or not (#120, #122).
+
+DeepSeek, told the text was in the conversation, read the same pages 48 times in one run and
+never called ``set_case``: the note names the step of the read and, for an agent that sets the
+case, the next call.
+"""
+
 AFTER_COMPACTION = (
     "already read in this run, before a compaction summarized it: read_stored a reference"
 )
+
+
+def next_call(context):
+    """Return what the note tells the agent to do next: ``set_case`` where it has that tool."""
+    agent = getattr(context.session, "agent", None)
+    tools = agent.tools() if agent is not None else {}
+    return "call set_case next" if "set_case" in tools else "work from it"
+
+
+def in_conversation(context, step):
+    """Return the note of a page read at ``step`` that is still in the conversation."""
+    return IN_CONVERSATION.format(step=step, next=next_call(context))
 
 
 def reads_of(context):
@@ -236,7 +251,9 @@ def remember_read(context, name, start, end):
     if reads is None:
         return
     reference = reference_of(context.call_id) if context.call_id else None
-    read = {"start": start, "end": end, "reference": reference, "run": context.session.state.run_id}
+    state = context.session.state
+    read = {"start": start, "end": end, "reference": reference, "run": state.run_id}
+    read["step"] = getattr(state, "step", None)
     reads.setdefault(name, []).append({**read, "compacted": compacted_turns(context)})
 
 
@@ -245,6 +262,11 @@ def compacted_turns(context):
     problem = getattr(context, "problem", None)
     compaction = getattr(problem, "compaction", None)
     return compaction.turns if compaction else 0
+
+
+def compacted_since(context, earlier):
+    """Tell whether a compaction summarized turns since any of the ``earlier`` reads."""
+    return any(read["compacted"] < compacted_turns(context) for read in earlier)
 
 
 def document_bytes(context, name):
@@ -277,10 +299,10 @@ def read_rag(
     when that column is not evenly spaced times. ``columns`` reads only those columns of a CSV or
     TSV, in that order, such as the ``id``, ``path`` and price of a cost table: a wide table costs
     far fewer tokens so. A page this run already read comes back as ``already_read`` with a
-    ``note`` instead of its text (its text is still in the conversation unless a compaction
-    summarized it); ``force`` reads it again, until the whole document was read:
-    then every page is ``already_read``, with the references of the stored results. Nested runs
-    share what the run tree read.
+    ``note`` instead of its text: its text is in the conversation, even with ``force``, unless a
+    compaction summarized it since; after one, ``force`` reads it again until the whole document
+    was read, then every page is ``already_read`` with the references of the stored results.
+    Nested runs share what the run tree read.
     """
     if start < 0:
         raise ToolError(f"read_rag: start = {start}; expected 0 or more", path="start")
@@ -292,15 +314,18 @@ def read_rag(
     size = min(length or PAGE_CHARACTERS, PAGE_CHARACTERS)
     end = min(start + size, len(text))
     whole = read_before(context, key, 0, len(text))
-    earlier = whole or (None if force else read_before(context, key, start, end))
+    earlier = whole or read_before(context, key, start, end)
+    if earlier is not None and force and not whole and compacted_since(context, earlier):
+        earlier = None
     shown = {"name": name, **({"columns": columns} if columns is not None else {})}
     if earlier is not None:
         note = WHOLE_NOTE if whole else PAGE_NOTE
         this_run = context.session.state.run_id
         hidden = {"compacted"}
         if all(read["reference"] is None or read["run"] == this_run for read in earlier):
-            compacted = any(read["compacted"] < compacted_turns(context) for read in earlier)
-            note = AFTER_COMPACTION if compacted else IN_CONVERSATION
+            compacted = compacted_since(context, earlier)
+            step = max((read.get("step") or 0 for read in earlier), default=0)
+            note = AFTER_COMPACTION if compacted else in_conversation(context, step)
             hidden |= set() if compacted else {"reference"}
         earlier = [{k: v for k, v in read.items() if k not in hidden} for read in earlier]
         return {**shown, "start": start, "total": len(text), "already_read": earlier, "note": note}

@@ -6,6 +6,14 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### The case team, A5
+
+The case team after the A4 rerun on both models; each bug pinned by a test.
+
+- Fix (#121), prompt: the case lead works by a numbered workflow; economics are its required step 5 once the case is accepted: the cost catalogue read once, ONE `ask_user` question listing every economics value with its catalogue row (`id`, source, year, link, status; rows with different values offered there), then `set_case(economics=...)`; the checklist and the stop rule name them. nemotron had set the project case and no economics.
+- Fix (#122), behaviour: `read_rag` on a page this run already read, `force` or not, returns the note "already read at step N; its text is in your context; call set_case next" (`work from it` for an agent without `set_case`), with `already_read` (each read with its `step`), `start` and `total`; after a compaction since the read, the note names `read_stored` and `force` reads the page again, as before. DeepSeek had read the same pages 48 times and never set a case.
+- Evals (#123), contract: the `question` criterion takes `contains_any`, a list of texts of which one must be in a question (`contains` stays; one of the two is required); `geomind/schemas/eval_task.json` regenerated. The flawed case task accepts any name of its count flaw.
+
 ### The case team, fourth round (0.4.22.dev57)
 
 The case team after the A3 rerun on both models; each bug pinned by a test.

@@ -556,11 +556,20 @@
         },
         "QuestionCriterion": {
           "additionalProperties": false,
-          "description": "The agent asked the user a question holding ``contains``.",
+          "description": "The agent asked the user a question holding ``contains``, or any of ``contains_any``.\n\n``contains_any`` names one thing by each of its names, such as a flaw by its key or its word\n(``[\"doublet\", \"annual_operation\", \"count\"]``); the match ignores case.",
           "properties": {
             "contains": {
+              "default": "",
               "title": "Contains",
               "type": "string"
+            },
+            "contains_any": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Contains Any",
+              "type": "array"
             },
             "kind": {
               "const": "question",
@@ -569,8 +578,7 @@
             }
           },
           "required": [
-            "kind",
-            "contains"
+            "kind"
           ],
           "title": "QuestionCriterion",
           "type": "object"

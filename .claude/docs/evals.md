@@ -49,7 +49,7 @@ criteria:
 |---|---|---|
 | `number` | `value`, `tolerance`, `unit` (optional) | the answer holds a number within `tolerance` of `value`, followed by `unit` if one is given |
 | `tool` | `tool`, `called` (default `true`) | the tool was called, or with `called: false` was not |
-| `question` | `contains` | a question to the user holds this text, in any case |
+| `question` | `contains` or `contains_any` | a question to the user holds this text, or any of the texts of `contains_any` (the names of one thing, such as a flaw's key and its word), in any case |
 | `state` | `path`, `equals` (optional) | this JSON Pointer of the final problem state is set, to `equals` when given; items of a list are named by id |
 | `verified` | `checks` (optional) | `gd.verify.verify(plant, results, case)` passes again on the final state's design and its stored result, on the case that run used (`verify_design`), and each named check is among them and passed |
 

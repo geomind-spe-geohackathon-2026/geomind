@@ -4,7 +4,7 @@ import re
 from typing import Annotated, Any, Literal
 
 import yaml
-from pydantic import Field
+from pydantic import Field, model_validator
 
 import geomind as gd
 from geomind.types import Record
@@ -61,16 +61,31 @@ class ToolCriterion(Record):
 
 
 class QuestionCriterion(Record):
-    """The agent asked the user a question holding ``contains``."""
+    """The agent asked the user a question holding ``contains``, or any of ``contains_any``.
+
+    ``contains_any`` names one thing by each of its names, such as a flaw by its key or its word
+    (``["doublet", "annual_operation", "count"]``); the match ignores case.
+    """
 
     kind: Literal["question"]
-    contains: str
+    contains: str = ""
+    contains_any: tuple[str, ...] = ()
+
+    @model_validator(mode="after")
+    def _one_text(self):
+        """Ask for ``contains`` or ``contains_any``, not neither."""
+        if not self.contains and not any(self.contains_any):
+            raise ValueError("question: expected contains or contains_any")
+        return self
 
     def problem(self, outcome):
         """Return what is wrong, or ``None``."""
-        if any(self.contains.lower() in question.lower() for question in outcome.questions):
+        texts = [text.lower() for text in (self.contains, *self.contains_any) if text]
+        asked = [question.lower() for question in outcome.questions]
+        if any(text in question for text in texts for question in asked):
             return None
-        return f"question: none holds {self.contains!r}; asked {outcome.questions}"
+        wanted = self.contains or list(self.contains_any)
+        return f"question: none holds {wanted!r}; asked {outcome.questions}"
 
 
 class StateCriterion(Record):

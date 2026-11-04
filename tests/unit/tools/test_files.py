@@ -219,9 +219,45 @@ async def test_a_page_this_run_read_is_in_its_conversation():
     await call(read_rag, {"name": "demand.csv"}, session, "p")
     session.documents_read["demand.csv"][0]["reference"] = "stored"
     again = (await call(read_rag, {"name": "demand.csv"}, session, "p")).output
-    assert again["note"].startswith("already read in this run: its text is in the conversation")
+    assert again["note"] == "already read at step 1; its text is in your context; work from it"
     assert "read_stored" not in again["note"]
     assert all("reference" not in read for read in again["already_read"])
+
+
+class CaseAgent:
+    """An agent with the case tools, as ``session.agent``."""
+
+    def tools(self):
+        """Return the tools by name."""
+        return {"read_rag": None, "set_case": None}
+
+
+async def test_a_re_read_names_its_step_and_set_case_for_the_case_lead():
+    """#122: DeepSeek read the same pages 48 times and never called set_case; force too gets it."""
+    session = session_with()
+    session.agent = CaseAgent()
+    session.state.step = 3
+    first = (await call(read_rag, {"name": "demand.csv"}, session, "p")).output
+    session.state.step = 7
+    for force in (False, True):
+        again = (await call(read_rag, {"name": "demand.csv", "force": force}, session, "p")).output
+        assert "text" not in again and again["start"] == 0 and again["total"] == first["total"]
+        assert again["note"] == (
+            "already read at step 3; its text is in your context; call set_case next"
+        )
+        assert again["already_read"][0]["step"] == 3
+
+
+async def test_a_forced_read_of_a_page_after_a_compaction_reads_it_again():
+    """Only a compaction since the read takes the text away; then ``force`` reads the page."""
+    from geomind.context import Compaction, ProblemState
+
+    session = session_with()
+    await call(read_rag, {"name": "note.md", "length": 3}, session, "p")
+    compacted = ProblemState(compaction=Compaction(summary="earlier", turns=3))
+    options = {"name": "note.md", "length": 3, "force": True}
+    again = (await call(read_rag, options, session, "p", compacted)).output
+    assert "text" in again
 
 
 async def test_a_page_read_before_a_compaction_points_at_read_stored():
