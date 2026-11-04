@@ -6,6 +6,26 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.24] - 2026-11-04
+
+geomind 0.4.24 (on gemini 0.6.3) uses more of gemini 0.6.2 and 0.6.3 (evolve's stop, the evolution's explanation and table, `union_designs` over `gm.plants.union`, the economics' per-energy O&M, subsidy cap and ice storage) and fixes the bugs of a production run (B4 memory off, B5 bypass ownership, B6 the whole cost catalogue read, B10 MCP servers as plain dicts).
+
+### Contract changes for the backend
+
+- **Two new required settings**: `GEOMIND_EVOLVE_STOP_GENERATIONS` and `GEOMIND_EVOLVE_STOP_SECONDS`, each a number or `off`; a live run without them is refused, naming them.
+- `evolve_structure` answers `stopped` and `why`; its stored result has `explanation` and `table`.
+- New design-lead tool `union_designs`.
+- New error code `memory_unavailable` (a memory store that fails); with the memory off no memory tool or memory text reaches any agent.
+- `read_rag` takes `rows` (`{column: [prefix, ...]}`); a table still over 20,000 characters after `rows` and `columns` gives its outline and a note, never its text.
+- MCP servers may be plain dicts `{name, url, transport, headers}`, as `Workspace.mcp`'s contract names them, besides `gd.mcp.Server`.
+
+### Known issues
+
+- gemini still refuses `opex.fixed.pipe` per MW per year (two catalogue rows unused); no per-energy catalogue rows yet for the boilers and the heat pump.
+- gemini describes each map entry as "The entry of this map for <key>."; geomind shows the map's own description.
+- An end-to-end run needs a pressure or the site's elevation, from a file, the knowledge base, an MCP server or the user: no default.
+- The shortened-history note can invite a `{}` call; `run_manifest.json` `models` lists only the roles that started; `read_case` of a missing section is an error.
+
 ### Bugs from a production run (0.4.24.dev2)
 
 Run c8bf2381 (chat b96805e4) on 0.4.22.
