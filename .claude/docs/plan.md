@@ -271,6 +271,7 @@ Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/C
 | 76 | B2, energy engineer | `evaluate_module` with a control as a parameter (`temperature_setpoint`) gave `internal` (gemini's bare `KeyError`), then misleading "missing inlets", five times until the run stopped | names checked before gemini: `invalid_input` with where it goes | track-b2 |
 | 77 | B2, process engineer | built from `read_plant(plant_class=...)`, a header with 110 values missing, while the project held the class's whole file | the prompt prefers the project plant of the class | track-b2 |
 | 78 | B2, design lead (nemotron) | checked a handed design feasible, then finished without `design.reference` and `design.result`; DeepSeek records them | the prompt asks for the record before every `finish` | track-b2 |
+| 79 | B2, energy engineer (DeepSeek) | `evaluate_module` on a heat pump without `inlets`, seven times (gemini: "missing required inlet(s)"), on a machine the plant file already sized | each missing stream inlet is named with its form before gemini; the prompt evaluates only a machine it changes | track-b2 |
 | 50 | A1, all | models saw only the first paragraph of each tool's docstring | the whole docstring but its `NOTE:` paragraphs | `768f396` |
 
 ### The adaptation to gemini 0.5 (done) and what is open
@@ -343,6 +344,9 @@ B2-2. `read_plant`-style class files: `gm.modules.get(<plant class>)` gives a he
     `d0.esp.head_coefficients`, ...), while the hackathon project file of the same class holds
     them; a class default file with every value, or the values derived from the doublet's
     top-level ones (request 11).
+B2-3. `gm.units` refuses `MW/K` for a thermal conductance (`heat_exchanger.thermal_conductance`
+    takes `W/K` only), while it accepts `MW` for power; the energy engineer wrote `1.5 MW/K` and
+    was refused. The prefixed units (`kW/K`, `MW/K`) for conductance.
 
 ### S2b: gemini tools (the first job; the text below is the original plan)
 

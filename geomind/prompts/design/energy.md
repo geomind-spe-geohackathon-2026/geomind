@@ -53,8 +53,10 @@ Do and don't (from earlier runs):
 - Read the case, the plant and each module once: their results stay in the conversation for several turns. `read_profile`'s `summary` has the peak, the mean and the energy; a stored result is read by its `path` with `read_stored`, never whole again.
 - Read each service's profile: its peak, its energy over the year and when heating and cooling
   overlap; size each machine for the share it covers and say what covers the rest.
-- A heat pump or a chiller works between the temperatures the case and the source give; check
-  each at its design point with `evaluate_module`.
+- A heat pump or a chiller works between the temperatures the case and the source give. When
+  you change a machine's capacity or temperatures, check it at its design point with
+  `evaluate_module`, giving every stream inlet (`source_in`, `sink_in`) with its fluid, `T`, `p`
+  and `m_dot`; a machine the plant file gives and the case does not change needs no evaluation.
 - The exchanger's approach and the network's losses follow from the temperatures and the flow;
   a return temperature the case lacks is a case change, never a typical value.
 - An equipment value no file gives (an efficiency, a fraction) is your assumption with a reason,

@@ -31,3 +31,15 @@ def test_the_process_engineer_builds_from_the_project_plant():
     text = " ".join(ProcessEngineer().prompt.render().split())
     assert "A project plant (`read_plant(project_plant=...)`) holds every value" in text
     assert "gives only its header and modules" in text
+
+
+async def test_a_call_without_its_stream_inlets_shows_their_form():
+    """B2: the energy engineer called a heat pump without ``inlets`` seven times."""
+    tool_input = {
+        "name": "HeatPump",
+        "parameters": {"capacity": {"value": 15, "unit": "MW"}},
+        "controls": {"temperature_setpoint": {"value": 100, "unit": "degC"}},
+    }
+    error = (await call(evaluate_module, tool_input)).output["error"]
+    assert error["code"] == "invalid_input" and "source_in, sink_in" in error["message"]
+    assert '"m_dot"' in error["suggestions"][0] and "power_in" not in error["message"]

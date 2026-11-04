@@ -1,6 +1,7 @@
 """The tools over gemini's module catalogue."""
 
 import difflib
+import json
 from typing import Any
 
 from geomind.errors import ToolError
@@ -62,6 +63,37 @@ def checked_names(name, description, parameters, controls):
             )
 
 
+def checked_inlets(name, description, inlets):
+    """Raise ``invalid_input`` naming each required stream inlet a call leaves out, with its form.
+
+    gemini says ``missing required inlet(s) source_in, sink_in``; the energy engineer sent the
+    same call without ``inlets`` seven times (B2). The suggestion shows the form of each one.
+    """
+    missing = [
+        port
+        for port, item in description["inlets"].items()
+        if item["port"].get("required")
+        and item["port"].get("carrier") == "stream"
+        and port not in (inlets or {})
+    ]
+    if not missing:
+        return
+    form = {
+        "fluid": {"kind": "<brine, water, glycol_water, steam or gas>"},
+        "T": {"value": "<number>", "unit": "degC"},
+        "p": {"value": "<number>", "unit": "bar"},
+        "m_dot": {"value": "<number>", "unit": "kg/s"},
+    }
+    raise ToolError(
+        f"evaluate_module: inlets = {sorted(inlets or {})}; {name} needs the stream inlets "
+        f"{', '.join(missing)}, each with its fluid, T, p and m_dot (or flow), from the case or "
+        "the plant",
+        code="invalid_input",
+        path="inlets",
+        suggestions=[json.dumps({port: form for port in missing})],
+    )
+
+
 def plain(found):
     """Return ``found`` with every gemini ``Quantity`` in it as its ``{value, unit}`` dict."""
     import gemini as gm
@@ -99,7 +131,9 @@ def evaluate_module(
     """
     import gemini as gm
 
-    checked_names(name, gm.modules.get(name)().describe(), parameters, controls)
+    description = gm.modules.get(name)().describe()
+    checked_names(name, description, parameters, controls)
+    checked_inlets(name, description, inlets)
     called = gm.call(
         gm.modules.get(name),
         parameters,
