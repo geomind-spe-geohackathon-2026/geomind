@@ -1,5 +1,6 @@
 """Rerun a stored run offline and check that it behaves the same."""
 
+import re
 from math import inf
 
 from geomind import runtime
@@ -17,6 +18,8 @@ from geomind.tools.gemini.references import is_index, references_in, without_ref
 from geomind.types import Allow, Cancel, Deny
 
 END_OF_RECORDING = "end of the recording"
+CASE_LEAD_VERSION = "0.4.22.dev7"
+"""The first geomind with a case lead (then the formulator, efb1066): its runs set the case."""
 ANSWERED = ("answer", "finish")
 
 
@@ -377,7 +380,55 @@ def nested_runs_reused(events, workspace):
     )
 
 
+def _version_key(version):
+    """Return a sortable key of a version like ``0.4.22.dev7``; a release sorts after its devs."""
+    found = re.match(r"(\d+(?:\.\d+)*)(?:\.?dev(\d+))?", version or "")
+    if found is None:
+        return None
+    release = tuple(int(part) for part in found.group(1).split("."))
+    release += (0,) * (3 - len(release))
+    return release, inf if found.group(2) is None else int(found.group(2))
+
+
+def predates_case_lead(started):
+    """Tell whether a root ``run.started`` was recorded by a geomind older than the case lead.
+
+    A log without a geomind version (0.3.0) is older too.
+    """
+    recorded = _version_key(started.versions.get("geomind"))
+    return recorded is None or recorded < _version_key(CASE_LEAD_VERSION)
+
+
+def _old_log_error(started, error):
+    """Return the ``ReplayError`` of a log older than the case lead whose replay differed."""
+    version = started.versions.get("geomind") or "an unrecorded version (0.3.0)"
+    return ReplayError(
+        f"replay: this log was recorded by geomind {version} before the case lead "
+        f"({CASE_LEAD_VERSION}); it can be read, shown and exported, but not re-run "
+        f"(first difference: {error})"
+    )
+
+
 async def replay_run(engine_class, store, run_id, *, replayed=None, workspace=None):
+    """Rerun a stored run and compare it with its log; see ``_replay_run``.
+
+    A log older than the case lead (``predates_case_lead``) whose replay differs raises a
+    ``ReplayError`` that says so: such a log is read, shown and exported as before, but today's
+    agents decide differently (the case lead, the case by rule, ``design_lead``/``reviewer``).
+    """
+    try:
+        return await _replay_run(
+            engine_class, store, run_id, replayed=replayed, workspace=workspace
+        )
+    except ReplayError as error:
+        events = store.load_events(run_id)
+        started = next((e for e in events if e.type == "run.started" and e.run_id == run_id), None)
+        if started is None or not predates_case_lead(started):
+            raise
+        raise _old_log_error(started, error) from error
+
+
+async def _replay_run(engine_class, store, run_id, *, replayed=None, workspace=None):
     """Rerun a stored run and every nested run of its tree with their recorded completions.
 
     ``read`` and ``compute`` tools run again, in every run; others reuse their recorded results, as

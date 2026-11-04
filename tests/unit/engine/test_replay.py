@@ -804,3 +804,45 @@ def test_the_references_a_tool_output_holds_are_found_at_any_depth():
 
     output = {"result": "result/3f9a", "runs": [{"design": "design/d1"}], "note": "see result/x"}
     assert references_in(output) == {"result/3f9a", "design/d1"}
+
+
+@pytest.mark.parametrize(
+    ("versions", "named"),
+    [
+        ({}, "an unrecorded version \\(0\\.3\\.0\\)"),
+        ({"geomind": "0.4.22.dev6"}, "0\\.4\\.22\\.dev6"),
+    ],
+)
+async def test_a_log_before_the_case_lead_that_differs_says_it_cannot_be_re_run(versions, named):
+    """A log older than the case lead is read, not re-run: the error says so and keeps the cause."""
+    result, engine, events = await run([uses(call("lookup", key="k")), says("end")])
+    engine.store.events[result.run_id] = [
+        (
+            e.model_copy(update={"versions": versions})
+            if isinstance(e, RunStarted)
+            else e.model_copy(update={"answer": "other"}) if isinstance(e, RunFinished) else e
+        )
+        for e in events
+    ]
+    message = (
+        rf"recorded by geomind {named} before the case lead \(0\.4\.22\.dev7\); it can be read, "
+        r"shown and exported, but not re-run \(first difference: replay: run .*'other'"
+    )
+    with pytest.raises(ReplayError, match=message):
+        await Engine.replay(engine.store, result.run_id)
+
+
+@pytest.mark.parametrize("version", ["0.4.22.dev7", "0.4.22.dev63", "0.4.22", "0.5.0"])
+async def test_a_log_since_the_case_lead_that_differs_keeps_its_own_message(version):
+    """From the case lead on, a difference is the plain mismatch."""
+    result, engine, events = await run([says("end")])
+    engine.store.events[result.run_id] = [
+        (
+            e.model_copy(update={"versions": {"geomind": version}})
+            if isinstance(e, RunStarted)
+            else e.model_copy(update={"answer": "other"}) if isinstance(e, RunFinished) else e
+        )
+        for e in events
+    ]
+    with pytest.raises(ReplayError, match=r"^replay: run .*recorded answer 'other'"):
+        await Engine.replay(engine.store, result.run_id)

@@ -38,7 +38,8 @@ A permission denial is a tool result, not an exception.
 - `StateError(ValueError)`: a change of the problem state is invalid; it becomes a tool result whose
   message tells the model how to fix the patch.
 - `ReplayError(RuntimeError)`: a replay differs from its recording; the message names the first
-  differing step.
+  differing step; for a log older than the case lead it says the log can be read, shown and
+  exported, but not re-run, and keeps that first difference.
 - `LoopError(RuntimeError)`: a loop state that does not fit the loop.
 - `BudgetError(ValueError)`: a budget set up wrongly, such as a `ProjectBudget` with no cap.
 
