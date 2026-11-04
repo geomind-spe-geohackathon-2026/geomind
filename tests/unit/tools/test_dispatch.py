@@ -2,6 +2,7 @@
 
 import asyncio
 
+import pydantic
 import pytest
 
 from geomind import runtime
@@ -269,3 +270,38 @@ async def test_an_argument_of_a_tool_without_arguments_is_unknown(session, conte
     result = await dispatch(session_id, call("session_id", extra=1), context)
     assert result.is_error and not result.is_validation
     assert "takes no arguments" in result.output["error"]["message"]
+
+
+class Item(pydantic.BaseModel):
+    """One item of a list input."""
+
+    model_config = pydantic.ConfigDict(extra="forbid")
+
+    name: str
+
+
+@tool(effect="read")
+def items(values: list[Item]):
+    """Take a list of items."""
+    return len(values)
+
+
+async def test_the_same_error_on_every_item_is_said_once(context):
+    """E2E-14: 47 errors, one per item, each with pydantic's link, filled the model's history.
+
+    One line per field and fault, with how many items have it; the first field is the path.
+    """
+    values = [{"name": {"id": f"n{index}"}, "year": 2020} for index in range(20)]
+    result = await dispatch(items, call(name="items", values=values), context)
+    problem = result.output["error"]
+    lines = problem["message"].splitlines()
+    assert result.is_validation and problem["path"] == "values.0.name"
+    assert len(lines) == 3, lines
+    assert "40 inputs" in lines[0]
+    assert (
+        "values.*.name (20 items, first values.0.name): Input should be a valid string"
+        in (lines[1])
+        and "got dict" in lines[1]
+    )
+    assert "values.*.year (20 items" in lines[2] and "Extra inputs" in lines[2]
+    assert "errors.pydantic.dev" not in problem["message"]

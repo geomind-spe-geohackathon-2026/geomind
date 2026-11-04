@@ -106,7 +106,10 @@ They use the same rules and the same HICP index as batches 1 and 2; a 2026 price
 - `economics.opex.per_energy.boiler` 1.1, `.electric_boiler` 0.9 and `.heat_pump` 1.69 / 1.19 EUR/MWh
   of heat, all verified from the DEA workbook (PyPSA mirror). The heat-pump sheet is an older
   edition than v0019, so re-check it.
-- `economics.capex.production_pump` (ESP), per W of electric rating, not shaft power:
+- `economics.capex.production_pump` (ESP), per W of electric rating, not shaft power. Both
+  sources give electric (motor) power, not shaft power. Shaft power is about 0.85 to 0.9 of it,
+  so EUR per W shaft is roughly 10 to 15 % higher (research report 3). The rows are not converted:
+  the user decides.
   - 0.60 and 0.72 EUR/W, Kennisagenda 2016, secondary;
   - 1.55 EUR/W, Schlagermann and Reinicke 2023, verified.
 - `economics.discount_rate`:

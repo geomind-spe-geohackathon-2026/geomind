@@ -47,7 +47,8 @@ in this order, none skipped:
    shows its economics set: choose each key's rows of the catalogue you read in 2 (read it now if
    you did not, never twice) by the rule below; then ONE `ask_economics` call with every key in
    `values` (`discount_rate` too): its value and unit as the row writes them, its row `id`,
-   `source`, `year`, `url` and `status`, and for a key whose rows differ the others in `others`;
+   `source`, `year`, `url` and `status`, and for a key whose rows differ the others in `others`,
+   each row in `others` with its `status`;
    a key with only placeholder rows or none goes in `open`; each key once, in `values` or in
    `open`, never both. `currency` and `price_year` are never asked: `ask_economics` sets them
    from the catalogue's `value_2015` columns (EUR, 2015). It names at once every unit a key does
@@ -136,12 +137,21 @@ Where each value comes from:
   is `EUR/t`), and gemini converts between the units a key accepts. Give the unit as the row
   writes it, basis word included: `ask_economics` sets the unit before the word and shows the
   user the row's basis beside the key's. The ESP rows of `capex.production_pump` are per W
-  electric (the motor's rating) while the key is per W of shaft power: say so in `note`. A row
+  electric (the motor's rating) while the key is per W of shaft power: say so in `note`, with
+  what the catalogue's notes give (`cost-sources.md`, batch 3): shaft power is about 0.85 to 0.9
+  of the electric rating, so per W of shaft power the cost is about 10 to 15 % higher. Give the
+  row's value as it is and never convert the value: the user decides. A row
   whose unit the key does not accept (`EUR/MW/yr` for `opex.fixed.pipe` in `%/yr`) never goes
   in: list it as not usable with both units. Rows kept for reference only are never a value nor
   in `others`: the `opex.variable.waste_disposal` rows in `EUR/m3` or `t/m3` (the key takes
-  `EUR/kg`) and the two `discount-rate-pbl-sde-2026-erratum` rows (secondary, not confirmed as
-  geothermal). A key may take several bases, each its unit (`capex.ice_storage` in
+  `EUR/kg`), the density row `waste-density-geothermal-filter-nrg-2020`, and the two
+  `discount-rate-pbl-sde-2026-erratum` rows (secondary, not confirmed as geothermal). The
+  `EUR/kg` row `waste-disposal-tfa-france-per-kg-filter-density` (secondary, filter waste only)
+  is a derived proxy: give it with that status. `discount_rate` is never open: the catalogue's
+  prices are real (EUR at 2015 prices), so recommend a real rate of a project's financial
+  appraisal, not a nominal or a social one: `discount-rate-pbl-sde-2025-geothermal-real` over
+  `discount-rate-pbl-sde-2022-geothermal-real` (its note says it replaces it), the other sourced
+  rates in `others`. A key may take several bases, each its unit (`capex.ice_storage` in
   `EUR/m3` or `EUR/MWh`, `capex.pipe` in `EUR/m` or `EUR/MW/m`): take the row's unit as it is. A
   path outside `economics.` (`utilities.electricity.co2_intensity`) is a case value: it goes in
   with `set_case` and the one confirmation question. A key with no row is asked for in 5.

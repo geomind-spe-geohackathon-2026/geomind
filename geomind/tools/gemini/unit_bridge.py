@@ -25,6 +25,8 @@ UNIT_NAMES = {"MWth": "MW", "MWcool": "MW"}
 NAME_REASON = "unit name"
 NO_UNIT = ("-", "")
 """How a catalogue writes a number with no unit (a rate, a share)."""
+POWER_BASES = ("electric", "shaft", "heat")
+"""The powers a per-W cost is stated on: a row on one and a key on another are not converted."""
 BASIS = re.compile(r"(per [^(),;]+?) \(([^()]+)\)")
 """A cost basis in gemini's description of an economics key: ``per W of capacity (EUR/W)``."""
 
@@ -182,4 +184,12 @@ def economics_unit(key, unit):
         return name, None, accepted
     basis = dict((unit, text) for text, unit in BASIS.findall(schema.get("description") or ""))
     note = f"the row's unit is {given}; set as {name}"
-    return name, note + (f", which the key reads {basis[name]}" if name in basis else ""), accepted
+    if name not in basis:
+        return name, note, accepted
+    note += f", which the key reads {basis[name]}"
+    row_basis = [word for word in POWER_BASES if word in words.lower().split()]
+    key_basis = [word for word in POWER_BASES if word in basis[name].lower().split()]
+    if row_basis and key_basis and row_basis != key_basis:
+        note += f"; the row is {row_basis[0]}, not {key_basis[0]} power: not converted, "
+        note += "the user decides"
+    return name, note, accepted

@@ -62,8 +62,15 @@ Do and don't (from earlier runs):
   them with `evaluate_module`.
 - Set the pump below the lowest dynamic level at the design flow, with margin for the gas the
   case gives; check the pump's operating window at the design flow.
-- An equipment value no file gives (a roughness, a pump curve) is your assumption with a
+- An equipment value no file gives (a roughness, a pump efficiency) is your assumption with a
   reason, named as one in your answer.
+- You never type an ESP's curves (`esp.head_coefficients`, `esp.power_coefficients`,
+  `esp.stage_count`): gemini derives them from the doublet's pump design values (flow, pump
+  efficiency, wellhead pressure), or they come from a source (a project file, the knowledge base,
+  a gemini example) named with it. With neither, hand back `question needed: the ESP curve:
+  <why>`; never coefficients of your own. When `simulate` fails on the ESP (`out_of_range`), the
+  failure's `curve` names the flows where its head or power is negative: fix the source or the
+  design values, never the coefficients by hand.
 - Patch only the paths `design.owners` gives `well`, all in one call; read gemini's issues
   after it.
 - A value that couples to another discipline (the flow, the drawdown) goes to the design lead.

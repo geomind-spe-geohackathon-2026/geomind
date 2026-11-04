@@ -93,10 +93,13 @@ async def size_plant(context, design: str, name: str):
     the doublets off, ``none`` covers only what the doublets cannot reach. The policy has no
     default: set it in the plant first, as an assumption when the user gave none. ``name`` names
     the sized design and the study ``study/<name>`` that records the call; a taken name is
-    refused. Returns the new design reference, the ``study`` key and
-    gemini's notes: what was ``sized`` with its reason, what stayed ``unchanged``, what is
-    ``broken`` and the ``simulation`` that judged it.
+    refused. Returns the new design reference, the ``study`` key,
+    gemini's notes (what was ``sized`` with its reason, what stayed ``unchanged``, what is
+    ``broken`` and the ``simulation`` that judged it) and, as ``patch_plant`` gives them, the
+    sized plant's ``issues`` with their count ``missing``: every value ``simulate`` still needs.
     """
+    from geomind.tools.gemini.plants import plant_issues
+
     settings = {"method": "run", "prepare": ["size"]}
     written = [f"design/{name}"]
     ran, plants, study, case = prepared(context, "size_plant", name, [design], settings, written)
@@ -108,7 +111,9 @@ async def size_plant(context, design: str, name: str):
     key = await save_study(
         context, name, "size_plant", found, ([design], [reference]), reference, case
     )
-    return {"design": reference, "study": key, "sizing": result["sizing"]}
+    issues = await runtime.in_gemini_thread(plant_issues, context, sized)
+    shown = {"design": reference, "study": key, "sizing": result["sizing"], **issues}
+    return {**shown, "missing": len(issues["issues"])}
 
 
 def minimize_design(plant, case, objective, evaluations, seed):

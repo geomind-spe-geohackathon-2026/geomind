@@ -153,3 +153,38 @@ async def test_a_call_whose_input_is_the_placeholder_is_refused_with_the_real_ar
     assert result.is_error and not result.is_validation
     message = result.output["error"]["message"]
     assert "shortened history" in message and "its arguments are task" in message
+
+
+async def test_a_wrong_path_names_the_paths_and_tables_not_the_long_text():
+    """fix-mcp note: a wrong path's error outlined the answer, so its long text filled it.
+
+    The error names the path walked, the keys there with their full paths, and an MCP answer's
+    tables; none of the text.
+    """
+    session = StubSession()
+    answer = {
+        "origin": {"server": "open-meteo"},
+        "answer": "mcp-0123456789abcdef",
+        "tables": [{"path": "structured.daily", "rows": 365}],
+        "structured": {"daily": {"time": ["2027-01-01"]}, "timezone": "GMT"},
+        "text": "TEXTBODY " * 200,
+    }
+    await session.save_artifact("mcp-0123456789abcdef", answer)
+    tool_input = {"reference": "mcp-0123456789abcdef", "path": "daily"}
+    bad = await dispatch(
+        read_stored,
+        ToolCall(id="r", name="read_stored", input=tool_input),
+        Context(session=session),
+    )
+    error = bad.output["error"]
+    assert error["code"] == "unknown_name" and "TEXTBODY" not in error["message"]
+    assert "origin, answer, tables, structured, text" in error["message"]
+    assert "tables: structured.daily (365 rows)" in error["message"]
+    assert error["suggestions"][0] == "structured.daily"
+    deeper = {**tool_input, "path": "structured.hourly"}
+    bad = await dispatch(
+        read_stored, ToolCall(id="r", name="read_stored", input=deeper), Context(session=session)
+    )
+    error = bad.output["error"]
+    assert "'hourly' is no key or index of structured" in error["message"]
+    assert error["suggestions"] == ["structured.daily", "structured.timezone"]

@@ -74,6 +74,7 @@
                   }
                 ],
                 "default": null,
+                "description": "the catalogue row's id, as text (the row's id field, not the row)",
                 "title": "Row"
               },
               "source": {
@@ -155,6 +156,7 @@
             "description": "Another catalogue row of a key, shown beside the recommended one.",
             "properties": {
               "row": {
+                "description": "the catalogue row's id, as text (the row's id field, not the row)",
                 "title": "Row",
                 "type": "string"
               },
@@ -170,6 +172,18 @@
                 "default": null,
                 "title": "Source"
               },
+              "status": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Status"
+              },
               "unit": {
                 "anyOf": [
                   {
@@ -182,8 +196,35 @@
                 "default": null,
                 "title": "Unit"
               },
+              "url": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Url"
+              },
               "value": {
                 "title": "Value"
+              },
+              "year": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Year"
               }
             },
             "required": [

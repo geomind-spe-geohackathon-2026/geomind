@@ -322,6 +322,25 @@ async def test_size_plant_on_each_example(name):
     context, reference = await started(name)
     result = await run(study.size_plant, context, {"design": reference, "name": "s"})
     assert result.output["sizing"]["sized"]
+    assert (result.output["checked_against"], result.output["issues"]) == ("case", [])
+    assert result.output["missing"] == 0
+
+
+async def test_size_plant_names_what_simulate_still_needs():
+    """fix-design note: size_plant gave no issues, so a sized plant without its rules failed later.
+
+    The sized design comes with the issues and the count ``patch_plant`` gives.
+    """
+    import gemini as gm
+
+    context, _ = await engine_context(SHALLOW)
+    plant = example_plant(SHALLOW).to_dict()
+    plant["params"].pop("control")
+    reference = await save_design(context, "nocontrol", gm.Plant.from_dict(plant))
+    result = await run(study.size_plant, context, {"design": reference, "name": "s"})
+    paths = [issue["path"] for issue in result.output["issues"]]
+    assert paths == ["params.control.dispatch", "params.control.outages"]
+    assert result.output["missing"] == 2 and result.output["sizing"]["sized"]
 
 
 def test_a_second_study_over_the_same_design_is_stored():

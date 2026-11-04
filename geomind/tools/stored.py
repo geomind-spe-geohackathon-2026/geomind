@@ -166,8 +166,13 @@ def placeholder_error(tool):
     )
 
 
-def _step(value, part):
-    """Return one part of a stored value: a mapping key or a list index."""
+def _step(value, part, walked=""):
+    """Return one part of a stored value: a mapping key or a list index.
+
+    A part that is not there names the path walked, what may come next there as whole paths and,
+    for an answer with ``tables``, each table's path; never the value's text, which filled the
+    error when it was outlined.
+    """
     if isinstance(value, dict) and part in value:
         return value[part]
     if (
@@ -176,12 +181,37 @@ def _step(value, part):
         and -len(value) <= int(part) < len(value)
     ):
         return value[int(part)]
+    prefix = f"{walked}." if walked else ""
+    tables = tables_in(value) if not walked else []
+    message = f"read_stored: path = {prefix}{part}; {part!r} is no key or index of "
+    message += walked or "the result"
+    names = [name for name in parts_of(value) if name != TEXT_HINT]
+    message += f"; expected one of {', '.join(names)}" if names else ""
+    message += f"; {TEXT_HINT}" if isinstance(value, str) else ""
+    if isinstance(value, list):
+        message += f" (a list of {len(value)})"
+    if tables:
+        message += "; its tables: " + ", ".join(
+            f"{table['path']} ({table['rows']} rows)" if "rows" in table else table["path"]
+            for table in tables
+        )
     raise ToolError(
-        f"read_stored: path = {part!r}; expected a key or index of {outline(value, 200)}",
+        message,
         code="unknown_name",
         path="path",
-        suggestions=parts_of(value),
+        suggestions=[table["path"] for table in tables] + [f"{prefix}{name}" for name in names]
+        or parts_of(value),
     )
+
+
+def tables_in(value):
+    """Return the ``tables`` of a stored answer that names them, each with its ``path``."""
+    found = value.get("tables") if isinstance(value, dict) else None
+    if not isinstance(found, list):
+        return []
+    return [
+        table for table in found if isinstance(table, dict) and isinstance(table.get("path"), str)
+    ]
 
 
 TEXT_HINT = "the value is text: read_stored without a path"
@@ -216,8 +246,10 @@ def read_stored(context, reference: str, path: str | None = None):
             path="reference",
         )
     path = (path or "").replace("/", ".").strip(".")
+    walked = []
     for part in path.split("."):
-        stored = _step(stored, part) if part else stored
+        stored = _step(stored, part, ".".join(walked)) if part else stored
+        walked += [part] if part else []
     value = to_jsonable(stored)
     if len(json.dumps(value)) <= runtime.get("tool_result_limit"):
         return value

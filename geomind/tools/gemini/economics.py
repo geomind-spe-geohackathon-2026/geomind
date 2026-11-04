@@ -14,7 +14,7 @@ every refused one named at once, and a basis word after a row's unit is shown (E
 
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from geomind.errors import ToolError
 from geomind.tools.base import tool
@@ -38,15 +38,47 @@ BASIS_SOURCE = (
 )
 
 
+ROW = "the catalogue row's id, as text (the row's id field, not the row)"
+"""What ``row`` holds, as the tool's schema says it (E2E-14: the row object was sent)."""
+
+
+def row_by_id(data):
+    """Return ``(input, refusal)``: ``row`` as the row's id when the model sent the row object.
+
+    The object's citation fields fill those the input leaves out, so nothing the model gave is
+    dropped; an object without its ``id`` gives the refusal that says what ``row`` holds.
+    """
+    if not isinstance(data, dict) or not isinstance(data.get("row"), dict):
+        return data, None
+    row = data["row"]
+    if not isinstance(row.get("id"), str):
+        return data, f"row is an object without its id; expected {ROW}"
+    cited = {key: row[key] for key in CITED[1:] if row.get(key) is not None}
+    given = {key: value for key, value in data.items() if value is not None}
+    return {**cited, **given, "row": row["id"]}, None
+
+
 class OtherRow(BaseModel):
     """Another catalogue row of a key, shown beside the recommended one."""
 
     model_config = ConfigDict(extra="forbid")
 
-    row: str
+    row: str = Field(description=ROW)
     value: Any
     unit: str | None = None
     source: str | None = None
+    year: int | str | None = None
+    url: str | None = None
+    status: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _row_by_id(cls, data):
+        """Read a row object by its ``id`` (``row_by_id``)."""
+        read, refusal = row_by_id(data)
+        if refusal:
+            raise ValueError(refusal)
+        return read
 
 
 class EconomicsValue(BaseModel):
@@ -64,12 +96,21 @@ class EconomicsValue(BaseModel):
     key: str
     value: Any = None
     unit: str | None = None
-    row: str | None = None
+    row: str | None = Field(default=None, description=ROW)
     source: str | None = None
     year: int | str | None = None
     url: str | None = None
     status: str | None = None
     others: list[OtherRow] | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _row_by_id(cls, data):
+        """Read a row object by its ``id`` (``row_by_id``)."""
+        read, refusal = row_by_id(data)
+        if refusal:
+            raise ValueError(refusal)
+        return read
 
 
 def given_values(values, open_keys):
@@ -224,7 +265,10 @@ def value_line(item, note=None):
     cited += [note] if note else []
     line = f"economics.{key} = {_amount(item)} | {' | '.join(cited)}"
     if item.others:
-        others = "; ".join(f"{_amount(other)} [{other.row}]" for other in item.others)
+        others = "; ".join(
+            f"{_amount(other)} [{', '.join(part for part in (other.row, other.status) if part)}]"
+            for other in item.others
+        )
         line += f" (recommended; other rows: {others})"
     return line
 

@@ -32,6 +32,8 @@ REPORT_KEYS = (
     "failed_steps",
 )
 COVERAGE_KEYS = ("heating_coverage", "cooling_coverage", "cop")
+CURVE_STEPS = 400
+"""The steps the flows from zero to an ESP's ``maximum_flow`` are checked in (``curve_ranges``)."""
 
 
 def parse_time(value, field, where):
@@ -261,6 +263,70 @@ def apply_changes(plant, changes):
         plant.set_params(path, {name: quantified(value) for name, value in params.items()})
 
 
+def negative_ranges(flows, values):
+    """Return ``[[first, last], ...]``: the runs of ``flows`` where ``values`` are below zero."""
+    ranges, start = [], None
+    for index, (flow, value) in enumerate(zip(flows, values, strict=True)):
+        if value < 0 and start is None:
+            start = flow
+        if start is not None and (value >= 0 or index == len(flows) - 1):
+            ranges.append([start, flows[index - 1] if value >= 0 else flow])
+            start = None
+    return ranges
+
+
+def curve_ranges(module):
+    """Return where an ESP's curves are below zero, flows from zero to its ``maximum_flow``.
+
+    Evaluated by gemini's own curves (``head_function`` and ``power_function``) at its reference
+    frequency: the sign of the polynomials does not depend on the speed (E2E-15: a curve with a
+    negative head at low flows failed 450 of 504 steps, and its message named one flow).
+    """
+    import gemini as gm
+    import numpy as np
+
+    largest = float(module.maximum_flow)
+    frequency = float(gm.physics.constants.ESP_REFERENCE_FREQUENCY)
+    flows = [float(flow) for flow in np.linspace(0.0, largest, CURVE_STEPS + 1)]
+    head = np.asarray(module.head_function(np.asarray(flows), frequency))
+    power = np.asarray(module.power_function(np.asarray(flows), frequency))
+    return {
+        "unit": "m3/s",
+        "flows": [0.0, largest],
+        "resolution": largest / CURVE_STEPS,
+        "negative_head": negative_ranges(flows, head.tolist()),
+        "negative_power": negative_ranges(flows, power.tolist()),
+    }
+
+
+def with_curve(plant, group):
+    """Return a failure group; an ESP outside its curves also says where the curves are negative."""
+    import gemini as gm
+
+    if group.get("code") != "out_of_range" or not group.get("path"):
+        return group
+    try:
+        module = plant.get_submodule(group["path"])
+    except AttributeError:
+        return group
+    if not isinstance(module, gm.modules.ESP):
+        return group
+    curve = curve_ranges(module)
+    said = [
+        f"negative {name} at flows "
+        + ", ".join(f"{start:.4g} to {end:.4g}" for start, end in curve[f"negative_{name}"])
+        for name in ("head", "power")
+        if curve[f"negative_{name}"]
+    ]
+    if not said:
+        return {**group, "curve": curve}
+    message = (
+        f"{group['message']}. The curves give {' and '.join(said)} m3/s of 0 to "
+        f"{curve['flows'][1]:.4g} m3/s (maximum_flow): take the curves from their source"
+    )
+    return {**group, "message": message, "curve": curve}
+
+
 def run_summary(plant, case, results, label):
     """Return what the model reads of a run: steps, failures, totals in display units."""
     import gemini as gm
@@ -275,7 +341,7 @@ def run_summary(plant, case, results, label):
         "window": {"start": times[0].isoformat(), "end": times[-1].isoformat()},
         "steps": len(times),
         "failed_steps": failures["total"],
-        "failures": failures["groups"][:SHOWN_GROUPS],
+        "failures": [with_curve(plant, group) for group in failures["groups"][:SHOWN_GROUPS]],
         "report": {key: report[key] for key in REPORT_KEYS if key in report},
         "verdict": report["verdict"],
         "unmet": [item for item in report["requirements"] if item["passed"] is False],

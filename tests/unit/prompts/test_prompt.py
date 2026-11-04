@@ -47,3 +47,18 @@ def test_the_well_engineer_sets_the_pump_depth_and_the_lead_sends_it_back():
     assert "`riser.esp_depth` both the ESP's `setting_depth`" in well
     assert "the well engineer's: send it back to them" in lead
     assert "Simulate only when `missing` is 0." in lead
+
+
+def test_an_esp_curve_comes_from_its_source_or_is_asked_never_invented():
+    """E2E-15: the design lead patched ``head_coefficients = [1e7, 0, ...]`` with no source.
+
+    The well engineer takes the curves gemini derives from the pump design values or from a
+    source, never typed; the lead sends a curve failure back, and asks the user for a curve that
+    no source gives.
+    """
+    well = " ".join(Prompt("design/well").render().split())
+    lead = " ".join(Prompt("design/lead").render().split())
+    assert "a pump curve) is your assumption" not in well
+    assert "never type an ESP's curves" in well and "the failure's `curve`" in well
+    assert "never patch an ESP's curves yourself" in lead
+    assert "ask the user for the pump's curve" in lead

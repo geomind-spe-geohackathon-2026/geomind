@@ -379,3 +379,82 @@ def test_the_catalogue_basis_is_what_the_catalogue_states():
     assert {f"value_{year}", f"unit_{year}"} <= set(header)
     notes = " ".join((folder / "cost-sources.md").read_text().split())
     assert f"{CATALOGUE_BASIS['currency']} at {year} prices" in notes
+
+
+async def test_a_row_given_as_the_catalogue_s_row_object_is_read_by_its_id():
+    """E2E-14: ``row`` sent as the row object and ``others[]`` with ``year`` were 47 errors.
+
+    The row's ``id`` is the row, and the object's citation fields fill those the value leaves out;
+    another row of ``others`` takes the same citation fields.
+    """
+    from geomind.engine import Context
+    from geomind.tools import dispatch
+    from geomind.types import ToolCall
+    from tests.fixtures.sessions import StubSession
+
+    cited = {key: HEAT_PUMP[key] for key in ("source", "year", "url", "status")}
+    heat_pump = {
+        "key": HEAT_PUMP["key"],
+        "value": HEAT_PUMP["value"],
+        "unit": HEAT_PUMP["unit"],
+        "row": {"id": HEAT_PUMP["row"], **cited},
+    }
+    other = {"row": "drilling-nl-2013-2300m", "value": 1246.83, "unit": "EUR/m", "year": 2013}
+    drilling = {**DRILLING, "others": [{**other, "status": "verified", "url": "https://x"}]}
+    tool_input = {"values": [heat_pump, drilling, VALUES[4]]}
+    asked = ToolCall(id="q", name="ask_economics", input=tool_input)
+    request = await dispatch(ask_economics, asked, Context(session=StubSession()))
+    assert isinstance(request, Request), request
+    line = next(row for row in request.message.splitlines() if "capex.heat_pump" in row)
+    assert f"row {HEAT_PUMP['row']} | secondary | 2026 | {HEAT_PUMP['source']}" in line
+    assert "1246.83 EUR/m [drilling-nl-2013-2300m, verified]" in request.message
+    nameless = {**heat_pump, "row": {"source": "x"}}
+    result = await call(ask_economics, {"values": [nameless, VALUES[4]]})
+    message = result.output["error"]["message"]
+    assert result.is_error and "the row's id" in message
+
+
+def test_the_schema_says_a_row_is_its_id():
+    """The tool's schema names the row's shape plainly: its id as text, others' fields listed."""
+    schema = json.dumps(ask_economics.schema()["input_schema"])
+    assert "the catalogue row's id" in schema
+    assert '"year"' in json.dumps(ask_economics.schema()["input_schema"]["$defs"]["OtherRow"])
+
+
+async def test_another_row_shows_its_status_and_another_basis_is_left_to_the_user():
+    """The 3.87 EUR/kg row in ``others`` is labelled secondary; another basis is not converted.
+
+    An ESP row per W electric is not converted to the key's shaft power: the user decides.
+    """
+    from geomind.engine import Context
+    from geomind.tools import dispatch
+    from geomind.types import ToolCall
+    from tests.fixtures.sessions import StubSession
+
+    waste = {
+        "key": "opex.variable.waste_disposal",
+        "value": 45.93,
+        "unit": "EUR/kg",
+        "row": "waste-disposal-norm-proxy-covra-2026",
+        "status": "secondary",
+        "others": [
+            {
+                "row": "waste-disposal-tfa-france-per-kg-filter-density",
+                "value": 3.87,
+                "unit": "EUR/kg",
+                "status": "secondary",
+            }
+        ],
+    }
+    chp = {"key": "capex.chp", "value": 0.95, "unit": "EUR/W electric", "row": "chp-row"}
+    tool_input = {"values": [*CATALOGUE_ROWS, ESP, waste, chp]}
+    asked = ToolCall(id="q", name="ask_economics", input=tool_input)
+    request = await dispatch(ask_economics, asked, Context(session=StubSession()))
+    assert isinstance(request, Request), request
+    lines = request.message.splitlines()
+    line = next(line for line in lines if line.startswith("economics.opex.variable.waste"))
+    assert "3.87 EUR/kg [waste-disposal-tfa-france-per-kg-filter-density, secondary]" in line
+    pump = next(line for line in lines if line.startswith("economics.capex.production_pump"))
+    assert "not converted" in pump and "the user decides" in pump
+    plant = next(line for line in lines if line.startswith("economics.capex.chp"))
+    assert "not converted" not in plant

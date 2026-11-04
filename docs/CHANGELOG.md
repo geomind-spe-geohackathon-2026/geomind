@@ -102,6 +102,51 @@ run tree before; the audit found none and tests now pin it.
   was 128,000); the long-chat test sets its own window.
 - B3 (gemini, H2S) is gemini's: not changed here; gemini 0.6.4 fixes it (below).
 
+### E2E fixes: follow-up (economics input, ESP curves, stored paths, sizing issues)
+
+From the e2e hunt (`.tmp/e2e-bugs/bug-list.md`) and the notes of the other fix sessions.
+
+**Contract changes for the backend** (additive): `simulate`'s summary `failures[]` entry of an
+ESP outside its curves (`out_of_range` at an `ESP` path) has a new field `curve` `{unit, flows,
+resolution, negative_head, negative_power}`, and its `message` ends with those flow ranges.
+`size_plant` now returns `checked_against`, `issues` and `missing` beside `design`, `study` and
+`sizing`. `ask_economics` takes `row` as the row object too (its `id`) and `others[]` takes
+`year`, `url` and `status`. An `invalid_input` of a call that does not fit the tool's schema has
+a shorter `message` (one line per field and fault); its code, `path` and `suggestions` are as
+before. No new error code.
+
+- E2E-14: `ask_economics` was refused whole (47 and 30 pydantic errors, one per value, each with
+  pydantic's link): the case lead sent `row` as the catalogue's row object and `others[]` with
+  `year`. A row object is read by its `id`, its citation fields filling those left out
+  (`economics.row_by_id`); one without `id` is refused saying `row` is the id; `others[]` takes
+  the citation fields; the schema says `row` is the row's id as text. Any tool: a validation
+  error is one line per field and fault, items of a list taken together ("values.*.row (47
+  items, first values.0.row): Input should be a valid string (got dict)"), without pydantic's
+  links (`dispatch.validation_message`).
+- E2E-15: `simulate` failed 450 of 504 steps on the ESP curve and the design lead then patched
+  `head_coefficients = [1e7, 0, ...]` with no source. The failure now names the flows from zero
+  to `maximum_flow` where the curve's head or power is negative (`runs.curve_ranges`, by gemini's
+  own `head_function`/`power_function` at its reference frequency). Prompts: the well engineer
+  never types an ESP's curves (gemini derives them from the doublet's pump design values, or a
+  named source gives them, or `question needed: the ESP curve`); the design lead never patches
+  them, sends a curve failure back with its `curve`, and asks the user for a curve no source
+  gives. gemini request 35 (plan.md).
+- Case lead: `discount_rate` is never open; the rate is a real one of a financial appraisal
+  (the catalogue's prices are real, EUR 2015): `discount-rate-pbl-sde-2025-geothermal-real` over
+  the 2022 real row, the others in `others`; the 2026 erratum rows and the waste density row
+  are never a value nor an other; `waste-disposal-tfa-france-per-kg-filter-density` (3.87
+  EUR/kg) goes with its status, secondary, and each other row's status shows in the question.
+- ESP rows per W electric: the question says the row is electric, not shaft power, "not
+  converted, the user decides" (`unit_bridge.economics_unit`, for a row and a key on different
+  powers: electric, shaft, heat); the case lead's `note` gives the catalogue's share (shaft
+  power about 0.85 to 0.9 of the electric rating, research report 3, now in `cost-sources.md`).
+- The case lead's economics reminder no longer names `currency` and `price_year`.
+- `read_stored` with a wrong path no longer outlines the value (an MCP answer's long text filled
+  the error): it names the path walked, the keys there and, for an answer, its tables with their
+  rows; `suggestions` are whole paths, the tables first.
+- `size_plant` returns the sized plant's `issues` and `missing` as `patch_plant` does
+  (`plant_issues`), so the model sees what `simulate` still needs (the plant rules, the pump depth).
+
 ### E2E fixes: the case and its economics
 
 From the e2e hunt on 0.4.24.dev2 (`.tmp/e2e-bugs/bug-list.md`).

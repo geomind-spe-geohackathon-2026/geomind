@@ -61,7 +61,39 @@ def _validation_problem(error):
         if (first["type"] == "dict_type" and _is_json_object(first.get("input")))
         else []
     )
-    return Problem(path=path, code="invalid_input", message=str(error), suggestions=suggestions)
+    return Problem(
+        path=path,
+        code="invalid_input",
+        message=validation_message(error),
+        suggestions=suggestions,
+    )
+
+
+def validation_message(error):
+    """Return a validation error as one line per field and fault, items of a list taken together.
+
+    pydantic writes each item's error with its link (E2E-14: 47 lines for one fault of each value);
+    here a fault every item shares is one line with how many items have it and the first one.
+    """
+    groups = {}
+    for item in error.errors():
+        pattern = ".".join("*" if isinstance(field, int) else str(field) for field in item["loc"])
+        groups.setdefault((pattern, item["msg"]), []).append(item)
+    count = error.error_count()
+    lines = [
+        (
+            f"{error.title}: {count} inputs do not fit"
+            if count > 1
+            else f"{error.title}: 1 input does not fit"
+        )
+    ]
+    for (pattern, text), found in groups.items():
+        first = ".".join(str(field) for field in found[0]["loc"])
+        where = first if len(found) == 1 else f"{pattern} ({len(found)} items, first {first})"
+        got = found[0].get("input")
+        kind = f" (got {type(got).__name__})" if found[0]["type"].endswith("_type") else ""
+        lines.append(f"{where}: {text}{kind}")
+    return "\n".join(lines)
 
 
 def _is_json_object(value):

@@ -243,6 +243,8 @@ async def test_a_delegated_case_lead_without_economics_is_sent_back_once():
     [refusal] = [item for item in events if getattr(item, "feedback", None) == "finish"]
     assert refusal.output.startswith("economics not done")
     assert "ask_economics" in refusal.output and "on approve all it sets them" in refusal.output
+    assert "discount_rate included" in refusal.output
+    assert "currency" not in refusal.output and "price_year" not in refusal.output
 
 
 def test_the_economics_check_passes_with_economics_an_economics_question_or_no_set_case():
@@ -350,3 +352,40 @@ def test_the_air_is_read_from_a_server_and_the_humidity_is_a_fraction():
     text = " ".join(CaseLead().prompt.content.split())
     assert "the question asks for the location (place or coordinates)" in text
     assert "`relative_humidity` is a fraction 0-1 (0.8, not 80 %)" in text
+
+
+def test_the_discount_rate_is_the_real_financial_rate_of_the_latest_pbl_advice():
+    """After-merge check: a run left ``discount_rate`` open though the catalogue has its rows.
+
+    The catalogue's prices are real (EUR 2015), so the rate is a real one of a financial
+    appraisal: the PBL 2025 real row over the 2022 one, the erratum rows never.
+    """
+    text = " ".join(CaseLead().prompt.content.split())
+    assert "`discount_rate` is never open" in text
+    assert "a real rate of a project's financial appraisal" in text
+    assert "`discount-rate-pbl-sde-2025-geothermal-real`" in text
+    assert "over `discount-rate-pbl-sde-2022-geothermal-real`" in text
+
+
+def test_the_esp_rows_are_electric_and_the_user_decides_the_basis():
+    """The ESP rows are per W electric: the question says so with the shaft-power share, as is.
+
+    The share is the research report's (``cost-sources.md``, batch 3).
+    """
+    from pathlib import Path
+
+    text = " ".join(CaseLead().prompt.content.split())
+    assert "shaft power is about 0.85 to 0.9 of the electric rating" in text
+    assert "never convert the value: the user decides" in text
+    notes = Path(__file__).parents[4] / "data" / "knowledge" / "cost-sources.md"
+    assert "Shaft power is about 0.85 to 0.9 of it" in " ".join(notes.read_text().split())
+
+
+def test_every_row_keeps_its_status_and_the_filter_waste_row_is_secondary():
+    """The 3.87 EUR/kg row is a proxy for filter waste: shown as secondary, never density."""
+    text = " ".join(CaseLead().prompt.content.split())
+    assert "each row in `others` with its `status`" in text
+    assert "`waste-disposal-tfa-france-per-kg-filter-density` (secondary, filter waste only)" in (
+        text
+    )
+    assert "`waste-density-geothermal-filter-nrg-2020`" in text

@@ -407,3 +407,30 @@ async def test_a_profile_shows_the_case_window_and_its_file_s_own_rows(name):
     assert output["case_time"]["steps"] == case_steps(name)
     extent = output["file"]
     assert extent is None or (extent["rows"] >= 1 and extent["first"] <= extent["last"])
+
+
+async def test_an_esp_curve_failure_names_the_flows_where_the_curve_is_negative():
+    """E2E-15: 450 steps failed on one flow's negative head, and the lead invented a new curve.
+
+    The failure of an ESP outside its curves gives the flows from zero to its ``maximum_flow``
+    where the curve's head or power is below zero, so the curve's source can be checked.
+    """
+    session, problem = await designed("shallow_district")
+    curve = {"head_coefficients": [-3000.0, 1.0, 0, 0, 0, 0], "stage_count": 1}
+    curve["power_coefficients"] = [10.0, 0.01, 0, 0, 0, 0]
+    window = {"start": "2026-01-12", "end": "2026-01-12T05:00:00"}
+    ran = await call(
+        TOOLS.simulate,
+        {"design": "design/p", "changes": {"d0.esp": curve}, **window},
+        session,
+        problem=problem,
+    )
+    failure = ran.output["summary"]["failures"][0]
+    assert (failure["path"], failure["code"]) == ("d0.esp", "out_of_range")
+    found = failure["curve"]
+    assert found["unit"] == "m3/s" and found["flows"] == [0.0, 1.0]
+    assert found["negative_power"] == []
+    ((start, end),) = found["negative_head"]
+    zero = 3000 / 543439.65
+    assert start == 0.0 and zero - found["resolution"] <= end < zero
+    assert "negative head at flows 0 to" in failure["message"]
