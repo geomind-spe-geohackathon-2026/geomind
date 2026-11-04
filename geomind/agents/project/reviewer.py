@@ -3,6 +3,7 @@
 from geomind import tools
 from geomind.agents.agent import Agent, Model
 from geomind.prompts import Prompt
+from geomind.tools.gemini.verdict_text import reviewer_reference
 
 
 class Reviewer(Agent):
@@ -19,14 +20,14 @@ class Reviewer(Agent):
         super().__init__()
 
         # Prompt
-        self.prompt = Prompt("project/reviewer")
+        self.prompt = Prompt("project/reviewer", appendix=reviewer_reference)
 
         # Tools
-        self.check_results = tools.gemini.check_results
-        self.case_changes = tools.gemini.case_changes
-        self.read_case = tools.gemini.read_case
-        self.compute_kpis = tools.gemini.compute_kpis
-        self.read_result = tools.read_result
+        self.check_results = tools.gemini.check_results.kept()
+        self.case_changes = tools.gemini.case_changes.kept()
+        self.read_case = tools.gemini.read_case.kept()
+        self.compute_kpis = tools.gemini.compute_kpis.kept()
+        self.read_result = tools.read_result.kept()
         self.update_state = tools.update_state
         self.read_skill = tools.read_skill
         self.read_stored = tools.read_stored

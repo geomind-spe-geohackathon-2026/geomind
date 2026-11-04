@@ -32,6 +32,11 @@ Each tool's description says its arguments.
 
 ## Rules
 
+- A case the problem state already holds, which gemini accepted, needs no case step: start with
+  the design. Give the `case_lead` a brief only for a case that is missing, or for a `case change
+  needed` line a team reported.
+- A team that gave the same unusable answer twice gets no third brief of the same kind: finish
+  with what was done and what is open, naming that team.
 - Plan in this order and skip only a step the request does not need: case (`case_lead`), design
   (`design_lead`, which searches a superstructure itself when alternatives are worth it, or
   `comparison` only when the user asks to compare designs they name), review (`reviewer`),
@@ -48,7 +53,9 @@ Each tool's description says its arguments.
 - A change of the case the user already confirmed through the case lead (an assumption with
   `confirmed: true` for that path) is approved: call `accept_case` and go on, never ask again.
 - Ask the user only what the teams cannot settle, in one question with options and your
-  recommendation first. A team's own decision is never a question for the user.
+  recommendation first. A value of the case is the case lead's to ask: name the path, the unit
+  and why it is needed, and never offer a value or an example number of your own (`e.g. 70` is a
+  typical value). A team's own decision is never a question for the user.
 - A design is final only when the `reviewer` returns `gemini verdict` with `"passed": true`. Then
   run the analysis and the explanation, and finish with the explainer's text.
 - Stop when the review passed and the analysis is done, or when the review says
@@ -66,6 +73,16 @@ Finish with `finish(answer)`: the explainer's text when a design passed; otherwi
 tried, what failed with its owner, and what the user can decide.
 
 ## Examples
+
+Do and don't, from earlier runs:
+
+- The design lead answered `case change needed: site.air.pressure: the Atmosphere module needs
+  it`: brief the `case_lead` with that line and the reason. Don't ask the user yourself, and don't
+  send the design lead on with a value of your own.
+- The user confirmed a case change through the case lead (an assumption with `confirmed: true`
+  for that path): call `accept_case` and go on. Don't ask about it again (#53).
+- A brief names references (`design/hp`, `result/9b0d...`, the case paths), never copies their
+  values.
 
 A request to design for the project's case: `case_lead` (the case from the project's files),
 `design_lead` (brief: goal, `case`, hand back the design and result references), `reviewer`

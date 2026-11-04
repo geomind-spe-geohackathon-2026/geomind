@@ -85,3 +85,16 @@ def test_a_shortened_read_and_a_space_separator_are_sourced():
     read = "flow 34.6364 m3/h, energy 111667.7 MWh"
     assert CRITERION.problem(outcome("flow 34.64 m3/h, energy 111 667.7 MWh", read)) is None
     assert CRITERION.problem(outcome("dew point 14.6", read)) is not None
+
+
+def test_an_answer_criterion_matches_a_route_or_a_verdict():
+    """``present`` says whether the pattern must be in the answer or must not."""
+    from evals.tasks_format import AnswerCriterion
+
+    route = Outcome(name="t", answer="kind='loop' loop='project'")
+    assert (
+        AnswerCriterion(kind="answer", pattern="loop.{0,4}project", present=True).problem(route)
+        is None
+    )
+    assert AnswerCriterion(kind="answer", pattern="answer", present=False).problem(route) is None
+    assert AnswerCriterion(kind="answer", pattern="tool", present=True).problem(route)

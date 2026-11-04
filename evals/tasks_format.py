@@ -143,6 +143,24 @@ class SourcedCriterion(Record):
         return number.is_integer() and number <= self.small
 
 
+class AnswerCriterion(Record):
+    """The answer matches the regular expression ``pattern``, or with ``present: false`` does not.
+
+    For an answer whose words are its result, such as a route or a verdict.
+    """
+
+    kind: Literal["answer"]
+    pattern: str
+    present: bool
+
+    def problem(self, outcome):
+        """Return what is wrong, or ``None``."""
+        found = re.search(self.pattern, outcome.answer, re.IGNORECASE | re.DOTALL) is not None
+        if found == self.present:
+            return None
+        return f"answer: {self.pattern!r} found = {found}; expected {self.present}"
+
+
 class BeforeCriterion(Record):
     """``tool`` was called before the first call of ``then``; a run without ``then`` passes.
 
@@ -169,7 +187,8 @@ Criterion = Annotated[
     | StateCriterion
     | VerifiedCriterion
     | SourcedCriterion
-    | BeforeCriterion,
+    | BeforeCriterion
+    | AnswerCriterion,
     Field(discriminator="kind"),
 ]
 

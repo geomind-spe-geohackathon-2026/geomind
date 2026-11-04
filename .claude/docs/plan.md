@@ -268,6 +268,13 @@ Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/C
 | 73 | D2, process engineer | parallel `read_plant` calls came back with every argument null until the run stopped on repeated failures | it compares plants with `list_plants` and reads only the one it chooses, in one call | track-b |
 | 74 | D2, well engineer | 8 failed `evaluate_module` calls on a well path's section lists: gemini's `describe()` gives them as `number`, and its error asks for a Quantity for a list and for a list for a Quantity | the well engineer's prompt gives the form `{"value": [..], "unit": "m"}`; gemini request 14 | track-b |
 | 75 | D3, process engineer | two garbled calls in a row (`">site</</parameter_name...`) counted as invalid calls and ended the run as failed; `">HackathonPlant</` was not caught | a markup slip is an error but no validation failure; a lone `</` or a leading `">` counts as markup; prose tools (`finish`, `ask_user`, `update_state`, `write_lesson`) are not checked | track-b |
+| 105 | E1, explainer | asked `compute_kpis` for `annualised_cost`: the prompt said the KPIs hold the costs | the metrics section says the costs come from `estimate_costs` and `compute_kpis` is called without `names` | track-e |
+| 106 | E1, reviewer and explainer | 17 `read_stored` and 42 `read_result` calls; the explainer read its whole input set three times as each result shrank | the reviewer keeps its reads for a few turns, the explainer for the run | track-e |
+| 107 | E1, reviewer | `read_case(section="about")` on a case without `about` answered "expected one of about, ...; did you mean 'about'?" | a known section the case has not set is `unknown_name`, "the case has no 'about'" | track-e |
+| 108 | E1, reviewer | tried `read_stored("state")` to read the problem state | the prompt says the state is a message of the conversation | track-e |
+| 109 | E1, project lead | briefed the case lead on a case already set, and a team 14 times on one answer | no case step for an accepted case; no third brief after two same answers | track-e |
+| 110 | E2, explainer | wrote `1500000.0 W/K` as `1.5 MW/K` and `30000000.0 W` as `30 MW`, conversions of its own | capacities from `compute_kpis`, plant values in their own units; gemini request E-1 | track-e |
+| 111 | E2, project lead | asked the user for the air humidity "in %, e.g. 70": a typical value | a case value is the case lead's to ask; a question offers no value | track-e |
 | 50 | A1, all | models saw only the first paragraph of each tool's docstring | the whole docstring but its `NOTE:` paragraphs | `768f396` |
 
 ### The adaptation to gemini 0.5 (done) and what is open
@@ -332,6 +339,9 @@ Open requests to gemini (full text in the adaptation notes):
 15. `site.fluid.dissolved_gas.*` take a bare `{value}` (a mole fraction) with no unit, while
     briefs give `mol%`: the agents must turn 20 mol% into 0.2 by hand, which their rules forbid.
     A `unit` (`mol%`, `-`) on those fields, converted by gemini (Track A).
+E-1. A plant file's parameters in display units (`Plant.to_dict(units="display")`, or units on
+    `read_plant`'s values): the explainer quotes `1500000.0 W/K` and `30000000.0 W` from the
+    plant file, and only `capacities` come in MW (found in run E2, bug #110).
 
 ### S2b: gemini tools (the first job; the text below is the original plan)
 
