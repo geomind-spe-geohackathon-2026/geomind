@@ -8,13 +8,16 @@ from geomind.types import Message
 async def compact_history(session, agent):
     """Summarize older turns before an LLM call that would pass the threshold.
 
+    The check reads this run's own conversation only: its rendered messages and the input of its
+    own last call, never what nested runs used, so each agent compacts on its own context.
+
     The summary is one ``compaction`` event, and ``apply`` makes the replacement, so a recovered run
     holds it and never summarizes twice. NOTE: with nothing old enough to replace the run goes on,
     because a turn that is still open must stay whole.
     """
     state = session.state
     rendered = session.context().messages_for(agent)
-    if not is_over_threshold(rendered, agent.model.resolved_name()):
+    if not is_over_threshold(rendered, agent.model.resolved_name(), state.last_input_tokens):
         return
     turns = older_turns(state.messages)
     if not turns:

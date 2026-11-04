@@ -617,7 +617,10 @@ def _run_options(command):
     command.add_argument("--recording")
     command.add_argument("--record")
     command.add_argument(
-        "--max-tokens", type=int, help="deny model calls once the run used this many"
+        "--max-tokens",
+        type=int,
+        help="deny model calls once the run, nested runs included, used this many (a spending "
+        "cap, not a context window)",
     )
     command.add_argument(
         "--max-cost", type=float, help="deny model calls once the run cost this, USD"

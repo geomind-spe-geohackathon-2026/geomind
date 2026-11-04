@@ -72,15 +72,20 @@ def context_window(model):
     return (_windows or {}).get(model)
 
 
-def is_over_threshold(messages, model):
-    """Tell whether rendered messages pass the share of the model's window that is allowed.
+def is_over_threshold(messages, model, last_input_tokens):
+    """Tell whether one agent's context passes the share of the model's window that is allowed.
 
-    A rule agent calls no model, and a run without a window (fake or scripted) is never over.
+    The context is the larger of the estimate of the agent's own rendered ``messages`` and
+    ``last_input_tokens``, what the provider counted for the agent's own last call (its tool
+    schemas included, which the estimate leaves out). NOTE: never a run's ``usage``: that adds the
+    nested runs, whose conversations are their own. A rule agent calls no model, and a run without
+    a window (fake or scripted) is never over.
     """
     window = None if model == RULE_MODEL else context_window(model)
     if window is None:
         return False
-    return estimate_tokens(messages) > runtime.get("compaction_threshold") * window
+    used = max(estimate_tokens(messages), last_input_tokens)
+    return used > runtime.get("compaction_threshold") * window
 
 
 def older_turns(messages):

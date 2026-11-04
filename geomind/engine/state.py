@@ -59,7 +59,10 @@ class RunState:
     approved pause at those points. ``problem`` is the problem state, shared by the whole tree of
     runs. ``is_refused`` says the answer of this step went back to the
     model, so the step closes instead of proposing it again. ``sequence`` is the last number of the
-    whole log, nested runs included.
+    whole log, nested runs included. ``usage`` and ``step_usage`` include what nested runs spent,
+    so they are for budgets and reports only; ``last_input_tokens`` is the input the provider
+    counted for this run's own last model call, none after its compaction, and is what a context
+    decision reads beside the size of the run's own messages.
     """
 
     run_id: str = ""
@@ -95,6 +98,7 @@ class RunState:
     started: list[str] = field(default_factory=list)
     usage: Usage = Usage()
     step_usage: Usage = Usage()
+    last_input_tokens: int = 0
     pending: PendingAction | None = None
     failures: dict[str, int] = field(default_factory=dict)
     failure_steps: dict[str, int] = field(default_factory=dict)
