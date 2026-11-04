@@ -2,6 +2,7 @@
 
 import copy
 import inspect
+import json
 import typing
 
 from pydantic import ConfigDict, create_model
@@ -147,7 +148,11 @@ class Tool:
         return renamed
 
     def validate(self, tool_input):
-        """Return the keyword arguments of a call, or raise for an input that does not fit."""
+        """Return the keyword arguments of a call, or raise for an input that does not fit.
+
+        An object or array sent as its JSON text is read as that value first (``parsed_inputs``).
+        """
+        tool_input = parsed_inputs(self.input_schema, tool_input)
         if self.input_model is not None:
             model = self.input_model.model_validate(tool_input)
             return {name: getattr(model, name) for name in type(model).model_fields}
@@ -160,6 +165,61 @@ class Tool:
                 f"expected the names {join_names(properties)}"
             )
         return dict(tool_input)
+
+
+JSON_TYPES = {dict: "object", list: "array"}
+"""The JSON schema type of a value ``json.loads`` gives, for the types read from a string."""
+
+
+def _accepted_types(schema, definitions, seen=()):
+    """Return the JSON types a property schema accepts; ``None`` when it accepts any value."""
+    if not isinstance(schema, dict):
+        return None
+    reference = schema.get("$ref", "")
+    if reference.startswith("#/$defs/") and reference not in seen:
+        name = reference.removeprefix("#/$defs/")
+        return _accepted_types(definitions.get(name), definitions, (*seen, reference))
+    branches = schema.get("anyOf") or schema.get("oneOf")
+    if branches:
+        types = set()
+        for branch in branches:
+            accepted = _accepted_types(branch, definitions, seen)
+            if accepted is None:
+                return None
+            types |= accepted
+        return types
+    kind = schema.get("type")
+    if kind is None:
+        return None
+    return set(kind) if isinstance(kind, list) else {kind}
+
+
+def parsed_inputs(schema, tool_input):
+    """Return a call's input with an object or array sent as JSON text read as that value (#67).
+
+    Some models send an object argument as its JSON text (``'{"format": 1}'``). A string for a
+    property whose schema accepts an object or an array, and no string, is read with
+    ``json.loads`` when that gives a value of an accepted type; any other string stays as sent, so
+    validation refuses it as before. A property that accepts a string, or any value, keeps it.
+    """
+    if not isinstance(tool_input, dict):
+        return tool_input
+    properties = schema.get("properties", {})
+    definitions = schema.get("$defs", {})
+    parsed = dict(tool_input)
+    for name, value in tool_input.items():
+        if not isinstance(value, str) or name not in properties:
+            continue
+        accepted = _accepted_types(properties[name], definitions)
+        if accepted is None or "string" in accepted or not accepted & set(JSON_TYPES.values()):
+            continue
+        try:
+            loaded = json.loads(value)
+        except ValueError:
+            continue
+        if JSON_TYPES.get(type(loaded)) in accepted:
+            parsed[name] = loaded
+    return parsed
 
 
 def _first_line(definition):

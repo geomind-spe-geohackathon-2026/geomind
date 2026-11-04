@@ -124,3 +124,45 @@ def test_the_rag_tools_of_dev41_logs_find_their_new_names():
     tools = with_old_names({"read_rag": read_rag, "search_rag": search_rag})
     assert tools["rag_read"] is read_rag and tools["rag_search"] is search_rag
     assert tools["search_knowledge"] is search_rag
+
+
+@tool(effect="write")
+def patch(changes: dict | None = None, files: list[str] | None = None, source: str | None = None):
+    """Patch."""
+
+
+def test_an_object_sent_as_json_text_is_read_as_the_object():
+    """An object or array argument sent as its JSON text is used parsed (#67)."""
+    changes = '{"format": 1, "site": {"name": "a"}}'
+    arguments = patch.validate({"changes": changes, "files": '["x"]'})
+    assert arguments["changes"] == {"format": 1, "site": {"name": "a"}}
+    assert arguments["files"] == ["x"]
+
+
+@pytest.mark.parametrize("value", ["not json", '"a string"', "[1, 2]", "3"])
+def test_an_object_sent_as_other_text_is_still_refused(value):
+    """Text that is no JSON object, for an object parameter, is refused as before."""
+    with pytest.raises(pydantic.ValidationError, match="valid dictionary"):
+        patch.validate({"changes": value})
+
+
+def test_a_string_parameter_keeps_its_json_looking_string():
+    """A string parameter is never parsed, even when its value is JSON text."""
+    assert patch.validate({"source": '{"a": 1}'})["source"] == '{"a": 1}'
+
+
+def test_a_model_parameter_sent_as_json_text_is_read_through_its_definition():
+    """A parameter typed by a model (a ``$ref``) takes its JSON text too, as a hand-made tool."""
+
+    class Point(pydantic.BaseModel):
+        x: int
+
+    @tool(effect="compute")
+    def move(point: Point):
+        """Move."""
+
+    assert move.validate({"point": '{"x": 2}'})["point"] == Point(x=2)
+    schema = {"properties": {"a": {"type": "object"}, "b": {}}, "required": ["a"]}
+    hand_made = Tool("t", "d", schema, print, effect="read")
+    arguments = hand_made.validate({"a": '{"k": 1}', "b": '{"k": 1}'})
+    assert arguments == {"a": {"k": 1}, "b": '{"k": 1}'}

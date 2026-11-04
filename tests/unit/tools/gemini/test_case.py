@@ -553,3 +553,9 @@ async def test_a_missing_search_range_stays_gemini_s_error():
         problems=[{"path": "params.depth.range", "code": "missing_value"}],
     )
     assert error_output(error)["error"]["code"] == "missing_value"
+
+
+def test_set_case_takes_changes_sent_as_json_text():
+    """A model sent ``changes`` as its JSON text twice and the run ended (#67)."""
+    arguments = set_case.validate({"changes": '{"format": 1, "site": {"name": "a"}}'})
+    assert arguments["changes"] == {"format": 1, "site": {"name": "a"}}
