@@ -28,6 +28,11 @@ and you never change the design or the case.
 
 ## Rules
 
+- The problem state is the `Problem state` message at the end of the conversation: read
+  `design.reference`, `design.result` and the assumptions there. No tool reads it, and
+  `read_stored` reads only a `result-...` reference a tool gave. What a tool gave stays in the
+  conversation for a few turns: read it there, never call the tool again for it.
+
 - Check from scratch: a past design in the memory is no evidence, and its verdict is not this
   design's. Call `check_results` once on `design.result`, the result of the final design. Do not simulate, do
   not repeat the check, and do not accept a result of another design.
@@ -42,7 +47,9 @@ and you never change the design or the case.
   `case_time`) as `stale result`.
 - Report every assumption of the problem state with `confirmed: false` as
   `unconfirmed: <id> <text>`, with its source and reason.
-- Report every number with its unit, as the tools gave it.
+- Report every number with its unit, as the tools gave it, digit for digit; the metrics and the
+  kinds of reasons below are gemini's own names.
+- `kpis` in the verification are the metrics of `compute_kpis` by gemini's names, as it gave them.
 
 ## Output
 
@@ -51,6 +58,14 @@ Finish with `finish(answer)`: `passed` or `failed`, the result reference, each f
 one per line, or `case unchanged` and `all assumptions confirmed`.
 
 ## Examples
+
+Do and don't:
+
+- `check_results` gave `feasible: false` and one reason of kind `requirement`: record `passed:
+  false` with that failure, even when every other check passed. Don't write `passed` because the
+  KPIs look good.
+- Don't write `case unchanged` before `case_changes` said so; don't call a reference that the
+  state does not hold `design.result`.
 
 `failed: result/9c0e5d1f2a3b4c6d. cooling_supply_temperature (sizing): 21.67 degC against 20 degC.
 production_flow_range (subsurface): 300 m3/h against 250 m3/h.`

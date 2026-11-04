@@ -1,5 +1,31 @@
 {
   "$defs": {
+    "AnswerCriterion": {
+      "additionalProperties": false,
+      "description": "The answer matches the regular expression ``pattern``, or with ``present: false`` does not.\n\nFor an answer whose words are its result, such as a route or a verdict.",
+      "properties": {
+        "kind": {
+          "const": "answer",
+          "title": "Kind",
+          "type": "string"
+        },
+        "pattern": {
+          "title": "Pattern",
+          "type": "string"
+        },
+        "present": {
+          "title": "Present",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind",
+        "pattern",
+        "present"
+      ],
+      "title": "AnswerCriterion",
+      "type": "object"
+    },
     "AnswerRule": {
       "additionalProperties": false,
       "description": "A user's answer by rule: the first rule whose ``match`` (a regex) is in the question.\n\nFor a question with options, ``answer`` must be one of their values; ``only_options`` keeps\na rule off the questions that ask for typed text.",
@@ -327,6 +353,7 @@
       "items": {
         "discriminator": {
           "mapping": {
+            "answer": "#/$defs/AnswerCriterion",
             "before": "#/$defs/BeforeCriterion",
             "number": "#/$defs/NumberCriterion",
             "question": "#/$defs/QuestionCriterion",
@@ -358,6 +385,9 @@
           },
           {
             "$ref": "#/$defs/BeforeCriterion"
+          },
+          {
+            "$ref": "#/$defs/AnswerCriterion"
           }
         ]
       },

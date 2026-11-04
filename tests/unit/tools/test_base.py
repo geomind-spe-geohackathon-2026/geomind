@@ -128,6 +128,30 @@ def test_the_rag_tools_of_dev41_logs_find_their_new_names():
     assert tools["search_knowledge"] is search_rag
 
 
+def test_a_list_sent_as_json_text_is_the_list():
+    """#112: nemotron sent ``changes`` as ``"[{...}]"``, twice; it means the list."""
+    from geomind.tools.state import update_state
+
+    changes = [{"op": "add", "path": "/goal", "value": "a plant"}]
+    assert update_state.validate({"changes": json.dumps(changes)}) == {"changes": changes}
+    stray = json.dumps(changes) + "}"
+    assert update_state.validate({"changes": stray}) == {"changes": changes}
+
+
+def test_text_that_is_no_json_of_the_type_still_fails():
+    """A string that is not JSON of the type, or a field that wants text, is left as it is."""
+    from pydantic import ValidationError
+
+    from geomind.tools.state import update_state
+
+    with pytest.raises(ValidationError):
+        update_state.validate({"changes": '{"op": "add"}'})
+    with pytest.raises(ValidationError):
+        update_state.validate({"changes": "not json"})
+    with pytest.raises(ValidationError):
+        update_state.validate({"changes": '[{"op": "add"}] and more'})
+
+
 @tool(effect="write")
 def patch(changes: dict | None = None, files: list[str] | None = None, source: str | None = None):
     """Patch."""

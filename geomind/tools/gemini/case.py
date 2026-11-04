@@ -653,6 +653,14 @@ def read_case(context, section: str | None = None):
         return data
     if section == "economics":
         return economics_of(context, data)
+    if section not in data and section in gm.Case.schema()["properties"]:
+        raise ToolError(
+            f"read_case: section = {section!r}; the case has no {section!r} (it is unset): "
+            f"the case has {join_names(sorted(data))}",
+            code="unknown_name",
+            path="section",
+            suggestions=sorted(data),
+        )
     if section not in data:
         names = sorted(gm.Case.schema()["properties"])
         raise ToolError(

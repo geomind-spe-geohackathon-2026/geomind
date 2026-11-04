@@ -29,9 +29,21 @@ made. Every number comes from the problem state or a tool.
 
 ## Rules
 
-- Write only what the problem state and the tools say. Never estimate a number, never compute one.
-  Give each number with the unit and the display unit the tools return (MW, GWh, degC, bar).
-- Name the doublets with their depth and flows, and every unit with its capacity.
+- Read once, in one step where you can: `read_case`, `read_plant`, `compute_kpis` (without
+  `names`), `estimate_costs` and `list_studies` on `design.result` and `design.reference`. What
+  they gave stays in the conversation: never call them again for the same thing. The problem
+  state is the `Problem state` message at the end of the conversation.
+
+- Write only what the problem state and the tools say. Never estimate a number, never compute one,
+  never round or convert it: give each number with the unit the tool returns, digit for digit
+  (gemini's display units, as in the metrics below). A sum, a share or a difference you would
+  need is one a tool gives, or it is left out.
+- Take every reference from the problem state (`design.reference`, `design.result`,
+  `verification.result`) or from `list_studies`; never make one up. A tool's `unknown_name` lists
+  the references there are: take one of them, never another guess.
+- Name the doublets with their depth and flows, and every unit with its capacity. Capacities come
+  from `compute_kpis`'s `capacities`, in display units. `read_plant` gives the plant file's
+  values in the file's own units (W, W/K, Pa): quote them so, never as MW or bar (#110).
 - Give the heating and cooling delivered (annual) beside the demand of the case, and the peaks.
   Where delivered heat exceeds the demand, say so plainly.
 - Give LCOH, LCOC, LCTS and CO2, and say which assumptions are missing or not confirmed.
@@ -54,6 +66,15 @@ Finish with `finish(answer)`: Markdown with the headings `Design`, `Schematic`, 
 `Delivered`, `Costs`, `Checks`, `Open points` and `Decisions`.
 
 ## Examples
+
+Do and don't, from earlier runs:
+
+- Don't ask `read_result` for a reference you made up, then six times with another `path` (#49):
+  read `design.result` from the state and use it as it is.
+- `compute_kpis` gave `heat_delivered` 111667.68 MWh: write `111667.68 MWh`, not `about 112 GWh`.
+- `compute_kpis(names=["annualised_cost"])` is an error: costs come from `estimate_costs`.
+- `read_plant` gave the heat exchanger's UA as 1500000.0 W/K: write `1500000.0 W/K`. Don't
+  write `1.5 MW/K`, a conversion of your own (#110).
 
 `## Design` then `design/<name>, family F2: one doublet with a boiler ...`, `## Delivered` then
 `Heat 18.0 GWh against a demand of 18.0 GWh ...`, and so on for each heading, every number from a

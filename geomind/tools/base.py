@@ -151,8 +151,8 @@ class Tool:
         """Return the keyword arguments of a call, or raise for an input that does not fit.
 
         An object or array sent as its JSON text is read as that value first, also when only its
-        closing brackets are missing, and ``"None"`` is null where a null is accepted
-        (``parsed_inputs``, #67, #87, #89).
+        closing brackets are missing or one too many follows it, and ``"None"`` is null where a null
+        is accepted (``parsed_inputs``, #67, #87, #89, #112).
         """
         tool_input = parsed_inputs(self.input_schema, tool_input)
         if self.input_model is not None:
@@ -170,6 +170,8 @@ class Tool:
 
 
 CLOSERS = {"[": "]", "{": "}"}
+STRAY_CLOSERS = set("}] \n")
+"""What may follow a JSON value in a model's text and still leave it that value (#112)."""
 NULL_TEXTS = ("None", "null")
 """A null some models send as text, ``section: "None"``, read as null where the schema takes one."""
 
@@ -194,14 +196,19 @@ def missing_closers(text):
 def parsed_json(text):
     """Return the JSON value of ``text``, also when only its closing brackets are missing (#87).
 
-    nemotron sent a list as JSON text without its final ``]``; nothing else is repaired.
+    nemotron sent a list as JSON text without its final ``]``, and once with one ``}`` too many
+    after it (#112); nothing else is repaired.
     """
     for candidate in (text, text + missing_closers(text)):
         try:
             return json.loads(candidate)
         except ValueError:
             continue
-    return None
+    try:
+        value, end = json.JSONDecoder().raw_decode(text.strip())
+    except ValueError:
+        return None
+    return value if set(text.strip()[end:]) <= STRAY_CLOSERS else None
 
 
 JSON_TYPES = {dict: "object", list: "array"}

@@ -26,6 +26,40 @@ class Route(Record):
     preferences: dict[str, str] | None = None
 
 
+ROUTE_OPTIONS = {
+    "kind": {
+        "answer": "a short answer in `answer`, by you: a greeting, what the team can do, or "
+        "what the conversation already says; never a number",
+        "loop": "the message goes to a loop and its agents, named by `loop` (and `agent`)",
+    },
+    "loop": {
+        "tool": "one agent answers with its tools, the one `agent` names: a question about the "
+        "case, a plant, a module, a profile, a result or a cost",
+        "project": "the project lead plans the teams' work: setting or changing the case, "
+        "designing, sizing, optimising, checking, explaining, and every app event",
+        "design": "the design team alone on the case as it is (design lead and reviewer, no "
+        "case work, analysis or explanation): only when the user asks for exactly a new design "
+        "round on a case already set",
+        "compare": "two or more design families the user names, designed side by side on the "
+        "case as it is, then compared",
+    },
+    "agent": {
+        "analysis_lead": "the analysis team: reads the case, plants, modules, profiles and "
+        "results, simulates a what-if, and gives KPIs, costs and sensitivities",
+    },
+}
+"""What each value of a ``Route`` field means; a test keeps the keys equal to ``Route``'s."""
+
+
+def route_options():
+    """Return the prompt text of every option of a route, with what it means."""
+    lines = ["## Route options", ""]
+    for field, options in ROUTE_OPTIONS.items():
+        lines.append(f"`{field}`:")
+        lines += [f"- `{value}`: {meaning}" for value, meaning in options.items()]
+    return "\n".join(lines)
+
+
 class Coordinator(Agent):
     """Route each message: answer it directly, or choose the loop and the agent."""
 
@@ -34,7 +68,7 @@ class Coordinator(Agent):
         super().__init__()
 
         # Prompt
-        self.prompt = Prompt("project/coordinator")
+        self.prompt = Prompt("project/coordinator", appendix=route_options)
 
         # Output
         self.output = Output(Route)

@@ -555,6 +555,15 @@ async def test_a_missing_search_range_stays_gemini_s_error():
     assert error_output(error)["error"]["code"] == "missing_value"
 
 
+async def test_a_section_the_case_lacks_says_it_is_unset():
+    """#107: a section the case has not set says so, not "did you mean 'about'?"."""
+    session, problem = await loaded("hackathon_2026")
+    data = {key: value for key, value in problem.case.items() if key != "about"}
+    problem = problem.model_copy(update={"case": data})
+    error = (await call(read_case, {"section": "about"}, session, "p", problem)).output["error"]
+    assert error["code"] == "unknown_name" and "the case has no 'about'" in error["message"]
+
+
 def test_set_case_takes_changes_sent_as_json_text():
     """A model sent ``changes`` as its JSON text twice and the run ended (#67)."""
     arguments = set_case.validate({"changes": '{"format": 1, "site": {"name": "a"}}'})

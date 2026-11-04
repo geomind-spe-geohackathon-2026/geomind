@@ -271,12 +271,32 @@ Each per-agent task on both models, the same fixtures, prompts and commit, no pr
 | well | B2 | nemotron | yes* | design 0 issues; *`sourced` flags 0.0833333 (a plant value shortened to 7 decimals) | 4 | 4 | 0 | 50068/13008/23189 | 136 | 0 |
 | energy | B2 | deepseek | yes | design 0 issues (after #76, #79, #80) | 11 | 19 | 0 | 359592/153160/39004 | 580 | 0.0261 |
 | energy | B2 | nemotron | yes | design 0 issues | 5 | 8 | 1 | 102241/0/17315 | 112 | 0 |
+| coordinator/case_question | E | deepseek (e6) | pass | yes | 1 | 0 | 0 | 1865/0/39 | 5.3 | 0.0001 |
+| coordinator/case_question | E | nemotron (n1) | pass | yes | 1 | 0 | 0 | 1843/0/129 | 21.0 | 0.0000 |
+| coordinator/cost | E | deepseek (e6) | pass | yes | 1 | 0 | 0 | 1870/0/39 | 4.9 | 0.0001 |
+| coordinator/cost | E | nemotron (n1) | pass | yes | 1 | 0 | 0 | 1848/0/84 | 21.3 | 0.0000 |
+| coordinator/design | E | deepseek (e6) | pass | yes | 1 | 0 | 0 | 1870/0/52 | 4.3 | 0.0001 |
+| coordinator/design | E | nemotron (n1) | pass | yes | 1 | 0 | 0 | 1849/0/130 | 17.6 | 0.0000 |
+| coordinator/greeting | E | deepseek (e6) | pass | yes | 1 | 0 | 0 | 1859/0/25 | 5.1 | 0.0001 |
+| coordinator/greeting | E | nemotron (n1) | pass | yes | 1 | 0 | 0 | 1837/0/63 | 16.4 | 0.0000 |
+| explainer/explain | E | deepseek (e3) | pass | yes | 6 | 15 | 1 | 97724/0/12851 | 243.5 | 0.0086 |
+| explainer/explain | E | nemotron (n1) | pass | yes | 2 | 5 | 0 | 21115/0/15317 | 109.9 | 0.0000 |
+| project_lead/case_change | E | deepseek (e3) | pass | yes | 13 | 14 | 0 | 75752/16892/4855 | 194.9 | 0.0042 |
+| project_lead/case_change | E | nemotron (n1) | pass | yes | 11 | 17 | 2 | 81136/39024/5152 | 163.7 | 0.0000 |
+| project_lead/needs_case | E | deepseek (e6) | pass | yes | 9 | 12 | 0 | 55444/8187/5450 | 175.8 | 0.0042 |
+| project_lead/needs_case | E | nemotron (n1) | pass | yes | 7 | 15 | 0 | 52293/30352/4469 | 28.9 | 0.0000 |
+| reviewer/fails | E | deepseek (e5) | pass | yes | 7 | 11 | 0 | 90195/12794/10898 | 98.0 | 0.0078 |
+| reviewer/fails | E | nemotron (n3) | pass | yes | 4 | 6 | 0 | 45776/8672/7947 | 47.6 | 0.0000 |
+| reviewer/passes | E | deepseek (e4) | pass | yes | 10 | 15 | 1 | 130589/44022/13019 | 161.0 | 0.0093 |
+| reviewer/passes | E | nemotron (n2) | pass | yes | 3 | 6 | 0 | 34632/4336/4076 | 22.7 | 0.0000 |
 
 Track C, round C4 at 39c4003: 5 of 5 on each model, no 429, no markup check firing. nemotron took fewer calls and a third to a half the time on the lead's two longer tasks; its failed calls are `update_state` slips (JSON text, a stray bracket), each corrected on the next call. Both models failed the same way only where the prompt was wrong (#85, #88, #90).
 
 Track D notes: no 429 on nemotron (nine tasks two at a time). Nemotron called memory tools it was not offered when the memory was off (#99, fixed in the prompt; it passes now); it caches nothing, so its input is all uncached, but it is free and 2 to 3 times faster here.
 
 Track B2 notes: Big differences: DeepSeek pinned to its own provider takes 30 to 90 s a call (reservoir 451 s for 6 calls), nemotron 4 to 20 s; that is the model and the provider, not the prompt. Before the prompt fixes DeepSeek also looped where nemotron did not (integration 18 calls, energy 18 calls); after #79 to #81 the counts are close, so that part was the prompt. Both models converted units in their answers (#80), a prompt matter. The markup check of #70/#75 never fired on nemotron.
+
+Track E notes: `deepseek/deepseek-v4.1-flash-1017` (provider DeepSeek) and `nvidia/nemotron-3.5-super-vl:free` (no pin, two at a time, retries 6 x 10 s; no 429 in track E). Round in brackets; tokens are input/cached/output; DeepSeek's coordinator and lead `needs_case` rows are their E1/E2 recordings scored again with the corrected criteria (e6, no new call).
 
 Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/CHANGELOG.md)):
 
@@ -318,6 +338,14 @@ Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/C
 | 73 | D2, process engineer | parallel `read_plant` calls came back with every argument null until the run stopped on repeated failures | it compares plants with `list_plants` and reads only the one it chooses, in one call | track-b |
 | 74 | D2, well engineer | 8 failed `evaluate_module` calls on a well path's section lists: gemini's `describe()` gives them as `number`, and its error asks for a Quantity for a list and for a list for a Quantity | the well engineer's prompt gives the form `{"value": [..], "unit": "m"}`; gemini request 14 | track-b |
 | 75 | D3, process engineer | two garbled calls in a row (`">site</</parameter_name...`) counted as invalid calls and ended the run as failed; `">HackathonPlant</` was not caught | a markup slip is an error but no validation failure; a lone `</` or a leading `">` counts as markup; prose tools (`finish`, `ask_user`, `update_state`, `write_lesson`) are not checked | track-b |
+| 105 | E1, explainer | asked `compute_kpis` for `annualised_cost`: the prompt said the KPIs hold the costs | the metrics section says the costs come from `estimate_costs` and `compute_kpis` is called without `names` | track-e |
+| 106 | E1, reviewer and explainer | 17 `read_stored` and 42 `read_result` calls; the explainer read its whole input set three times as each result shrank | the reviewer keeps its reads for a few turns, the explainer for the run | track-e |
+| 107 | E1, reviewer | `read_case(section="about")` on a case without `about` answered "expected one of about, ...; did you mean 'about'?" | a known section the case has not set is `unknown_name`, "the case has no 'about'" | track-e |
+| 108 | E1, reviewer | tried `read_stored("state")` to read the problem state | the prompt says the state is a message of the conversation | track-e |
+| 109 | E1, project lead | briefed the case lead on a case already set, and a team 14 times on one answer | no case step for an accepted case; no third brief after two same answers | track-e |
+| 110 | E2, explainer | wrote `1500000.0 W/K` as `1.5 MW/K` and `30000000.0 W` as `30 MW`, conversions of its own | capacities from `compute_kpis`, plant values in their own units; gemini request 30 | track-e |
+| 112 | N1 (nemotron), reviewer | sent `update_state`'s `changes` as JSON text, twice, and the run stopped | JSON text of the array or object a schema wants is decoded before validation | track-e |
+| 111 | E2, project lead | asked the user for the air humidity "in %, e.g. 70": a typical value | a case value is the case lead's to ask; a question offers no value | track-e |
 | 76 | B2, energy engineer | `evaluate_module` with a control as a parameter (`temperature_setpoint`) gave `internal` (gemini's bare `KeyError`), then misleading "missing inlets", five times until the run stopped | names checked before gemini: `invalid_input` with where it goes | track-b2 |
 | 77 | B2, process engineer | built from `read_plant(plant_class=...)`, a header with 110 values missing, while the project held the class's whole file | the prompt prefers the project plant of the class | track-b2 |
 | 78 | B2, design lead (nemotron) | checked a handed design feasible, then finished without `design.reference` and `design.result`; DeepSeek records them | the prompt asks for the record before every `finish` | track-b2 |
@@ -393,6 +421,9 @@ Open requests to gemini (full text in the adaptation notes):
 15. `site.fluid.dissolved_gas.*` take a bare `{value}` (a mole fraction) with no unit, while
     briefs give `mol%`: the agents must turn 20 mol% into 0.2 by hand, which their rules forbid.
     A `unit` (`mol%`, `-`) on those fields, converted by gemini (Track A).
+30. A plant file's parameters in display units (`Plant.to_dict(units="display")`, or units on
+    `read_plant`'s values): the explainer quotes `1500000.0 W/K` and `30000000.0 W` from the
+    plant file, and only `capacities` come in MW (found in run E2, bug #110).
 27. `gm.call` (`evaluate_module`) raises a bare `KeyError: 'temperature_setpoint'` for a
     control given in `parameters`; a `ValidationError` naming the control and `controls` would
     let a caller fix it (geomind checks the names itself now, #76).

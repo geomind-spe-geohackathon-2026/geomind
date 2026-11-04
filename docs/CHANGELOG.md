@@ -6,6 +6,20 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### The project team on both models (0.4.22.dev55)
+
+Rounds E1 and E2: the coordinator, the reviewer, the explainer and the project lead, each alone (the lead's teams scripted), live on DeepSeek. Each bug is pinned by a test.
+
+- Prompts: the coordinator's prompt ends with every `Route` option and what it means (`ROUTE_OPTIONS`, kept equal to `Route` by a test), and says when `design` and `compare` apply. The reviewer's ends with gemini's verdict: each kind of reason, read from `gm.evaluate.verdict`'s docstring, and the shape of `failures`. The reviewer's and the explainer's end with gemini's metrics from `gm.evaluate.metrics()` (`geomind/tools/gemini/verdict_text.py`). Each of the four has do and don't examples from real failures.
+- Fix (#105): the metrics section said `compute_kpis` gives the costs; it gives gemini's totals and report metrics, and the costs (`capex`, `annualised_cost`, `lcoh`, ...) come from `estimate_costs`. The explainer had asked `compute_kpis` for `annualised_cost`.
+- Fix (#106): the reviewer and the explainer read their results again and again as they shrank (17 `read_stored`, 42 `read_result`, the explainer's whole input set three times): the reviewer keeps them for a few turns (`Tool.kept`), the explainer for the run.
+- Fix (#107): `read_case(section=...)` of a section gemini knows but the case has not set says it is unset (`unknown_name`, with the sections the case has), instead of "expected one of about, ...; did you mean 'about'?".
+- Fix (#108): the reviewer's prompt says the problem state is a message of the conversation; it had tried `read_stored("state")`.
+- Fix (#109): the project lead skips the case step when the state holds an accepted case, and stops briefing a team that gave the same unusable answer twice.
+- Fix (#110): the explainer converted plant values (`1500000.0 W/K` written as `1.5 MW/K`): capacities come from `compute_kpis`'s `capacities`, and `read_plant`'s values are quoted in their own units.
+- Fix (#111): the project lead asked the user for a case value with an example number of its own (`e.g. 70`): a case value is the case lead's to ask, and a question offers no value.
+- Fix (#112), behaviour: a tool input that the schema wants as an array or an object and that comes as JSON text of that type (`"[{...}]"`) is decoded before validation (`Tool.validate`, `decoded_strings`). nemotron sent `update_state`'s `changes` so twice, and the run stopped; once with one `}` too many at the end, which is taken as the value when only closing brackets follow it. Any other string still fails.
+- Evals: an `answer` criterion (`pattern`, `present`) checks an answer's words, such as a route or a verdict.
 ### The design team on both models (0.4.22.dev54)
 
 Rounds D1 to D3 had started the engineers from a class plant given by its header alone, so gemini listed about a hundred inner values as missing and every engineer ran out of budget inventing them. The class's whole project file checks clean against the case.
