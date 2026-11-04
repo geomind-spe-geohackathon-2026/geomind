@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.42] - 2026-11-04
+
+### Fixed
+
+- QA-042: a `set_case` with only `files` and `columns` after a full call of the same run is refused with the step of that call and the ask to send it again whole with only the fix (such as each series' `time_zone`), instead of the empty case skeleton; with 0.4.40's check before an approval, the user is no longer asked to approve or deny such a call.
+
 ## [0.4.41] - 2026-11-04
 
 ### Fixed

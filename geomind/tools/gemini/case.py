@@ -791,15 +791,26 @@ async def set_case(
     import gemini as gm
 
     alone = files and source is None and not (changes or requirements or economics)
+    calls = getattr(context.session, "__dict__", {}).setdefault("case_calls", [])
     if alone and context.problem.case is None:
+        earlier = (
+            f" Your set_case of step {calls[-1]} held the whole case: send that call again, "
+            "whole (every section in changes, the files and columns), with only the fix the "
+            "user's answer or the last error asks for, such as each series' time_zone (QA-042)."
+            if calls
+            else ""
+        )
         raise ToolError(
             f"set_case: files = {files!r} and nothing else; expected changes that name each file "
             "as the `file` of its series: set_case loads the project files the changes name, so "
-            "`files` is not needed, and files alone set no case",
+            f"`files` is not needed, and files alone set no case.{earlier}",
             code="case_incomplete",
             path="format",
-            suggestions=[json.dumps(case_skeleton())],
+            suggestions=[] if calls else [json.dumps(case_skeleton())],
         )
+    step = getattr(getattr(context.session, "state", None), "step", None)
+    if changes and step is not None and not DRY_RUN.get():
+        calls.append(step)
     base, supplied = base_case(context, source)
     own = {"requirements": requirements, "economics": economics, "files": files, "columns": columns}
     changes, (requirements, economics, files, columns) = moved_arguments(changes, base, own)
