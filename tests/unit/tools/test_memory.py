@@ -65,3 +65,34 @@ async def test_write_lesson_keeps_its_origin_and_search_returns_it_to_the_role()
     assert [item["id"] for item in found["lessons"]] == ["l1"]
     refused = await call(write_lesson, {**lesson, "id": "l2", "text": "use 3 doublets"}, session)
     assert refused.is_error
+
+
+class Named:
+    """An agent of a given snake name, for the role the memory tools read."""
+
+    def __init__(self, name):
+        """Keep the name."""
+        self.name = name
+
+
+async def test_the_curator_reads_every_role_s_lessons_so_it_writes_none_twice():
+    """#95: the curator saw only its own role's lessons and wrote a case lead's lesson again."""
+    lesson = {"id": "l1", "kind": "lesson", "role": "case_lead", "text": "send files with changes"}
+    entry = {**lesson, "origin": {"run": "seed", "source": "gemini"}}
+    session = session_with(MemoryMemory(experience=[entry]))
+    session.agent = Named("curator")
+    assert [item["id"] for item in (await call(search_memory, {}, session)).output["lessons"]] == [
+        "l1"
+    ]
+    session.agent = Named("design_lead")
+    assert (await call(search_memory, {}, session)).output["lessons"] == []
+
+
+async def test_a_lesson_for_a_role_no_agent_has_is_refused():
+    """A lesson for ``designlead`` would reach no agent: the role names one, or ``all``."""
+    from geomind.tools import write_lesson
+
+    session = session_with(MemoryMemory())
+    lesson = {"id": "l1", "kind": "lesson", "role": "designlead", "text": "check", "source": "user"}
+    error = (await call(write_lesson, lesson, session)).output["error"]
+    assert error["code"] == "unknown_name" and "designlead" in error["suggestions"]

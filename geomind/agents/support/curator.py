@@ -5,6 +5,22 @@ from geomind.agents.agent import Agent, Model
 from geomind.prompts import Prompt
 
 
+def agent_roles():
+    """Return the snake names a lesson may be for: every agent's, and ``all``."""
+    import inspect
+
+    import geomind.agents as agents
+
+    classes = [item for item in vars(agents).values() if inspect.isclass(item)]
+    names = {item().name for item in classes if issubclass(item, Agent) and item is not Agent}
+    return sorted(names | {"all"})
+
+
+def roles_text():
+    """Return the roles a lesson may be for, from the agents themselves."""
+    return "## Roles\n\n" + ", ".join(f"`{role}`" for role in agent_roles())
+
+
 class Curator(Agent):
     """Write the general lessons of a run for each role, and the user's facts, into experience.
 
@@ -18,7 +34,7 @@ class Curator(Agent):
         super().__init__()
 
         # Prompt
-        self.prompt = Prompt("support/curator")
+        self.prompt = Prompt("support/curator", appendix=roles_text)
 
         # Tools
         self.read_case = tools.gemini.read_case

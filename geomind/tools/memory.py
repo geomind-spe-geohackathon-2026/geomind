@@ -5,6 +5,7 @@ lessons and the user's facts. The reviewer and the explainer never read it; cite
 knowledge base's (``geomind/tools/knowledge.py``).
 """
 
+import difflib
 from typing import Literal
 
 from geomind import runtime
@@ -72,11 +73,14 @@ def search_memory(context):
 
     ``experience`` holds past designs whose case is at least the ``memory_similarity`` setting
     alike to the state's case, each with its ``similarity``: a starting point only, never a
-    result. ``lessons`` holds the general lessons of your role and the facts the user gave.
+    result. ``lessons`` holds the general lessons of your role and the facts the user gave; the
+    curator's holds every role's, so it writes no lesson twice.
     Cited values are not here: search the knowledge base (``search_rag``).
     """
     memory = memory_of(context, "search_memory")
-    found = {"lessons": lessons_for(memory, role_of(context))[:SHOWN_ENTRIES]}
+    role = role_of(context)
+    lessons = memory_lessons(memory) if role == CURATOR else lessons_for(memory, role)
+    found = {"lessons": lessons[:SHOWN_ENTRIES]}
     features = state_features(context)
     threshold = runtime.get("memory_similarity")
     if features is None or threshold is None:
@@ -84,6 +88,37 @@ def search_memory(context):
         return {"experience": [], "note": note, **found}
     entries = search_experience(memory, features, threshold)
     return {"experience": entries[:SHOWN_ENTRIES], "threshold": threshold, **found}
+
+
+CURATOR = "curator"
+"""The role that writes lessons for every role, so it reads them all."""
+
+
+def memory_lessons(memory):
+    """Return every lesson and user fact of the memory, of every role, in order."""
+    return [
+        entry
+        for entry in memory.entries("experience")
+        if entry.get("kind") in ("lesson", "user_fact")
+    ]
+
+
+MULTI_WORD = ("lead", "engineer")
+"""The endings of the role settings of agents whose names have more than one word."""
+
+
+def is_role(role):
+    """Tell whether ``role`` is an agent's snake name, such as ``design_lead``, or ``all``.
+
+    The role settings name each agent without underscores (``designlead``); a role of more than
+    one word must have them, so ``designlead`` is no role.
+    """
+    if role == "all":
+        return True
+    joined = role.replace("_", "")
+    one_word = "_" not in role and not joined.endswith(MULTI_WORD)
+    snake = role == role.lower() and (one_word or "_" in role)
+    return snake and joined in runtime.ROLES
 
 
 def role_of(context):
@@ -124,6 +159,14 @@ def write_lesson(
     designs are written by code alone, after the reviewer passed them.
     """
     memory = memory_of(context, "write_lesson")
+    if not is_role(role):
+        raise ToolError(
+            f"write_lesson: role = {role!r}; expected an agent's snake name, such as "
+            "design_lead, or all",
+            code="unknown_name",
+            path="role",
+            suggestions=difflib.get_close_matches(role.replace("_", ""), runtime.ROLES),
+        )
     origin = {"run": context.session.state.run_id, "source": source}
     entry = {"id": id, "kind": kind, "role": role, "text": text, "origin": origin}
     entry["project_id"] = context.project

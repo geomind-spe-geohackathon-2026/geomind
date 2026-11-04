@@ -22,4 +22,4 @@ class Summarizer(Agent):
         self.output = Output(str)
 
         # Model
-        self.model = Model(setting="summarizer_model")
+        self.model = Model(setting="summarizer_model", temperature=0)
