@@ -85,8 +85,11 @@ class Delegate(Tool):
         """Return that a nested run is never pure."""
         return False
 
-    async def _delegate(self, context, task):
-        """Run the nested agent through the run of ``context``, within its limit if it has one."""
+    async def _delegate(self, context, task, beside=False):
+        """Run the nested agent through the run of ``context``, within its limit if it has one.
+
+        ``beside`` runs it as a member of a ``Team``, which never pauses for an approval.
+        """
         if self.once:
             asked = context.session.__dict__.setdefault("asked_once", set())
             if self.name in asked:
@@ -99,10 +102,10 @@ class Delegate(Tool):
             asked.add(self.name)
         max_steps = required_setting(self.steps, self.name) if self.steps else None
         if self.limit is None:
-            result = await context.session.delegate(self.agent, task, max_steps)
+            result = await context.session.delegate(self.agent, task, max_steps, beside)
         else:
             async with bound(context.session, self.limit, self.name):
-                result = await context.session.delegate(self.agent, task, max_steps)
+                result = await context.session.delegate(self.agent, task, max_steps, beside)
         return self.outcome(result, context.session.child_limit)
 
     def outcome(self, result, limit=None):
@@ -148,6 +151,8 @@ class Team(Tool):
     NOTE: the parallel phase is code, not the model's choice of one step: each member is a
     ``Delegate`` (with its ``limit``), every brief runs as its own nested run at the same time, and
     a member that fails gives its error beside the others' answers instead of stopping them.
+    A member cannot pause while its team mates run, so its approvals are allowed (QA-016: its
+    request came back as output, never reached the chat and its work was lost).
     """
 
     def __init__(self, name, description, members):
@@ -185,6 +190,6 @@ class Team(Tool):
     async def _member(self, context, name, task):
         """Return one member's answer, or its error as ``{error: {code, message}}``."""
         try:
-            return await self.members[name]._delegate(context, task)
+            return await self.members[name]._delegate(context, task, beside=True)
         except ToolError as error:
             return {"error": {"code": error.code, "message": str(error)}}

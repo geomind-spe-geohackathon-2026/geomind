@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.30] - 2026-11-04
+
+### Fixed
+
+- QA-016: a member of a side-by-side team (`fill_parts`: the reservoir, well and energy systems engineers) can no longer stop on an approval it cannot wait for. Its approvals are allowed and logged with the rule `beside:<rule>`; before, the request came back as `fill_parts` output, never reached the chat, left the run row `waiting`, and the engineer's work was lost when the lead called `fill_parts` again.
+
 ## [0.4.29] - 2026-11-04
 
 ### Fixed
