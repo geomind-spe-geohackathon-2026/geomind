@@ -109,6 +109,47 @@ async def test_changes_merge_into_the_state_case():
     assert ground["surface_temperature"] == {"value": 9, "unit": "degC"}
 
 
+@pytest.mark.parametrize("unit", ["degC/km", "°C/km", "C/km"])
+async def test_a_gradient_in_degrees_per_km_is_set_as_kelvin_per_km(unit):
+    """A gradient gemini 0.6.1 refuses (request 31) is set as K/km, the same number, and listed."""
+    session, problem = await loaded("shallow_district")
+    changes = {"site": {"ground": {"gradient": {"value": 30, "unit": unit}}}}
+    result = await edited(session, problem, {"changes": changes})
+    assert result.is_error is False, result.output
+    assert state_after(session, problem).case["site"]["ground"]["gradient"] == {
+        "value": 30,
+        "unit": "K/km",
+    }
+    (entry,) = result.output["converted"]
+    assert entry["path"] == "site.ground.gradient"
+    assert entry["from"] == {"value": 30, "unit": unit}
+    assert entry["to"] == {"value": 30, "unit": "K/km"}
+    assert "request 31" in entry["reason"]
+
+
+async def test_a_gas_fraction_in_mol_percent_is_set_as_the_fraction():
+    """A gas in mol%, refused by gemini 0.6.1 (request 15), is set as the fraction and listed."""
+    session, problem = await loaded("shallow_district")
+    gas = {"CH4": {"value": 92, "unit": "mol%"}, "CO2": {"value": 8, "unit": "%"}}
+    changes = {"site": {"fluid": {"dissolved_gas": gas}}}
+    result = await edited(session, problem, {"changes": changes})
+    assert result.is_error is False, result.output
+    fluid = state_after(session, problem).case["site"]["fluid"]
+    assert fluid["dissolved_gas"] == {"CH4": {"value": 0.92}, "CO2": {"value": 0.08}}
+    converted = {entry["path"]: entry for entry in result.output["converted"]}
+    assert converted["site.fluid.dissolved_gas.CH4"]["from"] == {"value": 92, "unit": "mol%"}
+    assert converted["site.fluid.dissolved_gas.CO2"]["to"] == {"value": 0.08, "unit": None}
+    assert gas["CH4"] == {"value": 92, "unit": "mol%"}
+
+
+async def test_a_case_with_gemini_s_own_units_has_no_converted_list():
+    """Nothing mapped, nothing listed: the result keeps its two keys."""
+    session, problem = await loaded("shallow_district")
+    changes = {"site": {"ground": {"gradient": {"value": 30, "unit": "K/km"}}}}
+    result = await edited(session, problem, {"changes": changes})
+    assert set(result.output) == {"case", "version"}
+
+
 @pytest.mark.parametrize("key", ["requirements", "economics"])
 async def test_changes_refuse_the_keys_with_their_own_argument(key):
     """``requirements`` and ``economics`` have an argument each, and the error says which."""
@@ -422,6 +463,14 @@ async def test_a_tool_without_a_case_says_no_case():
     result = await call(read_case, {})
     assert result.output["error"]["code"] == "no_case"
     assert result.output["error"]["message"].startswith("case: the problem state has no case")
+
+
+async def test_no_case_in_a_project_with_a_case_file_says_to_load_it():
+    """A model read ``no_case`` as "the project has no case"; the error names the case file."""
+    result = await call(read_case, {}, project_session("hackathon_2026"), project="p")
+    error = result.output["error"]
+    assert error["code"] == "no_case"
+    assert "the project has a case file: set_case(source='project') loads it" in error["message"]
 
 
 async def test_a_tool_on_an_incomplete_case_names_what_is_missing():

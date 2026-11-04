@@ -303,6 +303,20 @@ Each per-agent task on both models, the same fixtures, prompts and commit, no pr
 | case_lead/change_one | A | nemotron-3.5-super (free) | pass | case accepted by gemini, sourced | 3 | 3 | 0 | 34282/17344/631 | 14 | 0.0000 |
 | case_lead/question | A | nemotron-3.5-super (free) | pass | sourced | 3 | 3 | 1 | 33132/26016/1373 | 9 | 0.0000 |
 | geoscientist/brief | A | nemotron-3.5-super (free) | pass | sourced | 4 | 4 | 1 | 31619/13008/5265 | 32 | 0.0000 |
+| case_lead/project | A3 | deepseek-v4.1-flash | fail | no case: one files-only set_case (`case_incomplete`), never resent whole; step limit; geoscientist 4 times after `already_asked`, lower-cased file names again; no question | 35 | 83 | 10 | 1927191/1337099/45351 | 598 | 0.0475 |
+| case_lead/from_files | A3 | deepseek-v4.1-flash | pass | case set by the criteria, but its answer says it never read the files (22 `read_rag`); step limit | 35 | 83 | 9 | 1863975/1354159/56263 | 715 | 0.0501 |
+| case_lead/from_chat | A3 | deepseek-v4.1-flash | fail | stopped at the cap after 14 `search_rag`, before any set_case; the cap's answer no longer flagged by `sourced` (#116) | 6 | 30 | 3 | 285237/189908/25526 | 370 | 0.0162 |
+| case_lead/flawed | A3 | deepseek-v4.1-flash | fail | loaded the project's case, then stopped at the cap reading (`read_stored` 7) before any question | 13 | 34 | 1 | 466650/250039/27492 | 325 | 0.0215 |
+| case_lead/change_one | A3 | deepseek-v4.1-flash | pass | case accepted by gemini, sourced | 6 | 7 | 0 | 71682/32252/5564 | 57 | 0.0041 |
+| case_lead/question | A3 | deepseek-v4.1-flash | pass | sourced | 3 | 4 | 1 | 32836/20476/1804 | 24 | 0.0014 |
+| geoscientist/brief | A3 | deepseek-v4.1-flash | pass | sourced | 6 | 11 | 1 | 64053/6144/11725 | 160 | 0.0075 |
+| case_lead/project | A3 | nemotron-3.5-super (free) | fail | no case: `set_case`'s `changes` as JSON text with a stray `}` mid-text, twice, ended the run (bug 3 of the rerun); it did read the cost catalogue and search before setting | 12 | 20 | 3 | 394187/208128/78724 | 481 | 0.0000 |
+| case_lead/from_files | A3 | nemotron-3.5-super (free) | fail | case accepted with `°C/km` and mol% mapped by set_case, listed in its one question; no economics, fails `before`; run error: `update_state` JSON text broken twice | 14 | 19 | 6 | 398314/281840/64139 | 355 | 0.0000 |
+| case_lead/from_chat | A3 | nemotron-3.5-super (free) | fail | case accepted; `sourced`: 365 (a day count it wrote) | 8 | 15 | 2 | 227042/138752/35134 | 207 | 0.0000 |
+| case_lead/flawed | A3 | nemotron-3.5-super (free) | fail | loaded the case after the new `no_case` text (#68) and named the flaws (span, cooling return, ...) in its answer, but asked no question | 4 | 6 | 1 | 76303/17344/4947 | 31 | 0.0000 |
+| case_lead/change_one | A3 | nemotron-3.5-super (free) | pass | case accepted by gemini, sourced | 3 | 3 | 0 | 36345/26016/802 | 10 | 0.0000 |
+| case_lead/question | A3 | nemotron-3.5-super (free) | pass | sourced | 3 | 3 | 1 | 34083/8672/1131 | 10 | 0.0000 |
+| geoscientist/brief | A3 | nemotron-3.5-super (free) | pass | sourced | 3 | 3 | 0 | 21512/8672/5960 | 36 | 0.0000 |
 
 Track C, round C4 at 39c4003: 5 of 5 on each model, no 429, no markup check firing. nemotron took fewer calls and a third to a half the time on the lead's two longer tasks; its failed calls are `update_state` slips (JSON text, a stray bracket), each corrected on the next call. Both models failed the same way only where the prompt was wrong (#85, #88, #90).
 
@@ -341,6 +355,10 @@ Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/C
 | 64 | C2, case lead | worked out a room dew point (14.6 degC) inside a question; with the new `sourced` criterion also a temperature from the gradient, a GWP from memory, an end date and a step count | prompt forbids any number it worked out or knows from memory; `read_rag`'s table gives the case span; eval criterion `sourced` | de37595 |
 | 65 | Track A, case lead | told `changes=<the same changes>` after a missing file, sent the files alone three times and the run stopped | the retry names everything to send again; files alone on no case say they go with the changes | dev45 |
 | 66 | Track A, case lead | a gradient in `degC/km` got `{'unit': 'degC'}` and the units of temperature as its fix | the quantity of a two-word unit message (`temperature gradient`) is read whole | dev45 |
+| 68 | Track A rerun (dev51), case lead on nemotron | `read_case`'s `no_case` read as "the project has no case file": it asked for every site value and raised none of the flaws of the project's case | `no_case` in a project with a case file says "the project has a case file: set_case(source='project') loads it" | track-a3 |
+| 69 | Track A rerun (dev51), case lead on DeepSeek | after a refused full `set_case` it sent the files-only call `case_incomplete` had refused, three times, until the repeat guard stopped the run; called the geoscientist 4 times after `already_asked`; lower-cased file names in `read_rag` | prompt: after a refused full call fix the named keys and send the SAME full call, never files alone; never call the geoscientist after `already_asked`; file names as `list_files` gives them | track-a3 |
+| 115 | Track A rerun (dev51), case lead on both models | wrote the gradient as `degC/km`/`°C/km` and the gas fractions in `mol%` (`CH4 80`), as the brief does; gemini 0.6.1 refuses both. nemotron never searched the knowledge base before asking, so the case got no economics (`before` failed) | `set_case` maps `°C/km`, `degC/km`, `C/km` to `K/km` (same number) and turns `%`/`mol%` on a gas fraction into the fraction, listing each in `converted` for the confirmation question (removed when gemini requests 15 and 31 land; the one unit-math line allowlisted); prompt: `search_rag` for each missing value and the cost catalogue, always, before the one question | track-a3 |
+| 116 | Track A rerun (dev51), evals | `sourced` flagged the numbers of the engine's answer at a limit (cost used, the cap, tokens needed) as made up | `Outcome.partial`, set from the run's stop reason, leaves that answer out of `sourced`; questions are still checked | track-a3 |
 | 85 | C1 (Track C), economist | told to cost a design, it sampled 200 draws and a sensitivity with a seed it chose (192 s) | uncertainty and sensitivity only when the task asks for them | track-c |
 | 86 | C1 (Track C), evals | the `sourced` criterion left out the problem state's `Case:` line, so the case's own years counted as made up | the state's `Case:` line is read; the agent's notes and questions stay out | track-c |
 | 87 | C2 (Track C), economist and analysis lead on nemotron | sent `update_state`'s `changes` as a JSON string; two refusals in a row stopped the economist's nested run, and the lead finished without it | `Tool.validate` reads a list or an object given as its JSON text (model-agnostic) | track-c |
@@ -456,6 +474,10 @@ Open requests to gemini (full text in the adaptation notes):
     a test to tell the agents (`heating_coverage`, `cooling_coverage`, `cop`, `peak_heat`,
     `peak_cold` and the five objectives); `gm.evaluate.metrics()` does not say which a study reads
     (Track C, bug #90).
+31. `site.ground.gradient` refuses `°C/km` and `degC/km`, the unit briefs write (only `K/km`,
+    `K/m`); a temperature gradient is a temperature difference per length, so `°C/km` is `K/km`
+    with the same number. Asked: accept `°C/km` and `degC/km` (and `/m`) as a temperature
+    gradient; geomind's `set_case` maps them until then (Track A3, bug #115).
 16. Economics units the cited cost data needs but the keys refuse: `capex.ice_storage` per MWh of
     cold (only EUR/m3), `capex.heat_exchanger` in EUR/W (only EUR/(W/K)), `capex.pipe` in EUR/MW/m
     (only EUR/m), `opex.fixed.*` as an amount per W or MW per year (only %/yr), and

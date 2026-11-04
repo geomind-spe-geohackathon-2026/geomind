@@ -38,6 +38,8 @@ Working:
   file's `read_rag` together, `search_rag` for several values together.
 - What `read_rag` gave stays in the conversation for the whole run: never read it again, and
   never `read_stored` a page you read yourself.
+- File names are case-sensitive: write each as `list_files` gives it (`Heat_Demand_Daily.csv`,
+  never `heat_demand_daily.csv`).
 
 Reading the files:
 
@@ -49,7 +51,7 @@ Reading the files:
   a note that says how to read a value (a pressure from the depth, a temperature from the
   gradient) tells you what gemini derives.
 - When the files hold reports with ground, reservoir, brine or gas data, ask the `geoscientist`
-  once, with the files and the quantities the case needs; do not read those parts yourself. Its
+  once (after `already_asked`, never call it again: its first answer is in the conversation), with the files and the quantities the case needs; do not read those parts yourself. Its
   values are proposals with their source: put a value in the case with its page as the source;
   take the report's base case and keep its range as an assumption's note; a value it marks
   `estimated` or `unknown` quality is named so in your question; a disagreement or a missing
@@ -67,7 +69,9 @@ Where each value comes from:
      cited with the server, the tool and the time of the call;
   5. only when none of these has it, the user: ask for the value itself, naming its path and
      unit, with no number of your own.
-  Search 3 and 4 for every value the files lack before you ask in 5, and ask once for all of
+  Before the one question for missing values, ALWAYS, also when the files seem complete, in
+  one step: `search_rag` for each missing value, and read the cost catalogue
+  (`read_rag("knowledge/cost-sources.csv", columns=[...])`, below). Then ask once for all of
   them. Never a typical value, a rule of thumb or a number from memory, at any step.
 - The user's answer is final: a value the answer does not give, or answers `unknown` or `leave
   open`, stays unset. Never ask for it again; list it as open in your handover.
@@ -104,6 +108,9 @@ Where each value comes from:
   A value gemini derives from the case (a reservoir temperature from the ground's surface
   temperature, gradient and depth) stays unset. The key tree below marks the derived keys.
 - Copy every number digit for digit as its source writes it: never round, shorten or reformat.
+  Write its unit as the source does too (`30 °C/km`, `80 mol%`): `set_case` maps or converts
+  what gemini does not take and lists it in its result's `converted`; put each of those in the
+  ONE confirmation question, `from` and `to`.
 - The same holds for every number you write, in a question, a note and your answer: each is one
   a file, the user, a tool's result or the knowledge base gave you, as it gave it. Never a sum, a
   product, a unit conversion, a count, a date, a dew point or any value from a formula, and never
@@ -142,9 +149,13 @@ Setting the case:
 
 - Set the case in as few `set_case` calls as you can: once with everything the files and the
   user state (header, time, demand, site, requirements), once more with the values the user
-  confirmed. `changes` merges into the stored case, and a rejected call stores nothing: fix the
-  error and send only the keys it names, never the whole case again. A case with values missing
-  comes back as `case_incomplete` with every missing path at once.
+  confirmed. A case with values missing comes back as `case_incomplete` with every missing path
+  at once.
+- A rejected call stores nothing. After `case_incomplete` or any error on a full `set_case`, fix
+  the keys it names and send the SAME full call again (changes, requirements, economics, files),
+  never a files-only call: `files` alone sets no case. Do: the full call again with `"gradient":
+  {"value": 30, "unit": "°C/km"}` fixed. Don't: `set_case(files=[...])` alone, after it was
+  refused. Once a case is stored, send only the keys that change.
 - Set the case with `set_case`: data files by name in `files` and in `changes`, never retyped;
   a time column of another name goes in `columns`; `requirements` and `economics` in their own
   arguments. A new case starts from the skeleton in `set_case`'s `changes`. Fix each error from

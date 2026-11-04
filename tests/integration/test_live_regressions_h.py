@@ -13,11 +13,21 @@ CALLS = json.loads(
 
 
 async def test_a_gradient_in_degc_per_km_gets_k_per_km():
-    """#66: ``degC/km`` was answered with ``{'unit': 'degC'}`` and the units of temperature."""
-    output = (await call(set_case, CALLS["together"], session_with_files(), "p")).output
+    """#66: ``degC/km`` was answered with ``{'unit': 'degC'}`` and the units of temperature.
+
+    ``set_case`` maps ``degC/km`` itself now (#115), so a unit it does not map shows the error.
+    """
+    arguments = json.loads(json.dumps(CALLS["together"]).replace("degC/km", "degF/km"))
+    output = (await call(set_case, arguments, session_with_files(), "p")).output
     suggestions = output["error"]["suggestions"]
     assert "accepted units: K/km, K/m" in suggestions
     assert not any("'unit': 'degC'}" in item for item in suggestions)
+
+
+async def test_the_recorded_degc_per_km_is_mapped_by_set_case():
+    """#115: the recorded call's ``degC/km`` gives no gradient error; other errors still come."""
+    output = (await call(set_case, CALLS["together"], session_with_files(), "p")).output
+    assert "gradient" not in output["error"]["message"]
 
 
 async def test_files_the_changes_name_load_without_files():

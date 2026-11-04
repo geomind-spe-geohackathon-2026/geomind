@@ -144,7 +144,8 @@ class SourcedCriterion(Record):
         """Return what is wrong, or ``None``."""
         read = _numbers(outcome.read)
         read |= {round(item, places) for item in read for places in PLACES}
-        found = _numbers(" ".join([outcome.answer, *outcome.questions]))
+        answer = "" if outcome.partial else outcome.answer
+        found = _numbers(" ".join([answer, *outcome.questions]))
         unread = sorted({item for item in found if item not in read and not self._is_small(item)})
         return f"sourced: numbers no message holds {unread}" if unread else None
 
