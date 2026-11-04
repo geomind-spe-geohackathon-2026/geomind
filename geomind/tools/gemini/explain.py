@@ -291,7 +291,7 @@ def unit_retry(error, data):
         given = UNIT_GIVEN.search(problem["message"])
         if quantity is None or given is None or not problem["path"].endswith(".unit"):
             continue
-        units = list(gm.units.names(quantity[1].replace(" ", "_")))
+        units = [unit for name in quantities(quantity[1]) for unit in gm.units.names(name)]
         field = problem["path"].removesuffix(".unit")
         sent = field_of(data, field)
         guess = unit_guess(given[1], units)
@@ -301,6 +301,15 @@ def unit_retry(error, data):
             suggestions.append(f"{field} = {corrected!r}")
         suggestions.append(f"{field}: accepted units: {join_names(units)}")
     return suggestions
+
+
+def quantities(text):
+    """Return the quantity names gemini's message spells, ``money per volume or money per energy``.
+
+    A key with several bases (``capex.ice_storage``) names each quantity; ``gm.units`` knows each
+    alone, never the words joined (E2E-10).
+    """
+    return [part.strip().replace(" ", "_") for part in text.split(" or ")]
 
 
 def unit_error(error, quantity):

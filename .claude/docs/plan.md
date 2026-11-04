@@ -582,6 +582,12 @@ A candidate for Sahand, not sent: gemini 0.6.3 describes each entry of a map as 
 this map for <key>." (`opex.fixed.boiler`, `site.fluid.dissolved_gas.CO2`), which says nothing;
 geomind skips that text so the map's own description shows.
 
+A request from fix-case (E2E-10, to number at merge): an `invalid_unit` problem of a case or
+economics leaf should carry the issue's `quantity` names and `accepted` units in `problem()` and
+`ValidationError.problems` (gemini's `units/inputs.py` `_unit_issue` builds both, then drops them),
+so geomind need not read "a unit of money per volume or money per energy" from the message text
+(`explain.quantities` splits it on " or " meanwhile).
+
 Items 1 to 22 were merged into Sahand's list to gemini on 2026-11-04 00:30 (the coordinator's
 16-21 overlap these numbers); new requests are numbered from 26 on.
 

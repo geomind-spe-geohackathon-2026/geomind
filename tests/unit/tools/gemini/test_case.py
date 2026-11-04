@@ -709,3 +709,95 @@ def test_set_case_takes_changes_sent_as_json_text():
     """A model sent ``changes`` as its JSON text twice and the run ended (#67)."""
     arguments = set_case.validate({"changes": '{"format": 1, "site": {"name": "a"}}'})
     assert arguments["changes"] == {"format": 1, "site": {"name": "a"}}
+
+
+def files_project(name, folder=""):
+    """Return a session whose project ``p`` holds an example's case among its files, in ``folder``.
+
+    The backend's view: ``case.json`` and its files are project files (``files/case.json``), and
+    the workspace has no case of its own (E2E-1).
+    """
+    data, files = example_case(name)
+    held = {f"{folder}case.json": json.dumps(data).encode()}
+    held |= {f"{folder}{file}": content for file, content in files.items()}
+    return StubSession(workspace=MemoryWorkspace(files={"p": held}))
+
+
+@pytest.mark.parametrize("folder", ["", "inputs/"])
+async def test_a_case_json_among_the_project_files_is_the_project_case(folder):
+    """E2E-1: the project had ``files/case.json`` and set_case(source='project') said no case.
+
+    A ``case.json`` among the project's files is the project's case, its files named beside it.
+    """
+    session = files_project("shallow_district", folder)
+    result = await call(set_case, {"source": "project"}, session, project="p")
+    assert result.is_error is False, result.output
+    data, files = example_case("shallow_district")
+    assert state_after(session).case == data
+    assert session.artifacts["case/data/demand.csv"] == files["data/demand.csv"]
+
+
+async def test_a_project_without_a_case_says_where_it_looked():
+    """E2E-1: the refusal names where a project case is read from, so no file is retyped."""
+    session = StubSession(workspace=MemoryWorkspace(files={"p": {"brief.pdf": b"%PDF"}}))
+    result = await call(set_case, {"source": "project"}, session, project="p")
+    message = result.output["error"]["message"]
+    assert result.is_error and "case.json" in message and "list_files" in message
+
+
+async def test_a_json_named_case_that_is_no_case_is_refused_with_its_kind():
+    """A ``case.json`` among the files that is no gemini case is named as such, never loaded."""
+    held = {"case.json": json.dumps({"kind": "plant", "name": "x"}).encode()}
+    session = StubSession(workspace=MemoryWorkspace(files={"p": held}))
+    result = await call(set_case, {"source": "project"}, session, project="p")
+    assert result.is_error and "'plant'" in result.output["error"]["message"]
+
+
+async def test_a_new_case_takes_its_own_arguments_from_changes():
+    """E2E-8: a first case with ``requirements``, ``files`` and ``columns`` inside ``changes``.
+
+    The run spent two calls on "changes has 'requirements'" and "key 'files'"; on a case that has
+    none of them yet, they are the arguments of the same name, so the call is set as it is.
+    """
+    session = session_with_file()
+    requirements = [{"name": "few", "on": "doublet", "quantity": "count", "min": 1, "max": 2}]
+    renamed = DEMAND.replace(b"time,", b"date,")
+    session.workspace.project_files["p"]["demand.csv"] = renamed
+    changes = {
+        **FROM_FILE,
+        "requirements": requirements,
+        "files": ["demand.csv"],
+        "columns": {"demand.csv": {"date": "time"}},
+    }
+    result = await call(set_case, {"changes": changes}, session, "p", ProblemState())
+    assert result.is_error is False, result.output
+    case = result.output["case"]
+    assert case["requirements"] == requirements and "files" not in case and "columns" not in case
+    assert session.artifacts["case/demand.csv"].startswith(b"time,")
+
+
+async def test_a_fraction_out_of_bounds_comes_with_gemini_s_problems_in_one_call():
+    """E2E-8: pump_efficiency 70 was refused only after gemini's two problems were fixed.
+
+    Every problem of the call comes back at once: gemini's and the efficiency's.
+    """
+    session, problem = await loaded("hackathon_2026")
+    changes = {"site": {"ground": {"gradient": {"value": 30, "unit": "K/s"}}}}
+    recorded = {"on": "doublet", "quantity": "pump_efficiency", "min": 70, "max": 70}
+    arguments = {"changes": changes, "requirements": {"pump_efficiency": recorded}}
+    result = await edited(session, problem, arguments)
+    message = result.output["error"]["message"]
+    assert result.is_error and "problems at 2 paths" in message
+    assert "site.ground.gradient.unit" in message and "0.7, not 70" in message
+
+
+async def test_a_series_without_its_column_names_the_columns_of_its_file():
+    """E2E-8: ``demand.heating.power.column = None`` came back with no suggestion of a column."""
+    session = session_with_file()
+    power = {"unit": "MW", "file": "demand.csv"}
+    changes = {**FROM_FILE, "demand": {"heating": {"power": power}}}
+    result = await call(set_case, {"changes": changes}, session, "p", ProblemState())
+    assert result.is_error is True
+    assert "demand.heating.power.column: a column of demand.csv: 'heat_mw'" in "".join(
+        result.output["error"]["suggestions"]
+    )

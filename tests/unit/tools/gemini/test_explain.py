@@ -120,3 +120,24 @@ def test_the_same_problem_on_many_rows_is_one_line():
     ]
     message = shown_message(gm.errors.ValidationError.of(problems))
     assert message == "f: a.csv row 2 t = '2' bad (the same on 3 rows, rows 2 to 7)"
+
+
+def test_a_unit_of_a_key_with_two_bases_lists_the_units_of_both():
+    """E2E-10: ``capex.ice_storage`` takes money per volume or per energy.
+
+    gemini says "a unit of money per volume or money per energy"; the two were joined into one
+    quantity, ``money_per_volume_or_money_per_energy``, which ``gm.units`` refused, and the
+    user's approve all was lost. Each quantity is looked up alone.
+    """
+    import gemini as gm
+
+    from geomind.tools.gemini.explain import unit_retry
+
+    economics = {"capex": {"ice_storage": {"value": 23249.87, "unit": "EUR/MWh cold"}}}
+    data = {"format": 1, "kind": "economics", "name": "e", **economics}
+    with pytest.raises(gm.errors.ValidationError) as caught:
+        gm.case.Economics.from_dict(data)
+    suggestions = unit_retry(caught.value, {"economics": economics})
+    accepted = next(item for item in suggestions if "accepted units" in item)
+    assert "EUR/m3" in accepted and "EUR/MWh" in accepted
+    assert "economics.capex.ice_storage = {'value': 23249.87, 'unit': 'EUR/MWh'}" in suggestions
