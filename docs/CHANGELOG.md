@@ -6,6 +6,20 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### What the end-to-end run showed (0.4.22.dev59)
+
+The end-to-end run on nemotron for every role (memory off, e2e-final), each bug pinned by a test
+with its recorded input.
+
+- Fix (#124), behaviour: `Agent.answer_problem(context)`, checked before an answer (a `finish` or a text answer) is accepted; its text goes back to the model as `finish` feedback. The case lead refuses once an answer of a run that called `set_case` and left the case with no economics and asked no `ask_user` naming economics, with its step 5. Prompts: the project lead's case brief asks for the economics and leaves the questions to the case lead; the case lead follows its workflow in a delegated run too and asks with `ask_user`, never in its answer's text. The delegated case lead had read the catalogue, set no economics and asked nothing.
+- Fix (#125): `list_profiles` lists a service with no return temperature as `null` instead of crashing.
+- Fix (#126), behaviour: a call with an argument the tool does not have is an error result naming the tool's arguments (code `invalid_input`, `path` the unknown name, `suggestions` the real names), and no validation failure: it does not count toward "2 invalid calls in a row". `read_plant with_schema` had ended two design-lead runs.
+- Fix (#127), behaviour: with the memory off, the curator is not offered (`needs_memory`) besides the memory tools, and a call of a tool the run does not offer is answered `not_allowed` without running. The support lead's prompt says to finish at once then.
+- Fix (#129), behaviour: JSON text of a list whose object closed before its last key (`"reason": "x"}, "citation": null}]`) is read with that `}` deleted, as nemotron's `update_state changes` (`tests/fixtures/live/h_update_state_early_close.json`).
+- Fix (#130), behaviour: `set_case` refuses a requirement on an efficiency, fraction or share (no unit) with a bound outside 0-1 (code `out_of_bounds`, "an efficiency is a fraction 0-1: 0.7, not 70"; no number of geomind's own: the fixed example only). nemotron wrote `pump_efficiency` 70.
+- Fix (#131), behaviour: `search_rag`'s "already searched in this run" note follows the run's conversation in call order, so a resumed run and `geomind replay` give the note the live run gave; the run tree's in-process set of searches is gone. A replay had failed on two calls of one step with the same words.
+- #128, no change of behaviour: the suggestions of `run.finished` keep one step from outside the stage's own, as before; `finish`'s description says so. gemini request 32 (`site.air.pressure` from the site's elevation) in plan.md.
+
 ### The case team, fifth round (0.4.22.dev58)
 
 The case team after the A4 rerun on both models; each bug pinned by a test.

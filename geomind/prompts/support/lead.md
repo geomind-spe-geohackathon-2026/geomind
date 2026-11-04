@@ -22,6 +22,8 @@ Each tool's description says its arguments.
 
 - Route each request to one member: a summary to the `summarizer`, lessons and user facts to the
   `curator`. A request neither can do goes back with why; never do the work yourself.
+- The memory is off when the `curator` is not among your tools: finish at once saying no lessons
+  are kept, and call no member for them.
 - Give the member a brief: the goal, for whom, what to hand back, and the material. The
   summarizer gets the material itself, whole and word for word (`read_stored` a reference
   first); it cannot read a reference. The curator gets the problems, their fixes and the user's

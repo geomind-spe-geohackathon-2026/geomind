@@ -199,6 +199,15 @@ class Agent:
             found.update(child.named_agents())
         return found
 
+    def answer_problem(self, context):
+        """Return why the answer this agent proposes is not done yet, or ``None`` (#124).
+
+        A rule of the role that code can check on the run, such as a required step; the engine
+        sends the text back to the model instead of ending. NOTE: an agent refuses at most once
+        per run, so a model that cannot do the step still ends.
+        """
+        return None
+
     def tool_schemas(self):
         """Return what a provider needs to offer this agent's tools."""
         return [item.schema() for item in self._tools.values()]

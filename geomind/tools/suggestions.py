@@ -284,6 +284,8 @@ async def finish(answer: Any, suggestions: list[dict[str, str]] | None = None):
     check_case, compare_options, optimise, economics, check_design, report, sensitivity,
     explain, rerun_study, wait_study, uncertainty, structure_search, other_objective,
     other_case; ``label`` at most 40 characters, ``message`` (what the user sends when they pick
-    it) at most 200. Code keeps those that fit, else gives the stage's own steps.
+    it) at most 200. Code keeps those that fit, with at most one step that is not of the
+    stage's own (so ``other_case``, a step after the results, rarely), else gives the stage's own
+    steps.
     """
     return Finish(answer=answer, suggestions=suggestions)

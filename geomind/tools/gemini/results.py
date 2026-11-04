@@ -85,14 +85,15 @@ def search_rag(context, query: str):
         )
     matches = in_turn(project or [], knowledge or [])[:SHOWN_MATCHES]
     result = {"matches": matches}
-    words = frozenset(word.lower() for word in WORD.findall(query))
-    searched = searches_of(context)
     note = [NO_MATCH] if not matches else []
-    if searched is not None and words in searched:
+    if words_of(query) in searched_before(context):
         note.insert(0, SEARCHED)
-    if searched is not None:
-        searched.add(words)
     return {**result, "note": " ".join(note)} if note else result
+
+
+def words_of(query):
+    """Return the set of lower-case words of a query: the same words in any order are the same."""
+    return frozenset(word.lower() for word in WORD.findall(str(query)))
 
 
 def in_turn(first, second):
@@ -149,10 +150,21 @@ def page_at(text, position):
     return int(markers[-1]) if markers else None
 
 
-def searches_of(context):
-    """Return the word sets the run tree searched, kept on its root session, or ``None``."""
-    session = getattr(context.session, "root_session", context.session)
-    return getattr(session, "searches", None)
+def searched_before(context):
+    """Return the word sets of this run's ``search_rag`` calls before this call, in call order.
+
+    They are read from the run's conversation, so a resumed run and a replay give the same note
+    as the live run, also for two calls of one step that run together (#131): the first listed is
+    the first searched, whichever finished first. A call outside a run's conversation has none.
+    """
+    found = set()
+    for message in context.messages:
+        for call in message.tool_calls if message.role == "assistant" else ():
+            if call.id == context.call_id:
+                return found
+            if call.name == "search_rag":
+                found.add(words_of(call.input.get("query", "")))
+    return set()
 
 
 def file_passages(context):

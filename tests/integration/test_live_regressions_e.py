@@ -40,14 +40,19 @@ async def test_a_search_without_a_match_says_the_files_do_not_state_it():
 
 
 async def test_a_search_made_again_says_so():
-    """The same words again: the note says it was searched, with the same matches."""
+    """The same words again in the run's conversation: the note says so, with the same matches."""
+    from geomind.engine import Context
+    from geomind.tools import dispatch
+    from geomind.types import Message, ToolCall
+
     session = session_with({"brief.md": BRIEF.encode()})
-    query = {"query": "district heating network"}
-    first = (await call(search_rag, query, session, "p")).output
-    again = await call(search_rag, {"query": "Network heating district"}, session, "p")
-    assert (
-        again.output["matches"] == first["matches"] and "already searched" in again.output["note"]
-    )
+    first = ToolCall(id="c1", name="search_rag", input={"query": "district heating network"})
+    again = ToolCall(id="c2", name="search_rag", input={"query": "Network heating district"})
+    messages = [Message(role="assistant", tool_calls=(first, again))]
+    context = Context(messages=messages, project="p", session=session)
+    found = [(await dispatch(search_rag, item, context)).output for item in (first, again)]
+    assert found[1]["matches"] == found[0]["matches"] and "already searched" in found[1]["note"]
+    assert "note" not in found[0] or "already searched" not in found[0]["note"]
 
 
 async def test_a_file_name_alone_is_no_match():

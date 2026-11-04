@@ -192,6 +192,20 @@ async def _refuse_unknown(session, agent, call):
     return Stop("error", f"{call.name}: unknown tool") if failures >= MAX_UNKNOWN_CALLS else None
 
 
+async def _refuse_hidden(session, call):
+    """Answer a call of a tool the run does not offer (the memory is off) without running it.
+
+    NOTE: no validation failure: the model named a tool from its prompt, and the answer says why.
+    """
+    error = ToolError(
+        f"{call.name}: the memory is off for this run (GEOMIND_MEMORY), so {call.name} is not "
+        "offered; call no memory tool and go on without it",
+        code="not_allowed",
+    )
+    result = ToolResult(call_id=call.id, tool=call.name, output=error_output(error), is_error=True)
+    await record_result(session, call, result)
+
+
 def _runs_together(tool):
     """Tell whether a tool runs beside the other calls of its step."""
     return (tool.is_pure or getattr(tool, "runs_beside", False)) and not tool.runs_alone
@@ -203,6 +217,7 @@ async def _run_calls(session, agent):
     await session.ensure_mcp()
     calls = [call for call in state.calls if call.id not in state.results]
     tools = session.tools_of(agent, [call.name for call in calls])
+    hidden = session.hidden_tools(agent)
     is_together = all(call.name in tools and _runs_together(tools[call.name]) for call in calls)
     admitted = []
     for call in calls:
@@ -210,6 +225,9 @@ async def _run_calls(session, agent):
             stop = await _refuse_unknown(session, agent, call)
             if stop is not None:
                 return stop
+            continue
+        if call.name in hidden:
+            await _refuse_hidden(session, call)
             continue
         outcome = await _admit(session, agent, tools[call.name], call)
         if isinstance(outcome, Stop):
@@ -259,6 +277,10 @@ async def _gate_answer(session, agent, answer, call):
         return Stop("cancelled", decision.reason)
     if isinstance(decision, Deny):
         await _give_feedback(session, agent, call, decision.reason, "finish")
+        return None
+    unfinished = agent.answer_problem(session.context())
+    if unfinished:
+        await _give_feedback(session, agent, call, unfinished, "finish")
         return None
     try:
         answer = agent.output.validate(answer)

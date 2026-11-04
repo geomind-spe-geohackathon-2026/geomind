@@ -124,3 +124,24 @@ async def test_a_run_with_the_memory_off_is_not_offered_the_memory_tools():
         names = [item["name"] for item in session.offered_schemas(DesignLead())]
     assert "search_memory" not in names and "write_memory" not in names
     assert "simulate" in names
+
+
+async def test_with_the_memory_off_the_curator_is_not_offered_and_a_call_runs_nothing():
+    """#127: with the memory off the curator is not offered, and a call of it is not_allowed.
+
+    The support lead had delegated to the curator, which called search_memory and write_lesson
+    three times with the memory off.
+    """
+    from geomind.agents.support.lead import SupportLead
+
+    agent = SupportLead()
+    completions = [uses(call("curator", task="keep the lessons")), says("no lessons kept")]
+    with runtime.settings(memory="off"):
+        session = RunSession(engine_for([says()]), None, RunState(), None)
+        names = [item["name"] for item in session.offered_schemas(agent)]
+        result, _, events = await run(completions, agent=agent)
+    assert "curator" not in names and "summarizer" in names
+    assert result.status == "done"
+    [answer] = [item for item in of_type(events, "tool.result") if item.tool == "curator"]
+    assert answer.is_error and answer.output["error"]["code"] == "not_allowed"
+    assert not of_type(events, "run.started")[1:]

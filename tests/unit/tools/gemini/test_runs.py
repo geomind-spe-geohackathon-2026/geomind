@@ -252,6 +252,18 @@ async def test_list_profiles_names_the_services_of_the_demand(name):
     assert rows["heating"]["peak"]["value"] == pytest.approx(HEATING_PEAK_MW[name])
 
 
+async def test_list_profiles_lists_a_service_with_no_return_temperature():
+    """The end-to-end case left both return temperatures open: the row says None (#125)."""
+    context = await case_context("hackathon_2026")
+    for service in ("heating", "cooling"):
+        del context.problem.case["demand"][service]["return_temperature"]
+    result = await call(TOOLS.list_profiles, {}, context.session, problem=context.problem)
+    assert not result.is_error, result.output
+    rows = {row["service"]: row for row in result.output}
+    assert rows["heating"]["return_temperature"] is None
+    assert rows["heating"]["supply_temperature"]["unit"] == "degC"
+
+
 async def test_without_a_case_the_profiles_say_what_to_call():
     """No case, no demand: the same tool error as a run."""
     from tests.fixtures.sessions import StubSession

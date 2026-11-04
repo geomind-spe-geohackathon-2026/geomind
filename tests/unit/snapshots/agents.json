@@ -6,6 +6,7 @@
     "Agent": {
       "__call__": "(self, context)",
       "__init__": "(self)",
+      "answer_problem": "(self, context)",
       "children": "(self)",
       "complete": "(self, context, messages)",
       "forward": "(self, context)",
@@ -855,5 +856,5 @@
       "Model"
     ]
   },
-  "version": "0.4.22.dev58"
+  "version": "0.4.22.dev59"
 }

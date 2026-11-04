@@ -247,6 +247,22 @@ async def test_a_rejected_requirement_stores_nothing():
     assert (len(session.changes), session.artifacts) == before
 
 
+async def test_an_efficiency_in_percent_with_no_unit_is_refused_with_its_fraction():
+    """#130: nemotron set pump_efficiency min 70 max 70; gemini reads that as 70, not 0.7."""
+    session, problem = await loaded("hackathon_2026")
+    before = len(session.changes)
+    recorded = {"on": "doublet", "quantity": "pump_efficiency", "min": 70, "max": 70}
+    result = await edited(session, problem, {"requirements": {"pump_efficiency": recorded}})
+    assert result.is_error is True
+    error = result.output["error"]
+    assert "a fraction 0-1: 0.7, not 70" in error["message"]
+    assert error["path"].startswith("requirements[") and error["code"] == "out_of_bounds"
+    assert len(session.changes) == before
+    right = {**recorded, "min": 0.7, "max": 0.7}
+    result = await edited(session, problem, {"requirements": {"pump_efficiency": right}})
+    assert result.is_error is False, result.output
+
+
 async def test_economics_is_a_merge_patch_on_its_file_stored_as_a_new_content():
     """The case keeps its file name and the new content is the patched economics."""
     session, problem = await loaded("shallow_district")

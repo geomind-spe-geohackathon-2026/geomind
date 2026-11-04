@@ -18,6 +18,7 @@ from geomind.errors import (
 from geomind.tools.stored import STORE_CHARACTERS, reference_of, stored_form
 from geomind.types import Finish, Problem, Request, ToolResult
 from geomind.utils.json import to_jsonable
+from geomind.utils.strings import did_you_mean, join_names
 
 MARKUP = re.compile(r"</|<(?:parameter|invoke|function_calls|function)\b|^\s*\"?>")
 """Tool-call markup a model leaks into an argument's value instead of ending the value (#70)."""
@@ -177,6 +178,24 @@ def markup_error(tool, found):
     )
 
 
+def unknown_arguments_error(tool, unknown):
+    """Return the error of a call with arguments the tool does not have, naming its own (#126).
+
+    NOTE: it is no validation failure, which two in a row end the run: a made-up extra argument
+    (``read_plant with_schema``) is answered with the real names, and the next call drops it.
+    """
+    names = list((tool.input_schema.get("properties") or {}).keys())
+    hints = "".join(did_you_mean(name, names) for name in unknown)
+    expected = f"its arguments are {join_names(names)}" if names else "it takes no arguments"
+    return ToolError(
+        f"{tool.name}: unknown argument(s) {join_names(unknown)}; {expected}{hints}. Send the "
+        "call again without them",
+        code="invalid_input",
+        path=unknown[0],
+        suggestions=names,
+    )
+
+
 async def dispatch(tool, call, context):
     """Validate, run and time one call.
 
@@ -188,6 +207,10 @@ async def dispatch(tool, call, context):
     found = None if tool.name in PROSE_TOOLS else leaked_markup(call.input)
     if found is not None:
         output = error_output(markup_error(tool, found))
+        return _result(tool, call, started, output, is_error=True)
+    unknown = tool.unknown_arguments(call.input)
+    if unknown:
+        output = error_output(unknown_arguments_error(tool, unknown))
         return _result(tool, call, started, output, is_error=True)
     try:
         arguments = tool.validate(call.input)
