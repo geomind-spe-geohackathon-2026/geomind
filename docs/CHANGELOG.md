@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.40] - 2026-11-04
+
+### Fixed
+
+- QA-037: before the engine asks the user to approve a call, a tool's `precheck` may check it without its effect; `set_case` runs gemini's check of the whole case without storing anything. A call gemini refuses comes back to the model as its error at once, so the user approves only a case gemini accepts, once.
+
 ## [0.4.39] - 2026-11-04
 
 ### Fixed

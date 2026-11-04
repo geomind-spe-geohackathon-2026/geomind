@@ -13,6 +13,7 @@ design whose case differs from it (``case_changes``) until the user approves the
 case.
 """
 
+import contextvars
 import copy
 import difflib
 import hashlib
@@ -394,6 +395,10 @@ def case_of(context):
     return readable_case(data, file_contents(context, data, {}))
 
 
+DRY_RUN = contextvars.ContextVar("geomind_case_dry_run", default=False)
+"""Set while ``set_case`` only checks its call before an approval: nothing is stored (QA-037)."""
+
+
 async def store_case(context, data, supplied, origin=None):
     """Validate a case dict with its files, keep the files and the case; return the version.
 
@@ -402,6 +407,8 @@ async def store_case(context, data, supplied, origin=None):
     """
     files = await runtime.in_gemini_thread(file_contents, context, data, supplied)
     checked_case(data, files)
+    if DRY_RUN.get():
+        return context.problem.version
     for name in supplied.keys() & files.keys():
         await context.session.save_artifact(f"{CASE_FILE}{name}", supplied[name])
     changes = [{"op": "replace", "path": "/case", "value": data}]
@@ -821,6 +828,22 @@ async def set_case(
             every_problem(error, paths), code=error.code, path=error.path, suggestions=retries
         ) from error
     return {"case": data, "version": version, **({"converted": converted} if converted else {})}
+
+
+async def set_case_precheck(context, **arguments):
+    """Run ``set_case`` without storing anything; raise what gemini refuses (QA-037).
+
+    The engine calls it before it asks the user to approve a ``set_case``, so the user approves
+    only a case gemini accepts.
+    """
+    token = DRY_RUN.set(True)
+    try:
+        await set_case.function(context, **arguments)
+    finally:
+        DRY_RUN.reset(token)
+
+
+set_case.precheck = set_case_precheck
 
 
 def problem_paths(error):

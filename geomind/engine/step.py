@@ -106,9 +106,34 @@ async def _think(session, agent):
     return None
 
 
+async def _prechecked(session, tool, call):
+    """Return the error result of a call its tool's ``precheck`` refuses, or ``None`` (QA-037).
+
+    A tool may check a call without its effect (``set_case`` runs gemini's check without storing)
+    so the user is never asked to approve a call that fails. Any other failure of the check is
+    left to the call itself.
+    """
+    check = getattr(tool, "precheck", None)
+    if check is None:
+        return None
+    try:
+        arguments = tool.validate(call.input)
+        await check(session.context().for_call(call.id), **arguments)
+    except Exception as error:
+        if not is_reported_error(error):
+            return None
+        return text_result(call, error_output(error), is_error=True)
+    return None
+
+
 async def _admit(session, agent, tool, call):
     """Decide one call; return a ``Stop``, ``None`` when it is settled, or the call to run."""
     decision = await session.decide(agent, tool, call)
+    if isinstance(decision, Request) and decision.kind == "approval":
+        refused = await _prechecked(session, tool, call)
+        if refused is not None:
+            await record_result(session, call, refused)
+            return None
     if isinstance(decision, Request):
         return await session.pause(decision, "tool", call)
     if is_cancel(decision):
