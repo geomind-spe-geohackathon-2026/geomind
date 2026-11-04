@@ -6,6 +6,18 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### The analysis team alone (0.4.22.dev52)
+
+Round C1 (Track C): the analysis lead and the economist alone, two tasks each, on the C1 case and the D-round design (`HackathonPlant` on it), live (DeepSeek), 0.028 USD: 2 of 4 passed, each number checked against gemini's own.
+
+- Prompts: the analysis lead and the economist carry a gemini reference made when the prompt renders (`geomind/agents/analysis/reference.py`): every metric of `gm.evaluate.metrics()` with its title, display unit and whether a study may minimise it, and the economics keys with units and meanings. A test pins gemini's objectives (`annualised_cost`, `lcts`, `lcoh`, `lcoc`, `co2`) and checks that every metric the prompts cite is gemini's.
+- Prompts: the economist has `read_case` (its prompt sent it to the case's economics without the tool), names metrics as gemini does, reports a breakdown and a comparison as gemini gives them (ranks and both values, never a difference, a share or a sum it worked out), and reports a missing price with its economics path. The analysis lead no longer chooses a time zone alone, and gives gemini's values side by side instead of a share.
+- Fix (#85): the economist runs uncertainty and sensitivity only when the task asks for them.
+- Fix (#87): `Tool.validate` reads a list or an object sent as its JSON text, as nemotron sends `update_state`'s `changes`; any other string stays for the schema to judge.
+- Fix (#88): the analysis reference says `compute_kpis` has names of its own (gemini's totals and one result's report): call it without `names`; costs come from `estimate_costs`.
+- Fix (#89): a list or an object whose JSON text lacks only its closing brackets is read (nemotron's `changes` without its final `]`), and `"None"` or `"null"` is null where the schema takes a null.
+- Fix (#90): the analysis reference names the metrics a study reads (the objectives and `heating_coverage`, `cooling_coverage`, `cop`, `peak_heat`, `peak_cold`), never `capex` or `opex`; a test pins them to gemini's private list (gemini request 26).
+- Fix (#86), evals: the `sourced` criterion reads the problem state's `Case:` line. Evals: the `number` criterion reads a thousands separator (`111,667.68 MWh`).
 ### Next-step suggestions (0.4.22.dev51)
 
 - Contract (addition): `run.finished` has `suggestions?`, the next steps `[{label, message}]`: one to three, on the root run that ended `done` only; `label` at most 40 characters, `message` (what the app sends as the user's message when one is picked) at most 200; in the user's language (Persian when the user's last message is in Arabic script, else English). A nested, waiting, failed or cancelled run has none, an empty list is left out, and a log before this has none; a replay compares the answer as before and makes the same list again.

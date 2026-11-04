@@ -85,3 +85,19 @@ def test_a_shortened_read_and_a_space_separator_are_sourced():
     read = "flow 34.6364 m3/h, energy 111667.7 MWh"
     assert CRITERION.problem(outcome("flow 34.64 m3/h, energy 111 667.7 MWh", read)) is None
     assert CRITERION.problem(outcome("dew point 14.6", read)) is not None
+
+
+def test_a_number_criterion_reads_a_thousands_separator():
+    """Track C: ``111,667.68 MWh`` is one number, not 111 and 667.68."""
+    from evals.tasks_format import NumberCriterion
+
+    rule = NumberCriterion(kind="number", value=111667.68, tolerance=0.5, unit="MWh")
+    assert rule.problem(outcome("heat 111,667.68 MWh", "")) is None
+    assert rule.problem(outcome("heat 111 667.7 MWh", "")) is None
+
+
+def test_the_case_line_of_the_problem_state_is_read():
+    """Track C (#86): the case's span, set by ``set_case``, is no number the agent wrote."""
+    state = "Problem state, version 3\nCase: time 2027-01-01 to 2028-01-01\nQ1: 14.6"
+    text = _read([Completed(Message(role="system", content=state))])
+    assert "2028-01-01" in text and "14.6" not in text

@@ -30,7 +30,8 @@ class NumberCriterion(Record):
     def problem(self, outcome):
         """Return what is wrong, or ``None``."""
         suffix = rf"\s*{re.escape(self.unit)}(?![\w/])" if self.unit else ""
-        found = [float(item) for item in re.findall(f"({NUMBER}){suffix}", outcome.answer)]
+        answer = re.sub(THOUSANDS, "", outcome.answer)
+        found = [float(item) for item in re.findall(f"({NUMBER}){suffix}", answer)]
         if any(abs(item - self.value) <= self.tolerance for item in found):
             return None
         return f"number: expected {self.value} ± {self.tolerance} {self.unit or ''}, found {found}"

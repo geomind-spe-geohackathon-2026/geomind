@@ -10,6 +10,7 @@ def test_it_is_complete():
         Economist,
         "analysis/economist",
         [
+            "read_case",
             "compute_kpis",
             "estimate_costs",
             "compare",

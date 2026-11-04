@@ -150,7 +150,9 @@ class Tool:
     def validate(self, tool_input):
         """Return the keyword arguments of a call, or raise for an input that does not fit.
 
-        An object or array sent as its JSON text is read as that value first (``parsed_inputs``).
+        An object or array sent as its JSON text is read as that value first, also when only its
+        closing brackets are missing, and ``"None"`` is null where a null is accepted
+        (``parsed_inputs``, #67, #87, #89).
         """
         tool_input = parsed_inputs(self.input_schema, tool_input)
         if self.input_model is not None:
@@ -165,6 +167,41 @@ class Tool:
                 f"expected the names {join_names(properties)}"
             )
         return dict(tool_input)
+
+
+CLOSERS = {"[": "]", "{": "}"}
+NULL_TEXTS = ("None", "null")
+"""A null some models send as text, ``section: "None"``, read as null where the schema takes one."""
+
+
+def missing_closers(text):
+    """Return the brackets that close what ``text`` opened, outside its strings, else ``""``."""
+    stack, in_string, escaped = [], False, False
+    for char in text:
+        if in_string:
+            in_string = escaped or char != '"'
+            escaped = not escaped and char == "\\"
+            continue
+        if char == '"':
+            in_string = True
+        elif char in CLOSERS:
+            stack.append(CLOSERS[char])
+        elif stack and char == stack[-1]:
+            stack.pop()
+    return "" if in_string else "".join(reversed(stack))
+
+
+def parsed_json(text):
+    """Return the JSON value of ``text``, also when only its closing brackets are missing (#87).
+
+    nemotron sent a list as JSON text without its final ``]``; nothing else is repaired.
+    """
+    for candidate in (text, text + missing_closers(text)):
+        try:
+            return json.loads(candidate)
+        except ValueError:
+            continue
+    return None
 
 
 JSON_TYPES = {dict: "object", list: "array"}
@@ -199,8 +236,10 @@ def parsed_inputs(schema, tool_input):
 
     Some models send an object argument as its JSON text (``'{"format": 1}'``). A string for a
     property whose schema accepts an object or an array, and no string, is read with
-    ``json.loads`` when that gives a value of an accepted type; any other string stays as sent, so
-    validation refuses it as before. A property that accepts a string, or any value, keeps it.
+    ``json.loads`` when that gives a value of an accepted type, also with only its closing brackets
+    missing (#87); ``"None"`` or ``"null"`` is null wherever the schema takes a null (#89). Any
+    other string stays as sent, so validation refuses it as before. A property that accepts a
+    string, or any value, keeps it.
     """
     if not isinstance(tool_input, dict):
         return tool_input
@@ -211,12 +250,14 @@ def parsed_inputs(schema, tool_input):
         if not isinstance(value, str) or name not in properties:
             continue
         accepted = _accepted_types(properties[name], definitions)
-        if accepted is None or "string" in accepted or not accepted & set(JSON_TYPES.values()):
+        if accepted is not None and value in NULL_TEXTS and "null" in accepted:
+            parsed[name] = None
             continue
-        try:
-            loaded = json.loads(value)
-        except ValueError:
+        if accepted is None or "string" in accepted:
             continue
+        if not accepted & set(JSON_TYPES.values()) or value.strip()[:1] not in CLOSERS:
+            continue
+        loaded = parsed_json(value)
         if JSON_TYPES.get(type(loaded)) in accepted:
             parsed[name] = loaded
     return parsed

@@ -2,8 +2,8 @@
 
 from geomind import tools
 from geomind.agents.agent import Agent, Model
+from geomind.agents.analysis.reference import economist_appendix
 from geomind.prompts import Prompt
-from geomind.tools.gemini.skeleton import trees
 
 
 class Economist(Agent):
@@ -14,9 +14,10 @@ class Economist(Agent):
         super().__init__()
 
         # Prompt
-        self.prompt = Prompt("analysis/economist", appendix=trees("study"))
+        self.prompt = Prompt("analysis/economist", appendix=economist_appendix)
 
         # Tools
+        self.read_case = tools.gemini.read_case
         self.compute_kpis = tools.gemini.compute_kpis
         self.estimate_costs = tools.gemini.estimate_costs
         self.compare = tools.gemini.compare

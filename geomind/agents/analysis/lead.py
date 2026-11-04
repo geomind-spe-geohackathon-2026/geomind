@@ -3,6 +3,7 @@
 from geomind import tools
 from geomind.agents.agent import Agent, Model, Output
 from geomind.agents.analysis.economist import Economist
+from geomind.agents.analysis.reference import analysis_reference
 from geomind.agents.support.lead import SupportLead
 from geomind.prompts import Prompt
 from geomind.tools import Delegate
@@ -21,7 +22,7 @@ class AnalysisLead(Agent):
         super().__init__()
 
         # Prompt
-        self.prompt = Prompt("analysis/lead")
+        self.prompt = Prompt("analysis/lead", appendix=analysis_reference)
 
         # Tools
         self.economist = Delegate(Economist(), max_summary_tokens=ECONOMIST_TOKENS)

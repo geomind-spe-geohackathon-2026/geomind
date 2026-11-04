@@ -1,5 +1,7 @@
 """Tools and the decorator."""
 
+import json
+
 import pydantic
 import pytest
 
@@ -166,3 +168,48 @@ def test_a_model_parameter_sent_as_json_text_is_read_through_its_definition():
     hand_made = Tool("t", "d", schema, print, effect="read")
     arguments = hand_made.validate({"a": '{"k": 1}', "b": '{"k": 1}'})
     assert arguments == {"a": {"k": 1}, "b": '{"k": 1}'}
+
+
+async def test_a_list_sent_as_its_json_text_is_read_as_the_list():
+    """#87: nemotron sent ``changes`` of update_state as a JSON string; two refusals ended a run."""
+    from geomind.tools import update_state
+
+    changes = [{"op": "add", "path": "/goal", "value": "cost it"}]
+    assert update_state.validate({"changes": json.dumps(changes)}) == {"changes": changes}
+
+
+def test_a_string_that_is_no_container_stays_for_the_schema_to_judge():
+    """Only JSON text of the type the schema asks for is read; other text is left as it came."""
+    from geomind.tools.base import parsed_inputs
+
+    schema = {"properties": {"changes": {"type": "array"}, "note": {"type": "string"}}}
+    assert parsed_inputs(schema, {"changes": "{}", "note": "[1]"}) == {
+        "changes": "{}",
+        "note": "[1]",
+    }
+
+
+def test_a_list_missing_only_its_closing_bracket_is_read():
+    """#87: nemotron's JSON text of ``changes`` lacked its final ``]``, twice; the run stopped."""
+    from geomind.tools.base import parsed_json
+
+    assert parsed_json('[{"op": "add", "value": "a ] in text"}') == [
+        {"op": "add", "value": "a ] in text"}
+    ]
+    assert parsed_json('{"a": [1}') is None
+
+
+def test_a_null_sent_as_text_is_null_where_the_schema_takes_one():
+    """A text ``"None"`` (nemotron's ``read_case``) is null; a required string stays as it came."""
+    from geomind.tools.base import parsed_inputs
+
+    schema = {
+        "properties": {
+            "section": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+            "name": {"type": "string"},
+        }
+    }
+    assert parsed_inputs(schema, {"section": "None", "name": "None"}) == {
+        "section": None,
+        "name": "None",
+    }

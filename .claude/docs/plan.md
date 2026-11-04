@@ -231,10 +231,38 @@ cap is 5 USD (1.66 USD spent before the team).
 | C2 | the case team alone again, after #61 to #63 | 0.08 | 3.77 | 6 of 6 passed; one self-computed dew point (#64) |
 | TA1 | Track A after dev43 (compact tree, run-long pages, columns), six tasks | 0.16 | 4.20 | 4 of 6; from_files at its cap; cache cold after the prompt change, 10 `read_stored` left |
 | TA2 | Track A after dev44, provider pinned to DeepSeek (`GEOMIND_PROVIDER=deepseek`) | 0.035 | 4.24 | 4 of 6 by the criteria; from_files 39 → 15 model calls and 0.069 → 0.011 USD, but stopped on #65; total 0.112 → 0.035 USD |
+| TC1-4 | Track C: the analysis lead and the economist alone, 5 tasks, rounds C1 to C4 (C2 on, both DeepSeek and nemotron) | 0.19 | | C1 2 of 4; C4 5 of 5 on both models; bugs #85 to #90 |
 | A2 | the 6 agents the fixes touched, alone again | 0.29 | 2.38 | 5 passed; the case lead now asks for the values with no source (#44 working), so its task's fixed answer must change |
 | D1 | the design team alone: process, integration, reservoir, well and energy engineers and the design lead, one task each on the C1 case, 0.08 cap each | 0.38 | — | 1 of 6 passed (integration); four engineers stopped at their cap; bugs #70 to #72 |
 | D2 | the same six after #70 to #72, 0.065 cap each | 0.26 | — | the lead's verdict and records right at a third of D1's cost; the engineers still at their cap; bugs #73 and #74 |
 | D3 | the process and well engineers after #73 and #74, 0.06 cap each | 0.09 | — | the well engineer's failed module calls fell from 8 to 1 and it patched; the process engineer's run still ended on two garbled calls (#75) |
+
+### Model comparison
+
+Each per-agent task on both models, the same fixtures, prompts and commit, no provider pin for nemotron. Correctness: every number checked against gemini's own (the `number` criteria), every value sourced and none worked out (`sourced`); for the curator, what its scratch memory holds. Tokens are input/cached/output.
+
+| agent | track | model | pass | correctness | model calls | tool calls | failed | tokens | seconds | USD |
+|---|---|---|---|---|---|---|---|---|---|---|
+| analysis_lead/costs | C | deepseek-v4.1-flash | pass | gemini's numbers, sourced, none computed | 10 | 15 | 0 | 136452/81874/12780 | 167.2 | 0.0083 |
+| analysis_lead/costs | C | nemotron-3.5-super (free) | pass | gemini's numbers, sourced, none computed | 7 | 7 | 1 | 85421/39024/8146 | 46.7 | 0.0000 |
+| analysis_lead/operating | C | deepseek-v4.1-flash | pass | gemini's numbers, sourced, none computed | 3 | 4 | 0 | 38089/32242/3900 | 33.0 | 0.0022 |
+| analysis_lead/operating | C | nemotron-3.5-super (free) | pass | gemini's numbers, sourced, none computed | 3 | 3 | 0 | 36814/26016/977 | 15.0 | 0.0000 |
+| analysis_lead/sensitivity | C | deepseek-v4.1-flash | pass | gemini's numbers, sourced, none computed | 22 | 34 | 1 | 327521/164281/25059 | 240.4 | 0.0181 |
+| analysis_lead/sensitivity | C | nemotron-3.5-super (free) | pass | gemini's numbers, sourced, none computed | 10 | 11 | 0 | 131176/60704/5356 | 39.7 | 0.0000 |
+| economist/cost | C | deepseek-v4.1-flash | pass | gemini's numbers, sourced, none computed | 4 | 5 | 0 | 42127/16373/5912 | 58.7 | 0.0037 |
+| economist/cost | C | nemotron-3.5-super (free) | pass | gemini's numbers, sourced, none computed | 4 | 5 | 0 | 45870/34688/2827 | 17.1 | 0.0000 |
+| economist/uncertainty | C | deepseek-v4.1-flash | pass | gemini's numbers, sourced, none computed | 8 | 10 | 0 | 101590/36332/10042 | 97.7 | 0.0071 |
+| economist/uncertainty | C | nemotron-3.5-super (free) | pass | gemini's numbers, sourced, none computed | 6 | 8 | 1 | 74420/52032/2835 | 68.1 | 0.0000 |
+| curator | D | deepseek-v4.1-flash | 3/3 | memory and summaries checked by code | 6 | 10 | 0 | 15917/7168/1822 | 52 | 0.0012 |
+| summarizer | D | deepseek-v4.1-flash | 3/3 | memory and summaries checked by code | 3 | 0 | 0 | 4257/512/7892 | 140 | 0.0039 |
+| support_lead | D | deepseek-v4.1-flash | 3/3 | memory and summaries checked by code | 10 | 11 | 1 | 23753/4096/7283 | 130 | 0.0042 |
+| curator | D | nemotron-3.5-super (free) | 3/3 | memory and summaries checked by code | 6 | 10 | 0 | 16203/0/1895 | 25 | 0.0000 |
+| summarizer | D | nemotron-3.5-super (free) | 3/3 | memory and summaries checked by code | 3 | 0 | 0 | 4493/0/8445 | 40 | 0.0000 |
+| support_lead | D | nemotron-3.5-super (free) | 3/3 | memory and summaries checked by code | 9 | 9 | 0 | 21878/0/11345 | 64 | 0.0000 |
+
+Track C, round C4 at 39c4003: 5 of 5 on each model, no 429, no markup check firing. nemotron took fewer calls and a third to a half the time on the lead's two longer tasks; its failed calls are `update_state` slips (JSON text, a stray bracket), each corrected on the next call. Both models failed the same way only where the prompt was wrong (#85, #88, #90).
+
+Track D notes: no 429 on nemotron (nine tasks two at a time). Nemotron called memory tools it was not offered when the memory was off (#99, fixed in the prompt; it passes now); it caches nothing, so its input is all uncached, but it is free and 2 to 3 times faster here.
 
 Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/CHANGELOG.md)):
 
@@ -263,6 +291,12 @@ Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/C
 | 64 | C2, case lead | worked out a room dew point (14.6 degC) inside a question; with the new `sourced` criterion also a temperature from the gradient, a GWP from memory, an end date and a step count | prompt forbids any number it worked out or knows from memory; `read_rag`'s table gives the case span; eval criterion `sourced` | de37595 |
 | 65 | Track A, case lead | told `changes=<the same changes>` after a missing file, sent the files alone three times and the run stopped | the retry names everything to send again; files alone on no case say they go with the changes | dev45 |
 | 66 | Track A, case lead | a gradient in `degC/km` got `{'unit': 'degC'}` and the units of temperature as its fix | the quantity of a two-word unit message (`temperature gradient`) is read whole | dev45 |
+| 85 | C1 (Track C), economist | told to cost a design, it sampled 200 draws and a sensitivity with a seed it chose (192 s) | uncertainty and sensitivity only when the task asks for them | track-c |
+| 86 | C1 (Track C), evals | the `sourced` criterion left out the problem state's `Case:` line, so the case's own years counted as made up | the state's `Case:` line is read; the agent's notes and questions stay out | track-c |
+| 87 | C2 (Track C), economist and analysis lead on nemotron | sent `update_state`'s `changes` as a JSON string; two refusals in a row stopped the economist's nested run, and the lead finished without it | `Tool.validate` reads a list or an object given as its JSON text (model-agnostic) | track-c |
+| 88 | C2 (Track C), analysis lead on DeepSeek | asked `compute_kpis` for `annualised_cost`, a cost metric it lacks, because the reference listed the metrics under `compute_kpis` too | the reference says `compute_kpis` has names of its own: call it without `names`; costs come from `estimate_costs` | track-c |
+| 89 | C3 (Track C), economist on nemotron | `changes` as JSON text missing its final `]`, twice, ended the run; `read_case(section="None")` | a JSON text missing only its closing brackets is read; `"None"`/`"null"` is null where the schema takes one | track-c |
+| 90 | C3 (Track C), analysis lead on nemotron | sampled `capex` and `opex`, which a study refuses: the reference said a study takes every metric | the reference names what a study reads (the objectives and gemini's five study KPIs, pinned by a test); gemini request 26 | track-c |
 | 67 | Track A, case lead | on nemotron, `set_case`'s `changes` sent as its JSON text twice; refused as no dictionary, and the run ended on 2 invalid calls in a row | a string for a parameter that takes an object or an array, and no string, is read as JSON when it gives that type (`Tool.validate`, every tool) | track-a2 |
 | 70 | D1, process engineer | DeepSeek leaked tool-call markup into an argument (`">HeatingCoolingPlant</</parameter name=`) and sent it again three times | an input holding markup is refused before the tool runs, with the value before the markup as the suggestion | track-b |
 | 71 | D1, design engineers | each engineer read the case 4 to 16 times and its profiles again and again: a long result shrinks to an outline after one step | the engineers keep the case, the plant and the module descriptions whole for a few turns (`Tool.kept()`); `read_profile` gives a `summary` (peak, minimum, mean, energy) computed by code | track-b |
@@ -276,21 +310,6 @@ Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/C
 | 98 | D1, summarizer | 16,000 output tokens of reasoning and no text for a 2.7k-character handover | temperature 0; one pass | track-d |
 | 99 | F, curator (nemotron) | with the memory off it called the memory tools it was not offered | the prompt says the memory is off when those tools are not offered | track-d |
 | 50 | A1, all | models saw only the first paragraph of each tool's docstring | the whole docstring but its `NOTE:` paragraphs | `768f396` |
-
-### Model comparison
-
-Each agent alone, the same fixtures, prompts and commit on each model; nemotron runs two at a time, no provider pin. Correctness is checked by code (the criteria, and for the curator what its scratch memory holds). Tokens are input/cached/output.
-
-| agent | track | model | pass | correctness | model calls | tool calls | failed | tokens | seconds | USD |
-|---|---|---|---|---|---|---|---|---|---|---|
-| curator | D | deepseek-v4.1-flash | 3/3 | memory and summaries checked by code | 6 | 10 | 0 | 15917/7168/1822 | 52 | 0.0012 |
-| summarizer | D | deepseek-v4.1-flash | 3/3 | memory and summaries checked by code | 3 | 0 | 0 | 4257/512/7892 | 140 | 0.0039 |
-| support_lead | D | deepseek-v4.1-flash | 3/3 | memory and summaries checked by code | 10 | 11 | 1 | 23753/4096/7283 | 130 | 0.0042 |
-| curator | D | nemotron-3.5-super (free) | 3/3 | memory and summaries checked by code | 6 | 10 | 0 | 16203/0/1895 | 25 | 0.0000 |
-| summarizer | D | nemotron-3.5-super (free) | 3/3 | memory and summaries checked by code | 3 | 0 | 0 | 4493/0/8445 | 40 | 0.0000 |
-| support_lead | D | nemotron-3.5-super (free) | 3/3 | memory and summaries checked by code | 9 | 9 | 0 | 21878/0/11345 | 64 | 0.0000 |
-
-Track D notes: no 429 on nemotron (nine tasks two at a time). Nemotron called memory tools it was not offered when the memory was off (#99, fixed in the prompt; it passes now); it caches nothing, so its input is all uncached, but it is free and 2 to 3 times faster here.
 
 ### The adaptation to gemini 0.5 (done) and what is open
 
@@ -354,6 +373,11 @@ Open requests to gemini (full text in the adaptation notes):
 15. `site.fluid.dissolved_gas.*` take a bare `{value}` (a mole fraction) with no unit, while
     briefs give `mol%`: the agents must turn 20 mol% into 0.2 by hand, which their rules forbid.
     A `unit` (`mol%`, `-`) on those fields, converted by gemini (Track A).
+26. A public list of the metrics a study reads: `gm.study` checks them against
+    `gemini.study._utils.trial.KPI_NAMES` and `ECONOMICS`, private names, so geomind pins them in
+    a test to tell the agents (`heating_coverage`, `cooling_coverage`, `cop`, `peak_heat`,
+    `peak_cold` and the five objectives); `gm.evaluate.metrics()` does not say which a study reads
+    (Track C, bug #90).
 16. Economics units the cited cost data needs but the keys refuse: `capex.ice_storage` per MWh of
     cold (only EUR/m3), `capex.heat_exchanger` in EUR/W (only EUR/(W/K)), `capex.pipe` in EUR/MW/m
     (only EUR/m), `opex.fixed.*` as an amount per W or MW per year (only %/yr), and
