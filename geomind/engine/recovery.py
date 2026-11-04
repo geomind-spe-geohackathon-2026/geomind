@@ -56,6 +56,7 @@ def _llm_completed(state, event):
     state.calls = list(completion.tool_calls)
     state.usage += completion.usage
     state.step_usage += completion.usage
+    state.last_input_tokens = completion.usage.input_tokens
     state.allowed = [name for name in state.allowed if name != "llm"]
 
 
@@ -65,6 +66,7 @@ def _compaction(state, event):
     state.messages = replace_older(state.messages, summary, event.turns)
     state.usage += event.completion.usage
     state.step_usage += event.completion.usage
+    state.last_input_tokens = 0
     earlier = state.problem.compaction.turns if state.problem.compaction else 0
     compaction = Compaction(summary=summary, turns=earlier + event.turns)
     state.problem = state.problem.model_copy(update={"compaction": compaction})
