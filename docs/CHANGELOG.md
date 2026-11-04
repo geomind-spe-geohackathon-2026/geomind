@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.50] - 2026-11-05
+
+### Fixed
+
+- QA-050: a read-only MCP call a server refuses on its rate limit ("Minutely API request limit exceeded. Please try again in one minute") waits 61 s and is sent again, up to twice, inside the same call; still limited, it is `rate_limited` with the advice to do other work first and call once later, so the run no longer stops on the same-error guard.
+
 ## [0.4.49] - 2026-11-05
 
 ### Fixed

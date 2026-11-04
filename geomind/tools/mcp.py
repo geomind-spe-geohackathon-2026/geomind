@@ -14,10 +14,12 @@ NOTE: before 0.4.22.dev42 each server tool was a tool of its own, ``<server>__<t
 of such a log reuses the recorded answers through ``RecordedMcpTool``.
 """
 
+import asyncio
 import copy
 import difflib
 import hashlib
 import json
+import re
 from datetime import datetime, timezone
 from typing import Any
 
@@ -134,20 +136,44 @@ class Servers:
             "arguments": arguments,
             "tool_description": summary_of(row["description"]),
         }
-        try:
-            async with McpClient(self.servers[server], self.timeout, self.transport) as client:
-                answer = await client.call_tool(name, arguments)
-        except McpError as error:
-            if error.code == "invalid_arguments":
-                message = f"{tool_name}: {error}{schema_note(row)}"
-                raise ToolError(message, path="arguments") from None
-            raise ToolError(f"{tool_name}: {error}", code="mcp_unavailable") from None
+        for attempt in range(RATE_LIMIT_RETRIES + 1):
+            try:
+                async with McpClient(self.servers[server], self.timeout, self.transport) as client:
+                    answer = await client.call_tool(name, arguments)
+            except McpError as error:
+                if error.code == "invalid_arguments":
+                    message = f"{tool_name}: {error}{schema_note(row)}"
+                    raise ToolError(message, path="arguments") from None
+                raise ToolError(f"{tool_name}: {error}", code="mcp_unavailable") from None
+            limited = answer["is_error"] and is_rate_limited(answer["text"])
+            if not limited or not row["read_only"] or attempt == RATE_LIMIT_RETRIES:
+                break
+            await asyncio.sleep(RATE_LIMIT_WAIT)
+        if answer["is_error"] and limited:
+            raise ToolError(
+                f"{tool_name}: {server}/{name}: {answer['text']}; still limited after waiting "
+                f"{RATE_LIMIT_RETRIES} times {RATE_LIMIT_WAIT} s: do the rest of your work first and "
+                "call it again later, once, with every value you need in one call",
+                code="rate_limited",
+            )
         if answer["is_error"]:
             raise ToolError(
                 f"{tool_name}: {server}/{name}: {answer['text'] or 'the tool failed'}"
                 f"{schema_note(row)}"
             )
         return {"text": answer["text"], "structured": answer["structured"], "origin": origin}
+
+
+RATE_LIMIT_WAIT = 61
+"""Seconds a read-only call waits after a server's rate limit (Open-Meteo: "try again in one minute")."""
+RATE_LIMIT_RETRIES = 2
+"""How often a rate-limited read-only call waits and is sent again (QA-050)."""
+RATE_LIMITED = re.compile(r"rate limit|limit exceeded|too many requests|try again in", re.I)
+
+
+def is_rate_limited(text):
+    """Tell whether a server's error text says the call hit a rate limit."""
+    return bool(text and RATE_LIMITED.search(text))
 
 
 def schema_note(row):
