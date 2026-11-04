@@ -218,7 +218,7 @@ Each event: `event: <type>`, `data: <json>`, `id: <sequence number>`. The stream
 | `state.changed` | `{version, changes}`; see *Problem state changes* below (emitted from S2) |
 | `request` | `{request, call_id?, kind, message, options?}`; `kind` is `approval` or `question`; `options` is `[{value, label}]` (a question with fixed choices; absent for free text and for approvals); the run is `waiting` |
 | `usage` | `{input_tokens, output_tokens, cost}` (running totals) |
-| `run.finished` | `{status, stop_reason, message?}` |
+| `run.finished` | `{status, stop_reason, message?, suggestions?}` (`suggestions`: the next steps `[{label, message}]`, 1 to 3, on the root run's `done` only; `label` at most 40 characters, `message` at most 200, what the app sends as the user's message when one is picked; in the user's language; absent otherwise and in older logs) |
 | `study.recorded` | `{run, index, call_id?, study, tool, method, designs, best?}` (sent once after a study tool stored the chat artifact `study/<name>`: `study` is that key, `tool` the study tool, `method` gemini's study method, `designs` the plants it ran over, `best` the reference of the design it recommends; the backend adds the study to the project's list) |
 
 **Problem state changes.** `version` is the state version after the change (starts at 1, +1 per event). `changes` is a list of JSON Patch operations (RFC 6902 subset) on the problem state document:

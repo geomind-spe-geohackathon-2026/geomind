@@ -430,6 +430,7 @@
       "runlog",
       "runtime",
       "stores",
+      "suggest",
       "testing",
       "tool",
       "tools",
@@ -565,7 +566,8 @@
         "data": [
           "message",
           "status",
-          "stop_reason"
+          "stop_reason",
+          "suggestions"
         ],
         "is_public": true
       },
@@ -734,6 +736,7 @@
         "knowledge_search": "(self, query)",
         "mcp": "(self, project_id)",
         "plants": "(self, project_id)",
+        "project_state": "(self, project_id)",
         "rag": "(self, project_id, query)"
       }
     },

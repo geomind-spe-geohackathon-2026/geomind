@@ -164,6 +164,7 @@ async def _execute(session, agent, tool, call):
         return _over_retries(session, tool)
     outcome = await dispatch(tool, call, session.context())
     if isinstance(outcome, Finish):
+        session.proposed_suggestions = outcome.suggestions
         return await _gate_answer(session, agent, outcome.answer, call)
     if isinstance(outcome, Request) and session.waiting_child is not None:
         return await session.wait_for_child(outcome, call)

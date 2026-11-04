@@ -18,6 +18,7 @@ from geomind.engine.step import record_result, run_step, settle_interrupted, tex
 from geomind.errors import NotImplementedYet, ProviderError, RequestError, RunError
 from geomind.providers import with_retries
 from geomind.stores.run import MemoryRunStore
+from geomind.tools.suggestions import next_steps
 from geomind.types import Request, RunResult, Usage, status_of, validate_answer
 from geomind.types.events import PermissionDecided, RunFinished, ToolRecorded
 from geomind.utils.hooks import RemovableHandle
@@ -211,12 +212,14 @@ class Engine:
             return run_result(session, stop)
         if is_limit_stop(session, stop):
             stop = await self._answer_from_record(session, stop)
+        status = status_of(stop.reason)
         await session.emit(
             RunFinished,
-            status=status_of(stop.reason),
+            status=status,
             stop_reason=stop.reason,
             message=stop.message,
             answer=stop.answer,
+            suggestions=suggestions_of(session, status),
         )
         await session.save_problem()
         return run_result(session, stop)
@@ -336,3 +339,24 @@ class Engine:
         result = text_result(pending.call, reason, is_error=True)
         await record_result(session, pending.call, result, source="denied")
         return None
+
+
+def suggestions_of(session, status):
+    """Return the next steps of a root run that ended ``done``, else ``None``.
+
+    The stage comes from the project's state (``Workspace.project_state``, contract v4), else
+    from the chat's problem state; the language from the user's last message; the project lead's
+    own list is kept where it fits (``geomind.tools.suggestions``).
+    """
+    state = session.state
+    if state.parent is not None or status != "done":
+        return None
+    users = [item.content for item in state.messages if item.role == "user"]
+    workspace = session.engine.workspace
+    listed = workspace.files(state.project) if state.project and hasattr(workspace, "files") else []
+    files = [entry["name"] for entry in listed]
+    proposed = getattr(session, "proposed_suggestions", None)
+    method = getattr(workspace, "project_state", None)
+    project = method(state.project) if state.project and callable(method) else None
+    user = users[-1] if users else ""
+    return next_steps(state.problem, files, user, proposed, project=project) or None

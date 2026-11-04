@@ -49,6 +49,15 @@ class Workspace(Protocol):
         ``sse``, and the header values are secrets geomind never logs, stores or shows.
         """
 
+    def project_state(self, project_id):
+        """Return how far a project's work is, for the next-step suggestions, or ``None``.
+
+        ``{case, plant, study, results, report: {state, label}, case_version, plant_version,
+        study_case_version, case_changed_after_study}``; each state is ``empty``,
+        ``incomplete``, ``ready``, ``running`` or ``done``. NOTE: optional (contract v4); without
+        it, or with ``None``, the suggestions follow the chat's problem state.
+        """
+
     def knowledge_search(self, query):
         """Return passages of the shared knowledge base, best first.
 
@@ -213,6 +222,43 @@ class FileWorkspace:
     def mcp(self, project_id):
         """Return the MCP servers of every project, as ``gd.mcp.Server``."""
         return list(self.servers)
+
+    def project_state(self, project_id):
+        """Return the project's state from its folder, or ``None`` for no such folder.
+
+        A part is ``done`` when its file or folder holds something: ``case.json``, ``plants/``,
+        ``studies/``, ``results/`` and ``report/``, else ``empty``. A version is the newest
+        modification time of its files, in nanoseconds; the study is stale when ``case.json`` is
+        newer than the newest study.
+        """
+        folder = self.root / project_id
+        if not folder.is_dir():
+            return None
+        found = {
+            "case": [folder / "case.json"] if (folder / "case.json").exists() else [],
+            "plant": sorted((folder / "plants").glob("*.json")),
+            "study": sorted((folder / "studies").glob("*")),
+            "results": sorted((folder / "results").glob("*")),
+            "report": sorted((folder / "report").glob("*")),
+        }
+        state = {name: "done" if paths else "empty" for name, paths in found.items()}
+        version = {
+            name: max((path.stat().st_mtime_ns for path in paths), default=None)
+            for name, paths in found.items()
+        }
+        stale = (
+            version["case"] is not None
+            and version["study"] is not None
+            and version["case"] > version["study"]
+        )
+        return {
+            **{name: state[name] for name in ("case", "plant", "study", "results")},
+            "report": {"state": state["report"], "label": "report"},
+            "case_version": version["case"],
+            "plant_version": version["plant"],
+            "study_case_version": version["study"],
+            "case_changed_after_study": stale,
+        }
 
     def knowledge_search(self, query):
         """Return the knowledge base's passages for ``query``, best first; ``[]`` without one."""

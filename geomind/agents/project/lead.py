@@ -10,7 +10,7 @@ from geomind.agents.project.explainer import Explainer
 from geomind.agents.project.review import Review
 from geomind.agents.support.lead import SupportLead
 from geomind.prompts import Prompt
-from geomind.tools import Delegate
+from geomind.tools import Delegate, suggestions
 from geomind.types import Action, ToolCall
 
 TEAM_TOKENS = 1500
@@ -77,7 +77,7 @@ class ProjectLead(Agent):
         self.accept_case = tools.gemini.accept_case
         self.update_state = tools.update_state
         self.ask_user = tools.ask_user
-        self.finish = tools.finish
+        self.finish = suggestions.finish
 
         # Model
         self.model = Model(setting="projectlead_model", temperature=0)
