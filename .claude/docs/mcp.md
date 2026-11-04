@@ -5,7 +5,11 @@
 the answer JSON or an event stream) and the older `sse` transport (a GET stream that names the URL
 to POST to). `list_tools(server)` lists one server's tools, `[{name, description, read_only}]`;
 a failure is `McpError` with `code` `unreachable`, `auth_refused` or `bad_response`, naming the
-server and never a header value.
+server (`mcp server` when it has no name) and never a header value, and keeping the real error's
+class and text. A server is a `gd.mcp.Server` or the plain dict `{name, url, transport, headers}`
+`Workspace.mcp` names, everywhere one comes in (`list_tools`, `McpClient`, `load_servers`, the
+run's `Workspace.mcp`); a bad dict is `bad_response` naming the server and the fields at fault
+(`as_server`), and in a run it is left out as a server that does not answer.
 
 A run's servers come from the optional `Workspace.mcp(project_id)` (the command line:
 `GEOMIND_MCP_SERVERS`, a JSON list, and `GEOMIND_MCP_TIMEOUT`, seconds, required when a server is

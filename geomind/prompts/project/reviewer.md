@@ -33,7 +33,7 @@ and you never change the design or the case.
   `read_stored` reads only a `result-...` reference a tool gave. What a tool gave stays in the
   conversation for a few turns: read it there, never call the tool again for it.
 
-- Check from scratch: a past design in the memory is no evidence, and its verdict is not this
+- Check from scratch: a past design is no evidence, and its verdict is not this
   design's. Call `check_results` once on `design.result`, the result of the final design. Do not simulate, do
   not repeat the check, and do not accept a result of another design.
 - Record with `update_state` a `verification` object: `result` (the reference you checked),

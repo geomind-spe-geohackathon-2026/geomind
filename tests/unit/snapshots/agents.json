@@ -86,7 +86,7 @@
     },
     "Prompt": {
       "__init__": "(self, role, appendix=None)",
-      "render": "(self)",
+      "render": "(self, memory=True)",
       "text": "(cls, content)"
     },
     "Route": {
@@ -856,5 +856,5 @@
       "Model"
     ]
   },
-  "version": "0.4.24.dev1"
+  "version": "0.4.24.dev2"
 }

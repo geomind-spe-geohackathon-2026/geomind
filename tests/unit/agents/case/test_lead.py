@@ -82,8 +82,15 @@ def test_a_missing_value_is_searched_before_it_is_asked_for():
     order = ["the project's files", "the knowledge base:", "`read_mcp`", "only when none"]
     assert [text.index(item) for item in order] == sorted(text.index(item) for item in order)
     assert "ALWAYS, also when the files seem complete" in text
-    assert '`read_rag("knowledge/cost-sources.csv", columns=[...])`' in text
+    assert '`read_rag("knowledge/cost-sources.csv", rows=..., columns=[...])`' in text
     assert "knowledge/cost-sources.csv" in text and "`placeholder`" in text
+
+
+def test_the_catalogue_is_read_by_the_rows_of_the_missing_keys_only():
+    """B6: the case lead read the whole cost catalogue, 55-80k input tokens a step for 21 steps."""
+    text = " ".join(CaseLead().prompt.content.split())
+    assert "Never read it whole or by pages" in text
+    assert '`rows={"path": [each missing key' in text
 
 
 def test_time_end_is_exclusive_and_the_data_decides_the_span():
@@ -119,7 +126,7 @@ def test_its_key_tree_says_what_each_field_means():
 def test_a_change_reports_the_value_before_as_the_case_showed_it():
     """#62: the case lead said a cap was 200 while the case held 300; it reads before and after."""
     text = " ".join(CaseLead().prompt.content.split())
-    assert "before and after it with `read_case`" in text and "never from memory" in text
+    assert "before and after it with `read_case`" in text and "never from recall" in text
 
 
 def test_it_reads_once_asks_once_and_copies_digits():
@@ -127,7 +134,7 @@ def test_it_reads_once_asks_once_and_copies_digits():
     text = " ".join(CaseLead().prompt.content.split())
     assert "never read it again" in text and "Never ask for it again" in text
     assert "digit for digit" in text and "as few `set_case` calls as you can" in text
-    assert "read once with `columns`" in text
+    assert "Read once only the rows of the keys the case lacks" in text
 
 
 def test_it_chooses_among_the_catalogue_s_rows_by_their_status():

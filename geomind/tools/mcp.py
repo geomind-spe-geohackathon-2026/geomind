@@ -17,6 +17,7 @@ from typing import Any
 
 from geomind.errors import ToolError
 from geomind.mcp import McpClient, McpError
+from geomind.mcp.client import as_server
 from geomind.tools.base import Tool, tool
 from geomind.utils.strings import join_names
 
@@ -206,14 +207,19 @@ class RecordedMcpTool(Tool):
 
 
 async def load_servers(servers, timeout, transport=None):
-    """Return ``(Servers, [(server, McpError)])``: the servers that answered, with their tools."""
+    """Return ``(Servers, [(server, McpError)])``: the servers that answered, with their tools.
+
+    Each server is a ``Server`` or the dict ``{name, url, transport, headers}`` of
+    ``Workspace.mcp``; a bad one fails alone, as a server that does not answer.
+    """
     answered, rows, failures = [], {}, []
-    for server in servers:
+    for given in servers:
         try:
+            server = as_server(given)
             async with McpClient(server, timeout, transport) as client:
                 rows[server.name] = await client.list_tools()
         except McpError as error:
-            failures.append((server, error))
+            failures.append((given, error))
             continue
         answered.append(server)
     return Servers(answered, rows, timeout, transport), failures

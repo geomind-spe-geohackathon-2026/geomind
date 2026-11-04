@@ -55,4 +55,13 @@ Settings, required, no default: `GEOMIND_MEMORY` (`on` or `off`) decides only ca
 the engine or the workspace gives needs no `GEOMIND_MEMORY_DIR`, and the missing-setting error
 never asks for it then. Any memory that is on needs `GEOMIND_MEMORY_SIMILARITY` (0 to 1).
 `runtime.memory_settings(source)` lists what each source (`settings`, `store`, `off`) needs.
+
+With the memory off, by either path, no agent, nested or not, is offered `search_memory`,
+`read_memory`, `write_lesson` or the curator, and no prompt speaks of the memory: the `MEMORY`
+section and the knowledge section's line on memory are left out, and so are the role files' parts
+marked `<!-- memory -->` (the design engineers' experience line, the project lead's lessons step,
+the support lead's curator). A store that raises answers `memory_unavailable` with its error, never
+`internal`, and an experience entry whose features are no numbers scores them as missing.
+0.4.22 took a workspace's bound `memory` method itself as the memory, so `search_memory` failed
+with `internal` (run c8bf2381); 0.4.23 calls it.
 Final and competition runs keep the memory `off`.

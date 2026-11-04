@@ -6,6 +6,30 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### Bugs from a production run (0.4.24.dev2)
+
+Run c8bf2381 (chat b96805e4) on 0.4.22.
+
+- B4, memory off: the `internal` from `search_memory` was 0.4.22 taking the workspace's bound
+  `memory` method itself as the memory (`memory.entries` failed); 0.4.23 already calls
+  `Workspace.memory(project_id)`, and tests now pin, for every shipped agent and a nested run,
+  with `GEOMIND_MEMORY=off` and with `Workspace.memory` returning `None`, that no memory tool or
+  curator is offered and no prompt or tool description speaks of the memory. Role files mark their
+  memory-only parts `<!-- memory -->` ... `<!-- /memory -->`; `Prompt.render(memory=True)` (new
+  keyword) drops them when the memory is off, and the knowledge section's memory line goes too.
+  "A number from memory" (what a model recalls) now reads "a number you recall". New tool error
+  code `memory_unavailable`: a memory store that raises answers it with its error, never
+  `internal`; an experience entry whose features are no numbers scores them as missing.
+- B6, the case lead read the whole cost catalogue (about 21 steps at 55-80k input tokens):
+  `read_rag` takes `rows={column: [text, ...]}`, the rows whose value starts with one of the
+  texts, and a CSV or TSV still longer than `LARGE_TABLE_CHARACTERS` (20,000) after `rows` and
+  `columns` gives only its `table` outline and a note naming `search_rag`, `rows` and `columns`,
+  never its text or pages. The case lead reads the catalogue's rows of the missing keys only.
+- B10: `gd.mcp.list_tools`, `McpClient`, `load_servers` and the run's `Workspace.mcp` take the
+  plain dict `{name, url, transport, headers}` as well as `gd.mcp.Server` (addition); a bad dict
+  is `bad_response` naming the server and the fields, never a header value. `failure()` names the
+  server when it can (`mcp server` otherwise) and keeps the real error's class and text.
+- B3 (gemini, H2S) is gemini's: not changed here.
 ### More of gemini 0.6.2 and 0.6.3 (0.4.24.dev1)
 
 **Contract changes for the backend:** two new required settings, no default,

@@ -6,7 +6,13 @@ from geomind import runtime
 from geomind.context import ProblemState, render
 from geomind.context.skills import skill_listing
 from geomind.errors import RunError
-from geomind.prompts.prompt import KNOWLEDGE, MCP, MEMORY, STORED_RESULTS
+from geomind.prompts.prompt import (
+    KNOWLEDGE,
+    KNOWLEDGE_OVER_MEMORY,
+    MCP,
+    MEMORY,
+    STORED_RESULTS,
+)
 from geomind.tools.base import with_old_names
 from geomind.tools.stored import shortened_message
 from geomind.types import Message
@@ -83,15 +89,17 @@ class Context:
 
     def _prefix(self, agent):
         """Return the system message, or nothing for an agent without a prompt."""
-        parts = [agent.prompt.render() if agent.prompt else "", agent.output.instructions()]
+        remembers = getattr(self._session, "memory", True) is not None
+        prompt = agent.prompt.render(memory=remembers) if agent.prompt else ""
+        parts = [prompt, agent.output.instructions()]
         parts.append(skill_listing() if "read_skill" in agent.tools() else "")
         parts.append(STORED_RESULTS if "read_stored" in agent.tools() else "")
-        remembers = getattr(self._session, "memory", True) is not None
         parts.append(MEMORY if remembers and "search_memory" in agent.tools() else "")
         knows = getattr(self._session, "knows", lambda: True)()
         connected = getattr(self._session, "mcp_of", lambda agent: {})(agent)
         parts.append(MCP if connected else "")
-        parts.append(KNOWLEDGE if knows and "search_rag" in agent.tools() else "")
+        if knows and "search_rag" in agent.tools():
+            parts.append(f"{KNOWLEDGE} {KNOWLEDGE_OVER_MEMORY}" if remembers else KNOWLEDGE)
         text = "\n\n".join(part for part in parts if part)
         return (Message(role="system", content=text),) if text else ()
 

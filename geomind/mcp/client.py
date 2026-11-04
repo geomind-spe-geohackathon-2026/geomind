@@ -9,6 +9,7 @@ in an error or replayed.
 import asyncio
 import json
 import re
+from collections.abc import Mapping
 from typing import Literal
 from urllib.parse import urljoin
 
@@ -83,18 +84,71 @@ def servers_from_text(text):
         ) from error
 
 
+UNNAMED = "mcp server"
+"""How an error names a server that has no name of its own."""
+
+
+def server_name(server):
+    """Return the name of a ``Server`` or of its dict, else ``mcp server``; never a header."""
+    name = server.get("name") if isinstance(server, Mapping) else getattr(server, "name", None)
+    return name if isinstance(name, str) and name else UNNAMED
+
+
+def server_headers(server):
+    """Return the header values of a ``Server`` or of its dict: secrets, to hide from the log."""
+    headers = (
+        server.get("headers") if isinstance(server, Mapping) else getattr(server, "headers", None)
+    )
+    if not isinstance(headers, Mapping):
+        return ()
+    return tuple(value for value in headers.values() if isinstance(value, str) and value)
+
+
+def as_server(server):
+    """Return ``server`` as a ``Server``: one already, or the dict ``Workspace.mcp`` names (B10).
+
+    A dict ``{name, url, transport, headers}`` is checked as a ``Server``; a bad one, or any other
+    value, raises ``bad_response`` naming the server and the fields at fault, never a header value.
+    """
+    if isinstance(server, Server):
+        return server
+    name = server_name(server)
+    if not isinstance(server, Mapping):
+        raise McpError(
+            f"{name}: server = {type(server).__name__}; expected a gd.mcp.Server or a dict "
+            "{name, url, transport, headers}",
+            code="bad_response",
+        )
+    try:
+        return Server.model_validate(dict(server))
+    except pydantic.ValidationError as error:
+        fields = "; ".join(
+            f"{'.'.join(str(part) for part in item['loc']) or 'server'}: {item['msg']}"
+            for item in error.errors()
+        )
+        raise McpError(
+            f"{name}: {fields}; expected {{name, url, transport, headers}}", code="bad_response"
+        ) from None
+
+
 def failure(server, error):
-    """Return the ``McpError`` of a transport failure, naming the server, never a header."""
+    """Return the ``McpError`` of a failure, naming the server when it can, never a header.
+
+    The real error stays in the message: its class, and its text when it is no HTTP error.
+    """
+    name = server_name(server)
     if isinstance(error, McpError):
         return error
     if isinstance(error, httpx.HTTPStatusError) and error.response.status_code in (401, 403):
-        return McpError(f"{server.name}: the server refused the credentials", code="auth_refused")
+        return McpError(f"{name}: the server refused the credentials", code="auth_refused")
     if isinstance(error, httpx.HTTPStatusError):
         status = error.response.status_code
-        return McpError(f"{server.name}: HTTP {status}", code="bad_response")
+        return McpError(f"{name}: HTTP {status}", code="bad_response")
     if isinstance(error, (httpx.TimeoutException, httpx.TransportError)):
-        return McpError(f"{server.name}: unreachable ({type(error).__name__})", code="unreachable")
-    return McpError(f"{server.name}: {type(error).__name__}", code="bad_response")
+        return McpError(
+            f"{name}: unreachable ({type(error).__name__}: {error})", code="unreachable"
+        )
+    return McpError(f"{name}: {type(error).__name__}: {error}", code="bad_response")
 
 
 def answer_of(server, message, number):
@@ -126,8 +180,12 @@ class McpClient:
     """Talk to one server for the life of a ``with`` block; ``timeout`` in seconds."""
 
     def __init__(self, server, timeout, transport=None):
-        """Keep the server, the timeout and an optional httpx transport, for tests."""
-        self.server = server
+        """Keep the server, the timeout and an optional httpx transport, for tests.
+
+        ``server`` is a ``Server`` or the dict ``{name, url, transport, headers}`` of
+        ``Workspace.mcp``; a bad dict raises ``bad_response``.
+        """
+        self.server = as_server(server)
         self.timeout = timeout
         self.transport = transport
         self.number = 0
@@ -169,7 +227,7 @@ class McpClient:
                 return await self._over_sse(body)
             return await self._over_http(body)
         except Exception as error:
-            raise failure(self.server, error) from None
+            raise failure(self.server, error) from error
 
     async def notify(self, method):
         """Send one JSON-RPC notification, which has no answer."""
@@ -180,7 +238,7 @@ class McpClient:
             if response.status_code >= 400:
                 response.raise_for_status()
         except Exception as error:
-            raise failure(self.server, error) from None
+            raise failure(self.server, error) from error
 
     async def _over_http(self, body):
         """POST a request; read the answer as JSON or as an event stream."""
@@ -264,6 +322,8 @@ def timeout_setting():
 
 def list_tools(server, transport=None):
     """Return the tools of one server as ``[{name, description, read_only}]``; sync.
+
+    ``server`` is a ``Server`` or the dict ``{name, url, transport, headers}``.
 
     ``read_only`` is the tool's ``readOnlyHint``, false when it gives none. A failure raises
     ``McpError`` with ``unreachable``, ``auth_refused`` or ``bad_response``.

@@ -11,6 +11,7 @@ TOOL_ERROR_CODES = (
     "case_incomplete",
     "files_unavailable",
     "knowledge_unavailable",
+    "memory_unavailable",
     "mcp_unavailable",
     "not_text",
     "nested_stopped",

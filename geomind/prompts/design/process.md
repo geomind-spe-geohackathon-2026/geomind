@@ -89,8 +89,10 @@ Do and don't (from earlier runs):
 - Fill a doublet's design values first (depth, flow, well diameter, roughness, pump efficiency,
   wellhead pressure): gemini derives its inner values from them and from the case, and names a
   missing design value alone (`d0.well_diameter`); set an inner value only while gemini lists it.
-- Use experience from the memory as a starting point only, never as the answer; a value from
-  knowledge keeps its source.
+- A value from knowledge keeps its source.
+<!-- memory -->
+- Use experience from the memory as a starting point only, never as the answer.
+<!-- /memory -->
 - No number of your own: sizes and values come from the case, a file, knowledge with its source,
   or a gemini tool, and are set by their owners later.
 

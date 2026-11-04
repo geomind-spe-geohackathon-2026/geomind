@@ -1,11 +1,14 @@
 """System prompts: from a role file or inline text."""
 
+import re
 from pathlib import Path
 
 from geomind.errors import UnknownNameError
 from geomind.utils.strings import did_you_mean
 
 FOLDER = Path(__file__).parent
+MEMORY_BLOCK = re.compile(r"^<!-- memory -->\n(.*?)^<!-- /memory -->\n", re.DOTALL | re.MULTILINE)
+"""A part of a role file that only a run with the memory on reads (B4)."""
 SHARED_RULES = FOLDER / "shared" / "rules.md"
 """The rules every role prompt ends with: sources, no defaults, units, errors."""
 SHARED_TOOLS = ("read_stored", "search_memory", "read_memory")
@@ -36,8 +39,10 @@ KNOWLEDGE = (
     "standards and reports: a match of `scope` `knowledge` has its document, title and page; "
     "`read_rag` reads a whole one as `knowledge/<document>`. A value from it is cited with its "
     "document and page, and a value that enters the case is confirmed by the user, as any value "
-    "no project file gives. Never take a value from memory where knowledge or a file gives one."
+    "no project file gives."
 )
+KNOWLEDGE_OVER_MEMORY = "Never take a value from memory where knowledge or a file gives one."
+"""The last line of ``KNOWLEDGE`` for a run with the memory on."""
 
 
 def role_files():
@@ -78,8 +83,14 @@ class Prompt:
         prompt.appendix = None
         return prompt
 
-    def render(self):
-        """Return the text of the system message, with the appendix made now."""
+    def render(self, memory=True):
+        """Return the text of the system message, with the appendix made now.
+
+        ``memory`` false (the run's memory is off) leaves out the parts of the role file marked
+        ``<!-- memory -->`` ... ``<!-- /memory -->``, so no word of the memory reaches the model;
+        true keeps them without the marks.
+        """
+        content = MEMORY_BLOCK.sub(r"\1" if memory else "", self.content)
         if self.appendix is None:
-            return self.content
-        return f"{self.content}\n\n{self.appendix()}"
+            return content
+        return f"{content}\n\n{self.appendix()}"

@@ -1,6 +1,6 @@
 [project]
 name = "geomind"
-version = "0.4.24.dev1"
+version = "0.4.24.dev2"
 description = "Agent harness over an event log, with gemini as its physics library"
 readme = "README.md"
 requires-python = ">=3.11"
