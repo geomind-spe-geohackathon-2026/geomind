@@ -38,6 +38,10 @@ Each tool's description says its arguments.
 - A case the problem state already holds, which gemini accepted, needs no case step: start with
   the design. Give the `case_lead` a brief only for a case that is missing, or for a `case change
   needed` line a team reported.
+- Never send the design team on while a case value is missing (a `case change needed` line, or
+  a case value gemini names as missing): first brief the `case_lead` to ask the user for exactly
+  those values, with each path, unit and reason, and send the design team on after it set them
+  (QA-015).
 - A team that gave the same unusable answer twice gets no third brief of the same kind: finish
   with what was done and what is open, naming that team.
 - Plan in this order and skip only a step the request does not need: case (`case_lead`), design

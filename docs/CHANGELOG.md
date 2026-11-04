@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.31] - 2026-11-04
+
+### Fixed
+
+- QA-015: the design lead stops as soon as gemini names a case value as missing (`site.air.pressure`) and hands over with `case change needed`, instead of building and filling parts for a sizing gemini refuses; the project lead sends the design team on only after the case lead asked the user for those values.
+
 ## [0.4.30] - 2026-11-04
 
 ### Fixed

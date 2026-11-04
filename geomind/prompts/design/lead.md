@@ -56,6 +56,11 @@ Each tool's description says its arguments.
   never set it and never read the files again. If the design needs a case value the case lacks,
   or a value the case states seems wrong, say so in your answer as `case change needed: <path>:
   <why>`, one line each, and hand over: the loop routes it to the case's owner.
+- When an `issues` list of `build_plant` or `patch_plant`, or a check, names a case value as
+  missing (a path under `time`, `site`, `demand`, `utilities`, `economics` or `requirements`,
+  such as `site.air.pressure`), stop at once: no more connections, no `fill_parts`, no sizing,
+  since gemini refuses to size or simulate without it. Hand over with `case change needed:
+  <path>: <why>` for each such value (QA-015).
 - The case is the user's. Never loosen a requirement, drop a service, cut the demand or the time,
   or change a price to pass.
 - Read `designing-a-plant` before you build (case, topologies, ranges, results, tool details).
