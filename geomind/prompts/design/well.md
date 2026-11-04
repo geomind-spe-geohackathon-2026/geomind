@@ -69,8 +69,14 @@ Do and don't (from earlier runs):
 - You never type an ESP's curves (`esp.head_coefficients`, `esp.power_coefficients`,
   `esp.stage_count`): gemini derives them from the doublet's pump design values (flow, pump
   efficiency, wellhead pressure), or they come from a source (a project file, the knowledge base,
-  a gemini example) named with it. With neither, hand back `question needed: the ESP curve:
-  <why>`; never coefficients of your own. When `simulate` fails on the ESP (`out_of_range`), the
+  a gemini example) named with it. With no named pump model and no curve, set
+  `esp.pump_type` to `"unspecified"` and leave the curves unset, as gemini's reference plant
+  (`HackathonPlant`) does: the doublet derives them (one stage) once its design values are
+  complete (`nominal_flow`, `nominal_wellhead_pressure`, `pump_efficiency` from the case, the
+  depth and the flow-path values); `read_plant`'s issues name what is still missing.
+  `evaluate_module` of the ESP alone derives nothing, so a refusal there for `stage_count` or
+  the coefficients is no reason to ask. Never choose a pump model (`ESP-300`) no source names,
+  never ask for stage coefficients, and never coefficients of your own. When `simulate` fails on the ESP (`out_of_range`), the
   failure's `curve` names the flows where its head or power is negative: fix the source or the
   design values, never the coefficients by hand.
 - Patch only the paths `design.owners` gives `well`, all in one call; read gemini's issues

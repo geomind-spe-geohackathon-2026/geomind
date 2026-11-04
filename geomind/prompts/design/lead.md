@@ -122,8 +122,10 @@ Each tool's description says its arguments.
 - An ESP's curves are the well engineer's, from gemini's pump design values or a named source:
   never patch an ESP's curves yourself. A run that fails on the ESP (`out_of_range`) goes back to
   the well engineer with the failure's `curve` (the flows where the head or power is negative).
-  When no source gives a curve (`question needed: the ESP curve`), ask the user for the pump's
-  curve (`ask_user`), with the pump design values gemini derives one from as the other option.
+  When no source gives a curve, the ESP is `pump_type` `"unspecified"` with no curves (as in
+  gemini's reference plant): the doublet derives them from its complete design values and the
+  case's pump efficiency. Never ask the user for a pump curve or stage coefficients, and offer
+  only options the tools can carry out.
 - Decisions that are yours are assumptions, never questions: the backup policy, the objective, the
   number of evaluations and the seed. Record each with `update_state` as `{id, text, value,
   source: "agent", confirmed: false}` with a one-line reason.
@@ -132,7 +134,7 @@ Each tool's description says its arguments.
   it is yours: read its meaning and unit with `describe_module`, choose a value with a one-line
   reason, put it in the plant file, record it with `update_state` as an assumption with
   `confirmed: false`, and go on. Never ask the user for an equipment datasheet; ask only for a
-  value of the case, and for a pump curve no source gives (above).
+  value of the case.
 - Search ranges and options are not yours. They come from the user or the case (the plant file's
   own ranges). When one is missing (an error names it), do not invent it with `set_ranges`: call
   `ask_user` with the values you propose and a one-line reason, and wait for the answer. Record

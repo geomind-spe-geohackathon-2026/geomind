@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.49] - 2026-11-05
+
+### Fixed
+
+- QA-055: with no named pump and no curve, the well engineer sets the ESP's `pump_type` to `"unspecified"` and leaves the curves to the doublet, which derives them from its complete design values and the case's pump efficiency (as gemini's reference plant); `evaluate_module` of the ESP alone is no reason to ask. The design lead no longer asks the user for a pump curve or stage coefficients.
+
 ## [0.4.48] - 2026-11-05
 
 ### Fixed
