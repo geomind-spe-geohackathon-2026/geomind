@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import re
 
 from geomind import runtime
 from geomind.errors import ToolError
@@ -12,6 +13,25 @@ from geomind.utils.strings import first_paragraph
 CHARACTERS_PER_TOKEN = 4
 STOP_CODES = ("context_exceeded",)
 """Codes a nested run's message may start with, which its delegate passes on."""
+
+
+NESTED_RETRIES = 1
+"""How often a nested run that a provider failure stopped is run again (QA-011)."""
+PROVIDER_FAILURE = re.compile(r"status = 5\d\d|timed out|idle timeout|overloaded", re.IGNORECASE)
+"""A nested run's stop message of a passing provider failure (a 504, a timeout)."""
+RETRY_NOTE = (
+    "Your previous run of this task stopped on a provider failure (an LLM call timed out). What "
+    "it wrote is kept in the problem state (the case, stored designs, assumptions): read it first "
+    "and go on from it; redo only what is not there."
+)
+"""What a nested run reads when its delegate runs it again after a provider failure."""
+
+
+def provider_failed(result):
+    """Tell whether a nested run ended on a passing provider failure, not a request or a limit."""
+    if result.request is not None or result.status == "done":
+        return False
+    return result.stop_reason == "error" and bool(PROVIDER_FAILURE.search(result.message or ""))
 
 
 def required_setting(name, where):
@@ -104,11 +124,15 @@ class Delegate(Tool):
             asked.add(self.name)
         max_steps = required_setting(self.steps, self.name) if self.steps else None
         beside = beside or self.runs_beside
-        if self.limit is None:
-            result = await context.session.delegate(self.agent, task, max_steps, beside)
-        else:
-            async with bound(context.session, self.limit, self.name):
+        for attempt in range(NESTED_RETRIES + 1):
+            if self.limit is None:
                 result = await context.session.delegate(self.agent, task, max_steps, beside)
+            else:
+                async with bound(context.session, self.limit, self.name):
+                    result = await context.session.delegate(self.agent, task, max_steps, beside)
+            if attempt == NESTED_RETRIES or not provider_failed(result):
+                break
+            task = f"{task}\n\n{RETRY_NOTE}"
         return self.outcome(result, context.session.child_limit)
 
     def outcome(self, result, limit=None):

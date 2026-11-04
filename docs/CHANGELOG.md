@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.53] - 2026-11-05
+
+### Fixed
+
+- QA-011: a nested run that a passing provider failure stopped (`OpenRouter: status = 504; Upstream idle timeout exceeded`, a timeout) is run again once by its delegate, with a note to go on from what the problem state already holds, instead of returning `nested_stopped` for the lead to start over.
+
 ## [0.4.52] - 2026-11-05
 
 ### Data
