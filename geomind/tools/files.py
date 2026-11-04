@@ -189,8 +189,12 @@ def list_files(context):
 PAGE_NOTE = "already read in this run: read_stored a reference, or pass force=true"
 WHOLE_NOTE = "the whole document was already read in this run: read_stored the references"
 IN_CONVERSATION = (
-    "already read in this run: its text is in the conversation above, kept whole for the run; "
-    "after a compaction, read_stored a reference"
+    "already read in this run: its text is in the conversation above, kept whole for the run: "
+    "work from it, reading it again gives nothing new"
+)
+"""The note of a page this run read with no compaction since: no reference to read (#120)."""
+AFTER_COMPACTION = (
+    "already read in this run, before a compaction summarized it: read_stored a reference"
 )
 
 
@@ -233,7 +237,14 @@ def remember_read(context, name, start, end):
         return
     reference = reference_of(context.call_id) if context.call_id else None
     read = {"start": start, "end": end, "reference": reference, "run": context.session.state.run_id}
-    reads.setdefault(name, []).append(read)
+    reads.setdefault(name, []).append({**read, "compacted": compacted_turns(context)})
+
+
+def compacted_turns(context):
+    """Return how many turns compactions have summarized so far, 0 without one."""
+    problem = getattr(context, "problem", None)
+    compaction = getattr(problem, "compaction", None)
+    return compaction.turns if compaction else 0
 
 
 def document_bytes(context, name):
@@ -266,7 +277,8 @@ def read_rag(
     when that column is not evenly spaced times. ``columns`` reads only those columns of a CSV or
     TSV, in that order, such as the ``id``, ``path`` and price of a cost table: a wide table costs
     far fewer tokens so. A page this run already read comes back as ``already_read`` with a
-    ``note`` instead of its text; ``force`` reads it again, until the whole document was read:
+    ``note`` instead of its text (its text is still in the conversation unless a compaction
+    summarized it); ``force`` reads it again, until the whole document was read:
     then every page is ``already_read``, with the references of the stored results. Nested runs
     share what the run tree read.
     """
@@ -285,8 +297,12 @@ def read_rag(
     if earlier is not None:
         note = WHOLE_NOTE if whole else PAGE_NOTE
         this_run = context.session.state.run_id
+        hidden = {"compacted"}
         if all(read["reference"] is None or read["run"] == this_run for read in earlier):
-            note = IN_CONVERSATION
+            compacted = any(read["compacted"] < compacted_turns(context) for read in earlier)
+            note = AFTER_COMPACTION if compacted else IN_CONVERSATION
+            hidden |= set() if compacted else {"reference"}
+        earlier = [{k: v for k, v in read.items() if k not in hidden} for read in earlier]
         return {**shown, "start": start, "total": len(text), "already_read": earlier, "note": note}
     remember_read(context, key, start, end)
     page = {**shown, "start": start, "total": len(text), "text": text[start:end]}

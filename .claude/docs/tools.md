@@ -458,8 +458,20 @@ From the third live run (`tests/integration/test_live_regressions_c.py`, recordi
   gemini's `time_zone` (gemini 0.5.13) through `set_case`, and the error suggests the retry with
   `time_zone: <IANA zone of time.start>` on each series (`zone_retry`): the model chooses the zone
   and records it as an assumption; geomind has no zone.
-- `read_rag` remembers what the run read: a page read again is `already_read`, with the
-  `reference` of the stored earlier result, unless `force`.
+- `read_rag` remembers what the run read: a page read again is `already_read`, unless `force`.
+  Its text is still in the run's conversation (`keeps_result="run"`), so the note says to work
+  from it and shows no `reference`; only after a compaction since the read (more turns in
+  `problem.compaction` than at the read) does it name `read_stored` and the stored earlier
+  result's `reference` (#120).
+- A tool input sent as JSON text (`parsed_inputs`, `parsed_json`) is read with its missing closing
+  brackets added, its stray ones after the value dropped, and up to three stray closing brackets
+  in the middle deleted where `json` stops (`}}}}, "next"` or `}}]}`), only when no closing
+  bracket is made up (#117).
+- `set_case` maps unit names as sources print them to gemini's name of the same unit, no factor
+  (`unit_bridge.gemini_unit_name`): `³` is `3`, `·` is `.`, `MWth` and `MWcool` are `MW`, only
+  where the key's units (`x-units` or the `unit` enum of its schema) hold the name; a
+  requirement's unit where gemini knows it. Each is in `converted` with the reason `unit name`
+  (#118).
 - `geomind run --loop design` takes a project with files and no `case.json`.
 
 ## Memory and knowledge tools

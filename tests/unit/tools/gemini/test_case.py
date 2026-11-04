@@ -142,6 +142,39 @@ async def test_a_gas_fraction_in_mol_percent_is_set_as_the_fraction():
     assert gas["CH4"] == {"value": 92, "unit": "mol%"}
 
 
+async def test_unit_names_as_sources_print_them_are_set_as_gemini_s_names():
+    """#118: units as sources print them are set under gemini's names, the same numbers.
+
+    ``kg/m³``, ``mPa·s``, ``Nm³/m³``, ``MWcool`` and ``m³/h``, each listed with "unit name".
+    """
+    session, problem = await loaded("shallow_district")
+    fluid = {
+        "density": {"value": 1030, "unit": "kg/m³"},
+        "viscosity": {"value": 0.4, "unit": "mPa·s"},
+        "gas_liquid_ratio": {"value": 0.8, "unit": "Nm³/m³"},
+    }
+    changes = {"site": {"fluid": fluid}, "demand": {"cooling": {"power": {"unit": "MWcool"}}}}
+    flow = {"on": "doublet", "quantity": "production_flow", "over": "each", "max": 300}
+    requirements = {"max_flow": {**flow, "unit": "m³/h"}}
+    result = await edited(session, problem, {"changes": changes, "requirements": requirements})
+    assert result.is_error is False, result.output
+    case = state_after(session, problem).case
+    assert case["site"]["fluid"]["density"] == {"value": 1030, "unit": "kg/m3"}
+    assert case["site"]["fluid"]["viscosity"] == {"value": 0.4, "unit": "mPa.s"}
+    assert case["demand"]["cooling"]["power"]["unit"] == "MW"
+    assert [item["unit"] for item in case["requirements"] if item["name"] == "max_flow"] == ["m3/h"]
+    converted = {entry["path"]: entry for entry in result.output["converted"]}
+    assert set(converted) == {
+        "site.fluid.density",
+        "site.fluid.viscosity",
+        "site.fluid.gas_liquid_ratio",
+        "demand.cooling.power",
+        "requirements.max_flow",
+    }
+    assert converted["site.fluid.gas_liquid_ratio"]["to"] == {"value": 0.8, "unit": "Nm3/m3"}
+    assert {entry["reason"] for entry in converted.values()} == {"unit name"}
+
+
 async def test_a_case_with_gemini_s_own_units_has_no_converted_list():
     """Nothing mapped, nothing listed: the result keeps its two keys."""
     session, problem = await loaded("shallow_district")

@@ -1,6 +1,7 @@
 """Tools and the decorator."""
 
 import json
+from pathlib import Path
 
 import pydantic
 import pytest
@@ -237,3 +238,37 @@ def test_a_null_sent_as_text_is_null_where_the_schema_takes_one():
         "section": None,
         "name": "None",
     }
+
+
+STRAY_BRACKETS = Path(__file__).parents[2] / "fixtures" / "live" / "a4_stray_brackets.json"
+"""nemotron's JSON text of ``changes`` with a stray closing bracket mid-text, as recorded (#117)."""
+
+
+def test_a_stray_closing_bracket_in_the_middle_is_deleted():
+    """#117: ``}}}}, "requirements"`` and ``}}]}`` ended two nemotron runs; each is read now."""
+    from geomind.tools.base import parsed_inputs
+
+    recorded = json.loads(STRAY_BRACKETS.read_text())
+    schema = {"properties": {"changes": {"anyOf": [{"type": "object"}, {"type": "null"}]}}}
+    project = parsed_inputs(schema, {"changes": recorded["project_set_case_2"]})["changes"]
+    assert project["requirements"]["doublet_count"]["max"] == 3
+    assert project["demand"]["cooling"]["supply_temperature"] == {"value": 20, "unit": "°C"}
+    chat = parsed_inputs(schema, {"changes": recorded["from_chat_set_case_1"]})["changes"]
+    assert chat["demand"]["cooling"]["power"] == {"value": 5, "unit": "MW"}
+    listed = {"properties": {"changes": {"type": "array"}}}
+    state = parsed_inputs(listed, {"changes": recorded["from_files_update_state_1"]})["changes"]
+    assert state[0]["value"]["citation"]["note"] == "dates 2027-01-01 to 2027-12-31, no offset"
+
+
+def test_a_stray_bracket_before_the_next_key_and_the_limits_of_the_repair():
+    """The bracket that closed the object early goes; a missing bracket is never made up."""
+    from geomind.tools.base import parsed_json
+
+    text = '{"opex": {"chemical": {"value": 2, "unit": "EUR/kg"}}}, "revenue": {"heat": 1}}'
+    assert parsed_json(text) == {
+        "opex": {"chemical": {"value": 2, "unit": "EUR/kg"}},
+        "revenue": {"heat": 1},
+    }
+    assert parsed_json('{"a": "x}, y"}}, "b": 1}') == {"a": "x}, y", "b": 1}
+    assert parsed_json('{"a": [1}') is None
+    assert parsed_json('{"a": 1}, "b": 2}, "c": 3}, "d": 4}, "e": 5}') is None

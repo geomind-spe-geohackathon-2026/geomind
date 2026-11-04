@@ -143,7 +143,12 @@ of):
   (`utilities.gas.composition`) is gas bought from a utility. Never put one in the other.
 - An existing case (`read_case`, a project's case file) may hold flaws: a count where a duration
   belongs, a return on the wrong side of its supply, a span that differs from its data. Check it
-  as you would your own, and ask about each flaw before you hand over.
+  as you would your own. Each flaw is ALWAYS a question with `ask_user` before you finish, one
+  question naming every flaw with both values as written; a flaw only listed in your answer is a
+  check not done. Do: `set_case(source="project")`, then `ask_user("The case has two flaws:
+  time.end is one day before the end of the data's span; the cooling return is colder than its
+  supply, both as written. How should each be set?")`, then finish. Don't: finish with "Flaws found (need
+  your input)" in the answer and no `ask_user`.
 
 Setting the case:
 
@@ -185,6 +190,7 @@ Checklist before you hand over (`read_case` once more):
 - no number in your questions or answer that you worked out or know from memory;
 - no derived key is set by hand;
 - units match the key tree; supply and return are on the right sides; the span equals the data;
+- every flaw found was asked about with `ask_user`, never only named in the answer;
 - every requirement says what the brief says, durations as durations, counts as counts;
 - every value not from the files was confirmed in the one question and recorded with its source.
 - every value not from the files or the user was searched in the knowledge base and the MCP tools

@@ -220,3 +220,23 @@ async def test_a_page_this_run_read_is_in_its_conversation():
     session.documents_read["demand.csv"][0]["reference"] = "stored"
     again = (await call(read_rag, {"name": "demand.csv"}, session, "p")).output
     assert again["note"].startswith("already read in this run: its text is in the conversation")
+    assert "read_stored" not in again["note"]
+    assert all("reference" not in read for read in again["already_read"])
+
+
+async def test_a_page_read_before_a_compaction_points_at_read_stored():
+    """#120: only a compaction since the read takes the text away; then the note names read_stored.
+
+    DeepSeek, told "after a compaction, read_stored" with none, called it 16 times in one run.
+    """
+    from geomind.context import Compaction, ProblemState
+
+    session = session_with()
+    await call(read_rag, {"name": "demand.csv"}, session, "p")
+    session.documents_read["demand.csv"][0]["reference"] = "stored"
+    session.load_artifact = lambda reference: {"text": "kept"}
+    compacted = ProblemState(compaction=Compaction(summary="earlier", turns=3))
+    again = (await call(read_rag, {"name": "demand.csv"}, session, "p", compacted)).output
+    assert "read_stored" in again["note"] and "compaction" in again["note"]
+    assert [read["reference"] for read in again["already_read"]] == ["stored"]
+    assert all("compacted" not in read for read in again["already_read"])

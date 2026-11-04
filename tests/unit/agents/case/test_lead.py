@@ -146,3 +146,11 @@ def test_units_are_written_as_the_source_gives_them():
     """#115: set_case maps °C/km and mol%; the lead lists what it converted in the one question."""
     text = " ".join(CaseLead().prompt.content.split())
     assert "`30 °C/km`, `80 mol%`" in text and "`converted`" in text
+
+
+def test_a_flaw_of_a_loaded_case_is_always_a_question():
+    """#119: nemotron named the flaws of a loaded case in its answer and asked nothing."""
+    text = " ".join(CaseLead().prompt.content.split())
+    assert "Each flaw is ALWAYS a question with `ask_user` before you finish" in text
+    assert 'Don\'t: finish with "Flaws found (need your input)" in the answer' in text
+    assert "every flaw found was asked about with `ask_user`" in text

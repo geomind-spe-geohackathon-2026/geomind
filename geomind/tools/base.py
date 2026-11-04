@@ -152,7 +152,8 @@ class Tool:
 
         An object or array sent as its JSON text is read as that value first, also when only its
         closing brackets are missing or one too many follows it, and ``"None"`` is null where a null
-        is accepted (``parsed_inputs``, #67, #87, #89, #112).
+        is accepted (``parsed_inputs``, #67, #87, #89, #112), also with a stray closing bracket in
+        the middle deleted (#117).
         """
         tool_input = parsed_inputs(self.input_schema, tool_input)
         if self.input_model is not None:
@@ -193,22 +194,86 @@ def missing_closers(text):
     return "" if in_string else "".join(reversed(stack))
 
 
+STRAY_REPAIRS = 3
+"""How many stray closing brackets ``parsed_json`` deletes from one text at most (#117)."""
+
+
 def parsed_json(text):
     """Return the JSON value of ``text``, also when only its closing brackets are missing (#87).
 
     nemotron sent a list as JSON text without its final ``]``, and once with one ``}`` too many
-    after it (#112); nothing else is repaired.
+    after it (#112), or in the middle, where ``json`` stops (#117): ``"EUR/kg"}}}, "revenue"`` or
+    ``}]}``. A closing bracket there that closes nothing open is deleted, up to
+    ``STRAY_REPAIRS`` times, and the value is taken only when it has no more closing brackets than
+    the text as sent: a bracket moves or goes, none is made up. Nothing else is repaired.
     """
-    for candidate in (text, text + missing_closers(text)):
-        try:
-            return json.loads(candidate)
-        except ValueError:
-            continue
+    closers = _closer_count(text)
+    for repairs in range(STRAY_REPAIRS + 1):
+        value, read, error = _read_json(text)
+        if error is None:
+            return value if not repairs or _closer_count(read) <= closers else None
+        index = _stray_closer(text, error)
+        if index is None:
+            return None
+        text = text[:index] + text[index + 1 :]
+    return None
+
+
+def _closer_count(text):
+    """Return how many closing brackets ``text`` has outside its strings."""
+    count, in_string, escaped = 0, False, False
+    for char in text:
+        if in_string:
+            in_string = escaped or char != '"'
+            escaped = not escaped and char == "\\"
+        elif char == '"':
+            in_string = True
+        elif char in "]}":
+            count += 1
+    return count
+
+
+def _read_json(text):
+    """Return ``(value, text read, None)`` of ``text``, else ``(None, None, error)``.
+
+    The text read is ``text``, with its missing closers added or its stray ones after the value
+    dropped; the error is that of ``text`` as sent.
+    """
+    try:
+        return json.loads(text), text, None
+    except json.JSONDecodeError as failure:
+        error = failure
+    completed = text + missing_closers(text)
+    try:
+        return json.loads(completed), completed, None
+    except ValueError:
+        pass
     try:
         value, end = json.JSONDecoder().raw_decode(text.strip())
     except ValueError:
-        return None
-    return value if set(text.strip()[end:]) <= STRAY_CLOSERS else None
+        return None, None, error
+    rest = text.strip()[end:]
+    if set(rest) <= STRAY_CLOSERS:
+        return value, text.strip()[:end], None
+    return None, None, error
+
+
+def _stray_closer(text, error):
+    """Return the index of the closing bracket where ``json`` stopped that closes nothing open.
+
+    It is the bracket ``json`` stopped at when nothing or another bracket is open there (``}]``
+    inside an object); at ``Extra data`` followed by ``,`` the value closed too early, so it is
+    the last bracket before. Else ``None``.
+    """
+    position = error.pos
+    char = text[position : position + 1]
+    if char in ("}", "]") and missing_closers(text[:position])[:1] != char:
+        return position
+    if error.msg == "Extra data" and text[position:].lstrip().startswith(","):
+        before = text[:position].rstrip()
+        if before.endswith(("}", "]")):
+            return len(before) - 1
+    return None
 
 
 JSON_TYPES = {dict: "object", list: "array"}
