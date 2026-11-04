@@ -8,6 +8,13 @@ Use `import geomind as gd`. `gm` stays gemini's alias.
 
 Read [docs/rules.md](docs/rules.md) first: it holds every project rule.
 
+## First: ask the mode
+
+At the start of every session, before any change, ask the user which mode this session works in:
+development, production or hotfix (QA), as the project root's `docs/ops/development-modes.md`
+defines them. Work by that mode's rules until the user changes it; without an answer, change
+nothing.
+
 ## Read both: `.claude/` for agents, `docs/` for people
 
 `.claude/` is written for agents: start with [.claude/README.md](.claude/README.md) (its
