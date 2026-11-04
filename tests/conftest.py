@@ -139,7 +139,9 @@ def pytest_configure(config):
 
 TEST_MODEL = "deepseek/deepseek-v4.1-flash-1017"
 TEST_CHEAP_MODEL = TEST_MODEL
-TEST_CONTEXT_WINDOW = "128000"
+TEST_CONTEXT_WINDOW = "1048576"
+"""The real window of ``TEST_MODEL`` in OpenRouter's model list (2026-11-04); a test of a cap
+sets its own."""
 TEST_RETRY_COUNT = "3"
 TEST_RETRY_DELAY = "0.5"
 TEST_MAX_STEPS = "30"

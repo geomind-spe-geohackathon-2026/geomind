@@ -69,6 +69,25 @@ Run c8bf2381 (chat b96805e4) on 0.4.22.
   given and gemini's case reads it so (test_case); `simulate` of the hackathon plant with 5 mol%
   H2S in place of as much CH4 runs with no failed step and less CO2 (test_runs; it fails on 0.6.3).
 - No geomind workaround existed for H2S, so nothing was removed.
+
+### Context per agent
+
+Context is each agent's own, steps each run's own, budgets the run tree's (Sahand 2026-11-04;
+[context.md](../.claude/docs/context.md#per-agent-or-per-run-tree)). No context decision summed a
+run tree before; the audit found none and tests now pin it.
+
+- Compaction reads the larger of the agent's own rendered messages (estimated) and the input tokens
+  of its own last call (`RunState.last_input_tokens`, from its `llm.completed`, cleared by its
+  compaction), so tool schemas count; never `usage`, which includes nested runs.
+  `is_over_threshold(messages, model, last_input_tokens)` takes the count (internal).
+- Pinned: a parent whose nested runs used far past the window neither compacts nor gets a smaller
+  `max_tokens`; a nested agent compacts on its own context only; each nested run counts its own
+  steps (`max_steps`, `engineer_max_steps` per delegation).
+- `TokenBudget` and `CostBudget` are run-tree spending caps, as their docstrings and
+  `--max-tokens` now say; no token cap acts as a context window.
+- Tests: `GEOMIND_CONTEXT_WINDOW` of the test settings is the test model's real window (1,048,576,
+  was 128,000); the long-chat test sets its own window.
+
 ### More of gemini 0.6.2 and 0.6.3 (0.4.24.dev1)
 
 **Contract changes for the backend:** two new required settings, no default,

@@ -24,7 +24,8 @@ so they are passed again when a run resumes in another process.
 - `TokenBudget(max_tokens, answer_reserve=None, answer_agents=None, bound_input=False)` and
   `CostBudget(max_cost, answer_reserve=None, answer_agents=None, prices=None)` keep a run under the
   cap. They read `context.session.total_usage`: the usage of the run and of every run above it, so a
-  delegate's calls count against the whole run's budget. A nested run's usage joins its parent's
+  delegate's calls count against the whole run's budget. They are run-tree spending caps, never a
+  context limit, which is per agent call ([context.md](context.md#per-agent-or-per-run-tree)). A nested run's usage joins its parent's
   when it ends, and a sibling still running is not counted yet. `geomind run --max-tokens` and
   `--max-cost` set them.
   **No call past the cap.** With `prices` (a mapping from model id to `(input, output)` price per

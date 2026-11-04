@@ -35,9 +35,18 @@ def test_tokens_are_four_characters_each_and_count_tool_inputs():
 
 def test_the_threshold_is_a_share_of_the_explicit_window():
     """The setting gives the window; no model table exists."""
-    limit = int(0.6 * 128_000)
-    assert not is_over_threshold([text("user", "x" * (limit * 4))], "any/model")
-    assert is_over_threshold([text("user", "x" * ((limit + 1) * 4))], "any/model")
+    limit = int(runtime.get("compaction_threshold") * runtime.get("context_window"))
+    assert not is_over_threshold([text("user", "x" * (limit * 4))], "any/model", 0)
+    assert is_over_threshold([text("user", "x" * ((limit + 1) * 4))], "any/model", 0)
+
+
+def test_the_threshold_reads_the_agent_s_own_last_call_when_it_is_larger():
+    """The provider's count of the agent's last input holds the tool schemas the estimate lacks."""
+    limit = int(runtime.get("compaction_threshold") * runtime.get("context_window"))
+    short = [text("user", "x")]
+    assert not is_over_threshold(short, "any/model", limit)
+    assert is_over_threshold(short, "any/model", limit + 1)
+    assert is_over_threshold([text("user", "x" * ((limit + 1) * 4))], "any/model", 10)
 
 
 async def test_the_window_comes_from_the_provider_list_once(monkeypatch):
@@ -52,7 +61,7 @@ async def test_the_window_comes_from_the_provider_list_once(monkeypatch):
     await load_windows({"a/b"}, fetcher)
     await load_windows({"a/b"}, fetcher)
     assert len(fetches) == 1
-    assert is_over_threshold([text("user", "x" * 4000)], "a/b")
+    assert is_over_threshold([text("user", "x" * 4000)], "a/b", 0)
 
 
 async def test_an_unknown_window_is_an_error_not_a_guess(monkeypatch):
@@ -72,7 +81,7 @@ async def test_an_unknown_window_is_an_error_not_a_guess(monkeypatch):
 def test_the_threshold_is_a_setting():
     """A lower share compacts earlier."""
     with runtime.settings(compaction_threshold=0.0):
-        assert is_over_threshold([text("user", "x" * 4)], "unknown/model")
+        assert is_over_threshold([text("user", "x" * 4)], "unknown/model", 0)
 
 
 def test_the_last_turns_are_never_older():
@@ -98,5 +107,5 @@ def test_a_transcript_starts_with_the_earlier_summary():
 def test_a_rule_agent_and_a_modelless_fake_run_are_never_over(monkeypatch):
     """No model, no window to compare with."""
     monkeypatch.delenv("GEOMIND_CONTEXT_WINDOW")
-    assert not is_over_threshold([text("user", "x" * 10**7)], "rule")
-    assert not is_over_threshold([text("user", "x" * 10**7)], "a/b")
+    assert not is_over_threshold([text("user", "x" * 10**7)], "rule", 0)
+    assert not is_over_threshold([text("user", "x" * 10**7)], "a/b", 0)

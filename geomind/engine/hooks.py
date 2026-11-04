@@ -167,6 +167,10 @@ class Capped(Hook):
 class TokenBudget(Capped):
     """Keep a run under ``max_tokens``, nested runs included, with no call past the cap.
 
+    ``max_tokens`` is a spending cap over the whole run tree (input and output of every call of
+    the run and its nested runs), a cost budget counted in tokens; it is no context limit, which
+    is each agent's own (``context_window``, compaction).
+
     With ``bound_input=True``, before each LLM call it bounds the call: the input
     (``input_bound``) plus the output the call may use. A call whose input does not fit is denied;
     otherwise the call's ``max_tokens`` is lowered to what fits. Without it, a call is refused once
@@ -193,6 +197,9 @@ class TokenBudget(Capped):
 
 class CostBudget(Capped):
     """Keep a run under ``max_cost``, nested runs included, with no call past the cap.
+
+    ``max_cost`` is meant for the whole run: the total of the run tree, the run and every nested
+    run, unlike the context, which each agent has its own.
 
     Before each LLM call it estimates the call: the input bound times the input price plus the
     ``max_tokens`` it may use times the output price, from ``prices``. A call whose input does not

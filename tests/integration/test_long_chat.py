@@ -15,7 +15,9 @@ FACT_TURN = 3
 FACT = "The well on the north site is 2345 m deep."
 TURN_CHARACTERS = 2000
 LIMIT = 15_500
-SHARE = LIMIT / 128_000
+WINDOW = 128_000
+"""The window this test checks its threshold against, its own, not the deployment's."""
+SHARE = LIMIT / WINDOW
 
 
 @pytest.fixture(autouse=True)
@@ -81,7 +83,7 @@ def test_a_fifty_turn_chat_compacts_once_and_keeps_the_answer():
     """Under the threshold throughout, one summary, and turn 3 is still known at turn 50."""
     store = MemoryRunStore()
     llm = Remembering()
-    with runtime.settings(compaction_threshold=SHARE):
+    with runtime.settings(context_window=WINDOW, compaction_threshold=SHARE):
         results = [take_turn(store, llm, number) for number in range(1, TURNS + 1)]
     compacted = [
         number
@@ -99,7 +101,7 @@ def test_the_summary_keeps_its_place_across_runs():
     """A later run reads the summary, not the turns it replaced."""
     store = MemoryRunStore()
     llm = Remembering()
-    with runtime.settings(compaction_threshold=SHARE):
+    with runtime.settings(context_window=WINDOW, compaction_threshold=SHARE):
         for number in range(1, 34):
             take_turn(store, llm, number)
     started = of_type(store.load_events(next(reversed(store.events))), "run.started")[0]

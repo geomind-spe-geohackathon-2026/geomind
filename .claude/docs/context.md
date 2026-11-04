@@ -94,11 +94,13 @@ names and the files of the demand series.
 `history.py` turns messages into turns: a turn starts at a user message and holds everything up to the
 next one, so a tool call never parts from its result.
 
-`compaction.py` decides. Before an LLM call, when the rendered context passes `compaction_threshold`
-(default 0.6) of the model's window, all turns but the last `compaction_keep_turns` (default 6) are
-replaced by one summary message. The window comes from a small table per model, with a safe default,
-and tokens are estimated at four characters each, so a replay gives the same answer. With nothing old
-enough to replace, the run goes on: an open turn stays whole.
+`compaction.py` decides. Before an LLM call, when the agent's context passes `compaction_threshold`
+(0.6) of the model's window (`context_window`, below), all turns but the last
+`compaction_keep_turns` (6) are replaced by one summary message. The agent's context is the larger
+of its own rendered messages, estimated at four characters a token, and the input tokens the
+provider counted for its own last call (`RunState.last_input_tokens`, which holds the tool schemas
+the estimate lacks; a compaction clears it). Both come from the log, so a replay gives the same
+answer. With nothing old enough to replace, the run goes on: an open turn stays whole.
 
 `engine/compaction.py` makes the one call to the `Summarizer` agent (cheap model, no tools, not
 streamed) and logs an internal `compaction` event holding the completion. `apply` makes the
@@ -142,4 +144,28 @@ model list. `load_windows` reads the list once per process, in a worker thread, 
 provider starts (and before a call, for a resumed run); when the list cannot be read or lacks a
 model it raises `RunError` naming `GEOMIND_CONTEXT_WINDOW`. There is no table and no guess (before
 0.4.2 an unknown model got 128 000). A fake or scripted run never fetches and is never over the
-threshold unless the setting gives a window.
+threshold unless the setting gives a window. `GEOMIND_CONTEXT_WINDOW` overrides the list for every
+model, so a live run should leave it unset or give the real window: a smaller value compacts early.
+
+## Per agent or per run tree
+
+A run tree is a root run and its nested runs (delegates), on one log. Each limit counts one of two
+things, and the two never mix (Sahand, 2026-11-04):
+
+- **Context, per agent call.** Compaction, the window bound of a call's `max_tokens` (the window
+  less the input bound of the call's own messages and tools) and `context_exceeded` (the
+  provider's 400 for that one call) read only the calling agent's own conversation. A nested run
+  starts with its task only and compacts on its own context; a parent never compacts or is
+  refused for what its children used.
+- **Steps, per agent run.** Each run, nested ones included, counts its own steps from 1:
+  `max_steps` (`GEOMIND_MAX_STEPS`) for a run, or the delegate's own setting (`engineer_max_steps`)
+  for an engineer. A parent's steps are never spent by its children.
+- **Budgets, per run tree.** `TokenBudget(max_tokens)`, `CostBudget(max_cost)`, `ProjectBudget`
+  and `TimeLimit` are spending caps over the whole tree (`RunSession.total_usage`: the run, the
+  runs above it, its siblings and the calls in flight), set by their caller with no default; a
+  hook not given is off. A token budget is a cost budget in tokens, never a context window.
+
+`usage` totals are cumulative: `RunState.usage`, `step_usage`, `RunResult.usage`, the `usage`
+event and a delegate's `tool.result.usage` (`take_child_usage`) include what nested runs spent.
+They are for budgets and reports; no context decision reads them. Per call figures are in
+`llm.completed.completion.usage`.
