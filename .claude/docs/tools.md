@@ -349,11 +349,15 @@ A permission denial is no error class: its result is the reason as text, with `i
   question with options is `{"text": <value>}` or typed text: text that is no option's value is
   the user's own answer, and the model reads it marked as typed (`typed_answer`). Only the step
   limit's question (`continue`, `stop`) takes its options alone.
-- A case path (`site.air.pressure`) an earlier answered question of the same run tree named,
-  alone or among others, counts as answered by the first such answer (`engine/questions.py`, from
-  the root's log, so across resumes too). A question whose every path is answered is not asked:
-  its result is the earlier answers. A question with new paths too is asked with a line under it
-  giving the earlier answers and naming only the new paths to answer (#140).
+- A case path (`site.air.pressure`, or `.H2S` and `C2H6` shortened in a list after a full path)
+  an earlier answered question of the same run tree named, alone or among others, counts as
+  answered by the first such answer (`engine/questions.py`, from the root's log, so across
+  resumes too), unless the new question offers a value for it the earlier one did not: a number
+  after the path the earlier question did not have, or a confirmation. A value found or changed
+  is always asked (E2E-3, E2E-7, E2E-11). A question whose every path is answered is not asked:
+  its result is the earlier answers. A question with other paths too is asked with a line under
+  it giving the earlier answers; only a question that is nothing but a list of paths, with no
+  value, also names the new paths to answer (#140).
 - `finish(answer)` ends the run, after `before_finish` hooks, the agent's own
   `answer_problem(context)` (a required step code checks, refused once per run, such as the case
   lead's economics, #124) and output validation.

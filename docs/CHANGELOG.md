@@ -32,6 +32,13 @@ geomind 0.4.24 (on gemini 0.6.4) uses more of gemini 0.6.2 and 0.6.3 (evolve's s
 - An end-to-end run needs a pressure or the site's elevation, from a file, the knowledge base, an MCP server or the user: no default.
 - The shortened-history note can invite a `{}` call; `run_manifest.json` `models` lists only the roles that started; `read_case` of a missing section is an error.
 
+### E2E fixes: questions (asked-once guard)
+
+- E2E-3, E2E-7, E2E-11, behaviour: asked-once applies to the same question about the same value, not to an earlier mention of the path. A path stays answered only when the new question offers nothing for it the earlier one did not; a number after the path the earlier question did not have, or a confirmation, makes it a new question, so a value found after an answer like "use Trondheim 2027 data" (an MCP value) reaches the user to confirm (`engine/questions.py`).
+- Shortened list items after a full path are paths: `site.fluid.dissolved_gas.N2, .H2S` and `utilities.gas.composition.CH4, C2H6, CO2` (E2E-11).
+- "Answer only <paths>" is added only to a question that is nothing but a list of paths with no value; a question with a confirmation or other content is asked whole, with the earlier answers under it (E2E-11).
+- The "Not asked again" result no longer says "a value it does not give stays open"; it says a value found since is a new question to confirm with its source (E2E-7). The case lead's prompt says the same: an answer naming a source gives no value. No contract change.
+
 ### Bugs from a production run (0.4.24.dev2)
 
 Run c8bf2381 (chat b96805e4) on 0.4.22.
