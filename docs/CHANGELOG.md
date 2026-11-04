@@ -22,6 +22,7 @@ geomind 0.4.24 (on gemini 0.6.3) uses more of gemini 0.6.2 and 0.6.3 (evolve's s
 ### Data
 
 - The two discount-rate rows of the cost catalogue (EU financial 0.04, social 0.03) get their `value_2015` (a rate has no price year), so the case lead can offer them; they were never used.
+- 18 cited rows from Sahand's second research batch (152 rows now): a Dutch geothermal discount rate (PBL SDE++ real 4.0 %, nominal 5.6 %; the social CBA rate 2.25 %), pipe O&M 1 %/yr (PBL Vesta MAIS), and proxies for circulation pump and ice storage O&M and for inhibitors; `cost-sources.md` lists them and the two that cannot be used (a per-m3 waste price, a 1989 franc price).
 
 ### Known issues
 

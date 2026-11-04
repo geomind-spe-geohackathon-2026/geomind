@@ -84,3 +84,16 @@ says so. Still refused: `opex.fixed.pipe` per MW and year (`opex-pipe-dea-2025-d
   when it is complete for the plant's kinds.
 - Rows: 134 (62 verified, 53 secondary, 19 placeholder).
 
+
+## Additions, batch 2 (2026-11-04)
+
+18 cited rows from Sahand's second research batch (`cost-sources-additions-2.csv`), for the keys that had no usable source:
+
+- `economics.discount_rate`: PBL SDE++ 2022 geothermal WACC, real 4.0 % and nominal 5.6 % (verified); the EBN/Geothermie Nederland 2026 report on PBL's ORT model, 8.7 % (secondary); the Dutch social CBA rate, real 2.25 % (verified, for a social cost-benefit analysis only). Rates have no price year: value_2015 is the value.
+- `economics.opex.fixed.pipe`: 1 %/yr of capex from PBL's Vesta MAIS model (transport and distribution, verified); VDI 2067 via VICUS, 0.5 to 1.0 %/yr; DEA transport v8 derived, 0.158 %/yr.
+- `economics.opex.fixed.circulation_pump`: VDI 2067 via VICUS, 2 to 3 %/yr (pumps in general).
+- `economics.opex.fixed.ice_storage`: weak proxy from IRENA/ETSAP E17 (latent heat storage), 1.67 to 4.17 %/yr.
+- `economics.opex.variable.chemical`: scale inhibitor proxies 0.77 EUR/kg (raw phosphonate) and 2.15 / 2.68 EUR/kg (formulated antiscalant); a 1989 corrosion inhibitor figure with no 2015 value (not usable).
+- `economics.opex.variable.waste_disposal`: a French very-low-level waste proxy in EUR/m3, which the key (EUR/kg) does not accept: listed, not usable without a density.
+
+The research report notes that the PBL quotes came through a summarising fetch and should be checked against the PDF, and that the SDE++ 2026 rate is likely above 5.6 %.
