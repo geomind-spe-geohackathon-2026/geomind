@@ -14,3 +14,4 @@ dist/
 .runs/
 evals/reports/*
 !evals/reports/summary.md
+.DS_Store

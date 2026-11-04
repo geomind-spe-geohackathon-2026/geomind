@@ -8,6 +8,14 @@ Use `import geomind as gd`. `gm` stays gemini's alias.
 
 Read [docs/rules.md](docs/rules.md) first: it holds every project rule.
 
+## Read both: `.claude/` for agents, `docs/` for people
+
+`.claude/` is written for agents: start with [.claude/README.md](.claude/README.md) (its
+`docs/` reference, `notes/` current work, `archive/` history). `docs/` is written for people:
+design, contracts, reports, bug lists. Read both, and the project-wide context in the project root
+`geomind-spe-hackathon-2026/` (on the Dell `~/geomind-spe-hackathon-2026`, whose `geomind` links to
+this clone): its `AGENTS.md`, the shared memory `.claude/memory/MEMORY.md` and `docs/`.
+
 ## Start here
 
 - [Plan](.claude/docs/plan.md): the goal, the decisions and their reasons, what is built, and the
