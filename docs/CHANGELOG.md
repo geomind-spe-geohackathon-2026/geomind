@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.41] - 2026-11-04
+
+### Fixed
+
+- QA-041: the case lead recommends a catalogue row of the site's country, then its region, before another country's, and never a row its note calls an upper bound or a proxy (the COVRA radioactive-waste tariff) over a usable one; a user's price without a price year is named in the question's note and its year asked, as it is set as 2015 EUR.
+
 ## [0.4.40] - 2026-11-04
 
 ### Fixed

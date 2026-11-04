@@ -130,9 +130,17 @@ Where each value comes from:
   of one key in this order:
   1. a sourced row (`verified` or `secondary`) beats a `placeholder`, which has no source;
   2. a `verified` row beats a `secondary` one;
-  3. when several rows remain with different values, recommend the one of the latest `year`
+  3. a row of the site's country beats one of its region (Nordic, EU), which beats one of
+     another country (QA-041: for a site in Norway a Swedish heat price beats the Dutch cap);
+  4. a row whose `note` calls it an upper bound, a proxy or of another scale (the COVRA
+     radioactive-waste tariff for `opex.variable.waste_disposal`) is never recommended over a
+     usable row without that note: put it in `others`;
+  5. when several rows remain with different values, recommend the one of the latest `year`
      (equal years: the middle value) and put the others in its `others` (step 5), so the user
      can choose another. A key with only placeholder rows is named so, with no value of yours.
+  A price the user gave goes in `values` with its source; when the user gave no price year for
+  it, say in `note` that it is set as 2015 EUR like the rows and ask its year in the same
+  question, since nothing converts it (QA-041).
   A row's unit must be one the key accepts (`describe_case("economics.<key>")`); a basis word
   after it is no other unit (`EUR/W heat` is `EUR/W`, `EUR/MWh (GCV)` is `EUR/MWh`, `EUR/t CO2e`
   is `EUR/t`), and gemini converts between the units a key accepts. `ask_economics` takes the
