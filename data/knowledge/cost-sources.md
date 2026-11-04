@@ -97,3 +97,31 @@ says so. Still refused: `opex.fixed.pipe` per MW and year (`opex-pipe-dea-2025-d
 - `economics.opex.variable.waste_disposal`: a French very-low-level waste proxy in EUR/m3, which the key (EUR/kg) does not accept: listed, not usable without a density.
 
 The research report notes that the PBL quotes came through a summarising fetch and should be checked against the PDF, and that the SDE++ 2026 rate is likely above 5.6 %.
+
+## Additions, batch 3 (2026-11-04)
+
+19 rows appended (rows 153-171), from Sahand's third research run (`cost-sources-additions-3.csv`).
+They use the same rules and the same HICP index as batches 1 and 2; a 2026 price year uses the
+2025 index.
+- `economics.opex.per_energy.boiler` 1.1, `.electric_boiler` 0.9 and `.heat_pump` 1.69 / 1.19 EUR/MWh
+  of heat, all verified from the DEA workbook (PyPSA mirror). The heat-pump sheet is an older
+  edition than v0019, so re-check it.
+- `economics.capex.production_pump` (ESP), per W of electric rating, not shaft power:
+  - 0.60 and 0.72 EUR/W, Kennisagenda 2016, secondary;
+  - 1.55 EUR/W, Schlagermann and Reinicke 2023, verified.
+- `economics.discount_rate`:
+  - PBL SDE++ 2025 geothermal WACC, 5.1 % real and 7.2 % nominal, verified. The real one fits this
+    catalogue's real prices.
+  - The 2026 erratum row, 5.2 % / 7.3 %, is secondary and NOT confirmed as geothermal, so read the
+    2026 Eindadvies p.66 before choosing it.
+
+  The 2022 rows stay. The case lead lists every sourced rate in its one question.
+- `economics.opex.variable.waste_disposal`: 3.87 EUR/kg, derived from the French TFA cost and the
+  NRG/EBN density of packed filter waste. It is valid for filter waste only. The density row itself
+  (t/m3) is listed and never used, because the key takes EUR/kg.
+- `economics.opex.variable.chemical`: corrosion inhibitor 1.94 to 3.11 EUR/kg, from IndexBox 2026
+  for EU amine inhibitors. It is a market-research proxy.
+- `economics.opex.fixed.ice_storage`:
+  - ice-specific 0.51 to 0.88 %/yr, from an sp.ICE manufacturer table, secondary;
+  - 2 %/yr for a whole cooling plant (Hao 2022), as an upper bound.
+- Rows: 171 (74 verified, 78 secondary, 19 placeholder).

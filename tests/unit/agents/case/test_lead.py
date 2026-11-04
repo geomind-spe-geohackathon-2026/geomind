@@ -140,7 +140,7 @@ def test_it_reads_once_asks_once_and_copies_digits():
 def test_it_chooses_among_the_catalogue_s_rows_by_their_status():
     """Several catalogue rows per key: sourced, then verified, then one question for the rest.
 
-    A row whose unit the key does not accept never goes in (Sahand's catalogue of 133 rows).
+    A row whose unit the key does not accept never goes in (Sahand's catalogue of 171 rows).
     """
     text = " ".join(CaseLead().prompt.content.split())
     order = ["beats a `placeholder`", "`verified` row beats a `secondary`", "the latest `year`"]
