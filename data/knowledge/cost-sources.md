@@ -32,3 +32,25 @@ sourced row wins over a `placeholder` row of the same `path`.
   exemption limits costs far less.
 - The NL CO2 levy is reduced by the ETS price; it is not added on top of it.
 - Rows: 133 (61 verified, 53 secondary, 19 placeholder).
+
+## Paths on gemini 0.6.2's keys (2026-11-04)
+
+gemini 0.6.2 prices every chemical product, a scale or a corrosion inhibitor alike, under
+`opex.variable.chemical`, the waste under `opex.variable.waste_disposal`, and a variable O&M per
+energy produced under `opex.per_energy.<kind>` (gemini requests 17 and 18). Seven `path` cells
+changed to those keys, nothing else:
+
+- `chemical-scale-inhibitor`, `chemical-corrosion-inhibitor`: `opex.chemical` to `opex.variable.chemical`;
+- `scale-inhibitor-proxy-watertap-2020`, `corrosion-inhibitor-placeholder`:
+  `opex.variable.scale_inhibitor`, `opex.variable.corrosion_inhibitor` to `opex.variable.chemical`;
+- `waste-disposal`, `waste-disposal-proxy-sewage-sludge`: `opex.waste_disposal` to
+  `opex.variable.waste_disposal`;
+- `opex-variable-chp-gas-engine-dea-2018`: `opex.variable.chp` to `opex.per_energy.chp` (EUR/MWh
+  of electricity).
+
+The units gemini 0.6.2 takes now: `capex.ice_storage` and `capex.thermal_storage` per MWh,
+`capex.heat_exchanger` per W, `capex.production_pump` per unit, `opex.fixed.<kind>` per MW and
+year for a kind sized by a power, `revenue.subsidy.amount` per MWh. Still refused (listed for
+Sahand): `capex.pipe` in EUR/MW/m (`pipe-dea-2025-transmission-0-50mw`) and `opex.fixed.pipe` in
+EUR/MW/yr or EUR/MW/km/yr (`opex-pipe-dea-2025-distribution`, `opex-pipe-dea-2025-transmission`);
+`emissions.CO2.electricity` is the case's `utilities.electricity.co2_intensity`, no economics key.

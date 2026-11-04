@@ -1,6 +1,12 @@
 """What each case field means, and the fields gemini describes nowhere."""
 
-from geomind.tools.gemini.fields import CASE_FIELDS, ECONOMICS_FIELDS, meaning, undescribed
+from geomind.tools.gemini.fields import (
+    CASE_FIELDS,
+    ECONOMICS_FIELDS,
+    economics_fields,
+    meaning,
+    undescribed,
+)
 from geomind.tools.gemini.skeleton import key_tree
 
 LIST_FIELDS = ("name", "on", "quantity", "unit", "over", "when", "min", "max")
@@ -24,7 +30,36 @@ def test_every_economics_field_has_its_meaning():
     import gemini as gm
 
     schema = gm.case.Economics.schema()
-    assert [path for path in paths_of(schema) if meaning(path, ECONOMICS_FIELDS) is None] == []
+    fields = economics_fields()
+    assert [path for path in paths_of(schema) if meaning(path, fields) is None] == []
+
+
+def test_an_economics_field_reads_with_gemini_s_own_description():
+    """The economics read with gemini 0.6.2's own descriptions (requests 19, 21) over geomind's."""
+    import gemini as gm
+
+    capex = gm.case.Economics.schema()["properties"]["capex"]["properties"]
+    fields = economics_fields()
+    assert meaning("capex.heat_exchanger", fields) == capex["heat_exchanger"]["description"]
+    assert "EUR/MW/yr" in meaning("opex.fixed.boiler", fields)
+    assert meaning("format", fields) == ECONOMICS_FIELDS["format"]
+
+
+def test_geomind_keeps_no_economics_text_gemini_gives():
+    """``ECONOMICS_FIELDS`` holds only what gemini's schema leaves undescribed."""
+    import gemini as gm
+
+    from geomind.tools.gemini.fields import schema_descriptions
+
+    given = schema_descriptions(gm.case.Economics.schema())
+    assert set(ECONOMICS_FIELDS) & set(given) == set()
+
+
+def test_describe_case_gives_gemini_s_economics_description():
+    """``describe_case("economics.revenue")`` (its lines are ``keys_under``) says SDE++."""
+    from geomind.tools.gemini.skeleton import keys_under
+
+    assert any("SDE++" in line for line in keys_under("economics.revenue.subsidy"))
 
 
 UNDESCRIBED_IN_SCHEMA = (

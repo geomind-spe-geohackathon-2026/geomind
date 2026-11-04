@@ -6,7 +6,19 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
-### Old logs are read, M
+### gemini 0.6.2 (0.4.22.dev64)
+
+No version bump in this piece.
+
+- geomind runs on the gemini 0.6.2 release wheel (`requirements/gemini.txt`, sha256 `8c4fde3e67922eff0ff2316a7b883001f0c1592a83d338df2ddc69ffdfba9b7c`; `[tool.uv.sources]`); the range stays `>=0.6,<0.7`. 0.6.2 is additive; gemini's example projects geomind copies are unchanged.
+- Prompts: the case key trees and `describe_case` read each economics field with gemini's own description (`Economics.schema()`, requests 19/21); `ECONOMICS_FIELDS` keeps only the four fields gemini leaves undescribed (`format`, `kind`, `name`, `about`). The full case tree (read by part through `describe_case`) grows to about 20k characters; the prompts' `case_compact` is unchanged in size.
+- Prompts: a superstructure may turn a whole part on or off, the peak boiler with its gas makeup and gas grid, or the cooling branch (process engineer); a module's off path is the plant's `bypass` `{module: {inlet: outlet}}`, `{}` removing it (integration engineer); the design lead reads `evolve_structure`'s `rejected`. `build_plant` with `from_class` carries `choices` and `bypass` to gemini unchanged.
+- Contract (addition): `evolve_structure` answers `rejected` (each structure gemini refused before any simulation, `{structure, reasons}`) and `stopped` (why the search ended, gemini's `budget.stopped`).
+- Behaviour: `set_case` no longer turns a gas fraction in `mol%` or `%` into the fraction: gemini 0.6.2 takes `mol%` (request 15), and `%` or `mol %` is only named `mol%` (listed in `converted`, the same number). `percent_fraction` and the one-line allowlist of `test_no_unit_math` are gone. The gradient mapping (`°C/km` to `K/km`) stays: 0.6.2 still refuses `degC/km` (request 31).
+- Behaviour: a case gemini rejects at several paths (0.6.2 judges the whole case, request 13) comes back as one error starting `set_case: the case has problems at <n> paths, all listed here; fix every one in the next call:`; each `accepted units` suggestion names its field (`site.ground.gradient: accepted units: K/km, K/m`).
+- Prompts: `module_reference` and `describe_module` show a list of quantities (gemini 0.6.2's `type: array`, request 14) as `array {value: [<number>, ...], unit}`.
+- Prompts and data: the case lead's examples of a refused unit are those 0.6.2 still refuses (`capex.pipe` per MW and m, `opex.fixed.pipe` per MW and year); a key may take several bases, each its unit. The energy engineer gives `nominal_duty` or `energy_capacity` when the economics prices an exchanger per W of duty or a storage per MWh. Seven `path` cells of `data/knowledge/cost-sources.csv` name 0.6.2's keys (`opex.variable.chemical`, `opex.variable.waste_disposal`, `opex.per_energy.chp`; listed in `cost-sources.md`); a test checks every catalogue row's key and unit against gemini's schema, the three pipe rows gemini still refuses listed.
+### Old logs are read (0.4.22.dev64)
 
 - Behaviour: a replay of a log recorded before the case lead (geomind older than 0.4.22.dev7, or no version) that differs raises `ReplayError` saying the log was recorded by geomind <version> before the case lead and can be read, shown and exported but not re-run, with the first difference after it. Tests: the 0.3.1 compare log loads, maps its class paths (`RENAMED_CLASSES`), shows (`geomind show`, text and md) and exports (JSON run log, Markdown), and its replay raises that message.
 

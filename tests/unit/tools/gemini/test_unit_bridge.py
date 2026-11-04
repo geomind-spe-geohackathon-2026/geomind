@@ -1,25 +1,25 @@
-"""The units gemini 0.6.1 refuses that set_case maps until gemini requests 15 and 31 (#115)."""
+"""The units gemini 0.6.2 refuses that set_case maps until gemini request 31 (#115)."""
 
-from geomind.tools.gemini.unit_bridge import bridged_units, gemini_unit_name, percent_fraction
+from geomind.tools.gemini.unit_bridge import bridged_units, gemini_unit_name
 
 
-def test_the_bridge_scales_a_range_and_the_utilities_gas():
-    """The bounds of a gas fraction in percent are fractions too; other sections are left alone."""
+def test_a_gas_in_percent_is_named_mol_percent_and_left_to_gemini():
+    """A gas in ``%`` is only renamed ``mol%``: gemini 0.6.2 converts it (request 15)."""
+    gas = {"N2": {"value": 10, "unit": "%", "range": {"min": 5, "max": 20}}}
     changes = {
-        "utilities": {
-            "gas": {
-                "composition": {"N2": {"value": 10, "unit": "mol%", "range": {"min": 5, "max": 20}}}
-            }
-        },
+        "utilities": {"gas": {"composition": gas}},
         "site": {"fluid": {"density": {"value": 1030, "unit": "kg/m3"}}},
     }
     bridged, converted = bridged_units(changes)
     assert bridged["utilities"]["gas"]["composition"]["N2"] == {
-        "value": 0.1,
-        "range": {"min": 0.05, "max": 0.2},
+        "value": 10,
+        "unit": "mol%",
+        "range": {"min": 5, "max": 20},
     }
     assert bridged["site"] == changes["site"]
     assert [entry["path"] for entry in converted] == ["utilities.gas.composition.N2"]
+    given = {"utilities": {"gas": {"composition": {"N2": {"value": 10, "unit": "mol%"}}}}}
+    assert bridged_units(given) == (given, [])
 
 
 def test_a_gas_without_a_unit_and_a_gradient_in_k_per_km_stay_as_given():
@@ -31,11 +31,6 @@ def test_a_gas_without_a_unit_and_a_gradient_in_k_per_km_stay_as_given():
         }
     }
     assert bridged_units(changes) == (changes, [])
-
-
-def test_percent_fraction_is_the_value_over_a_hundred():
-    """The one conversion geomind does, until gemini request 15."""
-    assert percent_fraction(20) == 0.2
 
 
 def test_a_unit_name_is_mapped_only_to_a_name_the_key_accepts():

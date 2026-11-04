@@ -111,7 +111,7 @@ async def test_changes_merge_into_the_state_case():
 
 @pytest.mark.parametrize("unit", ["degC/km", "°C/km", "C/km"])
 async def test_a_gradient_in_degrees_per_km_is_set_as_kelvin_per_km(unit):
-    """A gradient gemini 0.6.1 refuses (request 31) is set as K/km, the same number, and listed."""
+    """A gradient gemini 0.6.2 refuses (request 31) is set as K/km, the same number, and listed."""
     session, problem = await loaded("shallow_district")
     changes = {"site": {"ground": {"gradient": {"value": 30, "unit": unit}}}}
     result = await edited(session, problem, {"changes": changes})
@@ -127,19 +127,45 @@ async def test_a_gradient_in_degrees_per_km_is_set_as_kelvin_per_km(unit):
     assert "request 31" in entry["reason"]
 
 
-async def test_a_gas_fraction_in_mol_percent_is_set_as_the_fraction():
-    """A gas in mol%, refused by gemini 0.6.1 (request 15), is set as the fraction and listed."""
+async def test_a_gas_fraction_in_mol_percent_is_gemini_s_to_convert():
+    """A gas in ``mol%`` is set as given (gemini 0.6.2, request 15); ``%`` is named ``mol%``."""
     session, problem = await loaded("shallow_district")
     gas = {"CH4": {"value": 92, "unit": "mol%"}, "CO2": {"value": 8, "unit": "%"}}
     changes = {"site": {"fluid": {"dissolved_gas": gas}}}
     result = await edited(session, problem, {"changes": changes})
     assert result.is_error is False, result.output
     fluid = state_after(session, problem).case["site"]["fluid"]
-    assert fluid["dissolved_gas"] == {"CH4": {"value": 0.92}, "CO2": {"value": 0.08}}
-    converted = {entry["path"]: entry for entry in result.output["converted"]}
-    assert converted["site.fluid.dissolved_gas.CH4"]["from"] == {"value": 92, "unit": "mol%"}
-    assert converted["site.fluid.dissolved_gas.CO2"]["to"] == {"value": 0.08, "unit": None}
-    assert gas["CH4"] == {"value": 92, "unit": "mol%"}
+    assert fluid["dissolved_gas"] == {
+        "CH4": {"value": 92, "unit": "mol%"},
+        "CO2": {"value": 8, "unit": "mol%"},
+    }
+    (entry,) = result.output["converted"]
+    assert entry["path"] == "site.fluid.dissolved_gas.CO2"
+    assert entry["to"] == {"value": 8, "unit": "mol%"}
+    assert gas["CO2"] == {"value": 8, "unit": "%"}
+
+
+async def test_every_problem_of_a_case_comes_back_in_one_call():
+    """Three wrong values come back in one answer (gemini 0.6.2 judges the whole case, 13).
+
+    The answer names the count, each path and the accepted units by path; nothing is stored.
+    """
+    session, problem = await loaded("shallow_district")
+    changes = {
+        "site": {
+            "ground": {"gradient": {"value": 30, "unit": "K/s"}},
+            "fluid": {"density": {"value": 1030, "unit": "kg"}},
+        },
+        "demand": {"heating": {"supply_temperature": {"value": "hot", "unit": "degC"}}},
+    }
+    result = await edited(session, problem, {"changes": changes})
+    error = result.output["error"]
+    assert result.is_error and "problems at 3 paths" in error["message"]
+    for path in ("site.ground.gradient.unit", "site.fluid.density.unit", "supply_temperature"):
+        assert path in error["message"]
+    assert "site.ground.gradient: accepted units: K/km, K/m" in error["suggestions"]
+    assert "site.fluid.density: accepted units: g/m3, kg/m3, mg/l" in error["suggestions"]
+    assert state_after(session, problem).case == problem.case
 
 
 async def test_unit_names_as_sources_print_them_are_set_as_gemini_s_names():

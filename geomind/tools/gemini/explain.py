@@ -299,7 +299,7 @@ def unit_retry(error, data):
             rest = {key: value for key, value in sent.items() if key not in ("value", "unit")}
             corrected = {"value": number_of(sent.get("value")), "unit": guess, **rest}
             suggestions.append(f"{field} = {corrected!r}")
-        suggestions.append(f"accepted units: {join_names(units)}")
+        suggestions.append(f"{field}: accepted units: {join_names(units)}")
     return suggestions
 
 

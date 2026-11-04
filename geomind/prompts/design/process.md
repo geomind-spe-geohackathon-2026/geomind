@@ -66,7 +66,10 @@ Do and don't (from earlier runs):
 - When the case leaves more than one sensible way to meet a service, build a superstructure
   instead of picking one: list a module that may be left out under `optional`, and alternatives
   that exclude each other as a choice in `choices` `{choice: {group: [modules]}}` (a group may be
-  empty). Give each option its reason in `design.modules`. Every option is a real alternative
+  empty). A choice may hold a whole part: the peak boiler with its gas makeup and gas grid on
+  or off (`{boiler: {on: [peak_boiler, gas_makeup, gas_grid], off: []}}`), or the cooling branch
+  with its chillers, coolers, consumer and pipes (and its splitter and mixer) on or off. Give each
+  option its reason in `design.modules`. Every option is a real alternative
   for this case; the structure is chosen later by gemini's search, not by you.
 - Build the header, type, size and modules with `build_plant`; leave the parameters to their
   owners and the connections to the integration engineer.

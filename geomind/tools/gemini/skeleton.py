@@ -229,13 +229,13 @@ def compact(lines):
 
 def described_tree(name):
     """Return ``[(label, lines)]`` of a tree, each case and economics line with its meaning."""
-    from geomind.tools.gemini.fields import CASE_FIELDS, ECONOMICS_FIELDS
+    from geomind.tools.gemini.fields import CASE_FIELDS, economics_fields
 
     found = []
     for label, schema in schemas_of(name):
         tree = key_tree(schema)
         if name in ("case", "case_compact"):
-            tree = described(tree, ECONOMICS_FIELDS if label else CASE_FIELDS)
+            tree = described(tree, economics_fields() if label else CASE_FIELDS)
         found.append((label, tree))
     return found
 
@@ -244,7 +244,8 @@ def tree_text(name):
     """Return one key tree as prompt text: its heading and the lines of each of its schemas.
 
     The case's tree says what each field means and where its value comes from, and what each
-    option of the requirements means (``geomind/tools/gemini/fields.py``). ``case_compact`` says
+    option of the requirements means (``geomind/tools/gemini/fields.py``; an economics field by
+    gemini's own description). ``case_compact`` says
     only where each value comes from; ``describe_case`` gives the meanings of one part.
     """
     from geomind.tools.gemini.fields import options_text
@@ -282,14 +283,20 @@ def plant_tree():
 
 
 def field_line(name, field):
-    """Return one parameter of a module description as a line: type, quantity, bounds, options."""
+    """Return one parameter of a module description as a line: type, quantity, bounds, options.
+
+    A list of quantities (``type: array`` in gemini 0.6.2's ``describe()``, request 14) reads
+    ``{value: [<number>, ...], unit}``, the form gemini takes.
+    """
     import gemini as gm
 
     mark = "*" if field.get("default") is None and field.get("enum") is None else ""
+    listed = field.get("type") == "array"
     parts = [field.get("type") or "value"]
     if field.get("quantity"):
         units = gm.units.names(field["quantity"])
-        parts.append(f"{{value, unit}} {field['quantity']} in {'|'.join(units)}")
+        form = "{value: [<number>, ...], unit}" if listed else "{value, unit}"
+        parts.append(f"{form} {field['quantity']} in {'|'.join(units)}")
     if field.get("enum"):
         parts.append("|".join(str(item) for item in field["enum"]))
     bounds = [f">= {field['minimum']}" if field.get("minimum") is not None else ""]

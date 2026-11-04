@@ -23,7 +23,7 @@ GEOMIND_WORDS = {
 
 
 def gemini_names():
-    """Return the names of gemini 0.6.1's modules and plant classes."""
+    """Return the names of gemini 0.6.2's modules and plant classes."""
     import gemini as gm
 
     return set(gm.modules.names()) | set(gm.plants.names())
@@ -48,6 +48,23 @@ def test_the_module_reference_is_gemini_s_describe():
     text = module_reference(*modules_of("wells"))
     assert "### ProductionWell (wells)" in text and "section_length*" in text
     assert "ports: in bottom_in (brine)" in text
+
+
+def test_a_list_of_quantities_reads_in_the_form_gemini_takes():
+    """A list of quantities reads ``{value: [<number>, ...], unit}`` (gemini request 14).
+
+    gemini 0.6.2 gives ``section_length`` as ``type: array``; the reference and
+    ``describe_module`` say the list form.
+    """
+    import gemini as gm
+
+    from geomind.tools.gemini.skeleton import module_tree
+
+    line = "section_length*: array {value: [<number>, ...], unit} length in"
+    assert line in module_reference("ProductionWell")
+    described = module_tree(gm.modules.get("ProductionWell")().describe())["parameters"]
+    assert any(item.startswith(line) for item in described)
+    assert not any("[<number>" in item for item in described if "section_" not in item)
 
 
 def test_an_unknown_module_is_an_error():

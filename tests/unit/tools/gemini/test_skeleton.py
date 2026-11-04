@@ -37,7 +37,17 @@ def test_the_case_tree_is_read_from_gemini_s_schema(monkeypatch):
     monkeypatch.setattr(gm.Case, "schema", classmethod(lambda cls: schema))
     renamed = case_tree()
     assert "site.ground.geothermal_gradient:" in renamed and "site.ground.gradient:" not in renamed
-    assert "capex.drilling: {value, unit} in" in tree and len(tree) < 15000
+    assert "capex.drilling: {value, unit} in" in tree and len(tree) < 22000
+
+
+def test_the_compact_case_tree_of_the_prompts_stays_small():
+    """The prompts carry ``case_compact``, kept small.
+
+    The full tree, with gemini's descriptions, is read by part through ``describe_case``.
+    """
+    from geomind.tools.gemini.skeleton import tree_text
+
+    assert len(tree_text("case_compact")) < 10000
 
 
 def test_the_formulator_prompt_carries_the_case_keys():

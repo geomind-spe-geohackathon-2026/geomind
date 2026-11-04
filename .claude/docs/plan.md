@@ -369,7 +369,7 @@ Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/C
 | 66 | Track A, case lead | a gradient in `degC/km` got `{'unit': 'degC'}` and the units of temperature as its fix | the quantity of a two-word unit message (`temperature gradient`) is read whole | dev45 |
 | 68 | Track A rerun (dev51), case lead on nemotron | `read_case`'s `no_case` read as "the project has no case file": it asked for every site value and raised none of the flaws of the project's case | `no_case` in a project with a case file says "the project has a case file: set_case(source='project') loads it" | track-a3 |
 | 69 | Track A rerun (dev51), case lead on DeepSeek | after a refused full `set_case` it sent the files-only call `case_incomplete` had refused, three times, until the repeat guard stopped the run; called the geoscientist 4 times after `already_asked`; lower-cased file names in `read_rag` | prompt: after a refused full call fix the named keys and send the SAME full call, never files alone; never call the geoscientist after `already_asked`; file names as `list_files` gives them | track-a3 |
-| 115 | Track A rerun (dev51), case lead on both models | wrote the gradient as `degC/km`/`°C/km` and the gas fractions in `mol%` (`CH4 80`), as the brief does; gemini 0.6.1 refuses both. nemotron never searched the knowledge base before asking, so the case got no economics (`before` failed) | `set_case` maps `°C/km`, `degC/km`, `C/km` to `K/km` (same number) and turns `%`/`mol%` on a gas fraction into the fraction, listing each in `converted` for the confirmation question (removed when gemini requests 15 and 31 land; the one unit-math line allowlisted); prompt: `search_rag` for each missing value and the cost catalogue, always, before the one question | track-a3 |
+| 115 | Track A rerun (dev51), case lead on both models | wrote the gradient as `degC/km`/`°C/km` and the gas fractions in `mol%` (`CH4 80`), as the brief does; gemini 0.6.1 refuses both. nemotron never searched the knowledge base before asking, so the case got no economics (`before` failed) | `set_case` maps `°C/km`, `degC/km`, `C/km` to `K/km` (same number) and turns `%`/`mol%` on a gas fraction into the fraction, listing each in `converted` for the confirmation question (removed when gemini requests 15 and 31 land; the one unit-math line allowlisted). gemini 0.6.2 landed 15: `mol%` goes to gemini, `%` is only named `mol%`, and the allowlist is empty; the gradient mapping stays until 31; prompt: `search_rag` for each missing value and the cost catalogue, always, before the one question | track-a3 |
 | 116 | Track A rerun (dev51), evals | `sourced` flagged the numbers of the engine's answer at a limit (cost used, the cap, tokens needed) as made up | `Outcome.partial`, set from the run's stop reason, leaves that answer out of `sourced`; questions are still checked | track-a3 |
 | 117 | Track A3 rerun, case lead on nemotron | sent `set_case`'s `changes` (`..."°C"}}}}, "requirements"`) and `update_state`'s (`}}]}`) as JSON text with a stray closing bracket mid-text; the refusals ended the project and from_files runs | `parsed_json` deletes a closing bracket that closes nothing open where `json` stops, up to three, only when no bracket is made up; the recorded strings are fixtures | track-a4 |
 | 118 | Track A3 rerun, case lead on nemotron | wrote `kg/m³`, `mPa·s`, `Nm³/m³`, `m³/h`, `MWth`/`MWcool` as the sources print them; refused, fixed one call later | `set_case` maps those names to gemini's (no factor) where the key's units hold the name; `converted` reason `unit name` | track-a4 |
@@ -540,6 +540,14 @@ Open requests to gemini (full text in the adaptation notes):
     naming its module and function: `heating.maximum_return_temperature` and
     `cooling.minimum_return_temperature` are read but never used). Asked: a description of each
     in the schema (Track F).
+
+gemini 0.6.2 (2026-11-04) answers 13 (`Case.from_dict` lists every issue), 14 (`type: array`
+and the list form), 15 (`mol%`), 16 (bases per unit: ice and thermal storage per MWh, heat
+exchanger per W of duty, production pump per unit, `opex.fixed` per MW and year, subsidy per MWh;
+`capex.pipe` per MW and m is still refused), 18 (`opex.variable.chemical` prices every inhibitor,
+`opex.per_energy.chp`) and the economics descriptions; 17 by the descriptions only (its
+`sources.csv` is unchanged; geomind's copy now names the keys, `data/knowledge/cost-sources.md`).
+The other requests of this list stay open.
 
 Items 1 to 22 were merged into Sahand's list to gemini on 2026-11-04 00:30 (the coordinator's
 16-21 overlap these numbers); new requests are numbered from 26 on.

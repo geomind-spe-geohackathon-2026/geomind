@@ -408,9 +408,8 @@ def front_entry(design, reference):
     return {"design": reference, **kept}
 
 
-def evolved(found):
+def evolved(data):
     """Return gemini's plain form of an evolution, as a study keeps it: no plants."""
-    data = found.to_dict()
     front = [without_plant(item) for item in data["front"]]
     return {**data, "front": front, "best": without_plant(data["best"])}
 
@@ -435,8 +434,9 @@ async def evolve_structure(context, design: str, objectives: list[str], name: st
     settings, not yours. Each design of the front (none beats it on every objective) is stored
     as ``design/<name>_<n>``; the answer lists each with its ``structure``, ``metrics``,
     ``feasible`` and ``reason``, then ``best`` (on the first objective), the ``evaluations``
-    run, the ``invalid`` structures refused and the ``study`` key. Take the chosen design on as
-    any other: size, simulate, check.
+    run, the ``invalid`` candidates refused, each structure gemini refused before any simulation
+    with its reasons (``rejected``: a port a bypass leaves open, say), why the search stopped
+    and the ``study`` key. Take the chosen design on as any other: size, simulate, check.
     """
     settings = evolve_settings()
     study_settings = {"method": "evolve", "objectives": objectives, **settings}
@@ -456,7 +456,8 @@ async def evolve_structure(context, design: str, objectives: list[str], name: st
         None,
     )
     recommended = best if found["best"]["feasible"] else None
-    recorded = (study.to_dict(), evolved(found))
+    data = found.to_dict()
+    recorded = (study.to_dict(), evolved(data))
     key = await save_study(
         context, name, "evolve_structure", recorded, ([design], wrote), recommended, case
     )
@@ -465,5 +466,10 @@ async def evolve_structure(context, design: str, objectives: list[str], name: st
         "best": best,
         "evaluations": found["evaluations"],
         "invalid": found["invalid"],
+        "rejected": [
+            {"structure": item["structure"], "reasons": item["reasons"]}
+            for item in data["rejected"]
+        ],
+        "stopped": data["budget"]["stopped"],
         "study": key,
     }

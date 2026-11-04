@@ -20,7 +20,7 @@ async def test_a_gradient_in_degc_per_km_gets_k_per_km():
     arguments = json.loads(json.dumps(CALLS["together"]).replace("degC/km", "degF/km"))
     output = (await call(set_case, arguments, session_with_files(), "p")).output
     suggestions = output["error"]["suggestions"]
-    assert "accepted units: K/km, K/m" in suggestions
+    assert "site.ground.gradient: accepted units: K/km, K/m" in suggestions
     assert not any("'unit': 'degC'}" in item for item in suggestions)
 
 

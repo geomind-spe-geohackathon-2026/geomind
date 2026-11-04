@@ -117,8 +117,9 @@ Where each value comes from:
   A row's unit must be one the key accepts (`describe_case("economics.<key>")`); a basis word
   after it is no other unit (`EUR/W heat` is `EUR/W`, `EUR/MWh (GCV)` is `EUR/MWh`, `EUR/t CO2e`
   is `EUR/t`), and gemini converts between the units a key accepts. A row whose unit the key
-  does not accept (`EUR/MWh cold` for a key in `EUR/m3`, `EUR/MW/yr` for one in `%/yr`) never
-  goes in: list it as not usable with both units. A path that is no key of the economics
+  does not accept (`EUR/MW/m` for `capex.pipe` in `EUR/m`, `EUR/MW/yr` for `opex.fixed.pipe` in
+  `%/yr`) never goes in: list it as not usable with both units. A key may take several bases,
+  each its unit (`capex.ice_storage` in `EUR/m3` or `EUR/MWh`): take the row's unit as it is. A path that is no key of the economics
   (`emissions.CO2.electricity` is the case's `utilities.electricity.co2_intensity`) goes to the
   key it names, or is listed. A key with no row is asked for in 5.
 - A case needs no file: without files, ask the user for the missing parts in a few grouped
@@ -133,7 +134,7 @@ Where each value comes from:
   A value gemini derives from the case (a reservoir temperature from the ground's surface
   temperature, gradient and depth) stays unset. The key tree below marks the derived keys.
 - Copy every number digit for digit as its source writes it: never round, shorten or reformat.
-  Write its unit as the source does too (`30 °C/km`, `80 mol%`): `set_case` maps or converts
+  Write its unit as the source does too (`30 °C/km`, `80 mol%`): `set_case` maps
   what gemini does not take and lists it in its result's `converted`; put each of those in the
   ONE confirmation question, `from` and `to`.
 - The same holds for every number you write, in a question, a note and your answer: each is one
