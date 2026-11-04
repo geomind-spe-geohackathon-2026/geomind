@@ -276,6 +276,27 @@ Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/C
 | 81 | B2, integration engineer (DeepSeek) | on a plant gemini checked clean: 18 model calls, 7 `read_plant`, 7 `describe_module`, 123k output tokens, 31 min (nemotron: 2 calls) | the prompt finishes with no patch when no issue names a connection, and ports come from the prompt | track-b2 |
 | 50 | A1, all | models saw only the first paragraph of each tool's docstring | the whole docstring but its `NOTE:` paragraphs | `768f396` |
 
+### Model comparison
+
+Each per-agent design task once on each model, same fixtures, prompts and commit (B2 rounds b2r1 to b2r4; DeepSeek with `GEOMIND_PROVIDER=deepseek`, nemotron `nvidia/nemotron-3.5-super-vl:free` unpinned, two at a time, no 429 seen). Correctness: gemini's check of the stored design (issues), `sourced` (no number the agent did not read), no self-computed value. The latest run per agent and model:
+
+| agent | track | model | pass | correctness | model calls | tool calls | failed | input/cached/output tokens | seconds | USD |
+|---|---|---|---|---|---|---|---|---|---|---|
+| design lead | B2 | deepseek | yes* | feasible verdict recorded; *`sourced` flags 0.999993 (a gemini ratio shortened to 6 decimals) | 7 | 8 | 0 | 129680/31744/2799 | 69 | 0.0047 |
+| design lead | B2 | nemotron | yes | feasible verdict recorded (after #78) | 6 | 12 | 1 | 118096/69376/1525 | 26 | 0 |
+| process | B2 | deepseek | yes | design 0 issues (after #77) | 5 | 7 | 0 | 64518/0/13508 | 238 | 0.0074 |
+| process | B2 | nemotron | yes | design 0 issues | 6 | 8 | 1 | 86456/43360/12691 | 62 | 0 |
+| integration | B2 | deepseek | yes | sound plant, streams traced (after #81) | 2 | 3 | 0 | 18451/0/5473 | 65 | 0.0032 |
+| integration | B2 | nemotron | yes | sound plant, streams traced | 3 | 4 | 1 | 30605/8672/2607 | 18 | 0 |
+| reservoir | B2 | deepseek | yes | design 0 issues | 6 | 9 | 0 | 120071/30206/25120 | 451 | 0.0146 |
+| reservoir | B2 | nemotron | yes | design 0 issues | 4 | 5 | 0 | 77176/13008/9134 | 47 | 0 |
+| well | B2 | deepseek | yes | design 0 issues | 4 | 5 | 1 | 49607/13312/16118 | 333 | 0.0086 |
+| well | B2 | nemotron | yes* | design 0 issues; *`sourced` flags 0.0833333 (a plant value shortened to 7 decimals) | 4 | 4 | 0 | 50068/13008/23189 | 136 | 0 |
+| energy | B2 | deepseek | yes | design 0 issues (after #76, #79, #80) | 11 | 19 | 0 | 359592/153160/39004 | 580 | 0.0261 |
+| energy | B2 | nemotron | yes | design 0 issues | 5 | 8 | 1 | 102241/0/17315 | 112 | 0 |
+
+Big differences: DeepSeek pinned to its own provider takes 30 to 90 s a call (reservoir 451 s for 6 calls), nemotron 4 to 20 s; that is the model and the provider, not the prompt. Before the prompt fixes DeepSeek also looped where nemotron did not (integration 18 calls, energy 18 calls); after #79 to #81 the counts are close, so that part was the prompt. Both models converted units in their answers (#80), a prompt matter. The markup check of #70/#75 never fired on nemotron.
+
 ### The adaptation to gemini 0.5 (done) and what is open
 
 geomind 0.3.0 runs on gemini 0.5: the case is a project folder (`set_case`, `read_case`,
