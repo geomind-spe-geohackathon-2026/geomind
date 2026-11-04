@@ -6,6 +6,26 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.22] - 2026-11-04
+
+geomind 0.4.22 on gemini 0.6.2 (`>=0.6,<0.7`, the 0.6.2 wheel pinned). Its agents run on
+DeepSeek and on nemotron with the same prompts and fixtures; every team (case, design, analysis,
+support, project) has its own per-agent tests; agents read the RAG knowledge base and MCP servers
+through verb-first tools (`search_rag`, `read_rag`, `list_mcp`, `read_mcp`, `call_mcp`); a run
+ends with next-step suggestions. The sections below are the 0.4.22 development steps, newest first.
+
+Release choices (made without questions, as asked): released from `dev` at the merge of tracks k, l
+and m, on gemini 0.6.2 as tested; no new live model runs; the version is 0.4.22 with no other change
+to code or snapshots.
+
+### Known issues
+
+- `site.air.pressure` has no source in the brief or the knowledge base, so an end-to-end run stops
+  before sizing (gemini request 32).
+- The shortened-history note can invite a `{}` call (a tool called with no arguments).
+- `run_manifest.models` lists only the roles that started, not every role of the run.
+- `read_case` of a missing section is an error, not an empty answer.
+
 ### gemini 0.6.2 (0.4.22.dev64)
 
 No version bump in this piece.
