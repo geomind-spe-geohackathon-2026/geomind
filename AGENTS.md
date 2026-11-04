@@ -11,7 +11,7 @@ Read [docs/rules.md](docs/rules.md) first: it holds every project rule.
 ## First: ask the mode
 
 At the start of every session, before any change, ask the user which mode this session works in:
-development, production or hotfix, as the project root's `docs/project/ops/development-modes.md`
+development, production or hotfix, as the project root's `documents/project/ops/development-modes.md`
 defines them. Work by that mode's rules until the user changes it; without an answer, change
 nothing.
 
@@ -20,8 +20,8 @@ nothing.
 `.claude/` is written for agents: start with [.claude/README.md](.claude/README.md) (its
 `docs/` reference, `notes/` current work, `archive/` history). `docs/` is written for people:
 design, contracts, reports, bug lists. Read both, and the project-wide context in the project root
-`geomind-spe-hackathon-2026/`, the parent folder of this clone: its `AGENTS.md`, the shared
-memory `.claude/memory/MEMORY.md` and `docs/`. One clone, no git worktrees.
+`geomind-spe-hackathon-2026/`, the parent folder of this clone: its `.claude/AGENTS.md`, the shared
+memory `.claude/memory/MEMORY.md` and `documents/`. One clone, no git worktrees.
 
 ## Start here
 
