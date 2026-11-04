@@ -5,6 +5,8 @@ Finite, like gemini's engine: it never sleeps or schedules itself. NOTE: unlike 
 later would touch every layer. ``Run`` is the sync facade.
 """
 
+import asyncio
+
 from geomind import runtime
 from geomind.engine.delegation import answer_child, end_orphans
 from geomind.engine.log import RunLog
@@ -17,6 +19,7 @@ from geomind.engine.state import RunState, Stop
 from geomind.engine.step import (
     answered_result,
     record_result,
+    report_usage,
     run_step,
     settle_interrupted,
     text_result,
@@ -24,6 +27,7 @@ from geomind.engine.step import (
 from geomind.errors import NotImplementedYet, ProviderError, RequestError, RunError
 from geomind.providers import with_retries
 from geomind.stores.run import MemoryRunStore
+from geomind.stores.usage import usage_report
 from geomind.tools.suggestions import next_steps
 from geomind.types import Request, RunResult, Usage, status_of, validate_answer
 from geomind.types.decisions import typed_answer
@@ -43,12 +47,13 @@ def failure_stop(error, reason):
     return Stop(reason, str(error), is_crash=reason == "error")
 
 
-def run_result(session, stop, suggestions=None):
+def run_result(session, stop, suggestions=None, report=None):
     """Return the result of a stop; ``suggestions`` are those of its ``run.finished`` event.
 
     A run that waits on a nested run's request counts that run's usage so far, which joins its
-    own only when the nested run ends.
+    own only when the nested run ends. ``report`` is the root run's ``(sessions, agents, total)``.
     """
+    sessions, agents, total = report or (None, None, None)
     state = session.state
     waiting = session.child_usage if stop.reason == "request" else None
     return RunResult(
@@ -61,7 +66,32 @@ def run_result(session, stop, suggestions=None):
         stop_reason=stop.reason,
         message=None if stop.is_crash else stop.message,
         suggestions=suggestions,
+        sessions=sessions,
+        agents=agents,
+        total=total,
     )
+
+
+async def tree_usage(session):
+    """Return ``(sessions, agents, total)`` of a root run that ends, else ``None``.
+
+    The last ``usage`` event is made current first, when a step ended the run before sending
+    it, so the total and the last ``usage`` event agree; the report reads the stored log, so a
+    run resumed in another process counts every call of its tree once.
+    """
+    state = session.state
+    if state.parent is not None:
+        return None
+    reported = state.reported_usage or Usage()
+    usage = state.usage
+    if (reported.input_tokens, reported.output_tokens, reported.cost) != (
+        usage.input_tokens,
+        usage.output_tokens,
+        usage.cost,
+    ):
+        await report_usage(session)
+    events = await asyncio.to_thread(session.engine.store.load_events, state.root)
+    return usage_report(events)
 
 
 STEP_OPTIONS = ("continue", "stop")
@@ -223,6 +253,8 @@ class Engine:
             stop = await self._answer_from_record(session, stop)
         status = status_of(stop.reason)
         suggestions = suggestions_of(session, status)
+        report = await tree_usage(session)
+        sessions, agents, total = report or (None, None, None)
         await session.emit(
             RunFinished,
             status=status,
@@ -230,9 +262,12 @@ class Engine:
             message=stop.message,
             answer=stop.answer,
             suggestions=suggestions,
+            sessions=sessions,
+            agents=agents,
+            total=total,
         )
         await session.save_problem()
-        return run_result(session, stop, suggestions)
+        return run_result(session, stop, suggestions, report)
 
     async def _answer_from_record(self, session, stop):
         """Give a run that a limit stopped the answer its record makes, streamed like any answer."""

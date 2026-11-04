@@ -62,7 +62,11 @@ class RunState:
     whole log, nested runs included. ``usage`` and ``step_usage`` include what nested runs spent,
     so they are for budgets and reports only; ``last_input_tokens`` is the input the provider
     counted for this run's own last model call, none after its compaction, and is what a context
-    decision reads beside the size of the run's own messages.
+    decision reads beside the size of the run's own messages. ``call_usage`` is what the open
+    step's own model calls spent (its call and a compaction before it, never a nested run),
+    ``call_input_tokens`` the input of its provider call (``None`` before one or for a rule) and
+    ``context_window`` the window its ``step.started`` named; ``step.finished`` reports them.
+    ``reported_usage`` is the running total the last ``usage`` event sent.
     """
 
     run_id: str = ""
@@ -99,6 +103,10 @@ class RunState:
     usage: Usage = Usage()
     step_usage: Usage = Usage()
     last_input_tokens: int = 0
+    call_usage: Usage = Usage()
+    call_input_tokens: int | None = None
+    context_window: int | None = None
+    reported_usage: Usage | None = None
     pending: PendingAction | None = None
     failures: dict[str, int] = field(default_factory=dict)
     failure_steps: dict[str, int] = field(default_factory=dict)

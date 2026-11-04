@@ -14,17 +14,18 @@ from geomind.errors import RunError
 from geomind.types.decisions import Request
 from geomind.types.messages import Completion, Message, Record, ToolCall, Usage
 from geomind.types.patch import operation_problem
+from geomind.types.results import AgentUsage, CallContext, SessionUsage, TotalUsage
 
 BASE_FIELDS = ("run_id", "sequence", "time", "agent", "parent")
 LLM_EVENTS = ("llm.completed", "compaction")
 
 
 PUBLIC_USAGE = ("input_tokens", "output_tokens", "cost")
-"""The usage fields of the contract's JSON; ``cached_tokens`` is kept in the log only."""
+"""The usage fields of the run log's JSON (``runlog``); events show ``cached_tokens`` too."""
 
 
 def public_usage(usage):
-    """Return the usage JSON the contract fixes."""
+    """Return the usage JSON the run log fixes."""
     return {name: usage[name] for name in PUBLIC_USAGE}
 
 
@@ -46,8 +47,6 @@ class Event(Record):
         dumped = self.model_dump(mode="json")
         names = self.public_fields if self.is_public else set(dumped) - set(BASE_FIELDS)
         values = {name: dumped[name] for name in names if dumped[name] is not None}
-        if isinstance(values.get("usage"), dict):
-            values["usage"] = public_usage(values["usage"])
         return {**values, "agent": self.agent, "parent": self.parent}
 
     def to_dict(self):
@@ -87,16 +86,20 @@ class RunStarted(Event):
 class StepStarted(Event):
     """A step began; ``model`` is the provider model id it calls.
 
-    NOTE: a run stored by S1 has no ``model``, so the field is optional here while every new step
-    has it.
+    ``session`` is the run id, the session of the agent this step belongs to, and
+    ``context_window`` the model's window for this agent, ``None`` when unknown.
+    NOTE: a run stored by S1 has no ``model``, and one before 0.4.24 no ``session`` or
+    ``context_window``, so they are optional here while every new step has them.
     """
 
     type: ClassVar[str] = "step.started"
     is_public: ClassVar[bool] = True
-    public_fields: ClassVar[tuple[str, ...]] = ("index", "model")
+    public_fields: ClassVar[tuple[str, ...]] = ("index", "model", "session", "context_window")
 
     index: int
     model: str | None = None
+    session: str | None = None
+    context_window: int | None = None
 
 
 class TextDelta(Event):
@@ -149,17 +152,22 @@ class ToolFinished(Event):
 class StepFinished(Event):
     """A step finished; ``usage`` is the usage of this step and ``text`` its full assistant text.
 
-    ``text`` is ``""`` when the step wrote none. ``loop_state`` is the state of the loop, stored but
-    not streamed.
+    ``usage`` holds this step's own model call (with the compaction summary made before it, when
+    there was one), never a nested run's or a running total; ``cached_tokens`` is part of
+    ``input_tokens``. ``context`` is that call's context: ``used`` its input tokens and what the
+    window leaves; ``None`` for a step without a provider call and in a log before 0.4.24, whose
+    ``usage`` also held what nested runs of the step spent. ``text`` is ``""`` when the step wrote
+    none. ``loop_state`` is the state of the loop, stored but not streamed.
     """
 
     type: ClassVar[str] = "step.finished"
     is_public: ClassVar[bool] = True
-    public_fields: ClassVar[tuple[str, ...]] = ("index", "usage", "text")
+    public_fields: ClassVar[tuple[str, ...]] = ("index", "usage", "text", "context")
 
     index: int
     usage: Usage
     text: str = ""
+    context: CallContext | None = None
     loop_state: dict[str, Any] = {}
 
 
@@ -259,18 +267,32 @@ class RunFinished(Event):
     """A run ended; ``message`` says why when it did not end with an answer.
 
     ``suggestions`` are the next steps, ``[{label, message}]``: a root run that ended ``done``
-    has one to three, any other run none, and a log before 0.4.22.dev48 none.
+    has one to three, any other run none, and a log before 0.4.22.dev48 none. ``sessions``,
+    ``agents`` and ``total`` are what the run tree spent, by session (one run of one agent, its
+    own calls only), by agent and in all, each model call counted once: on the root run only, and
+    not in a log before 0.4.24.
     """
 
     type: ClassVar[str] = "run.finished"
     is_public: ClassVar[bool] = True
-    public_fields: ClassVar[tuple[str, ...]] = ("status", "stop_reason", "message", "suggestions")
+    public_fields: ClassVar[tuple[str, ...]] = (
+        "status",
+        "stop_reason",
+        "message",
+        "suggestions",
+        "sessions",
+        "agents",
+        "total",
+    )
 
     status: str
     stop_reason: str
     message: str | None = None
     answer: Any = None
     suggestions: list[dict[str, str]] | None = None
+    sessions: list[SessionUsage] | None = None
+    agents: list[AgentUsage] | None = None
+    total: TotalUsage | None = None
 
 
 class LLMCompleted(Event):

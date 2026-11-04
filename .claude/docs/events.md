@@ -20,16 +20,43 @@ the whole tree. `event.to_dict()` holds every field and `event_from_dict` rebuil
 | Type | Class | `data()` |
 |---|---|---|
 | `run.started` | `RunStarted` | `{run, loop}` |
-| `step.started` | `StepStarted` | `{index, model}` |
+| `step.started` | `StepStarted` | `{index, model, session?, context_window?}` |
 | `text.delta` | `TextDelta` | `{index, text}` |
 | `tool.started` | `ToolStarted` | `{index, call_id, tool, input}` |
 | `tool.finished` | `ToolFinished` | `{index, call_id, output_summary, duration, error?}` |
-| `step.finished` | `StepFinished` | `{index, usage, text}`; `text` is the step's full assistant text, `""` if none |
+| `step.finished` | `StepFinished` | `{index, usage, text, context?}`; `text` is the step's full assistant text, `""` if none |
 | `state.changed` | `StateChanged` | `{version, changes}` |
 | `study.recorded` | `StudyRecorded` | `{run, index, call_id, study, tool, method, designs, best?}` |
 | `request` | `RequestMade` | `{request, call_id?, kind, message, options?}` |
 | `usage` | `UsageUpdated` | `{input_tokens, output_tokens, cost}`, running totals |
-| `run.finished` | `RunFinished` | `{status, stop_reason, message?, suggestions?}` |
+| `run.finished` | `RunFinished` | `{status, stop_reason, message?, suggestions?, sessions?, agents?, total?}` |
+
+**Usage and context per session (0.4.24, additions only).** A session is one run of one agent:
+the root run of a user message, one nested run per delegation (an agent delegated to twice has two)
+or the routing run; `session` is its `run_id`, and every event already names `agent` and `parent`.
+A session starts from its own messages only; nothing is summed across sessions or agents.
+
+- `step.started`: `session` (the run id) and `context_window`, the model's window for this agent
+  (`GEOMIND_CONTEXT_WINDOW`, else the provider's list; `null` when unknown or for a rule agent).
+- `step.finished`: `usage` is this step's own model call, `{input_tokens, output_tokens,
+  cached_tokens, cost}` with `cached_tokens` part of `input_tokens`; a compaction summary made in
+  the step is added to it. Never a nested run's usage or a running total (before 0.4.24 it held
+  the step's nested runs too). `context` is `{used, window, remaining}`: `used` the input tokens of
+  this call, `remaining` = `window - used`, both `null` without a window; absent for a step with
+  no provider call (a rule completion).
+- `usage` stays the running total of the run tree (the run and its nested runs).
+- `run.finished` of the root run (nested runs: absent), from the stored log by
+  `geomind.stores.usage.usage_report`: `sessions`, one `{session, agent, parent, model, steps,
+  tool_calls, usage, context: {peak_used, last_used, window}}` per session in the order they began,
+  its own calls only (`tool_calls` counts its tools started; `context` is `null` for a session
+  with no provider call); `agents`, the sessions grouped by agent path, `{agent, sessions, steps,
+  tool_calls, usage}`; `total`, `{input_tokens, output_tokens, cached_tokens, cost, steps,
+  tool_calls}`, the sum of `sessions`, each model call counted once. It equals the last `usage`
+  event (the engine sends one more `usage` before `run.finished` when a step ended the run before
+  its own) and `RunResult.usage`. `RunResult.sessions`, `agents` and `total` are the same; `None`
+  for a nested run and a run that waits.
+- A log before 0.4.24 has none of these fields; it loads, shows, exports and replays as before, and
+  a client shows "n/a". Its `step.finished.usage` holds the step's nested runs.
 
 `run.finished`'s `suggestions` are the next steps after an answer (`geomind/tools/suggestions.py`): code
 picks the stage from the project's state when the workspace has `project_state(project_id)`

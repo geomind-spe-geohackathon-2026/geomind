@@ -234,11 +234,13 @@ async def test_crash_in_a_nested_run_keeps_its_usage_and_ends_it():
     assert [e.stop_reason for e in nested_end] == ["error"]
 
 
-async def test_step_usage_includes_the_nested_run():
-    """The step that delegated spent what the nested run spent."""
+async def test_step_usage_is_the_steps_own_call_and_the_running_total_has_the_nested_run():
+    """``step.finished.usage`` is the step's own call (0.4.24); ``usage`` adds the child."""
     _, _, events = await nested([uses(HELP), says("found"), says("end")])
     parent_steps = [e for e in of_type(events, "step.finished") if e.parent is None]
-    assert parent_steps[0].usage.input_tokens == 20
+    assert parent_steps[0].usage.input_tokens == 10
+    totals = [e for e in of_type(events, "usage") if e.parent is None]
+    assert totals[0].input_tokens == 20
 
 
 async def test_a_nested_run_does_not_ask_what_another_nested_run_asked():

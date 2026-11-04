@@ -168,4 +168,6 @@ things, and the two never mix (Sahand, 2026-11-04):
 `usage` totals are cumulative: `RunState.usage`, `step_usage`, `RunResult.usage`, the `usage`
 event and a delegate's `tool.result.usage` (`take_child_usage`) include what nested runs spent.
 They are for budgets and reports; no context decision reads them. Per call figures are in
-`llm.completed.completion.usage`.
+`llm.completed.completion.usage` and, public since 0.4.24, `step.finished.usage` and `context`
+(`RunState.call_usage`, `call_input_tokens`); per session and per agent in the root
+`run.finished`'s `sessions` and `agents` ([events.md](events.md)), each session its own calls.

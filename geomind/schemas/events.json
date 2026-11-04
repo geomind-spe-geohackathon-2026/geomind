@@ -1,5 +1,83 @@
 {
   "$defs": {
+    "AgentUsage": {
+      "additionalProperties": false,
+      "description": "The sessions of one agent path added up: ``sessions`` counts them.",
+      "properties": {
+        "agent": {
+          "title": "Agent",
+          "type": "string"
+        },
+        "sessions": {
+          "title": "Sessions",
+          "type": "integer"
+        },
+        "steps": {
+          "default": 0,
+          "title": "Steps",
+          "type": "integer"
+        },
+        "tool_calls": {
+          "default": 0,
+          "title": "Tool Calls",
+          "type": "integer"
+        },
+        "usage": {
+          "$ref": "#/$defs/Usage",
+          "default": {
+            "cached_tokens": 0,
+            "cost": 0.0,
+            "input_tokens": 0,
+            "output_tokens": 0
+          }
+        }
+      },
+      "required": [
+        "agent",
+        "sessions"
+      ],
+      "title": "AgentUsage",
+      "type": "object"
+    },
+    "CallContext": {
+      "additionalProperties": false,
+      "description": "The context of one model call: ``used`` is its input tokens, ``remaining`` what is left.\n\n``window`` and ``remaining`` are ``None`` when the model's window is unknown.",
+      "properties": {
+        "remaining": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Remaining"
+        },
+        "used": {
+          "title": "Used",
+          "type": "integer"
+        },
+        "window": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Window"
+        }
+      },
+      "required": [
+        "used"
+      ],
+      "title": "CallContext",
+      "type": "object"
+    },
     "Message": {
       "additionalProperties": false,
       "description": "One message of a conversation.",
@@ -66,6 +144,112 @@
       "title": "Option",
       "type": "object"
     },
+    "SessionContext": {
+      "additionalProperties": false,
+      "description": "The context of one session: the largest and the last input of its own model calls.",
+      "properties": {
+        "last_used": {
+          "title": "Last Used",
+          "type": "integer"
+        },
+        "peak_used": {
+          "title": "Peak Used",
+          "type": "integer"
+        },
+        "window": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Window"
+        }
+      },
+      "required": [
+        "peak_used",
+        "last_used"
+      ],
+      "title": "SessionContext",
+      "type": "object"
+    },
+    "SessionUsage": {
+      "additionalProperties": false,
+      "description": "What one session (one run of one agent, ``session`` = its run id) spent on its own calls.\n\n``usage`` holds this session's model calls only, never those of its nested runs; ``steps``\nand ``tool_calls`` count its steps and its tools started. ``context`` is ``None`` for a\nsession that made no model call (an agent that decides by rule).",
+      "properties": {
+        "agent": {
+          "title": "Agent",
+          "type": "string"
+        },
+        "context": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SessionContext"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model"
+        },
+        "parent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent"
+        },
+        "session": {
+          "title": "Session",
+          "type": "string"
+        },
+        "steps": {
+          "default": 0,
+          "title": "Steps",
+          "type": "integer"
+        },
+        "tool_calls": {
+          "default": 0,
+          "title": "Tool Calls",
+          "type": "integer"
+        },
+        "usage": {
+          "$ref": "#/$defs/Usage",
+          "default": {
+            "cached_tokens": 0,
+            "cost": 0.0,
+            "input_tokens": 0,
+            "output_tokens": 0
+          }
+        }
+      },
+      "required": [
+        "session",
+        "agent"
+      ],
+      "title": "SessionUsage",
+      "type": "object"
+    },
     "ToolCall": {
       "additionalProperties": false,
       "description": "One call a model asks for; ``id`` comes from the model and pairs the result with it.",
@@ -90,6 +274,44 @@
         "name"
       ],
       "title": "ToolCall",
+      "type": "object"
+    },
+    "TotalUsage": {
+      "additionalProperties": false,
+      "description": "The sum of every session of a run tree, each model call counted once.",
+      "properties": {
+        "cached_tokens": {
+          "default": 0,
+          "title": "Cached Tokens",
+          "type": "integer"
+        },
+        "cost": {
+          "default": 0.0,
+          "title": "Cost",
+          "type": "number"
+        },
+        "input_tokens": {
+          "default": 0,
+          "title": "Input Tokens",
+          "type": "integer"
+        },
+        "output_tokens": {
+          "default": 0,
+          "title": "Output Tokens",
+          "type": "integer"
+        },
+        "steps": {
+          "default": 0,
+          "title": "Steps",
+          "type": "integer"
+        },
+        "tool_calls": {
+          "default": 0,
+          "title": "Tool Calls",
+          "type": "integer"
+        }
+      },
+      "title": "TotalUsage",
       "type": "object"
     },
     "Usage": {
@@ -200,6 +422,21 @@
           "title": "Agent",
           "type": "string"
         },
+        "agents": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/AgentUsage"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agents"
+        },
         "message": {
           "anyOf": [
             {
@@ -223,6 +460,21 @@
           ],
           "default": null,
           "title": "Parent"
+        },
+        "sessions": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/SessionUsage"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sessions"
         },
         "status": {
           "title": "Status",
@@ -249,6 +501,17 @@
           ],
           "default": null,
           "title": "Suggestions"
+        },
+        "total": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TotalUsage"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -353,6 +616,17 @@
           "title": "Agent",
           "type": "string"
         },
+        "context": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CallContext"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "index": {
           "title": "Index",
           "type": "integer"
@@ -394,6 +668,18 @@
           "title": "Agent",
           "type": "string"
         },
+        "context_window": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Context Window"
+        },
         "index": {
           "title": "Index",
           "type": "integer"
@@ -421,6 +707,18 @@
           ],
           "default": null,
           "title": "Parent"
+        },
+        "session": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Session"
         }
       },
       "required": [

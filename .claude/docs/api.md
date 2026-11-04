@@ -21,6 +21,8 @@ without one, of `problem` (a `ProblemState` or its dict), and the names of the p
 is that of the chat's goal, so English for an empty chat. A run gives the same list after an
 answer in `run.finished`'s `suggestions` (see [events.md](events.md)), and the same list in
 `RunResult.suggestions` (contract v5): a root run that ended `done` only, else `None`.
+`RunResult.sessions`, `agents` and `total` (0.4.24) are the root run's usage per session, per
+agent and in all, as in its `run.finished` (see [events.md](events.md)); `usage` equals `total`.
 
 ## Run
 

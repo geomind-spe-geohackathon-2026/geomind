@@ -7,6 +7,7 @@ yet. So a step continues from any point, after a pause or a crash, without a sec
 import asyncio
 
 from geomind import runtime
+from geomind.context.compaction import context_window
 from geomind.engine.compaction import compact_history
 from geomind.engine.questions import answered_paths, asking_new, named_paths, reused_answer
 from geomind.engine.recovery import call_key
@@ -26,6 +27,7 @@ from geomind.types.events import (
     ToolStarted,
     UsageUpdated,
 )
+from geomind.types.results import CallContext
 from geomind.utils.json import to_jsonable
 from geomind.utils.strings import did_you_mean
 
@@ -370,17 +372,20 @@ async def _gate_answer(session, agent, answer, call):
     return None
 
 
-async def close_step(session):
-    """Log the end of the step, with the state of the loop, and the running totals."""
-    state = session.state
-    await session.emit(
-        StepFinished,
-        index=state.step,
-        usage=state.step_usage,
-        text=state.action.text if state.action else "",
-        loop_state=session.loop_state(),
+def call_context(state):
+    """Return the context of the step's provider call, or ``None`` when it made none."""
+    used = state.call_input_tokens
+    if used is None:
+        return None
+    window = state.context_window
+    return CallContext(
+        used=used, window=window, remaining=None if window is None else window - used
     )
-    usage = state.usage
+
+
+async def report_usage(session):
+    """Send the running totals of the run."""
+    usage = session.state.usage
     await session.emit(
         UsageUpdated,
         input_tokens=usage.input_tokens,
@@ -389,12 +394,37 @@ async def close_step(session):
     )
 
 
+async def close_step(session):
+    """Log the end of the step, with its own calls' usage and context, then the running totals.
+
+    ``usage`` of ``step.finished`` is the step's own model calls only; what its nested runs spent
+    joins the running totals of the ``usage`` event.
+    """
+    state = session.state
+    await session.emit(
+        StepFinished,
+        index=state.step,
+        usage=state.call_usage,
+        text=state.action.text if state.action else "",
+        context=call_context(state),
+        loop_state=session.loop_state(),
+    )
+    await report_usage(session)
+
+
 async def run_step(session, agent):
     """Run or continue one step; return a ``Stop`` or ``None`` to go on."""
     state = session.state
     await session.ensure_mcp()
     if not state.in_step:
-        await session.emit(StepStarted, index=state.step + 1, model=agent.model.resolved_name())
+        model = agent.model.resolved_name()
+        await session.emit(
+            StepStarted,
+            index=state.step + 1,
+            model=model,
+            session=state.run_id,
+            context_window=None if model == RULE_MODEL else context_window(model),
+        )
     if state.action is None:
         stop = await _think(session, agent)
         if stop is not None:
