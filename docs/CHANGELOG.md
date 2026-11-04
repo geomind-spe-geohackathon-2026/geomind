@@ -6,6 +6,10 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### Evals: a delegate that failed, G
+
+- Evals: the `tool` criterion has `succeeded` (default false, the behaviour before): with `succeeded: true` at least one call of the tool must return no error, so a lead's task no longer passes when its delegate's nested run failed (Track C, nemotron). `Outcome.succeeded` lists the tools whose result was not an error, in order, old names mapped as in `Outcome.tools`. Schema `eval_task.json` (and the agents snapshot) gain the field.
+
 ### The analysis team alone (0.4.22.dev52)
 
 Round C1 (Track C): the analysis lead and the economist alone, two tasks each, on the C1 case and the D-round design (`HackathonPlant` on it), live (DeepSeek), 0.028 USD: 2 of 4 passed, each number checked against gemini's own.

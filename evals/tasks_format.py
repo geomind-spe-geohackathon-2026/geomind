@@ -38,17 +38,26 @@ class NumberCriterion(Record):
 
 
 class ToolCriterion(Record):
-    """A tool was called, or with ``called: false`` was not."""
+    """A tool was called, or with ``called: false`` was not.
+
+    A call counts even when its result was an error. With ``succeeded: true``, at least one
+    call of the tool must have returned no error: a lead's delegate whose nested run failed
+    fails it. ``succeeded`` defaults to false, the behaviour before it, so older tasks keep
+    their meaning.
+    """
 
     kind: Literal["tool"]
     tool: str
     called: bool = True
+    succeeded: bool = False
 
     def problem(self, outcome):
         """Return what is wrong, or ``None``."""
-        if (self.tool in outcome.tools) == self.called:
-            return None
-        return f"tool: {self.tool} called = {not self.called}; expected {self.called}"
+        if (self.tool in outcome.tools) != self.called:
+            return f"tool: {self.tool} called = {not self.called}; expected {self.called}"
+        if self.called and self.succeeded and self.tool not in outcome.succeeded:
+            return f"tool: every {self.tool} call returned an error; expected one without"
+        return None
 
 
 class QuestionCriterion(Record):
