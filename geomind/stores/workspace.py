@@ -58,6 +58,14 @@ class Workspace(Protocol):
         it, or with ``None``, the suggestions follow the chat's problem state.
         """
 
+    def memory(self, project_id):
+        """Return the agents' memory for a project (``entries`` and ``add``), or ``None``.
+
+        NOTE: optional. ``None`` turns the memory off for that project: the memory tools are not
+        offered and nothing is written. A workspace with this method needs no
+        ``GEOMIND_MEMORY_DIR``; without it, ``GEOMIND_MEMORY`` on uses the folder store there.
+        """
+
     def knowledge_search(self, query):
         """Return passages of the shared knowledge base, best first.
 

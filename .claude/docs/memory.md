@@ -40,7 +40,19 @@ reviewer and the explainer never read experience. User preferences live in the p
 not in memory.
 
 Storage is a protocol (`entries`, `add`): `FileMemory(root)` keeps `<root>/experience.jsonl` for
-the command line, `MemoryMemory` holds it in memory, and a backend gives its own as
-`Workspace.memory` or `Engine(memory=...)`. Settings, all required, no default: `GEOMIND_MEMORY`
-(`on` or `off`); with `on`, `GEOMIND_MEMORY_DIR` and `GEOMIND_MEMORY_SIMILARITY` (0 to 1). Final
-and competition runs keep the memory `off`.
+the command line and `MemoryMemory` holds it in memory. A run picks its memory in
+`RunSession.memory` (`geomind/engine/session.py`), in this order:
+
+1. `Engine(memory=...)`, when given;
+2. the optional `Workspace.memory(project_id)`, asked once per project and engine: a memory is
+   used; `None` is the memory **off** for that project, with no fallback to `GEOMIND_MEMORY_DIR` or
+   the folder store (the memory tools and the curator are not offered, nothing is written);
+3. a workspace without that method (the command line, `FileWorkspace`, `MemoryWorkspace`):
+   `GEOMIND_MEMORY` `on` uses `FileMemory(GEOMIND_MEMORY_DIR)`; `off` or unset is the memory off.
+
+Settings, required, no default: `GEOMIND_MEMORY` (`on` or `off`) decides only case 3, and there
+`on` needs `GEOMIND_MEMORY_DIR` (a run without it is refused with an error naming it). A memory
+the engine or the workspace gives needs no `GEOMIND_MEMORY_DIR`, and the missing-setting error
+never asks for it then. Any memory that is on needs `GEOMIND_MEMORY_SIMILARITY` (0 to 1).
+`runtime.memory_settings(source)` lists what each source (`settings`, `store`, `off`) needs.
+Final and competition runs keep the memory `off`.

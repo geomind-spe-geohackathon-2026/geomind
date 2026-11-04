@@ -4,7 +4,7 @@
 
 gemini comes only from its release wheel. `requirements/gemini.txt` pins the wheel URL with its
 sha256; `[tool.uv.sources]` names the same URL for uv. `pyproject.toml` keeps the range
-`>=0.5,<0.6`, since geomind is a library and a user may pin any release in it.
+`>=0.6,<0.7`, since geomind is a library and a user may pin any release in it.
 
 `make install` installs the pinned gemini, the runtime dependencies from
 `scripts/project_dependencies.py` and the `dev` group, and not geomind itself: tests and scripts
@@ -24,8 +24,9 @@ installs the wheel with the pinned gemini in a clean venv, runs `python -m geomi
 creates the GitHub Release with `GITHUB_TOKEN`.
 
 The order: raise the version on `dev`, run `PYTHONPATH=. python scripts/snapshot_api.py`, run every
-test tier, merge `dev` into `main` with `--no-ff`, push `main`, tag `main`, push the tag. Never push a
-test tag: it would publish a release.
+test tier, push `dev`, then `git checkout main && git merge --ff-only dev` (no merge commit, so
+`dev` and `main` never diverge), push `main`, tag `main`, push the tag. Never push a test tag: it
+would publish a release.
 
 ## Memory on a long-running host
 

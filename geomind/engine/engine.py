@@ -103,6 +103,7 @@ class Engine:
         self.store = store if store is not None else MemoryRunStore()
         self.workspace = workspace
         self.memory = memory
+        self.workspace_memories = {}
         self.mcp_servers = None
         self.mcp_transport = None
         self.recorded = {}

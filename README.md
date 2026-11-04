@@ -117,7 +117,7 @@ geomind has no built-in model: a run on a real provider stops at the start until
 | `GEOMIND_COMPARE_CONCURRENCY` | How many families a comparison designs side by side; unset, one at a time |
 | `GEOMIND_COMPARE_RETRIES` | How often a comparison designs a rejected family again; unset, never |
 | `GEOMIND_GEMINI_THREADS` | The threads gemini work runs in; unset, asyncio's default executor |
-| `GEOMIND_MEMORY`, `GEOMIND_MEMORY_DIR`, `GEOMIND_MEMORY_SIMILARITY` | Required: the agents' memory `on` or `off`; with `on`, its folder and the least similarity (0 to 1) of a past design that is recalled; no default |
+| `GEOMIND_MEMORY`, `GEOMIND_MEMORY_DIR`, `GEOMIND_MEMORY_SIMILARITY` | Required: the agents' memory `on` or `off`; with `on`, its folder and the least similarity (0 to 1) of a past design that is recalled; no default. A backend whose `Workspace.memory(project_id)` gives the memory needs only `GEOMIND_MEMORY_SIMILARITY` (and none when it returns `None`, the memory off) |
 | `GEOMIND_MAX_OUTPUT_TOKENS` | Required: the most output tokens of one model call; no default |
 | `GEOMIND_MAX_STEPS` | Required: the steps an agent takes before the run asks the user to continue; no default |
 | `GEOMIND_RETRY_COUNT`, `GEOMIND_RETRY_DELAY` | Required for a live run: retries of a failed provider call and the first delay in seconds, doubled each time; no default |

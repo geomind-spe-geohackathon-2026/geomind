@@ -178,8 +178,13 @@ def role_models():
     return {role: get(f"{role}_model") for role in ROLES}
 
 
-def model_problems():
-    """Return one line per role without a model, naming the setting that would give it one."""
+def model_problems(memory_source="settings"):
+    """Return one line per role without a model, naming the setting that would give it one.
+
+    ``memory_source`` says where the run's memory comes from (``memory_settings``). Without it, the
+    memory is the settings' folder store, as before 0.4.23: a caller of 0.4.22 that passes nothing
+    keeps working (the backend calls ``model_problems()``).
+    """
     lines = [
         f"{role}: set {model_variable(role)} or {role}_model"
         for role, model in role_models().items()
@@ -188,31 +193,51 @@ def model_problems():
     for setting, name in RETRY_SETTINGS.items():
         if get(setting) is None:
             lines.append(f"retries: set {name} or {setting}")
-    return lines + memory_problems()
+    return lines + memory_problems(memory_source)
 
 
-def memory_problems():
-    """Return one line per memory setting a run lacks: the switch, and with it on, the rest."""
+def memory_settings(memory_source):
+    """Return the memory settings a run needs, ``{setting: environment variable}``.
+
+    ``settings`` (the folder store of the command line) needs the folder and the similarity when
+    ``GEOMIND_MEMORY`` is on; ``store`` (a memory the engine or the workspace gives) needs only
+    the similarity, never ``GEOMIND_MEMORY_DIR``; ``off`` (a workspace that gives none) needs
+    nothing.
+    """
+    if memory_source == "settings":
+        return dict(MEMORY_SETTINGS) if get("memory") == "on" else {}
+    if memory_source == "store":
+        return {"memory_similarity": MEMORY_SETTINGS["memory_similarity"]}
+    if memory_source == "off":
+        return {}
+    raise UnknownNameError(
+        f"runtime: memory_source = {memory_source!r}; expected settings, store or off"
+    )
+
+
+def memory_problems(memory_source="settings"):
+    """Return one line per memory setting a run lacks: a bad switch, else the settings needed."""
     switch = get("memory")
-    if switch is None:
-        return []
-    if switch not in ("on", "off"):
+    if switch is not None and switch not in ("on", "off"):
         return [f"memory: GEOMIND_MEMORY = {switch!r}; expected on or off"]
-    if switch == "off":
-        return []
     return [
         f"memory: set {name} or {setting}"
-        for setting, name in MEMORY_SETTINGS.items()
+        for setting, name in memory_settings(memory_source).items()
         if get(setting) is None
     ]
 
 
 def missing_model_settings():
-    """Return the environment variables a live run lacks: a role's model, the retry settings."""
+    """Return the environment variables a command-line run lacks: models, retries, memory.
+
+    Its memory is the folder store of the settings, so ``GEOMIND_MEMORY`` on needs
+    ``GEOMIND_MEMORY_DIR``.
+    """
     missing = [model_variable(role) for role, model in role_models().items() if model is None]
     missing += [name for setting, name in RETRY_SETTINGS.items() if get(setting) is None]
-    if get("memory") == "on":
-        missing += [name for setting, name in MEMORY_SETTINGS.items() if get(setting) is None]
+    missing += [
+        name for setting, name in memory_settings("settings").items() if get(setting) is None
+    ]
     return missing
 
 
