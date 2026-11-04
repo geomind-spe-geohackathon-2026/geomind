@@ -19,7 +19,8 @@ routed to a domain. `verify_design(context)` does the same on the problem state'
 message}]`, one to three, from the stage of `project` (the dict of `Workspace.project_state`) or,
 without one, of `problem` (a `ProblemState` or its dict), and the names of the project's `files`: sync and with no model call, for an empty chat before its first message. Its language
 is that of the chat's goal, so English for an empty chat. A run gives the same list after an
-answer in `run.finished`'s `suggestions` (see [events.md](events.md)).
+answer in `run.finished`'s `suggestions` (see [events.md](events.md)), and the same list in
+`RunResult.suggestions` (contract v5): a root run that ended `done` only, else `None`.
 
 ## Run
 

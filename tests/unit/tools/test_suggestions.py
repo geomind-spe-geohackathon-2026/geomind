@@ -179,6 +179,33 @@ async def test_a_nested_run_a_waiting_run_and_a_failed_run_have_none():
     assert failed.status == "failed" and "suggestions" not in failed.data()
 
 
+async def test_the_run_result_carries_the_run_finished_suggestions(monkeypatch):
+    """Contract v5: a root ``done`` result has its event's list; nested, waiting, failed none."""
+    engine = engine_for([says("Hello")])
+    start = context()
+    result = await engine.run(Worker(), start)
+    [event] = of_type(engine.store.load_events(start.run_id), "run.finished")
+    assert result.suggestions and result.suggestions == event.suggestions
+    ends = []
+    end = Engine.end
+
+    async def recorded(self, session, stop):
+        outcome = await end(self, session, stop)
+        ends.append((session.state.parent, outcome))
+        return outcome
+
+    monkeypatch.setattr(Engine, "end", recorded)
+    engine = engine_for([uses(call("helper", task="t")), says("child done"), says("done")])
+    root = await engine.run(Lead(), context())
+    children = [outcome for parent, outcome in ends if parent is not None]
+    assert root.suggestions and children and all(c.suggestions is None for c in children)
+    waiting = await engine_for([uses(call("ask_user", question="Which?"))]).run(Worker(), context())
+    assert waiting.status == "waiting" and waiting.suggestions is None
+    script = [uses(call("nothing_here")), uses(call("nothing_here"))] * 3
+    failed = await engine_for(script).run(Worker(), context())
+    assert failed.status == "failed" and failed.suggestions is None
+
+
 def test_an_old_run_finished_has_no_suggestions():
     """A log before 0.4.22.dev48 has none, and its data leaves the key out."""
     event = event_from_dict(

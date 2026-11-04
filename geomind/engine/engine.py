@@ -36,8 +36,8 @@ def failure_stop(error, reason):
     return Stop(reason, str(error), is_crash=reason == "error")
 
 
-def run_result(session, stop):
-    """Return the result of a stop.
+def run_result(session, stop, suggestions=None):
+    """Return the result of a stop; ``suggestions`` are those of its ``run.finished`` event.
 
     A run that waits on a nested run's request counts that run's usage so far, which joins its
     own only when the nested run ends.
@@ -53,6 +53,7 @@ def run_result(session, stop):
         steps=state.step,
         stop_reason=stop.reason,
         message=None if stop.is_crash else stop.message,
+        suggestions=suggestions,
     )
 
 
@@ -213,16 +214,17 @@ class Engine:
         if is_limit_stop(session, stop):
             stop = await self._answer_from_record(session, stop)
         status = status_of(stop.reason)
+        suggestions = suggestions_of(session, status)
         await session.emit(
             RunFinished,
             status=status,
             stop_reason=stop.reason,
             message=stop.message,
             answer=stop.answer,
-            suggestions=suggestions_of(session, status),
+            suggestions=suggestions,
         )
         await session.save_problem()
-        return run_result(session, stop)
+        return run_result(session, stop, suggestions)
 
     async def _answer_from_record(self, session, stop):
         """Give a run that a limit stopped the answer its record makes, streamed like any answer."""
