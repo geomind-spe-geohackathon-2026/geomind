@@ -6,6 +6,15 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.52] - 2026-11-05
+
+### Data
+
+- Cost catalogue (`data/knowledge/cost-sources.csv`), Sahand's decision of 2026-11-05: the 19
+  placeholder rows and the three rows that cannot be converted to EUR at 2015 prices (QA-045) are
+  removed; four cited rows are added (QA-006: compression and absorption chiller fixed O&M,
+  production pump replacement). 153 rows, none without a source. `cost-sources.md` lists them.
+
 ## [0.4.51] - 2026-11-05
 
 ### Fixed

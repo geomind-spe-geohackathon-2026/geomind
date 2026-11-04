@@ -128,3 +128,27 @@ They use the same rules and the same HICP index as batches 1 and 2; a 2026 price
   - ice-specific 0.51 to 0.88 %/yr, from an sp.ICE manufacturer table, secondary;
   - 2 %/yr for a whole cooling plant (Hao 2022), as an upper bound.
 - Rows: 171 (74 verified, 78 secondary, 19 placeholder).
+
+## Sourced rows only (2026-11-05)
+
+Sahand's decision of 2026-11-05: a row without a source is removed entirely, and every value is EUR
+at 2015 prices from a cited source. 22 rows removed, 4 added; every economics key that had a row
+still has one.
+
+- Removed, the 19 `placeholder` rows: `heat-pump-lift-range`, `flare-capex`, `gas-makeup-capex`,
+  `opex-fixed-drilling`, `opex-fixed-degasser`, `opex-fixed-absorption-chiller`,
+  `opex-fixed-adsorption-chiller`, `opex-fixed-injection-pump`, `opex-fixed-heat-exchanger`,
+  `opex-fixed-dry-cooler`, `opex-fixed-cooling-tower`, `opex-fixed-flare`, `opex-fixed-gas-makeup`,
+  `chemical-scale-inhibitor`, `chemical-corrosion-inhibitor`, `waste-disposal`,
+  `opex-circulation-pump-placeholder`, `opex-ice-storage-placeholder`, `corrosion-inhibitor-placeholder`.
+- Removed, three rows with no value at 2015 prices that cannot be converted with a cited price
+  year and index (QA-045): `esp-geophires-500kw` and `injection-pump-geophires-500kw` (GEOPHIRES-X
+  cost correlations in USD with no stated price year), `corrosion-inhibitor-ouzounian-1989-dogger`
+  (FRF 1989; the euro-area HICP starts in 1996).
+- Added (QA-006, sources and arithmetic in each row): `opex-compression-chiller-hre4-2017-755kw`
+  (4639.7 EUR/MW/yr), `opex-compression-chiller-tctc-2013-district` (4309 EUR/MW/yr),
+  `opex-absorption-chiller-hre4-2017-500kw` (6800 EUR/MW/yr),
+  `opex-production-pump-ecn-2012-esp-replacement` (20 %/yr).
+- Still without a row: `opex.per_energy` of the chillers, `opex.fixed.adsorption_chiller`,
+  `revenue.subsidy.capacity` (a project value, not a price).
+- Rows: 153 (74 verified, 79 secondary, 0 placeholder).
