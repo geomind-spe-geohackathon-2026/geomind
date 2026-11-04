@@ -39,9 +39,15 @@ def test_the_folder_of_the_repository_holds_the_cost_catalogue():
     assert knowledge.search("drilling")[0]["document"] == "cost-sources.csv"
 
 
-REFUSED_BY_GEMINI = {"opex-pipe-dea-2025-distribution", "opex-pipe-dea-2025-transmission"}
-"""Catalogue rows whose unit gemini 0.6.3's key still refuses: ``opex.fixed.pipe`` per MW and
-year (it takes %/yr only; cost-sources.md)."""
+REFUSED_BY_GEMINI = {
+    "opex-pipe-dea-2025-distribution",
+    "opex-pipe-dea-2025-transmission",
+    "waste-disposal-tfa-france-2022",
+    "waste-density-geothermal-filter-nrg-2020",
+}
+"""Catalogue rows listed for reference whose unit gemini's key refuses, so they are never used:
+``opex.fixed.pipe`` per MW and year (it takes %/yr only), and ``opex.variable.waste_disposal`` in
+EUR/m3 or t/m3 (it takes EUR/kg; cost-sources.md)."""
 
 
 def test_every_catalogue_row_names_a_case_key_and_a_unit_gemini_takes():
