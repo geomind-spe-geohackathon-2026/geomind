@@ -145,3 +145,29 @@ def test_a_string_that_is_no_container_stays_for_the_schema_to_judge():
         "changes": "{}",
         "note": "[1]",
     }
+
+
+def test_a_list_missing_only_its_closing_bracket_is_read():
+    """#87: nemotron's JSON text of ``changes`` lacked its final ``]``, twice; the run stopped."""
+    from geomind.tools.base import parsed_json
+
+    assert parsed_json('[{"op": "add", "value": "a ] in text"}') == [
+        {"op": "add", "value": "a ] in text"}
+    ]
+    assert parsed_json('{"a": [1}') is None
+
+
+def test_a_null_sent_as_text_is_null_where_the_schema_takes_one():
+    """A text ``"None"`` (nemotron's ``read_case``) is null; a required string stays as it came."""
+    from geomind.tools.base import decoded_containers
+
+    schema = {
+        "properties": {
+            "section": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+            "name": {"type": "string"},
+        }
+    }
+    assert decoded_containers({"section": "None", "name": "None"}, schema) == {
+        "section": None,
+        "name": "None",
+    }

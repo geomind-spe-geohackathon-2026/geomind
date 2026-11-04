@@ -266,6 +266,8 @@ Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/C
 | 86 | C1 (Track C), evals | the `sourced` criterion left out the problem state's `Case:` line, so the case's own years counted as made up | the state's `Case:` line is read; the agent's notes and questions stay out | track-c |
 | 87 | C2 (Track C), economist and analysis lead on nemotron | sent `update_state`'s `changes` as a JSON string; two refusals in a row stopped the economist's nested run, and the lead finished without it | `Tool.validate` reads a list or an object given as its JSON text (model-agnostic) | track-c |
 | 88 | C2 (Track C), analysis lead on DeepSeek | asked `compute_kpis` for `annualised_cost`, a cost metric it lacks, because the reference listed the metrics under `compute_kpis` too | the reference says `compute_kpis` has names of its own: call it without `names`; costs come from `estimate_costs` | track-c |
+| 89 | C3 (Track C), economist on nemotron | `changes` as JSON text missing its final `]`, twice, ended the run; `read_case(section="None")` | a JSON text missing only its closing brackets is read; `"None"`/`"null"` is null where the schema takes one | track-c |
+| 90 | C3 (Track C), analysis lead on nemotron | sampled `capex` and `opex`, which a study refuses: the reference said a study takes every metric | the reference names what a study reads (the objectives and gemini's five study KPIs, pinned by a test); gemini request C-1 | track-c |
 | 70 | D1, process engineer | DeepSeek leaked tool-call markup into an argument (`">HeatingCoolingPlant</</parameter name=`) and sent it again three times | an input holding markup is refused before the tool runs, with the value before the markup as the suggestion | track-b |
 | 71 | D1, design engineers | each engineer read the case 4 to 16 times and its profiles again and again: a long result shrinks to an outline after one step | the engineers keep the case, the plant and the module descriptions whole for a few turns (`Tool.kept()`); `read_profile` gives a `summary` (peak, minimum, mean, energy) computed by code | track-b |
 | 72 | D1, design lead | checked a design handed to it complete, then recorded it only as a note, not as `design.reference` and `design.result` | the prompt says a checked handed design is final too | track-b |
@@ -336,6 +338,11 @@ Open requests to gemini (full text in the adaptation notes):
 15. `site.fluid.dissolved_gas.*` take a bare `{value}` (a mole fraction) with no unit, while
     briefs give `mol%`: the agents must turn 20 mol% into 0.2 by hand, which their rules forbid.
     A `unit` (`mol%`, `-`) on those fields, converted by gemini (Track A).
+C-1. A public list of the metrics a study reads: `gm.study` checks them against
+    `gemini.study._utils.trial.KPI_NAMES` and `ECONOMICS`, private names, so geomind pins them in
+    a test to tell the agents (`heating_coverage`, `cooling_coverage`, `cop`, `peak_heat`,
+    `peak_cold` and the five objectives); `gm.evaluate.metrics()` does not say which a study reads
+    (Track C, bug #90).
 
 ### S2b: gemini tools (the first job; the text below is the original plan)
 

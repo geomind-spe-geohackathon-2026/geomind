@@ -174,19 +174,65 @@ def _container_types(schema):
     return {item.get("type") for item in options if isinstance(item, dict)} & {"array", "object"}
 
 
+CLOSERS = {"[": "]", "{": "}"}
+NULL_TEXTS = ("None", "null")
+"""A null some models send as text, ``section: "None"``, read as null where the schema takes one."""
+
+
+def _takes_null(schema):
+    """Tell whether a property's schema accepts null."""
+    options = schema.get("anyOf") or [schema]
+    return any(isinstance(item, dict) and item.get("type") == "null" for item in options)
+
+
+def missing_closers(text):
+    """Return the brackets that close what ``text`` opened, outside its strings, else ``""``."""
+    stack, in_string, escaped = [], False, False
+    for char in text:
+        if in_string:
+            in_string = escaped or char != '"'
+            escaped = not escaped and char == "\\"
+            continue
+        if char == '"':
+            in_string = True
+        elif char in CLOSERS:
+            stack.append(CLOSERS[char])
+        elif stack and char == stack[-1]:
+            stack.pop()
+    return "" if in_string else "".join(reversed(stack))
+
+
+def parsed_json(text):
+    """Return the JSON value of ``text``, also when only its closing brackets are missing (#87).
+
+    nemotron sent a list as JSON text without its final ``]``; nothing else is repaired.
+    """
+    for candidate in (text, text + missing_closers(text)):
+        try:
+            return json.loads(candidate)
+        except ValueError:
+            continue
+    return None
+
+
 def decoded_containers(tool_input, schema):
-    """Return ``tool_input`` with each list or object given as JSON text read as one (#87)."""
+    """Return ``tool_input`` with each list or object given as JSON text read as one (#87).
+
+    A ``"None"`` or ``"null"`` where the schema takes a null is that null.
+    """
     properties = (schema or {}).get("properties") or {}
     if not isinstance(tool_input, dict) or not properties:
         return tool_input
     found = dict(tool_input)
     for name, value in tool_input.items():
+        if value in NULL_TEXTS and _takes_null(properties.get(name) or {}):
+            found[name] = None
+            continue
         wanted = _container_types(properties.get(name) or {})
         if not wanted or not isinstance(value, str) or not value.strip()[:1] in ("[", "{"):
             continue
-        try:
-            parsed = json.loads(value)
-        except ValueError:
+        parsed = parsed_json(value)
+        if parsed is None:
             continue
         if ("array" in wanted and isinstance(parsed, list)) or (
             "object" in wanted and isinstance(parsed, dict)

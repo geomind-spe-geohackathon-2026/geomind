@@ -15,6 +15,8 @@ Round C1 (Track C): the analysis lead and the economist alone, two tasks each, o
 - Fix (#85): the economist runs uncertainty and sensitivity only when the task asks for them.
 - Fix (#87): `Tool.validate` reads a list or an object sent as its JSON text, as nemotron sends `update_state`'s `changes`; any other string stays for the schema to judge.
 - Fix (#88): the analysis reference says `compute_kpis` has names of its own (gemini's totals and one result's report): call it without `names`; costs come from `estimate_costs`.
+- Fix (#89): a list or an object whose JSON text lacks only its closing brackets is read (nemotron's `changes` without its final `]`), and `"None"` or `"null"` is null where the schema takes a null.
+- Fix (#90): the analysis reference names the metrics a study reads (the objectives and `heating_coverage`, `cooling_coverage`, `cop`, `peak_heat`, `peak_cold`), never `capex` or `opex`; a test pins them to gemini's private list (gemini request C-1).
 - Fix (#86), evals: the `sourced` criterion reads the problem state's `Case:` line. Evals: the `number` criterion reads a thousands separator (`111,667.68 MWh`).
 
 ### Shared rules for every agent, gemini's module reference, and set_case loads the files the case names (0.4.22.dev47)

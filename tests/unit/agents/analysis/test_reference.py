@@ -60,3 +60,16 @@ def test_compute_kpis_is_called_without_names():
     """#88: the analysis lead asked compute_kpis for annualised_cost, a cost metric it lacks."""
     text = AnalysisLead().prompt.render()
     assert "`compute_kpis` has names of its own" in text and "call it without `names`" in text
+
+
+def test_a_study_s_metrics_are_gemini_s():
+    """A study refuses ``capex`` (nemotron sampled it): the prompt names what a study reads.
+
+    gemini keeps the list in a private module (request C-1): this pin fails when it changes.
+    """
+    from gemini.study._utils.trial import ECONOMICS, KPI_NAMES
+
+    from geomind.agents.analysis.reference import STUDY_KPIS
+
+    assert tuple(KPI_NAMES) == STUDY_KPIS and set(ECONOMICS) == OBJECTIVES
+    assert "never `capex` or `opex`" in Economist().prompt.render()

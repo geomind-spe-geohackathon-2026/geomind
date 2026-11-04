@@ -6,6 +6,10 @@ The metric names, titles, units and which ones a study may minimise come from
 changes changes here, never in a hand-written line.
 """
 
+STUDY_KPIS = ("heating_coverage", "cooling_coverage", "cop", "peak_heat", "peak_cold")
+"""The metrics a study reads besides the objectives; gemini keeps them in a private module
+(``gemini.study._utils.trial.KPI_NAMES``), so a test pins them: gemini request C-1."""
+
 HEADING = (
     "## gemini reference for the analysis team\n\n"
     "Made from gemini when this prompt renders: use these names exactly, and the units gemini "
@@ -23,10 +27,12 @@ def metrics():
 def metrics_text():
     """Return one line per metric: its name, title, display unit, and whether it is an objective."""
     lines = [
-        "### Metrics (`estimate_costs`, `compare` `by`, a study's `metrics`)",
+        "### Metrics (`estimate_costs`, `compare` `by`)",
         "",
         "`compute_kpis` has names of its own, gemini's totals and the report of one result: call "
         "it without `names` and use the names it returns; costs come from `estimate_costs`.",
+        "A study (`sample_uncertainty`, `sensitivity`, `run_study`) reads only the objectives "
+        f"below and {', '.join(f'`{name}`' for name in STUDY_KPIS)}: never `capex` or `opex`.",
         "",
     ]
     for item in metrics():
