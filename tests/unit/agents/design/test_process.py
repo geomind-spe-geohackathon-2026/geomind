@@ -62,7 +62,9 @@ def test_it_records_the_modules_and_their_owners():
 def test_it_computes_nothing_by_hand():
     """#45: no formula or conversion; numbers from the case, gemini, or a named assumption."""
     text = ProcessEngineer().prompt.content
-    assert "Compute nothing by hand" in text and "top-level values first" in text
+    assert "Compute nothing by hand" in text and "names a missing design value alone" in " ".join(
+        text.split()
+    )
 
 
 def test_it_compares_plants_by_list_plants_and_reads_only_the_chosen_one():

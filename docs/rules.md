@@ -23,6 +23,9 @@ These rules apply to everyone who works on geomind, people and agents alike.
 - gemini is the source of truth for physics, and it is read-only here: change it only in its own
   repository.
 - Nothing is requested from gemini without Sahand's approval. Requests go on a list for him.
+- gemini requests: only real bugs, unit problems and unclear errors; gemini never provides data,
+  defaults or derived inputs for other packages. geomind gets such a value itself (the air
+  pressure from the site's elevation, `geomind/tools/gemini/air.py`) or asks the user.
 - Use only gemini's public API.
 
 ## Installs

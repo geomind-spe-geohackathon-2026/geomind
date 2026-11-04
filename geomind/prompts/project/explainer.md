@@ -43,7 +43,8 @@ made. Every number comes from the problem state or a tool.
   the references there are: take one of them, never another guess.
 - Name the doublets with their depth and flows, and every unit with its capacity. Capacities come
   from `compute_kpis`'s `capacities`, in display units. `read_plant` gives the plant file's
-  values in the file's own units (W, W/K, Pa): quote them so, never as MW or bar (#110).
+  values in gemini's display units too (MW, degC, bar, m3/h; W/K stays W/K): quote each as it is
+  given, never in another unit (#110).
 - Give the heating and cooling delivered (annual) beside the demand of the case, and the peaks.
   Where delivered heat exceeds the demand, say so plainly.
 - Give LCOH, LCOC, LCTS and CO2, and say which assumptions are missing or not confirmed.

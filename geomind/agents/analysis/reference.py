@@ -1,14 +1,10 @@
 """The gemini part of the analysis team's prompts, made from gemini when a prompt renders.
 
 The metric names, titles, units and which ones a study may minimise come from
-``gm.evaluate.metrics()``; the economics keys, their units and meanings from gemini's
-``Economics`` schema and geomind's field texts (``geomind/tools/gemini/fields.py``). A name gemini
-changes changes here, never in a hand-written line.
+``gm.evaluate.metrics()``, the metrics a study reads from ``gm.study.metrics()``; the economics
+keys, their units and meanings from gemini's ``Economics`` schema. A name gemini changes changes
+here, never in a hand-written line.
 """
-
-STUDY_KPIS = ("heating_coverage", "cooling_coverage", "cop", "peak_heat", "peak_cold")
-"""The metrics a study reads besides the objectives; gemini keeps them in a private module
-(``gemini.study._utils.trial.KPI_NAMES``), so a test pins them: gemini request C-1."""
 
 HEADING = (
     "## gemini reference for the analysis team\n\n"
@@ -24,6 +20,16 @@ def metrics():
     return list(gm.evaluate.metrics())
 
 
+def study_metrics():
+    """Return the names of the metrics a study reads, from ``gm.study.metrics()``.
+
+    gemini 0.6.3 gives them publicly (request 26); geomind pins no name of its own.
+    """
+    import gemini as gm
+
+    return [item["name"] for item in gm.study.metrics()]
+
+
 def metrics_text():
     """Return one line per metric: its name, title, display unit, and whether it is an objective."""
     lines = [
@@ -31,8 +37,8 @@ def metrics_text():
         "",
         "`compute_kpis` has names of its own, gemini's totals and the report of one result: call "
         "it without `names` and use the names it returns; costs come from `estimate_costs`.",
-        "A study (`sample_uncertainty`, `sensitivity`, `run_study`) reads only the objectives "
-        f"below and {', '.join(f'`{name}`' for name in STUDY_KPIS)}: never `capex` or `opex`.",
+        "A study (`sample_uncertainty`, `sensitivity`, `run_study`) reads only "
+        f"{', '.join(f'`{name}`' for name in study_metrics())}: never `capex` or `opex`.",
         "",
     ]
     for item in metrics():

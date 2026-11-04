@@ -110,21 +110,17 @@ async def test_changes_merge_into_the_state_case():
 
 
 @pytest.mark.parametrize("unit", ["degC/km", "°C/km", "C/km"])
-async def test_a_gradient_in_degrees_per_km_is_set_as_kelvin_per_km(unit):
-    """A gradient gemini 0.6.2 refuses (request 31) is set as K/km, the same number, and listed."""
+async def test_a_gradient_in_degrees_per_km_goes_to_gemini_as_given(unit):
+    """A gradient in °C/km is gemini 0.6.3's (request 31): set_case maps and lists nothing."""
     session, problem = await loaded("shallow_district")
     changes = {"site": {"ground": {"gradient": {"value": 30, "unit": unit}}}}
     result = await edited(session, problem, {"changes": changes})
     assert result.is_error is False, result.output
     assert state_after(session, problem).case["site"]["ground"]["gradient"] == {
         "value": 30,
-        "unit": "K/km",
+        "unit": unit,
     }
-    (entry,) = result.output["converted"]
-    assert entry["path"] == "site.ground.gradient"
-    assert entry["from"] == {"value": 30, "unit": unit}
-    assert entry["to"] == {"value": 30, "unit": "K/km"}
-    assert "request 31" in entry["reason"]
+    assert "converted" not in result.output
 
 
 async def test_a_gas_fraction_in_mol_percent_is_gemini_s_to_convert():
@@ -163,7 +159,9 @@ async def test_every_problem_of_a_case_comes_back_in_one_call():
     assert result.is_error and "problems at 3 paths" in error["message"]
     for path in ("site.ground.gradient.unit", "site.fluid.density.unit", "supply_temperature"):
         assert path in error["message"]
-    assert "site.ground.gradient: accepted units: K/km, K/m" in error["suggestions"]
+    assert "site.ground.gradient: accepted units: C/km, C/m, K/km, K/m, degC/km" in "".join(
+        error["suggestions"]
+    )
     assert "site.fluid.density: accepted units: g/m3, kg/m3, mg/l" in error["suggestions"]
     assert state_after(session, problem).case == problem.case
 

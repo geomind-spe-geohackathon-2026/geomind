@@ -1,133 +1,56 @@
-"""What each field of a case means, where its value comes from, and what each option says.
+"""Where each case value comes from, what each option says, and gemini's meaning of each field.
 
-gemini's ``Case.schema()`` gives the keys, forms and units but no meaning; these texts are
-geomind's, taken from gemini's class docstrings where they say it
-(``gemini.case.site``, ``demand``, ``time``, ``utilities``, ``requirement``, ``economics``). A
-field shown here with ``(gemini: none)`` has no description in gemini at all: it is on the list
-for Sahand. A field gemini's schema leaves undescribed but its code reads is described from that
-code, ending ``(from gemini's code: <module>.<function>)``, or says ``gemini does not use it``
-(plan.md, gemini request 22). Where a value comes from: ``brief`` (the organiser's or client's
-brief), ``data`` (a data file), ``report`` (a geological or well report, read by the
-geoscientist), ``user`` (ask), ``economics`` (an economics file or the knowledge base with its
-source). ``derived`` means gemini computes it: leave it unset.
+gemini 0.6.3's ``Case.schema()`` and ``Economics.schema()`` describe every key (request 22), so a
+field's meaning is gemini's description, read when a tree renders, never copied here. geomind
+keeps only what gemini's schema does not say: where a case value comes from and a few notes for
+the case lead (``CASE_NOTES``), and the meaning of each option of a requirement (``OPTIONS``).
+Where a value comes from: ``brief`` (the organiser's or client's brief), ``data`` (a data file),
+``report`` (a geological or well report, read by the geoscientist), ``user`` (ask), ``economics``
+(an economics file or the knowledge base with its source). ``derived`` means gemini computes it:
+leave it unset.
 """
 
-CASE_FIELDS = {
-    "format": "always 1",
-    "kind": 'always "case"',
-    "name": "a short name of the case",
-    "about": (
-        "free notes, an object gemini keeps and writes back as read; gemini does not use it "
-        "(from gemini's code: case.case.Case.to_dict)"
+CASE_NOTES = {
+    "site.ground.surface_temperature": "brief/report",
+    "site.ground.gradient": "brief/report",
+    "site.reservoir.reference_depth": "true vertical depth; brief/report",
+    "site.reservoir.thickness": "gross thickness (net-to-gross if given); report",
+    "site.reservoir.permeability": "report",
+    "site.reservoir.pressure": "static pressure; brief/report",
+    "site.reservoir.temperature": "set it only when a report measured it; derived",
+    "site.fluid.density": "brief/report",
+    "site.fluid.viscosity": "brief/report",
+    "site.fluid.gas_liquid_ratio": "report",
+    "site.fluid.dissolved_gas": "the produced gas; report",
+    "site.fluid.sand_concentration": "report",
+    "site.air": "for coolers and the flare",
+    "site.air.temperature": "brief/data",
+    "site.air.relative_humidity": "brief/data",
+    "site.air.pressure": (
+        "with only the site's elevation, give {elevation: {value, unit}}: set_case sets the ISA "
+        "pressure; brief/report/user"
     ),
-    "site.ground.surface_temperature": (
-        "undisturbed ground temperature at the surface; brief/report"
-    ),
-    "site.ground.gradient": "rise of rock temperature with depth; brief/report",
-    "site.reservoir.reference_depth": "depth the reservoir values are given at (TVD); brief/report",
-    "site.reservoir.thickness": "gross thickness of the aquifer; report (net-to-gross if given)",
-    "site.reservoir.permeability": "permeability of the aquifer rock; report",
-    "site.reservoir.pressure": "static pressure at the reference depth; brief/report",
-    "site.reservoir.temperature": (
-        "measured temperature at the reference depth only; derived from the ground when unset, "
-        "so leave it unset unless a report measured it"
-    ),
-    "site.fluid.density": "brine density; brief/report",
-    "site.fluid.viscosity": "brine dynamic viscosity; brief/report",
-    "site.fluid.gas_liquid_ratio": (
-        "gas liberated per volume of brine at standard conditions (GLR); report"
-    ),
-    "site.fluid.dissolved_gas": (
-        "mole fraction of each species of the produced gas, adding up to 1; report"
-    ),
-    "site.fluid.sand_concentration": "solids carried by the brine; report",
-    "site.air": "outside air at the site, for coolers and the flare",
-    "site.air.temperature": "outside air temperature, a constant or a series; brief/data",
-    "site.air.relative_humidity": "outside air relative humidity 0-1; brief/data",
-    "site.air.pressure": "outside air pressure; brief/user (from the site's elevation)",
-    "demand.heating.power": "heat the consumers ask for, a series on the case's steps; data",
-    "demand.heating.supply_temperature": "temperature the heat is delivered at; brief",
-    "demand.heating.return_temperature": (
-        "temperature the heating water comes back at, colder than the supply; brief/user"
-    ),
-    "demand.heating.minimum_return_temperature": (
-        "lowest temperature [K] the consumer can cool the heating water to; without a "
-        "return_temperature the heating grid needs it, floors its return there and delivers at "
-        "most m_dot cp (T_supply - it), nothing from a colder supply (from gemini's code: "
-        "modules.grids.heatinggrid.HeatingGrid._delivered_heat, _cooled_temperature)"
-    ),
-    "demand.heating.maximum_return_temperature": (
-        "a temperature [K] above 0, read and bounds-checked; gemini does not use it "
-        "(from gemini's code: case.demand.Service.fields)"
-    ),
-    "demand.heating.return_pressure": "pressure the heating water comes back at; brief/user",
-    "demand.cooling.power": "cold the consumers ask for, a series on the case's steps; data",
-    "demand.cooling.supply_temperature": "temperature the chilled water is delivered at; brief",
-    "demand.cooling.return_temperature": (
-        "temperature the chilled water comes back at, warmer than the supply; brief/user"
-    ),
-    "demand.cooling.minimum_return_temperature": (
-        "a temperature [K] above 0, read and bounds-checked; gemini does not use it "
-        "(from gemini's code: case.demand.Service.fields)"
-    ),
-    "demand.cooling.maximum_return_temperature": (
-        "highest temperature [K] the consumer can warm the chilled water to; without a "
-        "return_temperature the cooling grid's return limit is the lower of it and "
-        "indoor_temperature, and it absorbs at most m_dot cp (limit - T_supply) (from gemini's "
-        "code: modules.grids.coolinggrid.CoolingGrid._return_limit)"
-    ),
-    "demand.cooling.return_pressure": "pressure the chilled water comes back at; brief/user",
-    "demand.cooling.indoor_temperature": "room temperature of the cooled building; brief/user",
-    "demand.cooling.indoor_relative_humidity": "room relative humidity 0-1; brief/user",
-    "demand.cooling.dew_point_margin": (
-        "how far the chilled water stays above the room's dew point; user"
-    ),
-    "utilities.electricity.co2_intensity": "CO2 per unit of grid electricity; brief/economics",
-    "utilities.electricity.import_limit": "most power the grid connection takes in; brief/user",
-    "utilities.electricity.export_limit": "most power the plant may sell to the grid; brief/user",
-    "utilities.gas.composition": (
-        "mole fractions of the bought grid gas, adding up to 1; utility/user, never the brine's gas"
-    ),
-    "utilities.gas.heating_value": "energy per mass of the grid gas; utility/user",
-    "time.start": "first instant, ISO 8601; text without an offset is UTC",
-    "time.end": (
-        "end of the period, excluded: a year of daily values ends on the next year's first day"
-    ),
-    "time.step": "length of one step: the data's interval, such as 1 d",
-    "initial_state": (
-        "the state each stateful module starts the run from, {module path: {state: {value, unit}}}"
-        "; a state has no default: check lists a state the case lacks as missing and a module or "
-        "state the plant lacks as unknown, and the run starts from the values in SI (from "
-        "gemini's code: case.case._state, engine.check._states, engine.apply._states, "
-        "engine.apply.started)"
-    ),
-    "economics": "the economics file's name or its object",
-    "requirements": "the rules the outcome must meet, each on one role of the plant; brief",
-    "requirements.name": "unique snake_case name of the rule",
-    "requirements.on": "the role the rule applies to, each unit of it on its own",
-    "requirements.quantity": "the quantity of that role the rule bounds",
-    "requirements.unit": "the bounds' unit, present only when they have a dimension",
-    "requirements.over": "how a per-step quantity is read over the run",
-    "requirements.when": "which steps count: every step, or only those the unit runs",
-    "requirements.min": "lower bound, in unit; min = max is an exact rule",
-    "requirements.max": "upper bound, in unit",
+    "demand.heating.power": "a series on the case's steps; data",
+    "demand.heating.supply_temperature": "brief",
+    "demand.heating.return_temperature": "colder than the supply; brief/user",
+    "demand.heating.return_pressure": "brief/user",
+    "demand.cooling.power": "a series on the case's steps; data",
+    "demand.cooling.supply_temperature": "brief",
+    "demand.cooling.return_temperature": "warmer than the supply; brief/user",
+    "demand.cooling.return_pressure": "brief/user",
+    "demand.cooling.indoor_temperature": "brief/user",
+    "demand.cooling.indoor_relative_humidity": "brief/user",
+    "demand.cooling.dew_point_margin": "user",
+    "utilities.electricity.co2_intensity": "brief/economics",
+    "utilities.electricity.import_limit": "brief/user",
+    "utilities.electricity.export_limit": "brief/user",
+    "utilities.gas.composition": "never the brine's gas; utility/user",
+    "utilities.gas.heating_value": "utility/user",
+    "time.step": "the data's interval",
+    "requirements": "brief",
+    "requirements.min": "min = max is an exact rule",
 }
-"""One meaning per case field, by its dotted path; a list's fields by ``list.field``."""
-
-ECONOMICS_FIELDS = {
-    "format": "always 1",
-    "kind": 'always "economics"',
-    "name": "a short name of the economics",
-    "about": (
-        "free notes, an object gemini keeps and writes back as read; gemini does not use it "
-        "(from gemini's code: case._utils.node.Node.to_dict)"
-    ),
-}
-"""The meanings of the economics fields gemini's ``Economics.schema()`` does not describe.
-
-gemini 0.6.2 describes every other economics field and section (requests 19 and 21): those
-meanings are read from its schema by ``economics_fields``, never copied here.
-"""
+"""geomind's note on a case field, after gemini's meaning: its source last, after a semicolon."""
 
 OPTIONS = {
     "requirements.over": {
@@ -193,29 +116,46 @@ EXAMPLES = (
 """How a rule of a brief is written, for the two that are mixed up."""
 
 
+MAP_ENTRY = "The entry of this map for "
+"""The start of gemini's description of a map's entry, which names only the entry's key."""
+
+
 def schema_descriptions(schema, path=""):
     """Return gemini's own ``description`` of each field and section of a schema, by dotted path.
 
-    A list's fields are ``list.field``, as in ``CASE_FIELDS``.
+    A list's fields are ``list.field``, as in ``CASE_NOTES``. gemini 0.6.3 describes each entry of
+    a map as ``The entry of this map for <key>.``, which says nothing: it is left out, so the map's
+    own description covers its entries (``opex.fixed.boiler`` reads ``opex.fixed``'s).
     """
     found = {}
     for key, sub in (schema.get("properties") or {}).items():
         dotted = f"{path}{key}"
-        if sub.get("description"):
+        if sub.get("description") and sub["description"] != f"{MAP_ENTRY}{key}.":
             found[dotted] = sub["description"]
         items = sub.get("items") if sub.get("type") == "array" else None
         found.update(schema_descriptions(items if isinstance(items, dict) else sub, f"{dotted}."))
     return found
 
 
+def case_fields():
+    """Return the meaning of each case field: gemini's description, then geomind's note."""
+    import gemini as gm
+
+    given = schema_descriptions(gm.Case.schema())
+    return {
+        path: "; ".join(text for text in (given.get(path), CASE_NOTES.get(path)) if text)
+        for path in {**given, **CASE_NOTES}
+    }
+
+
 def economics_fields():
-    """Return the meaning of each economics field: gemini's description, else geomind's text.
+    """Return the meaning of each economics field: gemini's description.
 
     A section's description covers every field below it that has none of its own.
     """
     import gemini as gm
 
-    return {**ECONOMICS_FIELDS, **schema_descriptions(gm.case.Economics.schema())}
+    return schema_descriptions(gm.case.Economics.schema())
 
 
 def meaning(path, fields):
@@ -241,8 +181,25 @@ def options_text():
 
 
 def undescribed():
-    """Return the fields whose meaning gemini gives nowhere: the list for Sahand."""
-    found = [path for path, text in CASE_FIELDS.items() if "(gemini: none)" in text]
-    return found + [
-        f"economics.{path}" for path, text in ECONOMICS_FIELDS.items() if "(gemini: none)" in text
-    ]
+    """Return the case and economics fields gemini's schemas describe nowhere: the list for Sahand.
+
+    A field reads with its own description or its nearest section's; gemini 0.6.3 gives one for
+    every key (request 22), so the list is empty.
+    """
+    import gemini as gm
+
+    from geomind.tools.gemini.skeleton import key_tree
+
+    found = []
+    for prefix, schema in (("", gm.Case.schema()), ("economics.", gm.case.Economics.schema())):
+        given = schema_descriptions(schema)
+        parent = ""
+        for line in key_tree(schema):
+            path = line.split(":", 1)[0].replace("*", "").strip()
+            if not line.startswith("  "):
+                parent = path.removesuffix("[]") if path.endswith("[]") else ""
+            elif parent:
+                path = f"{parent}.{path}"
+            if meaning(path.removesuffix("[]"), given) is None:
+                found.append(f"{prefix}{path.removesuffix('[]')}")
+    return found

@@ -7,11 +7,36 @@ import pytest
 from tests.fixtures import ROOT
 from tests.unit.test_gemini_names import geomind_files
 
-FACTORS = {0.001, 1e-6, 0.01, 100, 3.6, 60, 3600, 86400, 8760, 31536000, 31557600, 273.15, 1e5, 1e6}
+FACTORS = {
+    0.001,
+    1e-6,
+    0.01,
+    100,
+    3.6,
+    60,
+    3600,
+    86400,
+    8760,
+    31536000,
+    31557600,
+    273.15,
+    1e5,
+    1e6,
+    101325,
+}
 """Numbers that only a unit conversion uses: milli, micro, percent, minutes, hours, days, years,
-kelvin."""
-ALLOWED = {}
-"""The one-line exceptions, ``(path, line) -> reason``; each goes when its gemini request lands."""
+kelvin, bar and atmosphere."""
+ALLOWED = {
+    (
+        "geomind/tools/gemini/air.py",
+        "return 101325 * (1 - 2.25577e-5 * elevation) ** 5.25588",
+    ): (
+        "the ISA pressure from the site's elevation (ISO 2533:1975): a derived input gemini does "
+        "not give (docs/rules.md), computed by code so the model never computes it; the elevation "
+        "reaches it in m through gm.units"
+    ),
+}
+"""The one-line exceptions, ``(path, line) -> reason``: each has its reason, and none other."""
 UNIT_NAMES = {
     "ms",
     "s",
@@ -77,3 +102,10 @@ def test_the_check_sees_a_factor_and_a_factor_table():
     assert conversion_lines('SECONDS = {"s": 1.0, "h": 3600.0}\n') != []
     assert conversion_lines("TOKENS = 1000\n") == []
     assert conversion_lines("fraction = percent / 100\n") == [1]
+
+
+def test_the_isa_pressure_is_the_one_exception_and_the_check_sees_it():
+    """Only the ISA formula of the air pressure is allowed, and without its entry it would fail."""
+    ((path, line),) = ALLOWED
+    assert path == "geomind/tools/gemini/air.py" and "101325" in line
+    assert conversion_lines(f"def isa_pressure(elevation):\n    {line}\n") == [2]

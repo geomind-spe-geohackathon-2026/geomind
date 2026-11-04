@@ -13,10 +13,18 @@ CALLS = json.loads(
 
 
 async def test_a_control_given_as_a_parameter_says_where_it_goes():
-    """#76: gemini raised a bare KeyError, seen as ``internal``; the engineer could not fix it."""
+    """#76: gemini raised a bare KeyError, seen as ``internal``; 0.6.3 says it (request 27)."""
     error = (await call(evaluate_module, CALLS["control_as_parameter"])).output["error"]
-    assert error["code"] == "invalid_input" and error["path"] == "parameters.temperature_setpoint"
-    assert "give it in `controls`" in error["message"]
+    assert error["code"] == "invalid_call" and error["path"] == "parameters.temperature_setpoint"
+    assert "give it in controls" in error["message"] and error["suggestions"] == ["controls"]
+
+
+async def test_a_parameter_given_as_a_control_says_where_it_goes():
+    """A parameter in ``controls`` is not checked by gemini: geomind names the parameter it is."""
+    tool_input = {"name": "HeatPump", "parameters": {}, "controls": {"capacity": 1}}
+    error = (await call(evaluate_module, tool_input)).output["error"]
+    assert error["code"] == "invalid_input" and error["path"] == "controls.capacity"
+    assert "give it in `parameters`" in error["message"]
 
 
 async def test_an_unknown_parameter_names_the_module_s_parameters():

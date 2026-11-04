@@ -212,12 +212,9 @@ def shown_ranges(plant):
     """Return the search ranges of a plant as ``{path: {min, max}}`` in gemini's display units.
 
     A bound of a leaf with a unit is ``{value, unit}`` (MW, m3/h, degC); a bound of a count such as
-    ``size.doublets`` is a plain number.
+    ``size.doublets`` is a plain number. gemini writes them so (``to_dict(units="display")``).
     """
-    import gemini as gm
-
-    table = gm.units.display.by_si_unit()
-    data = plant.to_dict()
+    data = plant.to_dict(units="display")
     shown = {}
     for path in plant.ranges:
         section, _, leaf = path.partition(".") if path.startswith("size.") else ("params", "", path)
@@ -226,20 +223,20 @@ def shown_ranges(plant):
             node = node[part]
         unit = node.get("unit")
         shown[path] = {
-            side: (
-                bound
-                if unit is None
-                else gm.units.display.shown(gm.units.Quantity(bound, unit), table).to_dict()
-            )
+            side: bound if unit is None else {"value": bound, "unit": unit}
             for side, bound in node["range"].items()
         }
     return shown
 
 
 def plant_view(plant):
-    """Return the plant file with its search ranges and options, as the model reads a plant."""
+    """Return the plant file in gemini's display units, with its search ranges and options.
+
+    gemini 0.6.3 writes a plant file in display units (MW, degC, bar, m3/h; request 30), so the
+    model quotes each value as given and converts none.
+    """
     return {
-        "plant": plant.to_dict(structure=True),
+        "plant": plant.to_dict(structure=True, units="display"),
         "ranges": shown_ranges(plant),
         "options": {path: list(options) for path, options in plant.options.items()},
     }

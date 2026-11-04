@@ -15,17 +15,18 @@ CALLS = json.loads(
 async def test_a_gradient_in_degc_per_km_gets_k_per_km():
     """#66: ``degC/km`` was answered with ``{'unit': 'degC'}`` and the units of temperature.
 
-    ``set_case`` maps ``degC/km`` itself now (#115), so a unit it does not map shows the error.
+    gemini 0.6.3 takes ``degC/km`` (request 31), so a unit it does not take shows the error.
     """
     arguments = json.loads(json.dumps(CALLS["together"]).replace("degC/km", "degF/km"))
     output = (await call(set_case, arguments, session_with_files(), "p")).output
     suggestions = output["error"]["suggestions"]
-    assert "site.ground.gradient: accepted units: K/km, K/m" in suggestions
+    assert any(item.startswith("site.ground.gradient: accepted units: ") for item in suggestions)
+    assert any("degC/km" in item for item in suggestions)
     assert not any("'unit': 'degC'}" in item for item in suggestions)
 
 
-async def test_the_recorded_degc_per_km_is_mapped_by_set_case():
-    """#115: the recorded call's ``degC/km`` gives no gradient error; other errors still come."""
+async def test_the_recorded_degc_per_km_is_gemini_s():
+    """#115: the recorded call's ``degC/km`` gives no gradient error (gemini 0.6.3, request 31)."""
     output = (await call(set_case, CALLS["together"], session_with_files(), "p")).output
     assert "gradient" not in output["error"]["message"]
 

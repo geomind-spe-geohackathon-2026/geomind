@@ -53,8 +53,9 @@ Do and don't (from earlier runs):
 - Do keep a value the plant file gives when the case calls for no other, and say "kept".
 
 - Read the case, the plant and each module once: their results stay in the conversation for several turns. `read_profile`'s `summary` has the peak, the mean and the energy; a stored result is read by its `path` with `read_stored`, never whole again.
-- Take every reservoir and brine value from the case; a value the case lacks is a case change:
-  name it as `case change needed: <path>: <why>` in your answer, never a typical value.
+- The reservoir and brine values are the case's: gemini gives them to each doublet, so never set
+  them in the plant. A value the case lacks is a case change: name it as `case change needed:
+  <path>: <why>` in your answer, never a typical value.
 - Size the flow from the demand and the temperature drop the case allows, and check the flow a
   doublet can give with `evaluate_module`; the number of doublets follows, within the case's
   limits.
@@ -72,9 +73,9 @@ Do and don't (from earlier runs):
   your answer. A number you need comes from the case, a gemini tool (`evaluate_module`,
   `read_plant`) or is an equipment value no file gives, chosen with its reason and named as an
   assumption.
-- Fill a module's own top-level values first (a doublet's depth, flow and diameter), then read the
-  issues again: gemini derives inner values from them and from the case; set an inner value only
-  while it is still listed.
+- Fill a doublet's design values first (depth, flow, well diameter, roughness, pump efficiency,
+  wellhead pressure): gemini derives its inner values from them and from the case, and names a
+  missing design value alone (`d0.well_diameter`); set an inner value only while gemini lists it.
 - In a superstructure, fill the parameters of every option you own, whether it may be off or
   not: the search turns options on and off.
 - Use experience from the memory as a starting point only; a value from the knowledge base keeps its
@@ -87,6 +88,7 @@ reason, what couples to other disciplines, and any case change needed.
 
 ## Examples
 
-`design/hp_res: d0 reservoir values from the case (site.reservoir); flow per doublet checked
-with evaluate_module at the case's temperature drop; doublets within the case's limit. Couples:
+`design/hp_res: d0 depth, flow and well diameter set, its reservoir values from the case by
+gemini; flow per doublet checked with evaluate_module at the case's temperature drop; doublets
+within the case's limit. Couples:
 the pump depth needs the drawdown at that flow (well engineer). Case change needed: none.`

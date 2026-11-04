@@ -54,3 +54,13 @@ year for a kind sized by a power, `revenue.subsidy.amount` per MWh. Still refuse
 Sahand): `capex.pipe` in EUR/MW/m (`pipe-dea-2025-transmission-0-50mw`) and `opex.fixed.pipe` in
 EUR/MW/yr or EUR/MW/km/yr (`opex-pipe-dea-2025-distribution`, `opex-pipe-dea-2025-transmission`);
 `emissions.CO2.electricity` is the case's `utilities.electricity.co2_intensity`, no economics key.
+
+## Paths as case keys, gemini 0.6.3 (2026-11-04)
+
+gemini 0.6.3's `sources.csv` names every `path` as a key of the case (gemini request 17), with no
+value changed. geomind's copy follows for all 133 rows, nothing else changed but one note:
+`assumptions.finance.<key>` is now `economics.<key>`, and `assumptions.emissions.CO2.electricity`
+is the case's `utilities.electricity.co2_intensity`. gemini 0.6.3 also prices `capex.pipe` per
+MW and metre (request 16), so `pipe-dea-2025-transmission-0-50mw` (EUR/MW/m) is usable; its note
+says so. Still refused: `opex.fixed.pipe` per MW and year (`opex-pipe-dea-2025-distribution`,
+`opex-pipe-dea-2025-transmission`), as the key takes `%/yr` only.

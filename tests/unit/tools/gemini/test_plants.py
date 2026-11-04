@@ -18,6 +18,7 @@ from tests.fixtures.calls import call
 from tests.fixtures.cases import (
     PLANTS,
     case_context,
+    example_case,
     example_folder,
     example_plant,
     example_plant_files,
@@ -60,6 +61,11 @@ def gm():
 def plant_dict(example, plant):
     """Return an example plant file as the dict ``gm.Plant.to_dict(structure=True)`` writes."""
     return example_plant(example, plant).to_dict(structure=True)
+
+
+def shown_dict(example, plant):
+    """Return an example plant file as ``read_plant`` shows it: in gemini's display units (30)."""
+    return example_plant(example, plant).to_dict(structure=True, units="display")
 
 
 async def read_with_and_without_case(example, plant):
@@ -122,7 +128,7 @@ async def test_list_plants_with_an_unknown_class_suggests_one():
 def test_a_stored_design_reads_back_as_its_dict(reads, example, plant):
     """``read_plant`` of ``design/<name>`` is the plant dict that was stored."""
     without_case, with_case = reads[(example, plant)]
-    assert without_case["plant"] == plant_dict(example, plant)
+    assert without_case["plant"] == shown_dict(example, plant)
     assert with_case["plant"] == without_case["plant"]
 
 
@@ -215,7 +221,7 @@ async def test_build_plant_round_trips_each_example_plant(example, plant):
     assert built.output["checked_against"] == "plant"
     assert session.artifacts["design/p"] == data
     read = await call(TOOLS.read_plant, {"design": "design/p"}, session)
-    assert read.output["plant"] == data
+    assert read.output["plant"] == shown_dict(example, plant)
     assert read.output["issues"] == built.output["issues"]
 
 
@@ -380,7 +386,7 @@ async def test_read_plant_by_project_plant_name_is_its_dict(example, plant):
     before = copy.deepcopy(workspace.plants("p1"))
     session = StubSession(workspace=workspace)
     result = await call(TOOLS.read_plant, {"project_plant": plant}, session, project="p1")
-    assert result.output["plant"] == example_plant(example, plant).to_dict(structure=True)
+    assert result.output["plant"] == shown_dict(example, plant)
     assert workspace.plants("p1") == before
     json.dumps(result.output)
 
@@ -389,7 +395,24 @@ async def test_read_plant_without_a_name_reads_the_one_plant_of_a_project():
     """A project with exactly one plant file needs no name."""
     workspace = example_workspace("shallow_district")
     result = await call(TOOLS.read_plant, {}, StubSession(workspace=workspace), project="p1")
-    assert result.output["plant"] == plant_dict("shallow_district", PLANTS["shallow_district"])
+    assert result.output["plant"] == shown_dict("shallow_district", PLANTS["shallow_district"])
+
+
+async def test_read_plant_gives_the_values_in_display_units():
+    """#110: the explainer wrote 30000000.0 W as 30 MW itself; gemini 0.6.3 gives MW (30)."""
+    import gemini as gm
+
+    workspace = example_workspace("hackathon_2026")
+    session = StubSession(workspace=workspace)
+    arguments = {"project_plant": "HackathonPlant"}
+    shown = (await call(TOOLS.read_plant, arguments, session, project="p1")).output["plant"]
+    assert shown["params"]["heat_pump"]["capacity"] == {
+        "value": 15.0,
+        "unit": "MW",
+        "range": {"min": 3.0, "max": 30.0},
+    }
+    plant = example_plant("hackathon_2026", "HackathonPlant")
+    assert gm.Plant.from_dict(shown).to_dict(units="si") == plant.to_dict(units="si")
 
 
 async def test_read_plant_without_a_name_in_a_project_of_several_names_them():
@@ -686,3 +709,21 @@ async def test_from_class_with_an_unconnected_added_port_is_gemini_s_error():
     )
     assert unknown.output["error"]["path"] == "from_class"
     assert "did you mean 'HeatingPlant'" in unknown.output["error"]["message"]
+
+
+def test_a_doublet_without_one_design_value_names_it_alone():
+    """Requests 11 and 28: gemini 0.6.3 names ``d0.well_diameter``, not every value it derives.
+
+    The design prompts say so; before, the engineers copied the case's reservoir values by hand.
+    """
+    import gemini as gm
+
+    from tests.fixtures import ROOT
+
+    data, files = example_case("hackathon_2026")
+    case = gm.Case.from_dict(data, files=files)
+    folder = ROOT / "tests" / "fixtures" / "gemini_examples" / "hackathon_2026" / "plants_brief"
+    plant = json.loads((folder / "HeatingHeatPumpCoolingPlant.json").read_text())
+    del plant["params"]["d0"]["well_diameter"]
+    issues = [issue.problem()["path"] for issue in gm.check(gm.Plant.from_dict(plant), case)]
+    assert issues == ["params.d0.well_diameter"]

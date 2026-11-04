@@ -1,8 +1,8 @@
-"""Units gemini 0.6.2 refuses that the models write as the sources give them, mapped by set_case.
+"""Unit names gemini refuses that the models write as the sources give them, mapped by set_case.
 
-A stopgap, reversible: gemini request 31 (``°C/km`` as a temperature gradient) makes the gradient
-mapping unneeded. gemini 0.6.2 takes ``mol%`` on a gas fraction and converts it (request 15), so a
-gas fraction in ``%`` is only named ``mol%`` here, the same number. Unit names as sources spell
+gemini 0.6.3 takes ``°C/km`` and ``degC/km`` as a temperature gradient (request 31), so no
+gradient is mapped here. gemini takes ``mol%`` on a gas fraction and converts it (request 15), so
+a gas fraction in ``%`` is only named ``mol%`` here, the same number. Unit names as sources spell
 them (``kg/m³``, ``mPa·s``, ``MWth``) become gemini's name of the same unit, ``kg/m3``,
 ``mPa.s``, ``MW``, only where the key's units hold that name: a name, no factor (#118).
 ``set_case`` lists each mapping in its result (``converted``) so the case lead puts it in the
@@ -11,20 +11,9 @@ confirmation question.
 
 import copy
 
-GRADIENT = ("site", "ground", "gradient")
-GRADIENT_UNITS = {
-    "degC/km": "K/km",
-    "°C/km": "K/km",
-    "C/km": "K/km",
-    "degC/m": "K/m",
-    "°C/m": "K/m",
-    "C/m": "K/m",
-}
-"""A temperature difference per length: the same number in kelvin, a unit name and no factor."""
 FRACTIONS = (("site", "fluid", "dissolved_gas"), ("utilities", "gas", "composition"))
 PERCENT_UNITS = ("%", "mol %")
 """Names of a gas fraction in percent that gemini's ``mol%`` is: the same unit, no factor."""
-GRADIENT_REASON = "a temperature gradient: °C/km is K/km, the same number (until gemini request 31)"
 PERCENT_REASON = "a gas fraction in percent is gemini's mol%, the same number"
 SPELLINGS = {"³": "3", "²": "2", "·": "."}
 """Characters of a unit name as sources print it, and gemini's spelling of them."""
@@ -41,12 +30,6 @@ def bridged_units(changes):
     """
     changes = copy.deepcopy(changes)
     converted = []
-    gradient = _node(changes, GRADIENT)
-    unit = _unit(gradient)
-    if unit in GRADIENT_UNITS:
-        gradient["unit"] = GRADIENT_UNITS[unit]
-        value = gradient.get("value")
-        converted.append(_entry(GRADIENT, value, unit, value, gradient["unit"], GRADIENT_REASON))
     for section in FRACTIONS:
         gases = _node(changes, section)
         for gas, item in (gases or {}).items():

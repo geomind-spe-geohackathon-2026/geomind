@@ -52,4 +52,13 @@ def test_its_model_is_its_own_required_setting(monkeypatch):
 def test_it_computes_nothing_by_hand():
     """#45: no formula or conversion; numbers from the case, gemini, or a named assumption."""
     text = ReservoirEngineer().prompt.content
-    assert "Compute nothing by hand" in text and "top-level values first" in text
+    assert "Compute nothing by hand" in text and "names a missing design value alone" in " ".join(
+        text.split()
+    )
+
+
+def test_it_leaves_the_reservoir_values_to_gemini():
+    """Request 11: gemini 0.6.3 gives the case's reservoir values to each doublet itself."""
+    text = " ".join(ReservoirEngineer().prompt.content.split())
+    assert "gemini gives them to each doublet, so never set them in the plant" in text
+    assert "Take every reservoir and brine value from the case" not in text

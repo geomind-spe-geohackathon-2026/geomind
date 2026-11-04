@@ -455,7 +455,8 @@ Open geomind items:
 - **`ProjectBudget`** reads the ledger once per run: runs of one project running at the same time
   are not counted against each other.
 
-Open requests to gemini (full text in the adaptation notes):
+Requests to gemini (full text in the adaptation notes; the status of each is in the table after
+the list):
 
 1. `units="display"` on `Results.get` and `Results.summary` (geomind keeps a small `READ_UNITS`
    map), with pressure and mass flow in the display table.
@@ -548,6 +549,31 @@ exchanger per W of duty, production pump per unit, `opex.fixed` per MW and year,
 `opex.per_energy.chp`) and the economics descriptions; 17 by the descriptions only (its
 `sources.csv` is unchanged; geomind's copy now names the keys, `data/knowledge/cost-sources.md`).
 The other requests of this list stay open.
+
+Status after gemini 0.6.3 (2026-11-04, geomind 0.4.23). Sahand's rule (docs/rules.md): a
+request is only a real bug, a unit problem or an unclear error; gemini provides no data, defaults
+or derived inputs for other packages, so a request of that kind is dropped.
+
+| # | Status |
+|---|---|
+| 1-10 | open (none is in 0.6.3's changelog) |
+| 11 | closed, 0.6.3: a doublet names a missing design value alone; the design prompts no longer have the engineers copy case values |
+| 12 | closed, 0.6.3: `time.end`'s description says it is excluded; the case lead's text points to it |
+| 13, 14, 15, 18, 19/21 | closed, 0.6.2 |
+| 16 | closed for `capex.pipe` per MW and m, 0.6.3 (the other bases 0.6.2); open: `opex.fixed.pipe` per MW and year (two catalogue rows) |
+| 17 | closed, 0.6.3: gemini's catalogue paths are case keys; geomind's copy follows |
+| 22 | closed, 0.6.3: every case key is described; `fields.py` keeps only sources and notes |
+| 26 | closed, 0.6.3: `gm.study.metrics()` |
+| 27 | closed, 0.6.3: `invalid_call` at `parameters.<name>` |
+| 28 | dropped (class default values are data); its doublet part is answered by 11 |
+| 29 | closed, 0.6.3: `kW/K`, `MW/K` |
+| 30 | closed, 0.6.3: `Plant.to_dict(units="display")`, used by `read_plant` |
+| 31 | closed, 0.6.3: `°C/km`, `degC/km`; geomind's gradient mapping is gone |
+| 32 | dropped (a derived input): geomind sets the ISA pressure from the site's elevation itself (`air.py`) |
+
+A candidate for Sahand, not sent: gemini 0.6.3 describes each entry of a map as "The entry of
+this map for <key>." (`opex.fixed.boiler`, `site.fluid.dissolved_gas.CO2`), which says nothing;
+geomind skips that text so the map's own description shows.
 
 Items 1 to 22 were merged into Sahand's list to gemini on 2026-11-04 00:30 (the coordinator's
 16-21 overlap these numbers); new requests are numbered from 26 on.
