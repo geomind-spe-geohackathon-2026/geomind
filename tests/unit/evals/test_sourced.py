@@ -130,3 +130,11 @@ def test_a_partial_answer_of_a_limit_stop_is_not_checked():
     stopped.questions = ["is the doublet count 7.5?"]
     assert CRITERION.problem(stopped) == "sourced: numbers no message holds [7.5]"
     assert CRITERION.problem(outcome(answer, "")) is not None
+
+
+def test_float_noise_in_the_last_digits_is_the_read_number():
+    """Track A5: 37.50773379868328 is the catalogue's 37.507733798683276, written again."""
+    read = "value_2015 37.507733798683276 and 115.01546759736655"
+    written = "gas 37.50773379868328, power 115.01546759736657"
+    assert CRITERION.problem(outcome(written, read)) is None
+    assert CRITERION.problem(outcome("gas 37.6", read)) is not None

@@ -458,11 +458,13 @@ From the third live run (`tests/integration/test_live_regressions_c.py`, recordi
   gemini's `time_zone` (gemini 0.5.13) through `set_case`, and the error suggests the retry with
   `time_zone: <IANA zone of time.start>` on each series (`zone_retry`): the model chooses the zone
   and records it as an assumption; geomind has no zone.
-- `read_rag` remembers what the run read: a page read again is `already_read`, unless `force`.
-  Its text is still in the run's conversation (`keeps_result="run"`), so the note says to work
-  from it and shows no `reference`; only after a compaction since the read (more turns in
-  `problem.compaction` than at the read) does it name `read_stored` and the stored earlier
-  result's `reference` (#120).
+- `read_rag` remembers what the run read, with the step of each read: a page read again is
+  `already_read`, `force` too. Its text is still in the run's conversation
+  (`keeps_result="run"`), so the note is "already read at step N; its text is in your context;
+  call set_case next" (an agent without `set_case`: "work from it") and shows no `reference`
+  (#122); only after a compaction since the read (more turns in `problem.compaction` than at the
+  read) does it name `read_stored` and the stored earlier result's `reference` (#120), and
+  `force` reads the page again.
 - A tool input sent as JSON text (`parsed_inputs`, `parsed_json`) is read with its missing closing
   brackets added, its stray ones after the value dropped, and up to three stray closing brackets
   in the middle deleted where `json` stops (`}}}}, "next"` or `}}]}`), only when no closing

@@ -129,7 +129,7 @@ def test_it_chooses_among_the_catalogue_s_rows_by_their_status():
     A row whose unit the key does not accept never goes in (Sahand's catalogue of 133 rows).
     """
     text = " ".join(CaseLead().prompt.content.split())
-    order = ["beats a `placeholder`", "`verified` row beats a `secondary`", "ONE question for all"]
+    order = ["beats a `placeholder`", "`verified` row beats a `secondary`", "economics question"]
     assert [text.index(item) for item in order] == sorted(text.index(item) for item in order)
     assert "`EUR/W heat` is `EUR/W`" in text and "never goes in: list it as not usable" in text
 
@@ -154,3 +154,21 @@ def test_a_flaw_of_a_loaded_case_is_always_a_question():
     assert "Each flaw is ALWAYS a question with `ask_user` before you finish" in text
     assert 'Don\'t: finish with "Flaws found (need your input)" in the answer' in text
     assert "every flaw found was asked about with `ask_user`" in text
+
+
+def test_economics_are_a_required_step_after_the_case():
+    """#121: nemotron set the project case and no economics; it said it would offer rows "next".
+
+    The workflow's numbered step 5 reads the catalogue once, asks one question with each value's
+    row and sets the economics; the checklist and the stop rule name them too.
+    """
+    text = " ".join(CaseLead().prompt.content.split())
+    steps = ["1. `list_files`", "3. `set_case`", "4. The ONE confirmation"]
+    steps += ["5. Economics, REQUIRED"]
+    assert [text.index(step) for step in steps] == sorted(text.index(step) for step in steps)
+    step = text[text.index("5. Economics") : text.index("6. `read_case`")]
+    assert "never twice" in step and "ONE `ask_user` question" in step
+    assert "`economics.<key>`" in step and "row `id`" in step
+    assert "lists those rows there for the user to choose" in step
+    assert "`set_case(economics={...})`" in step
+    assert "the economics are set (step 5)" in text and "and its economics set" in text

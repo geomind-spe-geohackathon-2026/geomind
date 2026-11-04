@@ -4,7 +4,7 @@ import re
 from typing import Annotated, Any, Literal
 
 import yaml
-from pydantic import Field
+from pydantic import Field, model_validator
 
 import geomind as gd
 from geomind.types import Record
@@ -12,6 +12,8 @@ from geomind.types import Record
 NUMBER = r"-?\d+(?:\.\d+)?"
 UNSIGNED = r"(?<![\w.])\d+(?:\.\d+)?"
 LIST_MARKER = r"(?m)^\s*\d+[.)]\s"
+FLOAT_NOISE = 1e-12
+"""The relative difference two writings of one float may have, from their last digits."""
 PLACES = range(1, 9)
 """A read number may be written with 1 to 8 decimals, ``0.0833333`` for ``0.08333333333``."""
 ESCAPES = r"\\[nrt]"
@@ -61,16 +63,31 @@ class ToolCriterion(Record):
 
 
 class QuestionCriterion(Record):
-    """The agent asked the user a question holding ``contains``."""
+    """The agent asked the user a question holding ``contains``, or any of ``contains_any``.
+
+    ``contains_any`` names one thing by each of its names, such as a flaw by its key or its word
+    (``["doublet", "annual_operation", "count"]``); the match ignores case.
+    """
 
     kind: Literal["question"]
-    contains: str
+    contains: str = ""
+    contains_any: tuple[str, ...] = ()
+
+    @model_validator(mode="after")
+    def _one_text(self):
+        """Ask for ``contains`` or ``contains_any``, not neither."""
+        if not self.contains and not any(self.contains_any):
+            raise ValueError("question: expected contains or contains_any")
+        return self
 
     def problem(self, outcome):
         """Return what is wrong, or ``None``."""
-        if any(self.contains.lower() in question.lower() for question in outcome.questions):
+        texts = [text.lower() for text in (self.contains, *self.contains_any) if text]
+        asked = [question.lower() for question in outcome.questions]
+        if any(text in question for text in texts for question in asked):
             return None
-        return f"question: none holds {self.contains!r}; asked {outcome.questions}"
+        wanted = self.contains or list(self.contains_any)
+        return f"question: none holds {wanted!r}; asked {outcome.questions}"
 
 
 class StateCriterion(Record):
@@ -129,6 +146,14 @@ def _numbers(text):
     return {float(item) for item in re.findall(UNSIGNED, text)}
 
 
+def _same_float(number, read):
+    """Tell whether ``number`` is a read number written with float noise in its last digits.
+
+    nemotron wrote 37.50773379868328 for the catalogue's 37.507733798683276 (Track A5).
+    """
+    return any(abs(number - item) <= FLOAT_NOISE * max(abs(item), 1.0) for item in read)
+
+
 class SourcedCriterion(Record):
     """Every number of the answer and the questions is one the agent read: the agent computed none.
 
@@ -146,7 +171,8 @@ class SourcedCriterion(Record):
         read |= {round(item, places) for item in read for places in PLACES}
         answer = "" if outcome.partial else outcome.answer
         found = _numbers(" ".join([answer, *outcome.questions]))
-        unread = sorted({item for item in found if item not in read and not self._is_small(item)})
+        found = {item for item in found if item not in read and not _same_float(item, read)}
+        unread = sorted({item for item in found if not self._is_small(item)})
         return f"sourced: numbers no message holds {unread}" if unread else None
 
     def _is_small(self, number):
