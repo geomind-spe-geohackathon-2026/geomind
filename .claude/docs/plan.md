@@ -303,6 +303,20 @@ Each per-agent task on both models, the same fixtures, prompts and commit, no pr
 | case_lead/change_one | A | nemotron-3.5-super (free) | pass | case accepted by gemini, sourced | 3 | 3 | 0 | 34282/17344/631 | 14 | 0.0000 |
 | case_lead/question | A | nemotron-3.5-super (free) | pass | sourced | 3 | 3 | 1 | 33132/26016/1373 | 9 | 0.0000 |
 | geoscientist/brief | A | nemotron-3.5-super (free) | pass | sourced | 4 | 4 | 1 | 31619/13008/5265 | 32 | 0.0000 |
+| case_lead/project | A3 | deepseek-v4.1-flash | fail | no case: one files-only set_case (`case_incomplete`), never resent whole; step limit; geoscientist 4 times after `already_asked`, lower-cased file names again; no question | 35 | 83 | 10 | 1927191/1337099/45351 | 598 | 0.0475 |
+| case_lead/from_files | A3 | deepseek-v4.1-flash | pass | case set by the criteria, but its answer says it never read the files (22 `read_rag`); step limit | 35 | 83 | 9 | 1863975/1354159/56263 | 715 | 0.0501 |
+| case_lead/from_chat | A3 | deepseek-v4.1-flash | fail | stopped at the cap after 14 `search_rag`, before any set_case; the cap's answer no longer flagged by `sourced` (#116) | 6 | 30 | 3 | 285237/189908/25526 | 370 | 0.0162 |
+| case_lead/flawed | A3 | deepseek-v4.1-flash | fail | loaded the project's case, then stopped at the cap reading (`read_stored` 7) before any question | 13 | 34 | 1 | 466650/250039/27492 | 325 | 0.0215 |
+| case_lead/change_one | A3 | deepseek-v4.1-flash | pass | case accepted by gemini, sourced | 6 | 7 | 0 | 71682/32252/5564 | 57 | 0.0041 |
+| case_lead/question | A3 | deepseek-v4.1-flash | pass | sourced | 3 | 4 | 1 | 32836/20476/1804 | 24 | 0.0014 |
+| geoscientist/brief | A3 | deepseek-v4.1-flash | pass | sourced | 6 | 11 | 1 | 64053/6144/11725 | 160 | 0.0075 |
+| case_lead/project | A3 | nemotron-3.5-super (free) | fail | no case: `set_case`'s `changes` as JSON text with a stray `}` mid-text, twice, ended the run (bug 3 of the rerun); it did read the cost catalogue and search before setting | 12 | 20 | 3 | 394187/208128/78724 | 481 | 0.0000 |
+| case_lead/from_files | A3 | nemotron-3.5-super (free) | fail | case accepted with `°C/km` and mol% mapped by set_case, listed in its one question; no economics, fails `before`; run error: `update_state` JSON text broken twice | 14 | 19 | 6 | 398314/281840/64139 | 355 | 0.0000 |
+| case_lead/from_chat | A3 | nemotron-3.5-super (free) | fail | case accepted; `sourced`: 365 (a day count it wrote) | 8 | 15 | 2 | 227042/138752/35134 | 207 | 0.0000 |
+| case_lead/flawed | A3 | nemotron-3.5-super (free) | fail | loaded the case after the new `no_case` text (#68) and named the flaws (span, cooling return, ...) in its answer, but asked no question | 4 | 6 | 1 | 76303/17344/4947 | 31 | 0.0000 |
+| case_lead/change_one | A3 | nemotron-3.5-super (free) | pass | case accepted by gemini, sourced | 3 | 3 | 0 | 36345/26016/802 | 10 | 0.0000 |
+| case_lead/question | A3 | nemotron-3.5-super (free) | pass | sourced | 3 | 3 | 1 | 34083/8672/1131 | 10 | 0.0000 |
+| geoscientist/brief | A3 | nemotron-3.5-super (free) | pass | sourced | 3 | 3 | 0 | 21512/8672/5960 | 36 | 0.0000 |
 
 Track C, round C4 at 39c4003: 5 of 5 on each model, no 429, no markup check firing. nemotron took fewer calls and a third to a half the time on the lead's two longer tasks; its failed calls are `update_state` slips (JSON text, a stray bracket), each corrected on the next call. Both models failed the same way only where the prompt was wrong (#85, #88, #90).
 
