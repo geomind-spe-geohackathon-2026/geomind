@@ -54,6 +54,8 @@ class Outcome:
     name: str
     answer: str = ""
     tools: list = field(default_factory=list)
+    succeeded: list = field(default_factory=list)
+    """The tools, in order, whose result was not an error."""
     questions: list = field(default_factory=list)
     state: dict = field(default_factory=dict)
     steps: int = 0
@@ -282,6 +284,11 @@ def run_task(name, task, agent_name, llm, loop=None, hooks=()):
             RENAMED_TOOLS.get(e.tool, e.tool)
             for e in events
             if e.type == "tool.result" and e.call_id
+        ],
+        succeeded=[
+            RENAMED_TOOLS.get(e.tool, e.tool)
+            for e in events
+            if e.type == "tool.result" and e.call_id and not e.is_error
         ],
         questions=[e.request.message for e in events if e.type == "request"],
         state=store.load_state(CHAT) or {},

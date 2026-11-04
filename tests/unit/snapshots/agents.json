@@ -644,7 +644,7 @@
         },
         "ToolCriterion": {
           "additionalProperties": false,
-          "description": "A tool was called, or with ``called: false`` was not.",
+          "description": "A tool was called, or with ``called: false`` was not.\n\nA call counts even when its result was an error. With ``succeeded: true``, at least one\ncall of the tool must have returned no error: a lead's delegate whose nested run failed\nfails it. ``succeeded`` defaults to false, the behaviour before it, so older tasks keep\ntheir meaning.",
           "properties": {
             "called": {
               "default": true,
@@ -655,6 +655,11 @@
               "const": "tool",
               "title": "Kind",
               "type": "string"
+            },
+            "succeeded": {
+              "default": false,
+              "title": "Succeeded",
+              "type": "boolean"
             },
             "tool": {
               "title": "Tool",
@@ -812,5 +817,5 @@
       "Model"
     ]
   },
-  "version": "0.4.22.dev52"
+  "version": "0.4.22.dev53"
 }
