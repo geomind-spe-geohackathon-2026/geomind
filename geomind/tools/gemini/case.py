@@ -28,7 +28,7 @@ from geomind.tools.base import tool
 from geomind.tools.files import file_names_schema, project_file
 from geomind.tools.gemini.explain import MISSING_CODES, shown_message, unit_error, unit_retry
 from geomind.tools.gemini.skeleton import case_skeleton, requirement_shape
-from geomind.tools.gemini.unit_bridge import bridged_units
+from geomind.tools.gemini.unit_bridge import bridged_requirements, bridged_units
 from geomind.utils.strings import did_you_mean, join_names
 
 CASE_FILE = "case/"
@@ -566,8 +566,10 @@ async def set_case(
     the first case of a chat, is the case the user gave; a design is verified only on it, so any
     later change of it, economics included, waits for the user's approval. Write units as the
     source gives them: a gradient in °C/km becomes K/km, a gas fraction in mol% or % becomes the
-    fraction. Returns the case, the state version and ``converted``, each value set_case mapped or
-    converted (``{path, from, to, reason}``), to list in the user's confirmation question.
+    fraction, and a unit name as sources print it becomes gemini's name of it (``kg/m³`` is
+    ``kg/m3``, ``mPa·s`` is ``mPa.s``, ``MWth`` is ``MW``). Returns the case, the state version
+    and ``converted``, each value set_case mapped or converted (``{path, from, to, reason}``), to
+    list in the user's confirmation question.
     """
     import gemini as gm
 
@@ -589,6 +591,8 @@ async def set_case(
     changes, converted = bridged_units(changes or {})
     data = merge_patch(base, checked_changes(changes, files))
     if requirements:
+        requirements, renamed = bridged_requirements(requirements)
+        converted += renamed
         data["requirements"] = edited_requirements(data.get("requirements"), requirements)
     contents = edited_economics(context, data, supplied, economics) if economics else supplied
     origin = given_case(context, source, (base, supplied), (data, contents))

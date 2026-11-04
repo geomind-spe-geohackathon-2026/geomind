@@ -6,6 +6,15 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### The case team, fourth round (0.4.22.dev57)
+
+The case team after the A3 rerun on both models; each bug pinned by a test.
+
+- Fix (#117), behaviour: JSON text of an object or array with a stray closing bracket in the middle (`json`'s "Extra data" before a `,`, or "Expecting ',' delimiter" at a `}` or `]` that closes nothing open) is read with that bracket deleted, up to three times, and only when no closing bracket is made up; the schema's type is still checked (`parsed_json`). nemotron's `set_case` (`..."°C"}}}}, "requirements"`) and `update_state` (`}}]}`) inputs had ended two runs; the recorded strings are the test fixtures (`tests/fixtures/live/a4_stray_brackets.json`).
+- Fix (#118), behaviour: `set_case` maps unit names as sources write them to gemini's name of the same unit, no factor: `m³` `m3`, `kg/m³` `kg/m3`, `Nm³/m³` `Nm3/m3`, `m³/h` `m3/h`, `mPa·s` `mPa.s`, `MWth` and `MWcool` `MW`, where the key's units hold the name (a requirement's unit: where gemini knows it). Contract: each is a `converted` entry with the reason `unit name`.
+- Fix (#119), prompt: a flaw of a loaded case is always a question with `ask_user` before the case lead finishes, never only a line of its answer (do/don't from nemotron's flawed run); the checklist says so too.
+- Fix (#120), behaviour: `read_rag`'s `already_read` note for a page this run read no longer says "after a compaction, read_stored a reference" and shows no reference while no compaction happened since the read: DeepSeek's project run called `read_stored` 16 times on pages in its conversation. After a compaction the note names `read_stored` and the reference.
+
 ### The case team again (0.4.22.dev56)
 
 The Track A rerun on dev51 on both models; each bug pinned by a test.
