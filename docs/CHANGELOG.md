@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.32] - 2026-11-04
+
+### Fixed
+
+- QA-026: an approval's message shows what the call sends (its input as indented JSON, cut at 4,000 characters), so the user sees the keys, values, units and sources of a `set_case` before approving; before, it read only "Allow set_case (write)?".
+
 ## [0.4.31] - 2026-11-04
 
 ### Fixed

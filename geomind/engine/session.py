@@ -484,6 +484,10 @@ class RunSession:
             )
             if self.never_waits and isinstance(decision, Request) and decision.kind == "approval":
                 decision, rule = Allow(), f"beside:{rule}"
+            elif isinstance(decision, Request) and decision.kind == "approval":
+                decision = decision.model_copy(
+                    update={"message": approval_message(decision.message, call.input)}
+                )
         else:
             rule = f"hook:{rule}"
         await self.emit(
@@ -664,6 +668,23 @@ class RunSession:
         """Return the usage of the nested run that just ended, once."""
         usage, self.child_usage = self.child_usage, None
         return usage
+
+
+APPROVAL_INPUT_CHARS = 4000
+"""How much of a call's input an approval shows."""
+
+
+def approval_message(message, tool_input):
+    """Return an approval's message with what the call would write, so the user sees it (QA-026).
+
+    The input is shown as indented JSON, cut at ``APPROVAL_INPUT_CHARS``; the log redacts secrets.
+    """
+    if not tool_input:
+        return message
+    text = json.dumps(tool_input, indent=2, ensure_ascii=False, default=str)
+    if len(text) > APPROVAL_INPUT_CHARS:
+        text = text[:APPROVAL_INPUT_CHARS] + "\n... (cut; the whole input is in the run log)"
+    return f"{message}\n\nWhat the call sends:\n{text}"
 
 
 def _decision_name(decision):
