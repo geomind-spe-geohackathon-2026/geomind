@@ -19,7 +19,9 @@ from geomind.engine.recovery import recover
 from geomind.export import render_export
 from geomind.loops import CompareLoop
 from geomind.providers.fake import FakeLLM
+from geomind.stores import MemoryWorkspace
 from geomind.types import Completion, ToolCall, Usage
+from tests.fixtures.cases import example_case
 from tests.fixtures.runs import context, engine_for, of_type, says, uses
 
 CASE = {
@@ -152,6 +154,23 @@ async def test_each_family_gets_its_own_designer_run(verdicts):
         "economist",
         "explainer",
     ]
+
+
+async def test_the_project_s_case_file_is_loaded_then_the_plan_runs(verdicts):
+    """A project with a case.json and no case in the state: the driver's ``set_case`` comes first.
+
+    NOTE: the comparison went from that ``set_case`` straight to the explainer, with no family
+    designed, until ``forward`` took the move as the design loop does.
+    """
+    case, files = example_case("shallow_district")
+    engine = engine_for(script(), workspace=MemoryWorkspace(cases={"p": (case, files)}))
+    start = context("Compare alternatives for the case.", problem=ProblemState(), project="p")
+    result = await CompareLoop(DesignLead(), Reviewer()).run(engine, start)
+    events = engine.store.load_events(start.run_id)
+    first = of_type(events, "tool.result")[0]
+    assert (first.run_id, first.tool, first.is_error) == (start.run_id, "set_case", False)
+    assert agents_of(events)[:2] == ["design_lead", "family_design_lead"]
+    assert result.status == "done"
 
 
 async def test_an_infeasible_family_keeps_its_reason_and_does_not_stop_the_others(verdicts):

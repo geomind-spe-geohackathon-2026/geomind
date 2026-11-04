@@ -1,4 +1,4 @@
-"""A log that geomind 0.3.1 wrote, with a ``run_study`` call, still loads, replays and exports."""
+"""A 0.3.1 log with a ``run_study`` call loads and exports; its replay names the changed driver."""
 
 import asyncio
 import tarfile
@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from geomind.engine import Engine, replay
+from geomind.errors import ReplayError
 from geomind.export import render_export
 from geomind.stores import FileRunStore, FileWorkspace
 from geomind.types.events import ToolRecorded
@@ -54,16 +55,19 @@ def test_the_log_loads_and_has_a_study_call_without_a_name(stored):
     assert not [e for e in events if e.type == "study.recorded"]
 
 
-def test_the_log_replays_without_validating_the_recorded_input(stored, newer_geomind):
-    """A reused call is not checked against the schema of today, so a missing ``name`` is fine."""
+def test_the_log_replays_up_to_the_driver_s_first_changed_decision(stored, newer_geomind):
+    """The driver's rules changed since 0.3.1, so the replay stops at its first move, named.
+
+    NOTE: the 0.3.1 driver asked the user for a missing case and delegated to ``designer`` and
+    ``verifier``; today's loads the project's case file by rule (fdbfed8) and delegates to
+    ``design_lead`` and ``reviewer``, so the whole tree no longer replays. A replay checks the
+    decisions, so it raises ``ReplayError`` on the driver, not a schema error on the recorded
+    ``run_study`` input; that a reused call skips today's schema is pinned by
+    ``tests/unit/engine/test_replay.py``.
+    """
     store, run_id, _ = stored
-    replayed = []
-    result = asyncio.run(
-        Engine.replay(store, run_id, replayed=replayed, workspace=FileWorkspace(PROJECTS))
-    )
-    assert result.status == "done"
-    study = [e for e in replayed if isinstance(e, ToolRecorded) and e.tool == "run_study"]
-    assert [e.is_error for e in study] == [False]
+    with pytest.raises(ReplayError, match=rf"run {run_id} \(compare_driver\): .*replayed 0"):
+        asyncio.run(Engine.replay(store, run_id, workspace=FileWorkspace(PROJECTS)))
 
 
 def test_the_log_exports_with_its_study_call(stored):

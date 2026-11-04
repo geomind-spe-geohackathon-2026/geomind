@@ -196,9 +196,9 @@ NAMES = [
     "economist",
     "hackathon",
     "more_cooling",
+    "reviewer",
     "tight_budget",
     "user_profile",
-    "reviewer",
 ]
 
 
@@ -369,15 +369,19 @@ def run_ignored(tmp_path, task):
 
 @pytest.mark.slow
 def test_a_tight_step_budget_stops_the_loop_without_a_design(gemini_loaded, tmp_path):
-    """With 7 steps the design lead cannot optimise: the loop says so and presents no design.
+    """With 7 steps the design lead cannot optimise: the loop stops at its limit with no design.
 
-    NOTE: slow, because the design lead simulates and checks a year in each round.
+    NOTE: slow, because the design lead simulates and checks a year in each round. A round that
+    recorded no design is no repeated failure (70b2c43), so the loop goes on until its own 7 steps
+    end it; the step-limit question is answered ``stop`` and the answer is the partial one.
     """
     recording = evals.ROOT / "recordings" / "challenge2" / "tight_budget.jsonl"
     outcome = run_recorded(tmp_path, "tight_budget", recording)
     assert outcome.problems == []
-    assert "No design passed" in outcome.answer
-    assert "optimize" not in outcome.tools
+    assert outcome.partial and "partial answer" in outcome.answer
+    assert "reference" not in (outcome.state.get("design") or {})
+    assert "optimize" not in outcome.tools and "estimate_costs" not in outcome.tools
+    assert outcome.tools.count("design_lead") == 3
 
 
 @pytest.mark.slow

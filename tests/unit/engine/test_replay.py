@@ -776,3 +776,31 @@ async def test_a_resumed_run_with_a_search_made_again_replays():
             engine.store, start.run_id, workspace=MemoryWorkspace(documents=documents)
         )
         assert replayed.answer == resumed.answer == "unknown"
+
+
+def test_a_replay_reads_the_recorded_index_without_what_it_makes_again():
+    """The recorded ``results.index`` is the one of the end; a listing at a step is not.
+
+    NOTE: a replay of ``challenge2/colder_reservoir`` listed at step 7 a result the run made
+    later, so its ``unknown_name`` message differed from the recorded one.
+    """
+    from geomind.engine.replay import _ReplayStore
+
+    original = MemoryRunStore()
+    original.save_chat_artifact("chat", "results.index", {"references": ["result/a", "result/b"]})
+    original.save_chat_artifact("chat", "studies.index", {"studies": [{"study": "study/s"}]})
+    original.save_chat_artifact("chat", "result/b", {"kept": True})
+    store = _ReplayStore(original, "run", "chat", frozenset({"result/b", "study/s"}))
+    assert store.load_chat_artifact("chat", "results.index") == {"references": ["result/a"]}
+    assert store.load_chat_artifact("chat", "studies.index") == {"studies": []}
+    assert store.load_chat_artifact("chat", "result/b") == {"kept": True}
+    store.save_chat_artifact("chat", "results.index", {"references": ["result/a", "result/b"]})
+    assert store.load_chat_artifact("chat", "results.index")["references"][-1] == "result/b"
+
+
+def test_the_references_a_tool_output_holds_are_found_at_any_depth():
+    """A reference is a whole string ``<kind>/<name>``; other text is not one."""
+    from geomind.tools.gemini.references import references_in
+
+    output = {"result": "result/3f9a", "runs": [{"design": "design/d1"}], "note": "see result/x"}
+    assert references_in(output) == {"result/3f9a", "design/d1"}

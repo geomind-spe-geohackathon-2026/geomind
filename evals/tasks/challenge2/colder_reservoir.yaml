@@ -6,7 +6,6 @@ message: 'Design a deep-geothermal heating and cooling plant for the project''s 
   (objective lcts) over the plant''s own ranges with 30 evaluations and seed 0. Give the levelised cost
   of thermal service of your design.'
 answers:
-- Use the project's case.
 - approve
 plant: evals/projects/hackathon
 criteria:

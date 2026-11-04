@@ -6,6 +6,16 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### The slow tier green again, K
+
+The release profile's slow tests failed on dev62; none ran on a push to dev. No version bump in this piece.
+
+- Fix, behaviour: `ComparisonDriver` (the `CompareLoop`) takes the project's case it loads by rule (`set_case`) and a case lead's run as the design loop does; it went from that `set_case` straight to the explainer, with no family designed (since fdbfed8).
+- Fix, behaviour: a replay reads a recorded reference index (`results.index`, `designs.index`, `studies.index`) without the references the replayed runs make again, so an `unknown_name` message at a step lists what the run had there, not what it stored later.
+- Evals: a task with `max_steps` that ends at its step limit (the question answered `stop`) does not fail as a run; its criteria decide. `challenge2/tight_budget`: a round without a design is no repeated failure (70b2c43), so the loop's own 7 steps end it with the partial answer; its recording has a third round.
+- Evals: `challenge2/verifier` is `challenge2/reviewer`, task and recording. The `design_lead` tasks set the project's case in `setup`. `challenge2/colder_reservoir` and `user_profile` (hand-written): the design lead names the case change and the case lead's `set_case`/`save_profile` make it, the same calls and numbers; their first reply, for the case question the loop no longer asks, is gone. `evals/reports/summary.md` regenerated.
+- Tests: the 0.3.1 compare log loads and exports; its replay now stops at the driver's first move, which changed by design (case lead, case by rule, `design_lead`/`reviewer`), with `ReplayError`; the reused-call schema rule stays pinned in the unit tests. `test_studies` sets `max_steps` in its module fixture.
+
 ### The third end-to-end run (0.4.22.dev62)
 
 Run 4ca94d6e (`.tmp/e2e-final4/`), fixes #138 to #143; no version bump in this piece.

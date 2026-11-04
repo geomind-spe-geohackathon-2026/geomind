@@ -280,6 +280,10 @@ class ComparisonDriver(DesignDriver):
         if not calls:
             return self.begin(context, note, index)
         name, output = calls[-1]
+        if name == "set_case":
+            return self.after_loading(context, note, index)
+        if name == "case_lead":
+            return self.after_formulation(context, note, index, calls)
         if name == "ask_user":
             task = f"{answered_task(context, output)}\n\n{plan_instructions(self._asks)}"
             return act(note, index, "design_lead", task=task)
