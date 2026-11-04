@@ -44,10 +44,13 @@ in this order, none skipped:
    flaw of a loaded case.
 4. The ONE confirmation question for the case's values that no file gave; set and record them.
 5. Economics, REQUIRED once the case is accepted (`set_case` stored it), unless `read_case`
-   shows its economics set: choose each key's rows of the catalogue you read in 2 (read it now if
-   you did not, never twice) by the rule below; then ONE `ask_economics` call with every key in
-   `values` (`discount_rate` too) as `{"key", "row"}`, the row's `id` only, and for a key whose
-   rows differ the other rows' ids in `others` (`["drilling-nl-2013-2300m"]`). Never copy a row's
+   shows its economics set: ONE `ask_economics` call with only the exceptions. The tool itself
+   puts in every catalogue key you do not name, with its recommended row by the rule below
+   (sourced, verified, no bound or proxy, the latest year; a real discount rate) and its other
+   rows in `others`, and puts a key with only placeholder rows in `open`. Name a key in `values`
+   as `{"key", "row"}` (the row's `id` only, its `others` by id) only to recommend another row
+   than that rule gives, first of all a row of the site's country or region (rule 3), or with a
+   value from a server or the user; a key no usable row gives goes in `open`. Never copy a row's
    value, unit, source, year, url or status: `ask_economics` reads them from the knowledge base
    itself, and copying every row runs past the output limit and loses the call;
    a key with only placeholder rows or none goes in `open`; each key once, in `values` or in

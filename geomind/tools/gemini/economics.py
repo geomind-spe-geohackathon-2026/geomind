@@ -218,6 +218,85 @@ def skipped_note(skipped):
     return "Left out, catalogue rows with no 2015 value: " + "; ".join(skipped)
 
 
+STATUS_RANK = {"verified": 0, "secondary": 1}
+"""The order of sourced rows; a ``placeholder`` row has no source and is never recommended."""
+BOUND_WORDS = ("upper bound", "proxy")
+"""Words of a row's note or id that keep it from being recommended over a usable row."""
+REFERENCE_ONLY = ("erratum", "waste-density")
+"""Words of a row id kept for reference only: never a value nor in ``others``."""
+NOT_REAL_RATE = ("social", "nominal")
+"""Words of a ``discount_rate`` row that is not a real financial rate (the catalogue is real)."""
+
+
+def _usable(key, row):
+    """Tell whether a catalogue row can be a value of ``key``: a 2015 value in a unit it takes."""
+    from geomind.tools.gemini.unit_bridge import economics_unit
+
+    if not (row.get("value_2015") or "").strip():
+        return False
+    given = (row.get("unit_2015") or "").strip() or None
+    unit, _, accepted = economics_unit(key, given)
+    return not (unit is None and given is not None and accepted)
+
+
+def _rank(row):
+    """Return the sort key of a row: sourced first, verified first, no bound or proxy, latest.
+
+    A ``discount_rate`` row of a social or nominal rate comes after a real financial one, as the
+    catalogue's prices are real (EUR at 2015 prices).
+    """
+    text = f"{row.get('id', '')} {row.get('note', '')}".lower()
+    year = _number(row["year"]) if (row.get("year") or "").strip() else 0
+    rate = row.get("path") == "economics.discount_rate"
+    return (
+        rate and any(word in row.get("id", "") for word in NOT_REAL_RATE),
+        STATUS_RANK.get(row.get("status"), 9),
+        any(word in text for word in BOUND_WORDS),
+        -(year if isinstance(year, (int, float)) else 0),
+    )
+
+
+def recommended(context, values, open_keys):
+    """Return ``(values, open keys)`` with every catalogue key the case lead did not name (QA-013).
+
+    The case lead names only exceptions (another row, a key open, a value from a server or the
+    user); each other economics key of the catalogue goes in with its recommended row, by the
+    case lead's rule: a sourced row over a placeholder, verified over secondary, a row whose note
+    calls it an upper bound or a proxy last, then the latest year; its other sourced rows in
+    ``others``. A key with only placeholder rows is open. Without the catalogue nothing is added.
+    """
+    rows = catalogue_rows(context)
+    if rows is None:
+        return values, open_keys
+    named = {short(item.key) for item in values} | {short(key) for key in open_keys}
+    by_key = {}
+    for row in rows.values():
+        key = short(row.get("path") or "")
+        if row.get("path", "").startswith("economics.") and key not in named and is_economics(key):
+            by_key.setdefault(key, []).append(row)
+    added, opened = [], []
+    for key, found in sorted(by_key.items()):
+        if key in CATALOGUE_BASIS:
+            continue
+        sourced = sorted(
+            (
+                row
+                for row in found
+                if row.get("status") in STATUS_RANK
+                and _usable(key, row)
+                and not any(word in row.get("id", "") for word in REFERENCE_ONLY)
+            ),
+            key=_rank,
+        )
+        if not sourced:
+            opened.append(key)
+            continue
+        others = [{"row": row["id"]} for row in sourced[1:]]
+        item = {"key": key, "row": sourced[0]["id"], **({"others": others} if others else {})}
+        added.append(EconomicsValue.model_validate(item))
+    return [*values, *added], [*open_keys, *opened]
+
+
 def from_catalogue(context, values, skipped=None):
     """Return ``values`` with every named row's value, unit and citation read from the catalogue.
 
@@ -467,6 +546,11 @@ def ask_economics(
 ):
     """Ask the user the ONE economics question from the rows you chose, and set what they approve.
 
+    Send only the exceptions: every economics key of the cost catalogue you do not name goes in
+    with its recommended row (sourced, verified, no upper bound or proxy, the latest year; a
+    real discount rate) and its other rows in ``others``; a key with only placeholder rows is
+    open. Name a key to recommend another row (one of the site's country), to put it in ``open``,
+    or with a value from a server or the user.
     ``values`` holds each economics key with the row you recommend: ``key`` its path under
     ``economics`` (``capex.heat_pump``, ``energy.electricity``), ``row`` the catalogue row ``id``
     and, for a key whose rows differ, ``others``, the ids of the rows you did not recommend
@@ -487,8 +571,9 @@ def ask_economics(
     what was set. On change some, ask which values change and to what, without options.
     """
     dropped, skipped = [], []
+    values, open_keys = recommended(context, list(values), list(open or []))
     values, open_keys, notes = prepared(
-        from_catalogue(context, values, skipped), list(open or []), dropped
+        from_catalogue(context, values, skipped), open_keys, dropped
     )
     message = question_text(values, open_keys, note, notes)
     if dropped:
@@ -571,9 +656,10 @@ async def economics_answered(context, tool_input, text):
         typed = text not in OPTIONS
         return {"answer": text, **({"typed": True} if typed else {})}
     values = [EconomicsValue.model_validate(item) for item in tool_input.get("values") or []]
+    values, open_keys = recommended(context, values, list(tool_input.get("open") or []))
     values = from_catalogue(context, values)
     dropped = []
-    values, open_keys, notes = prepared(values, list(tool_input.get("open") or []), dropped)
+    values, open_keys, notes = prepared(values, open_keys, dropped)
     stored = await set_case.function(context, economics=approved_economics(values, notes))
     changes = assumption_changes(context.problem, values, notes)
     version = await context.session.change_state(changes) if changes else stored["version"]

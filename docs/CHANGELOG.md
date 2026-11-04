@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.54] - 2026-11-05
+
+### Changed
+
+- QA-013 (IMP-001): `ask_economics` fills every catalogue key the case lead does not name with its recommended row itself (sourced over placeholder, verified over secondary, no upper bound or proxy, the latest year; a real discount rate before a social or nominal one; reference-only rows never), its other usable rows in `others`, and a key with only placeholder rows in `open`. The case lead sends only the exceptions (a row of the site's country, a key open, a value from a server or the user), so the call is short and no longer runs past the output limit. The question the user sees is unchanged.
+
 ## [0.4.53] - 2026-11-05
 
 ### Fixed
