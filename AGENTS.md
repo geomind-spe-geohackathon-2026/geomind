@@ -11,7 +11,7 @@ Read [docs/rules.md](docs/rules.md) first: it holds every project rule.
 ## First: ask the mode
 
 At the start of every session, before any change, ask the user which mode this session works in:
-development, production or hotfix (QA), as the project root's `docs/ops/development-modes.md`
+development, production or hotfix, as the project root's `docs/project/ops/development-modes.md`
 defines them. Work by that mode's rules until the user changes it; without an answer, change
 nothing.
 
