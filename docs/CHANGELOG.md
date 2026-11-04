@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.38] - 2026-11-04
+
+### Fixed
+
+- QA-023: a project whose case is `ready` (the backend's state of a set case, as after Copy a case) is past the case stage, so a new chat offers the plant ("Design a plant"), not building the case.
+
 ## [0.4.37] - 2026-11-04
 
 ### Fixed

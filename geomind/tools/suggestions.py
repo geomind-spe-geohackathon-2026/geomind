@@ -144,10 +144,11 @@ def state_of(item):
 def project_stage(project):
     """Return a project's stage: ``no_case``, ``case``, ``plant``, ``report`` or ``more``.
 
-    The case not done: build it; the plant not done or ready: design it; the study or its
+    The case not done or ready (a set case is ``ready``, QA-023): build it; the plant not done
+    or ready: design it; the study or its
     results not done: study it; the report not done: report; all done: more studies.
     """
-    if state_of(project.get("case")) != "done":
+    if state_of(project.get("case")) not in ("done", "ready"):
         return "no_case"
     if state_of(project.get("plant")) not in ("done", "ready"):
         return "case"
