@@ -51,6 +51,9 @@ class Tool:
     is not stored again and carries that reference. ``keeps_result`` keeps a result up to
     ``tool_result_limit`` whole in the history for a few turns, for source material the model
     reads again and again; ``"run"`` keeps it whole for the whole run, such as a document page.
+    ``sets_input`` marks a write whose result follows from its input alone, so the same call again
+    sets the same values (``set_ranges``): with ``repeats_same`` it is answered from its first
+    result.
     NOTE: the class is shaped like a protocol, so tools from other sources fit without changes.
     """
 
@@ -71,6 +74,7 @@ class Tool:
         late_schemas=None,
         stored_input=None,
         keeps_result=False,
+        sets_input=False,
     ):
         """Store the definition; an unknown effect raises."""
         if effect not in EFFECTS:
@@ -94,11 +98,26 @@ class Tool:
         self.late_schemas = late_schemas or {}
         self.stored_input = stored_input
         self.keeps_result = keeps_result
+        self.sets_input = sets_input
 
     @property
     def is_pure(self):
         """Tell whether a call may run beside others and again in a replay."""
         return self.effect in PURE_EFFECTS
+
+    @property
+    def repeats_same(self):
+        """Tell whether the same call again, with nothing written between, gives the same result.
+
+        Decided by effect: a pure tool (``read`` or ``compute``) that the engine does not handle
+        itself (``runs_alone``: questions, ``finish``), and a write that sets its input
+        (``sets_input``). Not a tool whose result may change on its own: an MCP server's tools and
+        nested runs are not pure, nor is anything ``external`` or ``execute``. A pure tool that
+        reads what a write changes (``simulate`` after ``patch_plant``) is safe because any tool
+        that is not pure and ran with success between the two calls, a write, a nested run or a
+        server's tool, makes the second one run (``same_result`` in ``geomind.engine.step``).
+        """
+        return (self.is_pure and not self.runs_alone) or self.sets_input
 
     @property
     def replays(self):
@@ -169,9 +188,13 @@ class Tool:
         An object or array sent as its JSON text is read as that value first, also when only its
         closing brackets are missing or one too many follows it, and ``"None"`` is null where a null
         is accepted (``parsed_inputs``, #67, #87, #89, #112), also with a stray closing bracket in
-        the middle deleted (#117).
+        the middle deleted (#117). JSON text that still does not parse is refused naming its JSON
+        error and where (``json_text_error``, #141).
         """
         tool_input = parsed_inputs(self.input_schema, tool_input)
+        unparsed = json_text_error(self.name, self.input_schema, tool_input)
+        if unparsed is not None:
+            raise unparsed
         if self.input_model is not None:
             model = self.input_model.model_validate(tool_input)
             return {name: getattr(model, name) for name in type(model).model_fields}
@@ -362,6 +385,60 @@ def parsed_inputs(schema, tool_input):
     return parsed
 
 
+EXCERPT_CHARACTERS = 40
+"""How many characters of a JSON text an error shows on each side of where it stopped."""
+PYTHON_LITERALS = {"None": "null", "True": "true", "False": "false"}
+
+
+def _takes_json_text(schema, definitions):
+    """Tell whether a property reads a string as JSON text: an object or array, and no string."""
+    accepted = _accepted_types(schema, definitions)
+    if accepted is None or "string" in accepted:
+        return False
+    return bool(accepted & set(JSON_TYPES.values()))
+
+
+def json_text_error(tool_name, schema, tool_input):
+    """Return the error of an object or array sent as JSON text that does not parse, or ``None``.
+
+    pydantic's "Input should be a valid dictionary" named no JSON error, and the model sent the same
+    text again (the run: ``build_plant plant`` with ``None`` at char 11246, ``update_state changes``
+    at char 161, #141). The error names ``json``'s message, its line, column and character, and the
+    text around it; a Python literal there (``None``) is named with its JSON spelling.
+    """
+    if not isinstance(tool_input, dict):
+        return None
+    properties = schema.get("properties", {})
+    definitions = schema.get("$defs", {})
+    for name, value in tool_input.items():
+        if not isinstance(value, str) or value.strip()[:1] not in CLOSERS:
+            continue
+        if name not in properties or not _takes_json_text(properties[name], definitions):
+            continue
+        try:
+            json.loads(value)
+        except json.JSONDecodeError as error:
+            return _unparsed(tool_name, name, value, error)
+    return None
+
+
+def _unparsed(tool_name, name, text, error):
+    """Return the ``ToolError`` of one JSON text and its ``json.JSONDecodeError``."""
+    position = error.pos
+    before = text[max(position - EXCERPT_CHARACTERS, 0) : position]
+    after = text[position : position + EXCERPT_CHARACTERS]
+    literal = next((word for word in PYTHON_LITERALS if after.startswith(word)), None)
+    hint = f" JSON writes {PYTHON_LITERALS[literal]}, not {literal}." if literal is not None else ""
+    return ToolError(
+        f"{tool_name}: {name} is JSON text that does not parse: {error.msg} at line "
+        f"{error.lineno}, "
+        f"column {error.colno} (char {position} of {len(text)}), here: {before}<<here>>{after}."
+        f"{hint} Fix it there, and send {name} as the value itself, not as text",
+        code="invalid_input",
+        path=name,
+    )
+
+
 def _first_line(definition):
     """Return a definition with the first line of its description, the rest being detail."""
     text = definition.get("description")
@@ -430,6 +507,7 @@ def tool(
     late_schemas=None,
     stored_input=None,
     keeps_result=False,
+    sets_input=False,
 ):
     """Return a decorator that builds a ``Tool`` from a typed function.
 
@@ -456,6 +534,7 @@ def tool(
             late_schemas=late_schemas,
             stored_input=stored_input,
             keeps_result=keeps_result,
+            sets_input=sets_input,
         )
 
     return build

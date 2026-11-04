@@ -18,13 +18,13 @@ the problem state as `update_state` does.
 | `evaluate_module` | `catalogue.py` | `compute` | `name, parameters, inlets=None, controls=None, state=None, dt=None` | `gm.call(..., units="display")` result (`outlets`, `outputs`, `state`, `errors`) as `{value, unit}` in gemini's display units (MW, degC, m3/h; no geomind unit map); values with a dimension go in as `{value, unit}`, never text; every inlet needs `fluid` (gemini's error otherwise); a module with state needs `state` and `dt` | built |
 | `list_plants` | `plants.py` | `read` | `plant_class` (optional), `with_schema` (optional) | `{project_plants, plants: [{name, summary}]}`; `project_plants` are the sorted file names of the run's project (`Workspace.plants`), `[]` without a project. With `plant_class`: also `plant_class`, `capabilities` (`gm.plants.capabilities()[class]`: roles, schedulable and `ranges`, the leaves that may state a search range) and `roles` (`gm.plants.roles()` of the class's roles); an unknown class is an `unknown_name` error with the close match. With `with_schema`: also `schema`, `gm.plants.schema()`. Before this change it returned every class's `capabilities` and all `roles`, over the result limit | built |
 | `read_plant` | `plants.py` | `read` | `design=None, plant_class=None, project_plant=None`: none is the project's plant when `Workspace.plants` holds exactly one file (several: a `ToolError` `unknown_name`, path `project_plant`, naming the files and the other two ways); `project_plant` a plant file of the project by name (its file stem); `design/<name>` a stored design, `plant_class` a class name (`gm.plants.get`); two of them is refused | `{plant, ranges, options, issues, checked_against}`: `plant.to_dict(structure=True)`, `ranges` as `{path: {min, max}}` with `{value, unit}` in display units (plain numbers for a count), `options`, and `issues` (`path, code, message, suggestions, kind, quantity, accepted`) from `gm.check(plant, case)` when the state has a case (`checked_against` `case`) else from `plant.check()` (`plant`), which lists as missing what the case fills (`d0.gradient`); a class lists everything it needs as missing | built |
-| `build_plant` | `plants.py` | `write` | `plant` (offered as a short object schema with gemini's two shapes; the full `gm.plants.schema()` is `list_plants` `with_schema`; validation is gemini's, so every earlier input is still valid), `name` | `{design, checked_against, issues}` as `read_plant`; `gm.Plant.from_dict` is stored by `stored.save_design`; a file gemini cannot read raises gemini's `ValidationError` (path, code, message, suggestions) and stores nothing, a file with missing values is stored with its issues | built |
+| `build_plant` | `plants.py` | `write` | `from_class` (optional: a class whose modules, connections, size, params and fluids a plant without `type` adds to; a given connection at a port that takes one replaces the class's, #143), `plant` (offered as a short object schema with gemini's two shapes; the full `gm.plants.schema()` is `list_plants` `with_schema`; validation is gemini's, so every earlier input is still valid), `name` | `{design, checked_against, issues}` as `read_plant`; `gm.Plant.from_dict` is stored by `stored.save_design`; a file gemini cannot read raises gemini's `ValidationError` (path, code, message, suggestions) and stores nothing, a file with missing values is stored with its issues | built |
 | `patch_plant` | `plants.py` | `write` | `design, changes, name` | `{design, checked_against, issues, missing}`: a JSON merge patch on a stored design, built by gemini and stored as `design/<name>`, with what is still missing; a refused patch stores nothing; an engineer of the design team (an agent with a `discipline`) may patch only the part `design.owners` gives it, and a path it names no prefix of by its module's gemini type (`OWNED_MODULES`, then the category), else `not_allowed` (`ownership.py`); a module's parameters written at the top (`d0`, `d0.well`) or inside `modules` are taken as under `params` | built |
 | `merge_designs` | `plants.py` | `write` | `base, designs, name` | `{design, checked_against, issues, missing}`: what each design changed from `base`, applied in order and built by gemini as `design/<name>`; two designs setting one value differently are an `invalid_input` conflict naming the path and both designs, and nothing is stored | built |
 | `set_ranges` | `plants.py` | `write` | `design, ranges, name, options=None`: `ranges` is `{path: {min, max}}` with `{value, unit}` bounds (plain numbers for a count such as `size.doublets`); a path is the plant-file leaf without `params.` (`depth`, `heat_pump.capacity`, `d0.nominal_flow`) | `{design, plant, ranges, options}` as `read_plant`; `plant.set_range` and `plant.set_options` on a copy of the design, stored as `design/<name>`; an unknown path or a refused bound is gemini's error with its path | built (to be registered) |
 | `set_case` | `case.py` | `write` | `source=None, changes=None, requirements=None, economics=None`: `source` is `project`, `origin` (the case the user gave, with its files) or none (the state's case); `changes` an RFC 7386 merge patch on the case, without `requirements` and `economics`; `requirements` `{name: requirement or null}` (add, replace or remove by name); `economics` a merge patch on the content of the economics file | `{case, version}`; the state's `case` replaced and its files kept as `case/<file name>`; the project's case or the first case of a chat also becomes `case_origin`; a case `gm.Case.from_dict` or `Case.check` rejects is an error with gemini's `path`, `code` and message and nothing is stored | built |
 | `case_changes` | `origin.py` | `read` | none | `[{path, change, given, now}]`: every difference of the state's case from `case_origin` (`changed`, `removed`, `added`; a section key, `requirements.<name>`, `file <name>` for a file's content, the economics file included); `[]` when it is the case the user gave | built |
-| `ask_economics` | `economics.py` | `read` | `values`: each economics key with `value`, `unit`, its catalogue `row`, `source`, `year`, `url`, `status` and `others` (the rows not recommended), `currency`, `price_year` and `discount_rate` among them or in `open`; `open`, `note` | a `Request` with the one economics question and options approve all, change some, stop; on approve all (`on_answer`) every value is set with `set_case`, each row kept in `economics.about.sources` and recorded as a confirmed assumption `economics.<key>` with its citation; the result is `{answer, economics, keys, open, assumptions, version}` | built |
+| `ask_economics` | `economics.py` | `read` | `values`: each economics key with `value`, `unit`, its catalogue `row`, `source`, `year`, `url`, `status` and `others` (the rows not recommended), `currency`, `price_year` and `discount_rate` among them or in `open`; every field but `key` takes null, a null `value` is an open key, a value needs its `row` or `source` (#142); `open`, `note` | a `Request` with the one economics question and options approve all, change some, stop; on approve all (`on_answer`) every value is set with `set_case` (a new economics file gets its header, #139), each row kept in `economics.about.sources` and recorded as a confirmed assumption `economics.<key>` with its citation; the result is `{answer, economics, keys, open, assumptions, version}` | built |
 | `accept_case` | `origin.py` | `write` | none | `{version}`; `case_origin` becomes the state's case. Only the design loop's driver holds it, after the user approved the change | built |
 | `read_case` | `case.py` | `read` | `section=None`: a key of the case, `economics` or `schema` | the case, the section, the parsed economics file, or `gm.Case.schema()` with `economics_schema`; no case is `invalid_input` | built |
 | `describe_case` | `case.py` | `read` | `path`: a dotted key or a part of one (`site.air`, `requirements`, `economics.capex`) | `keys`: each key under it with its units, meaning and source, and for `requirements` what each option means; an unknown path is `unknown_name` | built |
@@ -239,7 +239,8 @@ agent asks the user or sets it in the case's economics.
 ## Tool
 
 `Tool(name, description, input_schema, function, *, effect, idempotent=True, timeout=None,
-max_retries=2, input_model=None, runs_alone=False, reruns_in_replay=False, late_schemas=None)`. `@gd.tool(effect=...)` builds one from a typed function: the
+max_retries=2, input_model=None, runs_alone=False, reruns_in_replay=False, late_schemas=None,
+stored_input=None, keeps_result=False, sets_input=False)`. `@gd.tool(effect=...)` builds one from a typed function: the
 schema comes from the signature through Pydantic and the description from the docstring.
 
 | `effect` | Means | Runs in ask mode |
@@ -252,7 +253,10 @@ schema comes from the signature through Pydantic and the description from the do
 
 `idempotent` says a call may run again after a crash. `is_pure` (`read` or `compute`) says a call
 may run beside others and again in a replay. `reruns_in_replay` says a tool that is not pure runs
-again in a replay too, because all it changes is the run's own log. `Tool` is shaped like a protocol, so toolsets from
+again in a replay too, because all it changes is the run's own log. `sets_input` marks a write
+whose result follows from its input alone (`set_ranges`). `repeats_same` (pure and not
+`runs_alone`, or `sets_input`) says the same call again gives the same result while nothing that
+is not pure ran between: MCP tools, nested runs, `external` and `execute` never do. `Tool` is shaped like a protocol, so toolsets from
 other sources (MCP later) fit: without `input_model`, only the required and known names of
 `input_schema` are checked. An agent names a tool by its attribute, on its own copy.
 `late_schemas` maps an input to a function that returns its schema when the tool is offered:
@@ -278,7 +282,12 @@ functions.
   `stop_reason="error"`; one tool counts once per step, since the calls of a step are sent before
   the model saw any of their errors. The same call (tool and whole input) failing again in more
   than `max_retries` later steps stops it too; calls with other arguments and one error are
-  others. An argument the tool does not have is an error result that names the
+  others. A call identical (tool and whole input) to an earlier successful call of the run, of a
+  tool that `repeats_same`, with no successful call of a tool that is not pure between, does not
+  run: its result is the note "same result as step N: <reference or outline>" (`source`
+  `repeat`); in more than `max_retries` steps in a row it stops the run (#138). An object or
+  array sent as JSON text that does not parse is a validation error naming `json`'s message, line,
+  column, character and the text around it (`json_text_error`, #141). An argument the tool does not have is an error result that names the
   tool's arguments and is no validation failure (#126); a tool the run does not offer (a memory
   tool or the curator with the memory off) is answered `not_allowed` without running (#127).
 - A call whose input is `{"shortened": ...}`, the outline an old history showed of an earlier call,
@@ -338,9 +347,11 @@ A permission denial is no error class: its result is the reason as text, with `i
   question with options is `{"text": <value>}` or typed text: text that is no option's value is
   the user's own answer, and the model reads it marked as typed (`typed_answer`). Only the step
   limit's question (`continue`, `stop`) takes its options alone.
-- A question whose case paths (`site.air.pressure`) an earlier answered question of the same run
-  tree named exactly is not asked: its result is the earlier answer (`engine/questions.py`, from
-  the root's log, so across resumes too; the run's bug 7).
+- A case path (`site.air.pressure`) an earlier answered question of the same run tree named,
+  alone or among others, counts as answered by the first such answer (`engine/questions.py`, from
+  the root's log, so across resumes too). A question whose every path is answered is not asked:
+  its result is the earlier answers. A question with new paths too is asked with a line under it
+  giving the earlier answers and naming only the new paths to answer (#140).
 - `finish(answer)` ends the run, after `before_finish` hooks, the agent's own
   `answer_problem(context)` (a required step code checks, refused once per run, such as the case
   lead's economics, #124) and output validation.

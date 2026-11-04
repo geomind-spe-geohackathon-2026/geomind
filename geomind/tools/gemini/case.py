@@ -516,11 +516,23 @@ def edited_requirements(current, edits):
     return items
 
 
+def economics_header(data):
+    """Return the header of a new economics file of the case ``data``: format, kind and name.
+
+    The run: ``ask_economics`` on a case without economics wrote the values alone, gemini refused
+    the file as an older shape, and the user's approve all was lost (#139).
+    """
+    name = data.get("name")
+    return {"format": 1, "kind": "economics", "name": f"{name} economics" if name else "economics"}
+
+
 def edited_economics(context, data, supplied, patch):
     """Set the economics of ``data`` by a merge ``patch``; return the files with the new content.
 
     The economics file is stored whole as a new content, under the name the case gives it (or
     ``economics.json`` for a case that has none); an economics written inline is patched in place.
+    A new file starts from its header (``economics_header``), so a patch of values alone, such as
+    ``ask_economics`` sets on approve all, is never refused as an older shape.
     """
     named = data.get("economics")
     if isinstance(named, dict):
@@ -529,7 +541,7 @@ def edited_economics(context, data, supplied, patch):
     name = checked_name(named or ECONOMICS_FILE)
     data["economics"] = name
     current = file_contents(context, data, supplied).get(name)
-    content = json.loads(current) if current is not None else {}
+    content = json.loads(current) if current is not None else economics_header(data)
     text = json.dumps(merge_patch(content, patch), indent=2, ensure_ascii=False)
     return {**supplied, name: text.encode()}
 

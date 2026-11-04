@@ -7,12 +7,14 @@ import pydantic
 from geomind.agents import Agent, Output
 from geomind.prompts import Prompt
 from geomind.tools import finish, tool
-from geomind.types import Action
+from geomind.types import Action, ToolCall
 from tests.fixtures.runs import (
     EXECUTED,
     call,
+    lookup,
     of_type,
     run,
+    save_note,
     says,
     uses,
 )
@@ -207,3 +209,85 @@ async def test_rule_based_step_is_logged_as_a_completion():
     assert result.answer == "by rule"
     assert of_type(events, "llm.completed")[0].completion.model == "rule"
     assert engine.llm.llm.calls == []
+
+
+RANGES = {
+    "size.doublets": {"min": 1, "max": 3},
+    "d0.nominal_flow": {
+        "min": {"value": 50, "unit": "m3/h"},
+        "max": {"value": 300, "unit": "m3/h"},
+    },
+    "heat_pump.capacity": {"min": {"value": 0, "unit": "MW"}, "max": {"value": 30, "unit": "MW"}},
+}
+"""Part of the ``set_ranges`` input design_lead dfa8eb2f sent 37 times (run 4ca94d6e)."""
+
+SET_CALLS = []
+
+
+@tool(effect="write", sets_input=True)
+def set_ranges(design: str, ranges: dict, name: str):
+    """Set ranges: a write whose result follows from its input alone."""
+    SET_CALLS.append(name)
+    return {"design": f"design/{name}", "ranges": ranges}
+
+
+class Ranger(Agent):
+    """Sets ranges and reads."""
+
+    def __init__(self):
+        """Declare the tools."""
+        super().__init__()
+
+        # Tools
+        self.set_ranges = set_ranges
+        self.lookup = lookup
+        self.save_note = save_note
+
+
+def _ranges_call(call_id):
+    """Return the recorded ``set_ranges`` call."""
+    tool_input = {"design": "design/backup_peak", "ranges": RANGES, "name": "ranges_2027"}
+    return ToolCall(id=call_id, name="set_ranges", input=tool_input)
+
+
+async def test_a_repeated_successful_read_is_answered_from_the_first():
+    """The same read again, with nothing written between, does not run and names step 1."""
+    result, _, events = await run(
+        [uses(call("lookup", "a", key="k")), uses(call("lookup", "b", key="k")), says()]
+    )
+    assert result.stop_reason == "answer" and EXECUTED == ["lookup"]
+    second = of_type(events, "tool.result")[1]
+    assert second.source == "repeat" and 'same result as step 1: "value of k"' in second.output
+
+
+async def test_a_write_between_makes_the_same_read_run_again():
+    """A read after a write may read something else, so it runs."""
+    await run(
+        [
+            uses(call("lookup", "a", key="k")),
+            uses(call("save_note", "b", text="x")),
+            uses(call("lookup", "c", key="k")),
+            says(),
+        ]
+    )
+    assert EXECUTED == ["lookup", "save_note", "lookup"]
+
+
+async def test_a_write_without_sets_input_runs_every_time():
+    """``save_again`` is a write that does not set its input: the guard leaves it out."""
+    await run(
+        [uses(call("save_again", "a", text="y")), uses(call("save_again", "b", text="y")), says()]
+    )
+    assert EXECUTED == ["save_again", "save_again"]
+
+
+async def test_the_same_set_ranges_runs_once_and_its_repeats_end_the_run():
+    """The run: one set_ranges call 37 times; it runs once and three repeats end the run."""
+    SET_CALLS.clear()
+    result, _, events = await run([uses(_ranges_call(f"c{index}")) for index in range(6)], Ranger())
+    assert SET_CALLS == ["ranges_2027"]
+    assert result.stop_reason == "error" and "same call as an earlier successful one" in (
+        result.message
+    )
+    notes = [event for event in of_type(events, "tool.result") if event.source == "repeat"]
+    assert len(notes) == 3 and "same result as step 1" in notes[0].output

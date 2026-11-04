@@ -6,6 +6,17 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### The third end-to-end run, J
+
+Run 4ca94d6e (`.tmp/e2e-final4/`), fixes #138 to #143; no version bump in this piece.
+
+- Fix (#138), behaviour: a call identical (tool and whole input) to an earlier successful call of the same run does not run when its tool `repeats_same` (a pure tool not `runs_alone`, or a write with the new `Tool(sets_input=True)`, which `set_ranges` is) and no tool that is not pure ran with success between; its result is "same result as step N: <reference or outline>", `tool.result` `source` `repeat`. More than `max_retries` such steps in a row stop the run (`error`). A design lead had sent one `set_ranges` call 37 times (12.7k characters each) until two step limits.
+- Fix (#139), behaviour: a new economics file starts from its header (`format`, `kind`, `name`), so `ask_economics`'s approve all on a case without economics is stored instead of refused as an older shape (seq 424).
+- Fix (#140), behaviour: asked-once matches per path: a path named inside a multi-path question that was answered is answered (`site.air.pressure`, item 4 of request-259, then request-2872). A question with only answered paths takes the earlier answers; one with new paths too is asked with the earlier answers under it and only the new paths to answer.
+- Fix (#141), behaviour: an object or array sent as JSON text that does not parse is refused naming `json`'s message, line, column and character and the text around it, and a Python literal there (`None`), instead of pydantic's "Input should be a valid dictionary".
+- Fix (#142), contract (tool schema, additive): `ask_economics` takes null for every field of a value but `key` (`others: null`, `source: null`); a value of null is an open key; a value needs its `row` or its `source`.
+- Fix (#143), contract (tool schema, additive): `build_plant(from_class=...)` builds a free plant from a class's modules, connections, size, params and fluids with the plant's added modules, connections (one at a single-connection port replaces the class's) and `optional`. A plant with `type` naming a module its class lacks is refused naming `from_class`. The process engineer's prompt says so. It had spent its 15 steps on a free plant with `thermal_storage`.
+
 ### The step-limit question keeps its shape (0.4.22.dev61)
 
 - Contract (pinned): the backend (1.1.7) takes typed text for every question with options except the step-limit one, which it knows by options exactly `continue` and `stop` and no call id. A test pins that shape; no marker is added. The contract copy's "Answers to options" says a question with options also takes typed text, which geomind marks as typed.

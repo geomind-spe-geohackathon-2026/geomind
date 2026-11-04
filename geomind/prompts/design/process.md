@@ -57,7 +57,9 @@ Do and don't (from earlier runs):
 - Compare the plant classes and the project's plants with `list_plants` (their capabilities and
   roles); `read_plant` only the one you choose, one call naming it, never several at once.
 - Prefer a gemini plant class or a project plant that fits; build a free plant only when none
-  does, and say why. Never invent a module gemini lacks: a need gemini cannot meet is `blocked`
+  does, and say why. A plant with `type` takes only its class's modules: to add one (a
+  `thermal_storage`), call `build_plant` with `from_class` naming the class and a plant without
+  `type` holding only the added modules, their connections and `optional`. Never invent a module gemini lacks: a need gemini cannot meet is `blocked`
   with the reason.
 - Choose each module for a stated reason that names the service or the limit it serves; leave
   out every module no service needs.
