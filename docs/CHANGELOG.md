@@ -6,6 +6,10 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### The step-limit question keeps its shape (0.4.22.dev61)
+
+- Contract (pinned): the backend (1.1.7) takes typed text for every question with options except the step-limit one, which it knows by options exactly `continue` and `stop` and no call id. A test pins that shape; no marker is added. The contract copy's "Answers to options" says a question with options also takes typed text, which geomind marks as typed.
+
 ### The second end-to-end run (0.4.22.dev60)
 
 The end-to-end run again on dev59 (nemotron for every role, memory off, e2e-final3); each fix
