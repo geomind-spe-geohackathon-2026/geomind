@@ -39,20 +39,39 @@ class EconomicsValue(BaseModel):
     """One economics key with the value the case lead recommends and where it comes from.
 
     ``key`` is the path under ``economics`` (``capex.heat_pump``, ``currency``); ``row`` the cost
-    catalogue's row ``id``, none for a value no row gives; ``others`` the key's other rows.
+    catalogue's row ``id``, none for a value no row gives; ``others`` the key's other rows. Every
+    field but ``key`` takes null as left out (the run: ``others: null`` and ``source: null`` were
+    21 errors and two more tries, #142); a value of null makes the key open, and a value needs its
+    row or its source.
     """
 
     model_config = ConfigDict(extra="forbid")
 
     key: str
-    value: Any
+    value: Any = None
     unit: str | None = None
     row: str | None = None
-    source: str
+    source: str | None = None
     year: int | str | None = None
     url: str | None = None
     status: str | None = None
-    others: list[OtherRow] = []
+    others: list[OtherRow] | None = None
+
+
+def given_values(values, open_keys):
+    """Return ``(values with a value, open keys)``: a value of null is an open key.
+
+    A value with neither its row nor its source is refused: the user approves where it comes from.
+    """
+    given = [item for item in values if item.value is not None]
+    unsourced = [item.key for item in given if not (item.row or item.source)]
+    if unsourced:
+        raise ToolError(
+            f"ask_economics: {unsourced[0]} has a value and no row or source; expected its "
+            "catalogue row id or its source, or the key in open",
+            path="values",
+        )
+    return given, [*open_keys, *(item.key for item in values if item.value is None)]
 
 
 def _checked(values, open_keys):
@@ -125,13 +144,14 @@ def ask_economics(
     takes them, ``row`` the catalogue row ``id``, ``source``, ``year``, ``url``, ``status``, and for
     a key whose rows differ ``others``, the rows you did not recommend. ``currency``,
     ``price_year`` and ``discount_rate`` are keys too: each is in ``values`` or in ``open``.
-    ``open`` names the keys no usable row gives; ``note`` one line for the user. The question's
+    ``open`` names the keys no usable row gives; ``note`` one line for the user. A field with
+    nothing to say is null or left out; a key whose value is null is open. The question's
     options are approve all, change some and stop, and the user may type an answer instead. On
     approve all, every value is set in the case's economics (``set_case``) with its row in
     ``about.sources``, and each becomes a confirmed assumption with its citation; the result says
     what was set. On change some, ask which values change and to what, without options.
     """
-    open_keys = list(open or [])
+    values, open_keys = given_values(values, list(open or []))
     _checked(values, open_keys)
     return Request(
         kind="question", message=question_text(values, open_keys, note), options=list(OPTIONS)
@@ -207,6 +227,7 @@ async def economics_answered(context, tool_input, text):
         typed = text not in OPTIONS
         return {"answer": text, **({"typed": True} if typed else {})}
     values = [EconomicsValue.model_validate(item) for item in tool_input.get("values") or []]
+    values, open_keys = given_values(values, list(tool_input.get("open") or []))
     stored = await set_case.function(context, economics=approved_economics(values))
     changes = assumption_changes(context.problem, values)
     version = await context.session.change_state(changes) if changes else stored["version"]
@@ -215,7 +236,7 @@ async def economics_answered(context, tool_input, text):
         "answer": text,
         "economics": "set",
         "keys": keys,
-        "open": list(tool_input.get("open") or []),
+        "open": open_keys,
         "assumptions": len(changes),
         "version": version,
     }

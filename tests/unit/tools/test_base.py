@@ -140,7 +140,10 @@ def test_a_list_sent_as_json_text_is_the_list():
 
 
 def test_text_that_is_no_json_of_the_type_still_fails():
-    """A string that is not JSON of the type, or a field that wants text, is left as it is."""
+    """A string that is not JSON of the type, or a field that wants text, is left as it is.
+
+    JSON text that does not parse is refused naming its JSON error (#141).
+    """
     from pydantic import ValidationError
 
     from geomind.tools.state import update_state
@@ -149,7 +152,7 @@ def test_text_that_is_no_json_of_the_type_still_fails():
         update_state.validate({"changes": '{"op": "add"}'})
     with pytest.raises(ValidationError):
         update_state.validate({"changes": "not json"})
-    with pytest.raises(ValidationError):
+    with pytest.raises(ToolError, match="Extra data at line 1, column 17"):
         update_state.validate({"changes": '[{"op": "add"}] and more'})
 
 
@@ -305,3 +308,27 @@ def test_a_list_of_model_refs_or_null_sent_as_json_text_is_the_list():
     assert parsed_inputs(schema, {"items": '[{"a": 1}, {"a": 2}]'}) == {
         "items": [{"a": 1}, {"a": 2}]
     }
+
+
+INVALID_JSON = Path(__file__).parents[2] / "fixtures" / "live" / "j_invalid_json_text.json"
+"""Two JSON texts of run 4ca94d6e that do not parse: ``build_plant plant``, ``update_state``."""
+
+
+def test_json_text_that_does_not_parse_names_the_json_error_and_where():
+    """#141: both were refused only "Input should be a valid dictionary/list"."""
+    from geomind.tools import update_state
+    from geomind.tools.base import json_text_error
+
+    recorded = json.loads(INVALID_JSON.read_text())
+    with pytest.raises(ToolError) as caught:
+        update_state.validate({"changes": recorded["design_update_state_changes"]})
+    message = str(caught.value)
+    assert caught.value.path == "changes" and "Expecting property name enclosed" in message
+    assert "line 1, column 162 (char 161 of 4251)" in message and "<<here>>" in message
+    schema = {"properties": {"plant": {"type": "object"}, "name": {"type": "string"}}}
+    plant = recorded["process_build_plant_plant"]
+    error = json_text_error("build_plant", schema, {"plant": plant, "name": "{x"})
+    assert "Expecting value at line 1, column 11247 (char 11246" in str(error)
+    assert '"gas_liquid_ratio": <<here>>None' in str(error)
+    assert "JSON writes null, not None" in str(error)
+    assert json_text_error("build_plant", schema, {"plant": '{"a": 1}', "name": "{x"}) is None

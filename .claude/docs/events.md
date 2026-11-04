@@ -102,7 +102,7 @@ Stored and used by recovery, replay and the log; never streamed. `data()` holds 
 `tool.result` with `call_id` `null` is feedback to the model about its final answer, shown as a
 user message: `feedback` is `output` (failed validation) or `finish` (refused by a hook). With
 `is_finish` it is the accepted answer instead, and `call_id` tells a `finish` call from a plain
-answer. Its `source` is `tool`, `denied`, `answer` or `interrupted`. A `permission` decision is `allow`, `deny`,
+answer. Its `source` is `tool`, `denied`, `answer`, `interrupted` or `repeat` (a call identical to an earlier successful one, answered from it without running). A `permission` decision is `allow`, `deny`,
 `ask`, `answer` (a user settled a request) or `wait` (a nested run paused, and this run waits on the
 same request).
 

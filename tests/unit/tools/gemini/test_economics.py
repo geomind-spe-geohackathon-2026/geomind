@@ -130,3 +130,61 @@ async def test_a_value_gemini_refuses_is_an_error_the_model_reads():
     with pytest.raises(ToolError):
         await economics_answered(context, {"values": wrong}, "approve all")
     assert context.session.changes == []
+
+
+async def test_approve_all_on_a_case_without_economics_writes_the_header():
+    """The run (seq 424): no economics file yet, approve all was refused as an older shape."""
+    from geomind.context import ProblemState
+    from geomind.engine import Context
+    from tests.fixtures.cases import example_case
+    from tests.fixtures.sessions import StubSession
+
+    data, files = example_case("hackathon_2026")
+    data.pop("economics")
+    session = StubSession()
+    for file, content in files.items():
+        if file != "economics.json":
+            await session.save_artifact(f"case/{file}", content)
+    context = Context(session=session, problem=ProblemState(case=data))
+    output = await economics_answered(context, {"values": VALUES}, "approve all")
+    assert output["economics"] == "set"
+    stored = json.loads(context.session.artifacts["case/economics.json"])
+    assert (stored["format"], stored["kind"]) == (1, "economics")
+    assert stored["name"].endswith("economics") and stored["currency"]["value"] == "EUR"
+
+
+async def test_null_optional_fields_are_left_out_and_a_null_value_is_open():
+    """The run: ``others: null`` (21 errors, seq 412), a key all null (seq 475); now accepted."""
+    from geomind.engine import Context
+    from geomind.tools import dispatch
+    from geomind.types import ToolCall
+    from tests.fixtures.sessions import StubSession
+
+    currency = {
+        "key": "currency",
+        "value": "EUR",
+        "unit": None,
+        "row": None,
+        "source": "knowledge/cost-sources.csv",
+        "url": None,
+        "others": None,
+    }
+    open_key = dict.fromkeys(("value", "unit", "row", "source", "year", "url", "status"))
+    values = [
+        currency,
+        {**HEAT_PUMP, "others": None},
+        {**VALUES[3], "others": None},
+        {**VALUES[4], "source": None, "row": "discount-rate-row"},
+        {"key": "opex.fixed.heat_pump", **open_key},
+    ]
+    asked = ToolCall(id="q", name="ask_economics", input={"values": values, "open": None})
+    request = await dispatch(ask_economics, asked, Context(session=StubSession()))
+    assert isinstance(request, Request)
+    assert request.message.splitlines()[-1] == "economics.opex.fixed.heat_pump"
+    context = await case_context("hackathon_2026")
+    output = await economics_answered(context, {"values": values}, "approve all")
+    assert output["open"] == ["opex.fixed.heat_pump"]
+    assert "opex.fixed.heat_pump" not in output["keys"]
+    unsourced = [{**VALUES[2], "source": None}, *VALUES[3:]]
+    result = await call(ask_economics, {"values": unsourced})
+    assert result.is_error and "no row or source" in result.output["error"]["message"]

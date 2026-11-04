@@ -43,19 +43,26 @@
         "$defs": {
           "EconomicsValue": {
             "additionalProperties": false,
-            "description": "One economics key with the value the case lead recommends and where it comes from.\n\n``key`` is the path under ``economics`` (``capex.heat_pump``, ``currency``); ``row`` the cost\ncatalogue's row ``id``, none for a value no row gives; ``others`` the key's other rows.",
+            "description": "One economics key with the value the case lead recommends and where it comes from.\n\n``key`` is the path under ``economics`` (``capex.heat_pump``, ``currency``); ``row`` the cost\ncatalogue's row ``id``, none for a value no row gives; ``others`` the key's other rows. Every\nfield but ``key`` takes null as left out (the run: ``others: null`` and ``source: null`` were\n21 errors and two more tries, #142); a value of null makes the key open, and a value needs its\nrow or its source.",
             "properties": {
               "key": {
                 "title": "Key",
                 "type": "string"
               },
               "others": {
-                "default": [],
-                "items": {
-                  "$ref": "#/$defs/OtherRow"
-                },
-                "title": "Others",
-                "type": "array"
+                "anyOf": [
+                  {
+                    "items": {
+                      "$ref": "#/$defs/OtherRow"
+                    },
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Others"
               },
               "row": {
                 "anyOf": [
@@ -70,8 +77,16 @@
                 "title": "Row"
               },
               "source": {
-                "title": "Source",
-                "type": "string"
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Source"
               },
               "status": {
                 "anyOf": [
@@ -110,6 +125,7 @@
                 "title": "Url"
               },
               "value": {
+                "default": null,
                 "title": "Value"
               },
               "year": {
@@ -129,9 +145,7 @@
               }
             },
             "required": [
-              "key",
-              "value",
-              "source"
+              "key"
             ],
             "title": "EconomicsValue",
             "type": "object"
@@ -298,6 +312,18 @@
       "input_schema": {
         "additionalProperties": false,
         "properties": {
+          "from_class": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "From Class"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -1817,5 +1843,5 @@
       "name": "write_lesson"
     }
   },
-  "version": "0.4.22.dev61"
+  "version": "0.4.22.dev62"
 }

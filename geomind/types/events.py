@@ -303,7 +303,8 @@ class Compacted(Event):
 class ToolRecorded(Event):
     """One result, or with ``call_id=None`` feedback to the model about its answer.
 
-    ``source`` says where it came from: ``tool``, ``denied``, ``answer`` or ``interrupted``.
+    ``source`` says where it came from: ``tool``, ``denied``, ``answer``, ``interrupted``, or
+    ``repeat`` for a call answered from an earlier successful one without running.
     ``feedback`` is ``output`` for a failed validation of the answer and ``finish`` for a refused
     one. ``usage`` is that of a nested run, added to this run.
     """

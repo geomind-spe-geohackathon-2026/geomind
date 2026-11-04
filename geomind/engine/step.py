@@ -8,7 +8,8 @@ import asyncio
 
 from geomind import runtime
 from geomind.engine.compaction import compact_history
-from geomind.engine.questions import earlier_answer, reused_answer
+from geomind.engine.questions import answered_paths, asking_new, named_paths, reused_answer
+from geomind.engine.recovery import call_key
 from geomind.engine.state import Stop, is_cancel
 from geomind.errors import OutputError, ToolError, UnknownNameError
 from geomind.tools import dispatch
@@ -117,12 +118,55 @@ async def _admit(session, agent, tool, call):
     return next(item for item in session.state.calls if item.id == call.id)
 
 
+SAME_NOTE = (
+    "{tool}: the same call (tool and whole input) as step {step}, and nothing was written since, "
+    "so it did not run again: same result as step {step}: {shown}. Sending it again gives "
+    "nothing new and, a few times in a row, ends the run: take the next step of your task."
+)
+"""What a model reads for a call that repeats an earlier successful one (``same_result``)."""
+
+
+def same_result(session, agent, tool, call):
+    """Return the note for a call identical to an earlier successful one of the run, or ``None``.
+
+    Only a tool that ``repeats_same`` qualifies (a pure tool, or a write that sets its input such
+    as ``set_ranges``), and only when no call of a tool that is not pure ran with success since:
+    a write, a nested run or a server's tool may change what the call reads, so then it runs
+    again. A design lead sent one ``set_ranges`` call 37 times, 12.7k characters each.
+    NOTE: a replay takes a recorded call as recorded (``_execute`` asks only without a recorded
+    result), so an older log replays as it ran.
+    """
+    if not tool.repeats_same:
+        return None
+    key = call_key(call.name, call.input)
+    succeeded = session.state.succeeded
+    index = next((i for i in reversed(range(len(succeeded))) if succeeded[i].key == key), None)
+    if index is None:
+        return None
+    later = {item.tool for item in succeeded[index + 1 :]}
+    tools = session.tools_of(agent, sorted(later))
+    if any(name not in tools or not tools[name].is_pure for name in later):
+        return None
+    earlier = succeeded[index]
+    shown = earlier.outline
+    if earlier.reference:
+        shown = f"stored as {earlier.reference}, {earlier.outline}"
+    return SAME_NOTE.format(tool=call.name, step=earlier.step, shown=shown)
+
+
 def _over_retries(session, tool):
     """Return the stop of a tool that failed validation too often in a row, or ``None``.
 
     The same call failing the same way more than the tool's ``max_retries`` times in a row stops
-    the run too: the model is not learning from the error, so going on only spends.
+    the run too: the model is not learning from the error, so going on only spends. So does a
+    call answered from its earlier result (``same_result``) in more steps in a row than that.
     """
+    if session.state.same_calls > tool.max_retries:
+        return Stop(
+            "error",
+            f"{tool.name}: the same call as an earlier successful one was sent in "
+            f"{session.state.same_calls} steps in a row; the run stops instead of spending more",
+        )
     if session.state.repeated > tool.max_retries:
         return Stop(
             "error",
@@ -184,6 +228,10 @@ async def _execute(session, agent, tool, call):
     if recorded is not None and not _runs_again(session, tool, recorded):
         await _reuse(session, tool, call, recorded)
         return _over_retries(session, tool)
+    same = same_result(session, agent, tool, call) if recorded is None else None
+    if same is not None:
+        await record_result(session, call, text_result(call, same), source="repeat")
+        return _over_retries(session, tool)
     outcome = await dispatch(tool, call, session.context())
     if isinstance(outcome, Finish):
         session.proposed_suggestions = outcome.suggestions
@@ -191,11 +239,11 @@ async def _execute(session, agent, tool, call):
     if isinstance(outcome, Request) and session.waiting_child is not None:
         return await session.wait_for_child(outcome, call)
     if isinstance(outcome, Request):
-        earlier = earlier_answer(session.engine.store.load_events(session.state.root), outcome)
-        if earlier is not None:
-            await record_result(session, call, text_result(call, reused_answer(*earlier)))
+        found = answered_paths(session.engine.store.load_events(session.state.root), outcome)
+        if found and set(found) == named_paths(outcome.message):
+            await record_result(session, call, text_result(call, reused_answer(found)))
             return _over_retries(session, tool)
-        return await session.pause(outcome, "tool", call)
+        return await session.pause(asking_new(outcome, found) if found else outcome, "tool", call)
     await record_result(session, call, outcome)
     return _over_retries(session, tool)
 

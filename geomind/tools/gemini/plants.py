@@ -284,7 +284,7 @@ def read_plant(
 
 
 @tool(effect="write", late_schemas={"plant": plant_schema})
-async def build_plant(context, plant: dict[str, Any], name: str):
+async def build_plant(context, plant: dict[str, Any], name: str, from_class: str | None = None):
     """Build a plant from a plant file and store it as design/<name>; return its issues.
 
     ``plant`` is the plant file (``read_plant`` shows one). Every value with a dimension is
@@ -293,7 +293,13 @@ async def build_plant(context, plant: dict[str, Any], name: str):
     stored. A file without its header is ``old_format``, the smallest plant file of gemini's
     schema last in ``suggestions``. A file that builds is stored even with ``issues`` (the values
     still missing, checked as in ``read_plant``): fill them in a new file or with ``simulate``
-    ``changes``.
+    ``changes``. A plant with ``type`` takes only the modules of its class. To add a module to a
+    class (``thermal_storage``), name the class in ``from_class`` and give ``plant`` without
+    ``type``, holding only what differs: the added ``modules``, their ``connections``,
+    ``optional`` or ``choices``; the class gives every other module and connection, its size,
+    params and fluids. A connection you give at a port that takes one connection replaces the
+    class's connection there; connect each port of an added module (``describe_module`` lists
+    them).
     """
     import gemini as gm
 
@@ -307,9 +313,14 @@ async def build_plant(context, plant: dict[str, Any], name: str):
         )
     if isinstance(plant.get("format"), str) and plant["format"].strip().isdigit():
         plant = {**plant, "format": int(plant["format"])}
+    if from_class is not None:
+        plant = await runtime.in_gemini_thread(extended_plant, plant, from_class)
     try:
         built = await runtime.in_gemini_thread(gm.Plant.from_dict, plant)
     except gm.errors.ValidationError as error:
+        foreign = foreign_modules(gm, plant) if from_class is None else []
+        if foreign:
+            raise class_refusal(error, plant["type"], foreign) from error
         if error.code != "old_format":
             raise
         raise ToolError(
@@ -320,6 +331,110 @@ async def build_plant(context, plant: dict[str, Any], name: str):
         ) from error
     design = await save_design(context, name, built)
     return {"design": design, **plant_issues(context, built)}
+
+
+def foreign_modules(gm, plant):
+    """Return the modules a class plant names (in ``modules``, ``optional``) its class lacks.
+
+    The run: ``optional: ["thermal_storage"]`` on a ``HeatingHeatPumpCoolingPlant`` was "expected
+    a module of the plant", and the process engineer spent its 15 steps on a free plant (#143).
+    """
+    kind = plant.get("type")
+    if not isinstance(kind, str) or kind not in gm.plants.names():
+        return []
+    own = set(gm.plants.get(kind).to_dict(structure=True).get("modules") or {})
+    named = list(plant.get("modules") or {}) + [
+        item for item in plant.get("optional") or [] if isinstance(item, str)
+    ]
+    return sorted({item for item in named if item not in own})
+
+
+def class_refusal(error, kind, foreign):
+    """Return the error of a class plant with modules its class lacks, naming how to add them."""
+    return ToolError(
+        f"{shown_message(error)}. build_plant: {join_names(foreign)} is no module of the class "
+        f"{kind}, and a plant with type takes only its class's modules. To add it: build_plant "
+        f"with from_class={kind!r} and a plant without type that holds only the added modules "
+        "(with their type), the connections of each of their ports (describe_module lists them; "
+        "one at a port that takes one connection replaces the class's), and optional or choices; "
+        "the class gives every other module and connection",
+        code="unknown_name",
+        path="from_class",
+        suggestions=[kind],
+    )
+
+
+def extended_plant(plant, from_class):
+    """Return the free plant file of a class with the modules and connections of ``plant`` added.
+
+    The class's own file (``structure=True``) gives the modules, connections, size, params and
+    fluids; ``plant`` adds or replaces modules, merges params, and adds its connections, each
+    replacing the class's at a port that takes one connection. Its other keys win; ``type`` goes.
+    """
+    import gemini as gm
+
+    from geomind.tools.gemini.case import merge_patch
+
+    names = gm.plants.names()
+    if from_class not in names:
+        raise ToolError(
+            f"build_plant: from_class = {from_class!r}; expected a plant class from list_plants"
+            f"{did_you_mean(from_class, names)}",
+            code="unknown_name",
+            path="from_class",
+        )
+    base = gm.plants.get(from_class).to_dict(structure=True)
+    modules = {**(base.get("modules") or {}), **(plant.get("modules") or {})}
+    given = [item for item in plant.get("connections") or [] if isinstance(item, dict)]
+    single = single_ports(gm, modules, given)
+    kept = [
+        item
+        for item in base.get("connections") or []
+        if item.get("source") not in single and item.get("target") not in single
+    ]
+    extended = {key: value for key, value in base.items() if key != "type"}
+    extended.update({key: value for key, value in plant.items() if key != "type"})
+    extended["modules"] = modules
+    extended["connections"] = kept + given
+    params = merge_patch(base.get("params") or {}, plant.get("params") or {})
+    if params:
+        extended["params"] = params
+    else:
+        extended.pop("params", None)
+    return extended
+
+
+def single_ports(gm, modules, connections):
+    """Return the ports ``connections`` use that take one connection (a port not ``many``).
+
+    A port whose module type is not found counts as one that takes many: the class's connection
+    stays, and gemini names a port used twice.
+    """
+    found = set()
+    for item in connections:
+        for side in ("source", "target"):
+            port = item.get(side)
+            if isinstance(port, str) and port_takes_one(gm, modules, port):
+                found.add(port)
+    return found
+
+
+def port_takes_one(gm, modules, port):
+    """Tell whether a port ``<module path>.<port>`` of the plant's modules takes one connection."""
+    *path, name = port.split(".")
+    node = {"modules": modules}
+    for part in path:
+        node = (node.get("modules") or {}).get(part) if isinstance(node, dict) else None
+    kind = node.get("type") if isinstance(node, dict) else None
+    if not isinstance(kind, str) or not path:
+        return False
+    try:
+        description = gm.modules.get(kind)().describe()
+    except gm.errors.GeminiError:
+        return False
+    ports = {**description.get("inlets", {}), **description.get("outlets", {})}
+    item = ports.get(name)
+    return isinstance(item, dict) and not item.get("port", {}).get("many", False)
 
 
 @tool(effect="write", late_schemas={"design": reference_schema("design")})
@@ -410,7 +525,7 @@ async def merge_designs(context, base: str, designs: list[str], name: str):
     return {"design": stored, **issues, "missing": len(issues["issues"])}
 
 
-@tool(effect="write", late_schemas={"design": reference_schema("design")})
+@tool(effect="write", sets_input=True, late_schemas={"design": reference_schema("design")})
 async def set_ranges(
     context,
     design: str,

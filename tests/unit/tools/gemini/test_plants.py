@@ -585,3 +585,68 @@ async def test_an_engineer_s_parameters_written_in_modules_are_patched(gm):
     result = await call(TOOLS.patch_plant, step, session, problem=ProblemState())
     assert not result.is_error, result.output
     assert session.artifacts["design/p1"]["params"]["d0"]["drainage_radius"]["value"] == 500
+
+
+STORAGE_MODULES = {"thermal_storage": {"type": "ThermalStorage"}}
+STORAGE_CONNECTIONS = [
+    {"source": "heat_pump.sink_out", "target": "thermal_storage.charge_in"},
+    {"source": "thermal_storage.charge_out", "target": "peak_boiler.fluid_in"},
+    {"source": "heating_return_pipe.fluid_out", "target": "thermal_storage.discharge_in"},
+    {"source": "thermal_storage.discharge_out", "target": "heat_exchanger.cold_in"},
+    {"source": "atmosphere.air_out", "target": "thermal_storage.air_in"},
+    {"source": "thermal_storage.loss_out", "target": "atmosphere.heat_in"},
+]
+"""What the process engineer's free plant that built (seq 3504, run 4ca94d6e) adds to its class."""
+STORAGE_OPTIONAL = ["heat_pump", "compression_chiller", "peak_boiler", "thermal_storage"]
+
+
+async def test_a_class_plant_with_a_module_its_class_lacks_names_from_class():
+    """#143: ``optional[3]: module = 'thermal_storage'; expected a module of the plant``."""
+    data = plant_dict("hackathon_2026", "HeatingHeatPumpCoolingPlant")
+    data = {**data, "optional": STORAGE_OPTIONAL}
+    built = await call(TOOLS.build_plant, {"plant": data, "name": "p"}, StubSession())
+    error = built.output["error"]
+    assert built.is_error and error["path"] == "from_class"
+    assert "expected a module of the plant" in error["message"]
+    assert "thermal_storage is no module of the class HeatingHeatPumpCoolingPlant" in (
+        error["message"]
+    )
+    assert "from_class='HeatingHeatPumpCoolingPlant'" in error["message"]
+
+
+async def test_from_class_adds_an_optional_module_with_its_connections(gm):
+    """The run's added module, connections and optional build on the class; nothing retyped."""
+    session = StubSession()
+    plant = {
+        "format": 1,
+        "kind": "plant",
+        "name": "geothermal_hc_2027",
+        "modules": STORAGE_MODULES,
+        "connections": STORAGE_CONNECTIONS,
+        "optional": STORAGE_OPTIONAL,
+    }
+    tool_input = {"plant": plant, "name": "p", "from_class": "HeatingHeatPumpCoolingPlant"}
+    built = await call(TOOLS.build_plant, tool_input, session)
+    assert built.output["design"] == "design/p", built.output
+    stored = session.artifacts["design/p"]
+    assert "type" not in stored and stored["optional"] == STORAGE_OPTIONAL
+    connections = stored["connections"]
+    assert all(item in connections for item in STORAGE_CONNECTIONS)
+    replaced = {"source": "heat_pump.sink_out", "target": "peak_boiler.fluid_in"}
+    assert replaced not in connections
+    kept = {"source": "atmosphere.air_out", "target": "compression_cooler.air_in"}
+    assert kept in connections
+
+
+async def test_from_class_with_an_unconnected_added_port_is_gemini_s_error():
+    """A port of the added module left out is named by gemini; an unknown class is refused."""
+    plant = {"format": 1, "kind": "plant", "name": "x", "modules": STORAGE_MODULES}
+    tool_input = {"plant": plant, "name": "p", "from_class": "HeatingHeatPumpCoolingPlant"}
+    built = await call(TOOLS.build_plant, tool_input, StubSession())
+    assert built.output["error"]["code"] == "unconnected_port"
+    assert built.output["error"]["path"].startswith("thermal_storage.")
+    unknown = await call(
+        TOOLS.build_plant, {**tool_input, "from_class": "HeatingPlnt"}, StubSession()
+    )
+    assert unknown.output["error"]["path"] == "from_class"
+    assert "did you mean 'HeatingPlant'" in unknown.output["error"]["message"]

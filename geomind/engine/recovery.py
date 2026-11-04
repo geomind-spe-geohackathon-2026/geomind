@@ -8,9 +8,9 @@ import json
 
 from geomind.context import Compaction, ProblemState, apply_changes
 from geomind.context.history import replace_older
-from geomind.engine.state import PendingAction, RunState
+from geomind.engine.state import PendingAction, RunState, Succeeded
 from geomind.errors import RunError
-from geomind.tools.stored import is_stored_form, stored_form
+from geomind.tools.stored import is_stored_form, outline, stored_form
 from geomind.types import Action, Message, Usage
 from geomind.types.events import LLM_EVENTS
 from geomind.utils.imports import import_class
@@ -118,12 +118,48 @@ def _count_repeat(state, event):
     call = next((item for item in state.calls if item.id == event.call_id), None)
     if call is None:
         return
-    key = json.dumps([call.name, call.input], sort_keys=True, default=str)
+    key = call_key(call.name, call.input)
     if key != state.last_failure:
         state.repeated = 1
     elif state.last_failure_step != state.step:
         state.repeated += 1
     state.last_failure, state.last_failure_step = key, state.step
+
+
+OUTLINE_CHARACTERS = 300
+"""How long the outline of a result that a repeated call is answered with is at most."""
+
+
+def call_key(name, tool_input):
+    """Return the key of a call: its tool and its whole input, so two calls are the same or not."""
+    return json.dumps([name, tool_input], sort_keys=True, default=str)
+
+
+def _count_same(state, event):
+    """Remember a call that ran with success, and count the steps answered from an earlier one.
+
+    A repeat answered in a step counts once per step, as failures do; any other result of a call
+    ends the run of repeats.
+    """
+    if event.source == "repeat":
+        if state.same_call_step != state.step:
+            state.same_calls += 1
+        state.same_call_step = state.step
+        return
+    state.same_calls, state.same_call_step = 0, None
+    if event.is_error or event.is_finish or event.source != "tool":
+        return
+    output = to_jsonable(event.output)
+    shown = output.get("summary") if is_stored_form(output, event.reference) else output
+    state.succeeded.append(
+        Succeeded(
+            key=call_key(event.tool, event.input),
+            tool=event.tool,
+            step=state.step,
+            reference=event.reference,
+            outline=outline(shown, OUTLINE_CHARACTERS),
+        )
+    )
 
 
 def _remember_stored(state, event):
@@ -149,6 +185,7 @@ def _tool_result(state, event):
     if event.call_id is None:
         return
     _count_failure(state, event)
+    _count_same(state, event)
     if state.pending is not None and state.pending.call.id == event.call_id:
         state.pending = None
     state.results[event.call_id] = Message(
