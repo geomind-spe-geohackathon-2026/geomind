@@ -77,8 +77,12 @@ async def test_the_loop_fills_the_case_from_the_files_without_asking(passed):
     assert recover(events).problem.case["demand"]["heating"]["power"]["file"] == "demand.csv"
 
 
+@pytest.mark.slow
 async def test_the_run_replays(passed):
-    """The files reach the replay through the workspace, as a project's case does."""
+    """The files reach the replay through the workspace, as a project's case does.
+
+    Slow: it runs a whole design loop and then replays it whole (1.4 s alone, over the budget).
+    """
     result, engine, workspace = await run_on_files()
     replayed = await Engine.replay(engine.store, result.run_id, workspace=workspace)
     assert replayed.answer == result.answer

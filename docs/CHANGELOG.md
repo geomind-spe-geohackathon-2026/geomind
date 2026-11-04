@@ -6,6 +6,23 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.23] - 2026-11-04
+
+geomind 0.4.23 runs on gemini 0.6.3. It removes the workarounds gemini now covers (the doublet values engineers copied by hand, the control check, the °C/km mapping, its own field meanings where gemini describes a key, private study metric names), reads plant values in display units, takes its memory from the workspace (`Workspace.memory`, None turns it off), and takes `site.air.pressure` as the site's elevation, from which code computes the ISA pressure (ISO 2533:1975) for the user to confirm.
+
+### Release choices
+
+- `tests/integration/test_attached_files.py::test_the_run_replays` moved to the slow tier: it runs a whole design loop and replays it whole (1.4 s alone, over the fast tier's one-second budget).
+
+### Known issues
+
+- gemini still refuses `opex.fixed.pipe` per MW per year: two catalogue rows stay unused.
+- gemini describes each map entry as "The entry of this map for <key>.", which says nothing; geomind shows the map's own description instead.
+- An end-to-end run needs a pressure or the site's elevation from the user: there is no default, so without one it stops before sizing.
+- The shortened-history note can invite a `{}` call; the model recovers on the next step.
+- `run_manifest.json` `models` lists only the roles that started.
+- `read_case` of a section the case lacks is an error, not an empty result.
+
 ### gemini 0.6.3 (0.4.23.dev2)
 
 - gemini 0.6.3 (wheel sha256 `2fe06435…4444f023`), range still `>=0.6,<0.7`; its examples are
