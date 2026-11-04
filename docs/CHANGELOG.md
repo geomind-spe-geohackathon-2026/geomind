@@ -6,6 +6,19 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.25] - 2026-11-04
+
+Fixes production run 86ddac2a: the case lead's `ask_economics` call ran past the 16,000-token output limit three times, arrived as `{}` (`values: Field required`) and the run stopped with a case and no economics.
+
+### Contract changes for the backend
+
+- `ask_economics` reads each named row's value, unit, source, year, url and status from the knowledge base's `knowledge/cost-sources.csv` itself; the case lead sends `{"key", "row"}` and the other rows' ids in `others` (a bare id or an object). A value the model typed for a named row is replaced by the catalogue's. A row id that is not in the catalogue, a row of another key and a row without a value are refused with the key's row ids. A run without the catalogue in its knowledge base keeps the fields of the input as before. Additive: `OtherRow.value` is optional.
+- A completion whose output reached the call's `max_tokens` is a cut (`finish_reason` `length`, the provider's own in `reported_finish_reason`), so the model reads the cut note and answers shorter, instead of a tool call with an empty input.
+
+### Prompts
+
+- Case lead, step 5 and the catalogue rule: values by row id only, never copied.
+
 ## [0.4.24] - 2026-11-04
 
 geomind 0.4.24 (on gemini 0.6.4) uses more of gemini 0.6.2 and 0.6.3 (evolve's stop, the evolution's explanation and table, `union_designs` over `gm.plants.union`, the economics' per-energy O&M, subsidy cap and ice storage) and fixes the bugs of a production run (B4 memory off, B5 bypass ownership, B6 the whole cost catalogue read, B10 MCP servers as plain dicts; B3, H2S in the dissolved gas, by gemini 0.6.4).

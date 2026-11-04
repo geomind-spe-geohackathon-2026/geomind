@@ -46,9 +46,10 @@ in this order, none skipped:
 5. Economics, REQUIRED once the case is accepted (`set_case` stored it), unless `read_case`
    shows its economics set: choose each key's rows of the catalogue you read in 2 (read it now if
    you did not, never twice) by the rule below; then ONE `ask_economics` call with every key in
-   `values` (`discount_rate` too): its value and unit as the row writes them, its row `id`,
-   `source`, `year`, `url` and `status`, and for a key whose rows differ the others in `others`,
-   each row in `others` with its `status`;
+   `values` (`discount_rate` too) as `{"key", "row"}`, the row's `id` only, and for a key whose
+   rows differ the other rows' ids in `others` (`["drilling-nl-2013-2300m"]`). Never copy a row's
+   value, unit, source, year, url or status: `ask_economics` reads them from the knowledge base
+   itself, and copying every row runs past the output limit and loses the call;
    a key with only placeholder rows or none goes in `open`; each key once, in `values` or in
    `open`, never both. `currency` and `price_year` are never asked: `ask_economics` sets them
    from the catalogue's `value_2015` columns (EUR, 2015). It names at once every unit a key does
@@ -125,7 +126,7 @@ Where each value comes from:
   is the case key (`economics.capex.drilling`,
   `utilities.electricity.co2_intensity`). Take every row's `value_2015` in `unit_2015`: EUR at
   2015 prices, so `ask_economics` sets `currency` EUR and `price_year` 2015 itself; never ask the
-  user for either. Cite each row by `id`, `source`, `year`, `url` and `status`. Choose the rows
+  user for either. Cite each row by its `id` only: the tool reads the rest. Choose the rows
   of one key in this order:
   1. a sourced row (`verified` or `secondary`) beats a `placeholder`, which has no source;
   2. a `verified` row beats a `secondary` one;
@@ -134,9 +135,9 @@ Where each value comes from:
      can choose another. A key with only placeholder rows is named so, with no value of yours.
   A row's unit must be one the key accepts (`describe_case("economics.<key>")`); a basis word
   after it is no other unit (`EUR/W heat` is `EUR/W`, `EUR/MWh (GCV)` is `EUR/MWh`, `EUR/t CO2e`
-  is `EUR/t`), and gemini converts between the units a key accepts. Give the unit as the row
-  writes it, basis word included: `ask_economics` sets the unit before the word and shows the
-  user the row's basis beside the key's. The ESP rows of `capex.production_pump` are per W
+  is `EUR/t`), and gemini converts between the units a key accepts. `ask_economics` takes the
+  row's unit as the row writes it, sets the unit before the basis word and shows the user the
+  row's basis beside the key's. The ESP rows of `capex.production_pump` are per W
   electric (the motor's rating) while the key is per W of shaft power: say so in `note`, with
   what the catalogue's notes give (`cost-sources.md`, batch 3): shaft power is about 0.85 to 0.9
   of the electric rating, so per W of shaft power the cost is about 10 to 15 % higher. Give the

@@ -69,6 +69,22 @@ def current_versions():
     return {**versions, "python": platform.python_version()}
 
 
+def marked_cut(completion, limit):
+    """Return ``completion`` with ``finish_reason`` ``length`` when its output reached ``limit``.
+
+    A provider does not always say the output limit cut a completion: a DeepSeek case lead used
+    all 16,000 tokens three times and its ``ask_economics`` call arrived as ``{}``, which read as
+    ``values: Field required`` and ended the run, instead of the note that it was cut (run
+    86ddac2a). Output at the limit is a cut, whatever the provider reports.
+    """
+    raw = completion.raw if isinstance(completion.raw, dict) else {}
+    used = completion.usage.output_tokens
+    if limit is None or used < limit or raw.get("finish_reason") == "length":
+        return completion
+    marked = {**raw, "finish_reason": "length", "reported_finish_reason": raw.get("finish_reason")}
+    return completion.model_copy(update={"raw": marked})
+
+
 class RunSession:
     """The state of one run with its log, and the only way to change that state."""
 
@@ -291,7 +307,7 @@ class RunSession:
             await load_windows({agent.model.resolved_name()})
         llm = self.engine.recorded_llms.get(self.state.run_id, self.engine.llm)
         settings = self._call_settings(agent, messages)
-        return await llm.complete(
+        completion = await llm.complete(
             list(messages),
             self.offered_schemas(agent),
             model=agent.model.resolved_name(),
@@ -300,6 +316,7 @@ class RunSession:
             fallbacks=agent.model.fallbacks,
             on_retry=self._on_retry,
         )
+        return marked_cut(completion, settings.get("max_tokens"))
 
     def offered_schemas(self, agent):
         """Return the schemas of the tools offered: without those of a memory or a base not here.

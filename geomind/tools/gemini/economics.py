@@ -64,7 +64,7 @@ class OtherRow(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     row: str = Field(description=ROW)
-    value: Any
+    value: Any = None
     unit: str | None = None
     source: str | None = None
     year: int | str | None = None
@@ -74,7 +74,9 @@ class OtherRow(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _row_by_id(cls, data):
-        """Read a row object by its ``id`` (``row_by_id``)."""
+        """Take a bare row id, and read a row object by its ``id`` (``row_by_id``)."""
+        if isinstance(data, str):
+            return {"row": data}
         read, refusal = row_by_id(data)
         if refusal:
             raise ValueError(refusal)
@@ -111,6 +113,100 @@ class EconomicsValue(BaseModel):
         if refusal:
             raise ValueError(refusal)
         return read
+
+
+CATALOGUE = "knowledge/cost-sources.csv"
+"""The cost catalogue in the knowledge base, where ``ask_economics`` reads each row it is named."""
+
+
+def catalogue_rows(context):
+    """Return ``{id: row}`` of the cost catalogue, or ``None`` for a run without it.
+
+    A run whose knowledge base lacks the catalogue keeps the fields the input gives.
+    """
+    import csv
+    import io
+
+    from geomind.tools.knowledge import has_knowledge, knowledge_file
+
+    session = getattr(context, "session", None)
+    workspace = getattr(session, "workspace", None)
+    if not has_knowledge(workspace) or not workspace.knowledge_files():
+        return None
+    try:
+        content = knowledge_file(context, "ask_economics", CATALOGUE)
+    except ToolError:
+        return None
+    text = content.decode("utf-8-sig") if isinstance(content, bytes) else str(content)
+    return {row["id"]: row for row in csv.DictReader(io.StringIO(text)) if row.get("id")}
+
+
+def _number(text):
+    """Return a catalogue cell as a number when it is one, else the text."""
+    try:
+        number = float(text)
+    except (TypeError, ValueError):
+        return text
+    return int(number) if number.is_integer() and "." not in str(text) else number
+
+
+def _row_fields(rows, key, row_id):
+    """Return the value, unit and citation of catalogue row ``row_id`` for ``key``, or raise."""
+    row = rows.get(row_id)
+    if row is None:
+        near = [item for item, data in rows.items() if data.get("path") == f"economics.{key}"]
+        raise ToolError(
+            f"ask_economics: row = {row_id!r} is not in {CATALOGUE}; expected the id of a row "
+            f"of economics.{key}" + (f": {', '.join(near)}" if near else ", or the key in open"),
+            code="unknown_name",
+            path="values",
+        )
+    if row.get("path") and row["path"] != f"economics.{key}":
+        raise ToolError(
+            f"ask_economics: row {row_id} is for {row['path']}, not economics.{key}; expected a "
+            "row whose path is the key",
+            path="values",
+        )
+    if not (row.get("value_2015") or "").strip():
+        raise ToolError(
+            f"ask_economics: row {row_id} has no value ({row.get('status') or 'no status'}); "
+            f"expected another row of economics.{key}, or the key in open",
+            path="values",
+        )
+    fields = {
+        "value": _number(row["value_2015"]),
+        "unit": (row.get("unit_2015") or "").strip() or None,
+        "source": row.get("source") or None,
+        "year": _number(row["year"]) if row.get("year") else None,
+        "url": row.get("url") or None,
+        "status": row.get("status") or None,
+    }
+    return {name: value for name, value in fields.items() if value is not None}
+
+
+def from_catalogue(context, values):
+    """Return ``values`` with every named row's value, unit and citation read from the catalogue.
+
+    The case lead names a key and its row ids; the numbers come from the knowledge base, never
+    from what the model typed (run 86ddac2a: typing every row's value, unit, source and url of
+    about 40 keys ran past the 16,000-token output limit three times and the case had no
+    economics). A run without the catalogue keeps the fields the input gives.
+    """
+    rows = catalogue_rows(context)
+    if rows is None:
+        return values
+    read = []
+    for item in values:
+        key = short(item.key)
+        update = _row_fields(rows, key, item.row) if item.row else {}
+        others = [
+            other.model_copy(update=_row_fields(rows, key, other.row))
+            for other in item.others or ()
+        ]
+        if item.others is not None:
+            update["others"] = others
+        read.append(item.model_copy(update=update))
+    return read
 
 
 def given_values(values, open_keys):
@@ -295,11 +391,14 @@ def ask_economics(
 ):
     """Ask the user the ONE economics question from the rows you chose, and set what they approve.
 
-    ``values`` holds each economics key with the value you recommend: ``key`` its path under
-    ``economics`` (``capex.heat_pump``, ``energy.electricity``), ``value`` and ``unit`` as the key
-    takes them, ``row`` the catalogue row ``id``, ``source``, ``year``, ``url``, ``status``, and for
-    a key whose rows differ ``others``, the rows you did not recommend. ``discount_rate`` is a
-    key too, in ``values`` or in ``open``. A value from a catalogue row is its ``value_2015`` in
+    ``values`` holds each economics key with the row you recommend: ``key`` its path under
+    ``economics`` (``capex.heat_pump``, ``energy.electricity``), ``row`` the catalogue row ``id``
+    and, for a key whose rows differ, ``others``, the ids of the rows you did not recommend
+    (``["drilling-nl-2013-2300m"]``). Send only ids: this tool reads each row's value, unit,
+    source, year, url and status from the knowledge base itself, so never copy them (copying
+    every row ran past the output limit). ``value`` with ``source`` is only for a key no row
+    gives, from an MCP result or the user. ``discount_rate`` is a key too, in ``values`` or in
+    ``open``. A value from a catalogue row is its ``value_2015`` in
     ``unit_2015``, EUR at 2015 prices, so this tool sets ``currency`` EUR and ``price_year`` 2015
     itself: leave both out (without any row, name each in ``values`` or ``open``). A row's unit
     goes as the row writes it (``EUR/W electric``); a unit its key does not take is refused,
@@ -311,7 +410,7 @@ def ask_economics(
     ``about.sources``, and each becomes a confirmed assumption with its citation; the result says
     what was set. On change some, ask which values change and to what, without options.
     """
-    values, open_keys, notes = prepared(values, list(open or []))
+    values, open_keys, notes = prepared(from_catalogue(context, values), list(open or []))
     message = question_text(values, open_keys, note, notes)
     return Request(kind="question", message=message, options=list(OPTIONS))
 
@@ -389,6 +488,7 @@ async def economics_answered(context, tool_input, text):
         typed = text not in OPTIONS
         return {"answer": text, **({"typed": True} if typed else {})}
     values = [EconomicsValue.model_validate(item) for item in tool_input.get("values") or []]
+    values = from_catalogue(context, values)
     values, open_keys, notes = prepared(values, list(tool_input.get("open") or []))
     stored = await set_case.function(context, economics=approved_economics(values, notes))
     changes = assumption_changes(context.problem, values, notes)

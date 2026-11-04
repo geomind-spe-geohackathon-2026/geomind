@@ -51,7 +51,8 @@ def economics_missing(context):
         f"{NO_ECONOMICS}: the case is set and has no economics. Do step 5 of your workflow now: "
         "choose each key's rows of the cost catalogue (read knowledge/cost-sources.csv now if you "
         "did not), then ask the ONE economics question with ask_economics, every key with its "
-        "row (discount_rate included); on approve all it sets them. "
+        "row id only, never its value or citation (discount_rate included); on approve all it sets "
+        "them. "
         "Ask with the tool, never in your answer's text; then finish"
     )
 

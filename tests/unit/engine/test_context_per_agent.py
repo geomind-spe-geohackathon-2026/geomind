@@ -14,8 +14,10 @@ from geomind.types import Message, Usage
 from tests.fixtures.runs import Lead, Worker, call, of_type, says, uses
 
 WINDOW = 100_000
-HUGE = Usage(input_tokens=10_000_000, output_tokens=1_000_000)
-"""Far past any window: what a nested run's calls may add up to."""
+HUGE = Usage(input_tokens=10_000_000, output_tokens=1_000)
+"""Far past any window: what a nested run's calls may add up to.
+
+Its output stays under one call's limit: a completion at the limit is a cut (``marked_cut``)."""
 
 
 class SettingsLLM(FakeLLM):

@@ -458,3 +458,94 @@ async def test_another_row_shows_its_status_and_another_basis_is_left_to_the_use
     assert "not converted" in pump and "the user decides" in pump
     plant = next(line for line in lines if line.startswith("economics.capex.chp"))
     assert "not converted" not in plant
+
+
+class CatalogueWorkspace:
+    """A workspace whose knowledge base holds the shipped cost catalogue."""
+
+    def knowledge_search(self, query):
+        """Find nothing; the tool reads the catalogue whole."""
+        return []
+
+    def knowledge_files(self):
+        """Name the catalogue."""
+        return [{"name": "cost-sources.csv"}]
+
+    def knowledge_file(self, name):
+        """Return the catalogue's bytes, ``None`` for another document."""
+        from pathlib import Path
+
+        if name != "cost-sources.csv":
+            return None
+        return (Path(__file__).parents[4] / "data/knowledge/cost-sources.csv").read_bytes()
+
+
+def catalogue_context():
+    """Return a context whose run has the catalogue in its knowledge base."""
+    from geomind.engine import Context
+    from tests.fixtures.sessions import StubSession
+
+    return Context(session=StubSession(workspace=CatalogueWorkspace()))
+
+
+IDS = [
+    {"key": "capex.heat_pump", "row": "heat-pump-dea-2025-10mw"},
+    {
+        "key": "capex.drilling",
+        "row": "drilling-nl-2013-3000m",
+        "others": ["drilling-nl-2013-2300m", "drilling-nl-2013-4000m"],
+    },
+    {"key": "discount_rate", "row": "discount-rate-pbl-sde-2025-geothermal-real"},
+]
+"""A question by row ids only, as the case lead sends it since run 86ddac2a."""
+
+
+async def test_rows_named_by_id_are_read_from_the_knowledge_base():
+    """Run 86ddac2a: copying every row's fields ran past the output limit; ids are enough."""
+    from geomind.tools import dispatch
+    from geomind.types import ToolCall
+
+    asked = ToolCall(id="q", name="ask_economics", input={"values": IDS})
+    request = await dispatch(ask_economics, asked, catalogue_context())
+    assert isinstance(request, Request), request
+    lines = request.message.splitlines()
+    heat_pump = next(line for line in lines if line.startswith("economics.capex.heat_pump"))
+    assert heat_pump.startswith("economics.capex.heat_pump = 0.737864 EUR/W | row heat-pump-dea")
+    drilling = next(line for line in lines if line.startswith("economics.capex.drilling"))
+    assert "1844.74 EUR/m" in drilling and "1246.83 EUR/m [drilling-nl-2013-2300m" in drilling
+    rate = next(line for line in lines if line.startswith("economics.discount_rate"))
+    assert "0.051" in rate and "verified" in rate
+
+
+async def test_the_catalogue_value_wins_over_a_typed_one_and_is_set_on_approve_all():
+    """A value the model typed for a named row is the row's; approve all sets the row's value."""
+    from tests.fixtures.sessions import StubSession
+
+    typed = [{**IDS[0], "value": 9.99, "unit": "EUR/kW"}, *IDS[1:]]
+    session = StubSession(workspace=CatalogueWorkspace())
+    context = await case_context("hackathon_2026", session=session)
+    answer = await economics_answered(context, {"values": typed}, "approve all")
+    assert answer["economics"] == "set"
+    [_, assumptions] = session.changes
+    recorded = {change["value"]["id"]: change["value"] for change in assumptions}
+    heat_pump = recorded["economics.capex.heat_pump"]
+    assert heat_pump["value"] == {"value": 0.737864, "unit": "EUR/W"}
+    assert heat_pump["citation"]["status"] == "secondary"
+
+
+async def test_an_unknown_row_or_a_row_of_another_key_is_refused():
+    """A row id must be in the catalogue and for the key it is named under."""
+    unknown = [{"key": "capex.heat_pump", "row": "no-such-row"}, *IDS[1:]]
+    from tests.fixtures.sessions import StubSession
+
+    result = await call(
+        ask_economics, {"values": unknown}, session=StubSession(workspace=CatalogueWorkspace())
+    )
+    message = result.output["error"]["message"]
+    assert result.is_error and "no-such-row" in message and "heat-pump-dea-2025-10mw" in message
+    other = [{"key": "capex.boiler", "row": "heat-pump-dea-2025-10mw"}, *IDS[1:]]
+    result = await call(
+        ask_economics, {"values": other}, session=StubSession(workspace=CatalogueWorkspace())
+    )
+    assert result.is_error
+    assert "is for economics.capex.heat_pump" in result.output["error"]["message"]

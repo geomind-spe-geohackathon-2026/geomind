@@ -209,6 +209,7 @@
                 "title": "Url"
               },
               "value": {
+                "default": null,
                 "title": "Value"
               },
               "year": {
@@ -228,8 +229,7 @@
               }
             },
             "required": [
-              "row",
-              "value"
+              "row"
             ],
             "title": "OtherRow",
             "type": "object"
@@ -1940,5 +1940,5 @@
       "name": "write_lesson"
     }
   },
-  "version": "0.4.24"
+  "version": "0.4.25"
 }

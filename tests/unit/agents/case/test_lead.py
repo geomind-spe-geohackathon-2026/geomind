@@ -198,9 +198,10 @@ def test_economics_are_a_required_step_after_the_case():
     assert [text.index(step) for step in steps] == sorted(text.index(step) for step in steps)
     step = text[text.index("5. Economics") : text.index("6. `read_case`")]
     assert "never twice" in step and "ONE `ask_economics` call" in step
-    assert "`discount_rate` too" in step and "row `id`" in step
+    assert "`discount_rate` too" in step and "the row's `id` only" in step
     assert "`currency` and `price_year` are never asked" in step
-    assert "the others in `others`" in step
+    assert "the other rows' ids in `others`" in step
+    assert "reads them from the knowledge base itself" in step
     assert "the tool sets every value with its row" in step
     assert "the economics are set (step 5)" in text and "and its economics set" in text
 
@@ -384,7 +385,7 @@ def test_the_esp_rows_are_electric_and_the_user_decides_the_basis():
 def test_every_row_keeps_its_status_and_the_filter_waste_row_is_secondary():
     """The 3.87 EUR/kg row is a proxy for filter waste: shown as secondary, never density."""
     text = " ".join(CaseLead().prompt.content.split())
-    assert "each row in `others` with its `status`" in text
+    assert "Cite each row by its `id` only: the tool reads the rest" in text
     assert "`waste-disposal-tfa-france-per-kg-filter-density` (secondary, filter waste only)" in (
         text
     )
