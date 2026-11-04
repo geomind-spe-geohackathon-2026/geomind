@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.51] - 2026-11-05
+
+### Fixed
+
+- QA-009 (seen again): an answer that picks a fixed option (`approve all`) answers only the paths its question offered a value for; a key the question left open is still open, so asking it again no longer says "Already answered in this run, not asked again" for it. The repeated case questions of run f78c671a came from a delegated answer, which QA-010 (0.4.46) handles.
+
 ## [0.4.50] - 2026-11-05
 
 ### Fixed

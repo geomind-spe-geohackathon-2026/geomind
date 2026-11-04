@@ -106,8 +106,10 @@ def answered_paths(events, request):
     A path counts as answered by the first answered question of the tree that named it, alone or
     among others (the run: ``site.air.pressure`` was item 4 of a 19-item question, answered
     ``unknown``, and asked again on its own), and offered no less for it: a value or a
-    confirmation the earlier question did not offer is a new question. Only a question names
-    paths; one naming none has none.
+    confirmation the earlier question did not offer is a new question. An answer that picks a
+    fixed option (``approve all``) answers only the paths its question offered a value for: a path
+    it left open (no value) is still open (QA-009, run 6c5b17e1). Only a question names paths;
+    one naming none has none.
     """
     now = offers(request.message) if request.kind == "question" else {}
     if not now:
@@ -123,7 +125,10 @@ def answered_paths(events, request):
         text = _answer_text(event.output)
         if earlier is None or text is None:
             continue
+        picked = text in [option.value for option in earlier.options or ()]
         for path, offer in offers(earlier.message).items():
+            if picked and not offer:
+                continue
             if path in now and not now[path].news(offer):
                 found.setdefault(path, (earlier, text))
     return found
