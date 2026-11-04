@@ -52,24 +52,13 @@ def run(tmp_path, *arguments):
     return cli.main(["run", "Design it", "--recording", question_run(tmp_path), *arguments])
 
 
-def test_a_free_text_answer_to_options_is_asked_again(tmp_path, monkeypatch, capsys):
-    """Test 4 ended with exit 1 on the piped text; now the options are shown and asked again."""
+def test_a_free_text_answer_to_options_is_taken_as_typed(tmp_path, monkeypatch, capsys):
+    """Test 4 ended with exit 1 on the piped text; it is now the user's typed answer, asked once."""
     monkeypatch.chdir(tmp_path)
-    typed(monkeypatch, PIPED, "use_proposed")
-    assert run(tmp_path, "--answer-retries", "1") == 0
+    typed(monkeypatch, PIPED)
+    assert run(tmp_path) == 0
     output = capsys.readouterr().out
-    assert "answer with one of: use_proposed, give_values" in output
-    assert ": done (" in output
-
-
-def test_retries_spent_stop_the_run_as_waiting(tmp_path, monkeypatch, capsys):
-    """Without ``--answer-retries`` nothing is asked again: the run waits, to be resumed."""
-    monkeypatch.chdir(tmp_path)
-    typed(monkeypatch, PIPED, PIPED)
-    assert run(tmp_path) == cli.WAITING
-    captured = capsys.readouterr()
-    assert ": waiting (" in captured.out and "q1" not in captured.err
-    assert "geomind: answer" not in captured.err
+    assert "answer with one of" not in output and ": done (" in output
 
 
 def test_end_of_input_stops_the_run_as_waiting(tmp_path, monkeypatch, capsys):
@@ -97,7 +86,7 @@ def test_a_waiting_run_is_resumed_with_the_value_of_an_option(tmp_path, monkeypa
 async def test_search_documents_finds_the_project_s_attached_files():
     """Test 4 searched the brief for site values six times and got ``[]`` each time."""
     from geomind.stores import MemoryWorkspace
-    from geomind.tools.gemini.results import search_documents
+    from geomind.tools.gemini.results import search_rag
     from tests.fixtures.calls import call
     from tests.fixtures.sessions import StubSession
 
@@ -105,9 +94,9 @@ async def test_search_documents_finds_the_project_s_attached_files():
     session = StubSession()
     session.workspace = MemoryWorkspace(files={"p": {"brief.md": brief.encode()}})
     query = recorded(76, "search_documents")
-    found = (await call(search_documents, query, session, "p")).output
-    assert found and found[0]["name"] == "brief.md" and "reservoir" in found[0]["text"]
-    assert found[0]["start"] == 0
+    [found] = (await call(search_rag, query, session, "p")).output["matches"]
+    assert found["name"] == "brief.md" and "reservoir" in found["text"]
+    assert found["start"] == 0
 
 
 async def test_a_part_read_from_a_stored_result_is_not_stored_again():

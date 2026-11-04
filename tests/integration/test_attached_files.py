@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from geomind.agents import Designer, Verifier
+from geomind.agents import DesignLead, Reviewer
 from geomind.context import ProblemState
 from geomind.engine import Engine
 from geomind.engine.recovery import recover
@@ -34,8 +34,8 @@ CASE = {
 }
 SCRIPT = [
     uses(ToolCall(id="f1", name="list_files", input={})),
-    uses(ToolCall(id="f2", name="read_document", input={"name": "demand.csv"})),
-    uses(ToolCall(id="f3", name="read_document", input={"name": "requirements.pdf"})),
+    uses(ToolCall(id="f2", name="read_rag", input={"name": "demand.csv"})),
+    uses(ToolCall(id="f3", name="read_rag", input={"name": "requirements.pdf"})),
     uses(ToolCall(id="f4", name="set_case", input={"changes": CASE, "files": ["demand.csv"]})),
     *designer_round(1),
     *verifier_round(1),
@@ -53,7 +53,7 @@ def attached():
 @pytest.fixture
 def passed(monkeypatch):
     """Let gemini's verdict pass, so the run ends without a question."""
-    monkeypatch.setattr("geomind.loops.design.verify_design", lambda _: PASSED)
+    monkeypatch.setattr("geomind.agents.project.drivers.verify_design", lambda _: PASSED)
     monkeypatch.setattr("geomind.engine.hooks.verify_design", lambda _: PASSED)
 
 
@@ -62,17 +62,17 @@ async def run_on_files():
     workspace = attached()
     engine = engine_for(SCRIPT, workspace=workspace)
     start = context("Design a plant from the attached files.", problem=ProblemState(), project="p")
-    result = await DesignLoop(Designer(), Verifier()).run(engine, start)
+    result = await DesignLoop(DesignLead(), Reviewer()).run(engine, start)
     return result, engine, workspace
 
 
 async def test_the_loop_fills_the_case_from_the_files_without_asking(passed):
-    """The designer reads both files, the case takes the CSV's bytes, and nobody is asked."""
+    """The design lead reads both files, the case takes the CSV's bytes, and nobody is asked."""
     result, engine, _ = await run_on_files()
     events = engine.store.load_events(result.run_id)
     assert result.status == "done"
     assert not of_type(events, "request")
-    pdf = [e for e in of_type(events, "tool.result") if e.tool == "read_document"][1]
+    pdf = [e for e in of_type(events, "tool.result") if e.tool == "read_rag"][1]
     assert "Supply temperature" in pdf.output["text"]
     assert recover(events).problem.case["demand"]["heating"]["power"]["file"] == "demand.csv"
 

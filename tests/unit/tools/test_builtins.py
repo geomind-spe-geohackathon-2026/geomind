@@ -30,3 +30,11 @@ async def test_finish_carries_the_answer():
 def test_neither_needs_a_sandbox_or_approval():
     """Both are read tools, so ``ask`` mode lets them through."""
     assert ask_user.effect == "read" and finish.effect == "read"
+
+
+def test_ask_user_says_a_typed_answer_needs_no_options():
+    """#59: the case lead asked for a path and a value with options, and the user could not."""
+    from geomind.tools import ask_user
+
+    text = ask_user.schema()["description"]
+    assert "types an answer of their own" in text and "ask without options" in text

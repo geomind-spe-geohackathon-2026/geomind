@@ -9,16 +9,24 @@ from geomind.tools.gemini.assessment import (
     compute_kpis,
     estimate_costs,
 )
-from geomind.tools.gemini.case import read_case, save_profile, set_case
+from geomind.tools.gemini.case import describe_case, read_case, save_profile, set_case
 from geomind.tools.gemini.catalogue import describe_module, evaluate_module, list_modules
-from geomind.tools.gemini.modules import test_module, write_module
+from geomind.tools.gemini.economics import ask_economics
 from geomind.tools.gemini.origin import accept_case, case_changes
-from geomind.tools.gemini.plants import build_plant, list_plants, read_plant, set_ranges
-from geomind.tools.gemini.results import read_result, search_documents
+from geomind.tools.gemini.plants import (
+    build_plant,
+    list_plants,
+    merge_designs,
+    patch_plant,
+    read_plant,
+    set_ranges,
+)
+from geomind.tools.gemini.results import read_result, search_rag
 from geomind.tools.gemini.runs import list_profiles, read_profile, simulate
 from geomind.tools.gemini.studies import list_studies, read_study
 from geomind.tools.gemini.study import (
     compare,
+    evolve_structure,
     optimize,
     run_study,
     sample_uncertainty,
@@ -28,7 +36,9 @@ from geomind.tools.gemini.study import (
 
 __all__ = [
     "accept_case",
+    "ask_economics",
     "build_plant",
+    "patch_plant",
     "case_changes",
     "check_results",
     "compare",
@@ -36,11 +46,14 @@ __all__ = [
     "describe_module",
     "estimate_costs",
     "evaluate_module",
+    "evolve_structure",
     "list_modules",
     "list_plants",
     "list_profiles",
     "list_studies",
+    "merge_designs",
     "optimize",
+    "describe_case",
     "read_case",
     "read_plant",
     "read_profile",
@@ -49,12 +62,10 @@ __all__ = [
     "run_study",
     "sample_uncertainty",
     "save_profile",
-    "search_documents",
+    "search_rag",
     "sensitivity",
     "set_case",
     "set_ranges",
     "simulate",
     "size_plant",
-    "test_module",
-    "write_module",
 ]

@@ -4,7 +4,7 @@ import geomind as gd
 from examples.support import provider
 from geomind.types import Completion, Usage
 
-ROUTE = '{"kind": "loop", "loop": "tool", "agent": "analyst"}'
+ROUTE = '{"kind": "loop", "loop": "tool", "agent": "analysis_lead"}'
 SCRIPT = [
     Completion(text=ROUTE, model="fake/cheap"),
     Completion(

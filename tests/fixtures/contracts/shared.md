@@ -218,7 +218,7 @@ Each event: `event: <type>`, `data: <json>`, `id: <sequence number>`. The stream
 | `state.changed` | `{version, changes}`; see *Problem state changes* below (emitted from S2) |
 | `request` | `{request, call_id?, kind, message, options?}`; `kind` is `approval` or `question`; `options` is `[{value, label}]` (a question with fixed choices; absent for free text and for approvals); the run is `waiting` |
 | `usage` | `{input_tokens, output_tokens, cost}` (running totals) |
-| `run.finished` | `{status, stop_reason, message?}` |
+| `run.finished` | `{status, stop_reason, message?, suggestions?}` (`suggestions`: the next steps `[{label, message}]`, 1 to 3, on the root run's `done` only; `label` at most 40 characters, `message` at most 200, what the app sends as the user's message when one is picked; in the user's language; absent otherwise and in older logs) |
 | `study.recorded` | `{run, index, call_id?, study, tool, method, designs, best?}` (sent once after a study tool stored the chat artifact `study/<name>`: `study` is that key, `tool` the study tool, `method` gemini's study method, `designs` the plants it ran over, `best` the reference of the design it recommends; the backend adds the study to the project's list) |
 
 **Problem state changes.** `version` is the state version after the change (starts at 1, +1 per event). `changes` is a list of JSON Patch operations (RFC 6902 subset) on the problem state document:
@@ -233,7 +233,7 @@ Each event: `event: <type>`, `data: <json>`, `id: <sequence number>`. The stream
 
 `op` is `add`, `replace` or `remove`; `path` is a JSON Pointer. Lists of items with an `id` (`requirements`, `assumptions`, `results`, `questions`) are addressed by id, not index; `-` appends. The document's top-level keys are `goal`, `requirements`, `assumptions`, `design`, `results`, `verification`, `questions` (shape in `../docs/geomind-design.md` section 3). A client that missed a version reloads the full state (route added with B2 if needed).
 
-**Answers to options.** For a question with `options`, the answer is `{"text": <value>}` and must be one of the listed values (geomind raises `RequestError`; the backend answers `422 validation_failed`); an approval never has `options`; an item appended with `-` to an id-addressed list must carry an `id`; approvals keep `{"approved": true}` or `{"approved": false, "reason": ...}`.
+**Answers to options.** For a question with `options`, the answer is `{"text": <value>}`: one of the listed values, or the user's own typed text, which geomind marks as typed. Only the question at a run's step limit (options exactly `continue` and `stop`, and no call) takes nothing but its options (geomind raises `RequestError`; the backend answers `422 validation_failed`); an approval never has `options`; an item appended with `-` to an id-addressed list must carry an `id`; approvals keep `{"approved": true}` or `{"approved": false, "reason": ...}`.
 
 These are the geomind callback events with `event.is_public` true, forwarded as they are: `event.type` and `event.data()` (JSON-safe). geomind also emits internal events (`llm.completed`, `tool.result`, `permission`, `retry`, `sandbox.provisioned`, `sandbox.closed`, `error`, `compaction`); the backend saves every event through `RunStore.save_event` but streams only public ones. The internal events are the run's source of truth, used for recovery and the full log. `Callback.on_event(engine, event)` receives every event, so a publisher needs one method. The backend adds no event types of its own.
 

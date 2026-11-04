@@ -23,7 +23,7 @@ async def test_max_steps_is_passed_on():
     """The loop owns the limit."""
     engine = Engine(llm=FakeLLM([uses(call("lookup", key="k"))]))
     result = await ToolLoop(Worker(), max_steps=1).run(engine, context())
-    assert result.stop_reason == "step_limit"
+    assert result.status == "waiting" and result.steps == 1
 
 
 def test_state_of_another_agent_is_refused():

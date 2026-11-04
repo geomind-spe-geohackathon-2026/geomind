@@ -6,11 +6,16 @@ yet. So a step continues from any point, after a pause or a crash, without a sec
 
 import asyncio
 
+from geomind import runtime
 from geomind.engine.compaction import compact_history
+from geomind.engine.questions import answered_paths, asking_new, named_paths, reused_answer
+from geomind.engine.recovery import call_key
 from geomind.engine.state import Stop, is_cancel
 from geomind.errors import OutputError, ToolError, UnknownNameError
 from geomind.tools import dispatch
-from geomind.tools.dispatch import error_output
+from geomind.tools.base import with_old_names
+from geomind.tools.dispatch import error_output, is_reported_error
+from geomind.tools.mcp import server_of
 from geomind.types import RULE_MODEL, Completion, Deny, Finish, Request, ToolResult
 from geomind.types.events import (
     LLMCompleted,
@@ -21,6 +26,7 @@ from geomind.types.events import (
     ToolStarted,
     UsageUpdated,
 )
+from geomind.utils.json import to_jsonable
 from geomind.utils.strings import did_you_mean
 
 SUMMARY_CHARACTERS = 200
@@ -51,12 +57,29 @@ async def record_result(session, call, result, **fields):
         output_summary=str(result.output)[:SUMMARY_CHARACTERS],
         duration=result.duration,
         error=str(result.output)[:SUMMARY_CHARACTERS] if result.is_error else None,
+        mcp=server_of(call.name, call.input),
     )
 
 
 def text_result(call, text, **fields):
     """Return a result holding text."""
     return ToolResult(call_id=call.id, tool=call.name, output=text, **fields)
+
+
+async def answered_result(session, tool, call, text):
+    """Return the result of a question a tool asked, made by the tool's ``on_answer``.
+
+    A tool that acts on its answer (``ask_economics`` sets what the user approved) gives what the
+    model reads; an error the model can act on is the result, as in ``dispatch``.
+    """
+    context = session.context().for_call(call.id)
+    try:
+        output = await tool.on_answer(context, call.input, text)
+    except Exception as error:
+        if not is_reported_error(error):
+            raise
+        return text_result(call, error_output(error), is_error=True)
+    return text_result(call, to_jsonable(output))
 
 
 async def _think(session, agent):
@@ -95,19 +118,76 @@ async def _admit(session, agent, tool, call):
     return next(item for item in session.state.calls if item.id == call.id)
 
 
+SAME_NOTE = (
+    "{tool}: the same call (tool and whole input) as step {step}, and nothing was written since, "
+    "so it did not run again: same result as step {step}: {shown}. Sending it again gives "
+    "nothing new and, a few times in a row, ends the run: take the next step of your task."
+)
+"""What a model reads for a call that repeats an earlier successful one (``same_result``)."""
+
+
+def same_result(session, agent, tool, call):
+    """Return the note for a call identical to an earlier successful one of the run, or ``None``.
+
+    Only a tool that ``repeats_same`` qualifies (a pure tool, or a write that sets its input such
+    as ``set_ranges``), and only when no call of a tool that is not pure ran with success since:
+    a write, a nested run or a server's tool may change what the call reads, so then it runs
+    again. A design lead sent one ``set_ranges`` call 37 times, 12.7k characters each.
+    NOTE: a replay takes a recorded call as recorded (``_execute`` asks only without a recorded
+    result), so an older log replays as it ran.
+    """
+    if not tool.repeats_same:
+        return None
+    key = call_key(call.name, call.input)
+    succeeded = session.state.succeeded
+    index = next((i for i in reversed(range(len(succeeded))) if succeeded[i].key == key), None)
+    if index is None:
+        return None
+    later = {item.tool for item in succeeded[index + 1 :]}
+    tools = session.tools_of(agent, sorted(later))
+    if any(name not in tools or not tools[name].is_pure for name in later):
+        return None
+    earlier = succeeded[index]
+    shown = earlier.outline
+    if earlier.reference:
+        shown = f"stored as {earlier.reference}, {earlier.outline}"
+    return SAME_NOTE.format(tool=call.name, step=earlier.step, shown=shown)
+
+
 def _over_retries(session, tool):
-    """Return the stop of a tool that failed validation too often in a row, or ``None``."""
+    """Return the stop of a tool that failed validation too often in a row, or ``None``.
+
+    The same call failing the same way more than the tool's ``max_retries`` times in a row stops
+    the run too: the model is not learning from the error, so going on only spends. So does a
+    call answered from its earlier result (``same_result``) in more steps in a row than that.
+    """
+    if session.state.same_calls > tool.max_retries:
+        return Stop(
+            "error",
+            f"{tool.name}: the same call as an earlier successful one was sent in "
+            f"{session.state.same_calls} steps in a row; the run stops instead of spending more",
+        )
+    if session.state.repeated > tool.max_retries:
+        return Stop(
+            "error",
+            f"{tool.name}: the same call failed {session.state.repeated} times in a row with the "
+            "same error; the run stops instead of spending more",
+        )
     failures = session.state.failures.get(tool.name, 0)
     if failures < tool.max_retries:
         return None
     return Stop("error", f"{tool.name}: {failures} invalid calls in a row")
 
 
-async def _reuse(session, call, recorded):
+async def _reuse(session, tool, call, recorded):
     """Record the stored result of a replay, after the state changes its reused nested runs made."""
     key = (session.state.step, call.id)
     for changes in session.engine.recorded_changes.get(session.state.run_id, {}).get(key, ()):
         await session.change_state(list(changes))
+    answered = getattr(tool, "on_answer", None)
+    output = recorded.output if isinstance(recorded.output, dict) else {}
+    if recorded.source == "answer" and answered is not None and "answer" in output:
+        await answered_result(session, tool, call, output["answer"])
     result = ToolResult(
         call_id=call.id,
         tool=call.name,
@@ -136,20 +216,34 @@ async def _execute(session, agent, tool, call):
     """Run one admitted call and handle what it returned."""
     if call.id not in session.state.started:
         await session.emit(
-            ToolStarted, index=session.state.step, call_id=call.id, tool=call.name, input=call.input
+            ToolStarted,
+            index=session.state.step,
+            call_id=call.id,
+            tool=call.name,
+            input=call.input,
+            mcp=server_of(call.name, call.input),
         )
     results = session.engine.recorded.get(session.state.run_id, {})
     recorded = results.get((session.state.step, call.id))
     if recorded is not None and not _runs_again(session, tool, recorded):
-        await _reuse(session, call, recorded)
+        await _reuse(session, tool, call, recorded)
+        return _over_retries(session, tool)
+    same = same_result(session, agent, tool, call) if recorded is None else None
+    if same is not None:
+        await record_result(session, call, text_result(call, same), source="repeat")
         return _over_retries(session, tool)
     outcome = await dispatch(tool, call, session.context())
     if isinstance(outcome, Finish):
+        session.proposed_suggestions = outcome.suggestions
         return await _gate_answer(session, agent, outcome.answer, call)
     if isinstance(outcome, Request) and session.waiting_child is not None:
         return await session.wait_for_child(outcome, call)
     if isinstance(outcome, Request):
-        return await session.pause(outcome, "tool", call)
+        found = answered_paths(session.engine.store.load_events(session.state.root), outcome)
+        if found and set(found) == named_paths(outcome.message):
+            await record_result(session, call, text_result(call, reused_answer(found)))
+            return _over_retries(session, tool)
+        return await session.pause(asking_new(outcome, found) if found else outcome, "tool", call)
     await record_result(session, call, outcome)
     return _over_retries(session, tool)
 
@@ -172,6 +266,20 @@ async def _refuse_unknown(session, agent, call):
     return Stop("error", f"{call.name}: unknown tool") if failures >= MAX_UNKNOWN_CALLS else None
 
 
+async def _refuse_hidden(session, call):
+    """Answer a call of a tool the run does not offer (the memory is off) without running it.
+
+    NOTE: no validation failure: the model named a tool from its prompt, and the answer says why.
+    """
+    error = ToolError(
+        f"{call.name}: the memory is off for this run (GEOMIND_MEMORY), so {call.name} is not "
+        "offered; call no memory tool and go on without it",
+        code="not_allowed",
+    )
+    result = ToolResult(call_id=call.id, tool=call.name, output=error_output(error), is_error=True)
+    await record_result(session, call, result)
+
+
 def _runs_together(tool):
     """Tell whether a tool runs beside the other calls of its step."""
     return (tool.is_pure or getattr(tool, "runs_beside", False)) and not tool.runs_alone
@@ -180,8 +288,10 @@ def _runs_together(tool):
 async def _run_calls(session, agent):
     """Decide and run the open calls: read and compute tools together, others in order."""
     state = session.state
-    tools = agent.tools()
+    await session.ensure_mcp()
     calls = [call for call in state.calls if call.id not in state.results]
+    tools = session.tools_of(agent, [call.name for call in calls])
+    hidden = session.hidden_tools(agent)
     is_together = all(call.name in tools and _runs_together(tools[call.name]) for call in calls)
     admitted = []
     for call in calls:
@@ -189,6 +299,9 @@ async def _run_calls(session, agent):
             stop = await _refuse_unknown(session, agent, call)
             if stop is not None:
                 return stop
+            continue
+        if call.name in hidden:
+            await _refuse_hidden(session, call)
             continue
         outcome = await _admit(session, agent, tools[call.name], call)
         if isinstance(outcome, Stop):
@@ -239,6 +352,10 @@ async def _gate_answer(session, agent, answer, call):
     if isinstance(decision, Deny):
         await _give_feedback(session, agent, call, decision.reason, "finish")
         return None
+    unfinished = agent.answer_problem(session.context())
+    if unfinished:
+        await _give_feedback(session, agent, call, unfinished, "finish")
+        return None
     try:
         answer = agent.output.validate(answer)
     except OutputError as error:
@@ -275,12 +392,17 @@ async def close_step(session):
 async def run_step(session, agent):
     """Run or continue one step; return a ``Stop`` or ``None`` to go on."""
     state = session.state
+    await session.ensure_mcp()
     if not state.in_step:
         await session.emit(StepStarted, index=state.step + 1, model=agent.model.resolved_name())
     if state.action is None:
         stop = await _think(session, agent)
         if stop is not None:
             return stop
+    if state.is_cut and not state.results:
+        await _retry_cut(session, agent)
+        await close_step(session)
+        return None
     stop = await _run_calls(session, agent)
     if stop is None and state.has_answer:
         stop = Stop(state.stop_reason, answer=state.answer)
@@ -292,6 +414,33 @@ async def run_step(session, agent):
     return stop
 
 
+CUT_NOTE = (
+    "Your last answer stopped at the output limit of one call ({limit} tokens) and was cut, so "
+    "nothing of it ran. Answer again, shorter: think less, and make one small tool call."
+)
+"""What a model reads after a completion the output limit cut."""
+
+
+async def _retry_cut(session, agent):
+    """Tell the model its cut completion did not run; each cut call gets the note as its result."""
+    limit = runtime.get("max_output_tokens")
+    note = CUT_NOTE.format(limit=limit)
+    calls = session.state.calls
+    if not calls:
+        await session.emit(
+            ToolRecorded,
+            index=session.state.step,
+            output=note,
+            is_error=True,
+            source="denied",
+            feedback="length",
+        )
+        return
+    for call in calls:
+        result = text_result(call, note, is_error=True)
+        await record_result(session, call, result, source="denied", feedback="length")
+
+
 async def settle_interrupted(session, agent):
     """Handle calls a crash left started and unrecorded.
 
@@ -299,7 +448,7 @@ async def settle_interrupted(session, agent):
     nobody knows how far it got.
     """
     state = session.state
-    tools = agent.tools()
+    tools = with_old_names(agent.tools())
     for call in state.calls:
         tool = tools.get(call.name)
         is_open = call.id in state.started and call.id not in state.results

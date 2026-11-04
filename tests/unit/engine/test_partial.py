@@ -15,7 +15,7 @@ from geomind.errors import BudgetError
 from geomind.stores import MemoryUsageLedger
 from geomind.types import Deny, Usage
 from tests.fixtures.metered import PRICES, Metered
-from tests.fixtures.runs import Worker, call, context, of_type, says, uses
+from tests.fixtures.runs import Worker, call, context, of_type, says, stopped_at_limit, uses
 
 CAP = 0.01
 
@@ -31,7 +31,10 @@ async def drive(llm, context_=None, agent=None, max_steps=None, hooks=(), callba
         llm=llm, permissions=Permissions(mode="auto"), hooks=list(hooks), callbacks=list(callbacks)
     )
     start = context_ or context()
-    result = await engine.run(agent or Worker(), start, max_steps=max_steps)
+    agent = agent or Worker()
+    result = await stopped_at_limit(
+        engine, await engine.run(agent, start, max_steps=max_steps), agent
+    )
     return result, engine.store.load_events(start.run_id)
 
 

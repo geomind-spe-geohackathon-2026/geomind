@@ -12,10 +12,11 @@ import geomind as gd
 from examples.support import provider
 from geomind.types import Completion, ToolCall
 
-ROUTE = '{"kind": "loop", "loop": "tool", "agent": "code_assistant"}'
+ROUTE = '{"kind": "loop", "loop": "tool", "agent": "analysis_lead"}'
+QUESTION = {"question": "Which heat pump should I size: the one in the plant or a new one?"}
 SCRIPT = [
     Completion(text=ROUTE),
-    Completion(tool_calls=(ToolCall(id="c1", name="run_python", input={"code": "print(1)"}),)),
+    Completion(tool_calls=(ToolCall(id="c1", name="ask_user", input=QUESTION),)),
     Completion(text="Done."),
 ]
 
@@ -35,13 +36,12 @@ def permissions():
     return gd.Permissions(mode="ask")
 
 
-def start_job(root, sandbox_root):
+def start_job(root):
     """Start a run from a chat message; return its id and pending request id."""
     run = gd.Run(
-        message="Run a small script",
+        message="Size the heat pump",
         llm=provider(SCRIPT),
         store=gd.stores.FileRunStore(root),
-        sandbox=gd.sandbox.LocalSandbox(sandbox_root),
         permissions=permissions(),
         callbacks=[Publisher()],
     )
@@ -49,24 +49,23 @@ def start_job(root, sandbox_root):
     return run.id, result.request.id
 
 
-def answer_job(root, sandbox_root, run_id, request_id):
+def answer_job(root, run_id, request_id):
     """Answer the request in a fresh run."""
     run = gd.Run.load(
         run_id,
         llm=provider(SCRIPT[2:]),
         store=gd.stores.FileRunStore(root),
-        sandbox=gd.sandbox.LocalSandbox(sandbox_root),
         permissions=permissions(),
         callbacks=[Publisher()],
     )
-    return run.resume(request_id, {"approved": True})
+    return run.resume(request_id, {"text": "The one in the plant."})
 
 
 def main():
     """Run both jobs and print the log's status."""
     with tempfile.TemporaryDirectory() as folder:
-        run_id, request_id = start_job(f"{folder}/runs", f"{folder}/sandbox")
-        result = answer_job(f"{folder}/runs", f"{folder}/sandbox", run_id, request_id)
+        run_id, request_id = start_job(f"{folder}/runs")
+        result = answer_job(f"{folder}/runs", run_id, request_id)
         log = gd.runlog(gd.stores.FileRunStore(f"{folder}/runs").load_events(run_id))
     print(result.answer, log["run"]["status"], len(log["steps"]))
 

@@ -27,7 +27,6 @@ from geomind.context import ProblemState
 from geomind.engine.callbacks import Callback
 from geomind.providers.base import LLM
 from geomind.run import AGENTS, LOOPS
-from geomind.sandbox.base import Sandbox, SandboxProvider
 from geomind.stores import RunStore, UsageLedger, Workspace
 from geomind.tools.delegate import DelegateInput
 from geomind.types import (
@@ -58,7 +57,7 @@ SHIPPED_HOOKS = (
     "Cancellation",
     "Verified",
 )
-PROTOCOLS = (RunStore, Workspace, UsageLedger, LLM, Sandbox, SandboxProvider)
+PROTOCOLS = (RunStore, Workspace, UsageLedger, LLM)
 
 
 def signature_of(function):
@@ -139,6 +138,9 @@ def command_options(parser):
         if action.dest == "help":
             continue
         flags = action.option_strings or [action.dest]
+        if isinstance(action.choices, dict):
+            options[flags[0]] = {name: command_options(sub) for name, sub in action.choices.items()}
+            continue
         options[flags[0]] = {"choices": action.choices, "default": action.default}
     return options
 

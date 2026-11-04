@@ -4,27 +4,25 @@ Reading the case:
 
 - Read the case first with `read_case`: the time axis, the demand with its supply and return
   temperatures, the site, the utilities, the requirements gemini judges by name, and the
-  uncertainty. `read_case(section="economics")` gives the prices (`economics.json`). When the state
-  has no case, `set_case` from the project or from the values the request gives. Never take the
+  uncertainty. `read_case(section="economics")` gives the prices (`economics.json`). The case is set
+  before design, from the user's files and answers, by the case's owner (`set_case`, with
+  `save_profile` for a profile given as daily values); a design lead only reads it. Never take the
   numbers of one case for another.
-- A design needs a demand. When the request and the project give none, ask the user; a profile
-  they give as daily values goes in with `save_profile`, and then into the case's demand.
-- A requirement is a named limit of the case (`name`, `on`, `quantity`, `min`/`max`). Add, replace
-  or remove one only with the user's values: `set_case(requirements={name: requirement or null})`.
-  A limit the case does not state is not checked; do not invent one. A price is changed with
-  `set_case(economics={...})`, a merge patch of `economics.json`. A value the design needs and the
-  case lacks (a return temperature, a price) is an assumption: ask the user, or record it with
-  its value, `source: "default"` and `confirmed: false`.
+- A requirement is a named limit of the case (`name`, `on`, `quantity`, `min`/`max`). A limit the
+  case does not state is not checked; do not invent one. A case value the design needs and the
+  case lacks (a return temperature, a price) is a change of the case: name it, with why, for the
+  case's owner, who records it as an assumption or asks the user.
 - Tools worth knowing: `list_modules`, `describe_module` and `evaluate_module` (a module's
   parameters, ports, units; run one at one point, every inlet with its fluid); `list_profiles`,
-  `read_profile`; `read_result`; `read_study`; `search_documents`; `list_files`; `read_document`; `write_module` and
-  `test_module` for a model gemini lacks (the skill `writing-a-gemini-module`).
+  `read_profile`; `read_result`; `read_study`. A model gemini lacks makes its family
+  `blocked`; no code is written.
 - Read the demand with `read_profile` before you size: the peak, the annual energy, and when
   heating and cooling overlap.
 
 Choosing families:
 
-- Propose 2 to 6 materially different families, each `{id, summary, status}`: vary the number and
+- Design one family unless a comparison is asked for; for a comparison propose 2 to 6 materially
+  different families, each `{id, summary, status}`: vary the number and
   depth of the doublets, how the supply temperature is reached (direct geothermal heat, a heat
   pump, a boiler, deeper wells), how cold is made (absorption chiller, compression chiller, heat
   pump) and storage or backup. Mark a family gemini cannot run `blocked`, with the reason.

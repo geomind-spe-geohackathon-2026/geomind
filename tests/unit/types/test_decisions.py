@@ -52,12 +52,21 @@ def test_approvals_have_no_options():
         Request(kind="approval", message="m", options=["a"])
 
 
-def test_answer_to_options_is_a_value():
-    """The answer is the value, never the label or anything else."""
-    request = Request(kind="question", message="m", options=[{"value": "b", "label": "B"}])
-    assert validate_answer(request, {"text": "b"}) == {"text": "b"}
-    with pytest.raises(RequestError, match="value of one option"):
-        validate_answer(request, {"text": "B"})
+def test_an_answer_that_is_no_option_is_typed_text():
+    """The run: the user's values to [approve all, change some, stop] were refused; now typed."""
+    from geomind.types.decisions import is_typed, typed_answer
+
+    options = ["approve all", "change some", "stop"]
+    request = Request(kind="question", message="m", options=options)
+    text = (
+        "demand.heating.return_temperature and demand.cooling.return_temperature: the "
+        "designers' choice. Everything else in this list: unknown."
+    )
+    assert validate_answer(request, {"text": text}) == {"text": text}
+    assert is_typed(request, text) and not is_typed(request, "change some")
+    assert typed_answer(request, "change some") == "change some"
+    assert typed_answer(request, text).endswith(text) and "typed" in typed_answer(request, text)
+    assert not is_typed(Request(kind="question", message="m"), text)
 
 
 def test_cancel_is_a_deny():

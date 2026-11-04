@@ -10,6 +10,8 @@ TOOL_ERROR_CODES = (
     "no_case",
     "case_incomplete",
     "files_unavailable",
+    "knowledge_unavailable",
+    "mcp_unavailable",
     "not_text",
     "nested_stopped",
     "context_exceeded",

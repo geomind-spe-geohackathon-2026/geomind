@@ -2,8 +2,21 @@
   "$defs": {
     "Assumption": {
       "additionalProperties": false,
-      "description": "A value the work relies on, and where it came from.",
+      "description": "A value the work relies on, and where it came from.\n\n``reason`` says why a value was chosen; ``citation`` holds the details of a published source,\nsuch as ``title``, ``publisher``, ``year``, ``price_year``, ``currency``, ``page`` or ``link``\nand a ``note``, so the explainer and the export can show them.",
       "properties": {
+        "citation": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Citation"
+        },
         "confirmed": {
           "default": false,
           "title": "Confirmed",
@@ -12,6 +25,18 @@
         "id": {
           "title": "Id",
           "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
         },
         "source": {
           "default": "agent",
@@ -150,7 +175,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "The notes of one chat; ``version`` is raised by one with every change.\n\nNOTE: the state is frozen, so a change is always a new state and the only writer is ``apply`` of\nthe engine, over events. ``case_origin`` is ``{case, files}``, the case the user or the project\ngave, which ``set_case`` writes and verification compares the case with. NOTE: ``compaction``\nis kept here because ``save_state`` is the only\nper-chat storage of the contract, and ``load_history`` always returns every message. It is no\nkey of the document: a patch cannot reach it and ``render`` does not show it.",
+  "description": "The notes of one chat; ``version`` is raised by one with every change.\n\nNOTE: the state is frozen, so a change is always a new state and the only writer is ``apply`` of\nthe engine, over events. ``preferences`` are what the user said about how they work, such as\nthe units they read, set from the coordinator's route. ``case_origin`` is ``{case, files}``,\nthe case the user or the project\ngave, which ``set_case`` writes and verification compares the case with. NOTE: ``compaction``\nis kept here because ``save_state`` is the only\nper-chat storage of the contract, and ``load_history`` always returns every message. It is no\nkey of the document: a patch cannot reach it and ``render`` does not show it.",
   "properties": {
     "assumptions": {
       "default": [],
@@ -207,6 +232,12 @@
       "default": "",
       "title": "Goal",
       "type": "string"
+    },
+    "preferences": {
+      "additionalProperties": true,
+      "default": {},
+      "title": "Preferences",
+      "type": "object"
     },
     "questions": {
       "default": [],

@@ -1,7 +1,7 @@
 # geomind Python package
 
 geomind is the agent harness of the crust-team product: agents, an engine over an event log,
-tools, permissions, a sandbox for model-written code, and the `Run` facade the backend uses.
+tools, permissions, and the `Run` facade the backend uses.
 `gemini` is its physics library.
 
 Use `import geomind as gd`. `gm` stays gemini's alias.
@@ -29,8 +29,8 @@ Read every file in `.claude/docs/` before changing the repository:
 - [Providers](.claude/docs/providers.md): the `LLM` protocol, retries, `OpenRouter` and `FakeLLM`.
 - [Hooks](.claude/docs/hooks.md): decision points, decisions and the shipped hooks.
 - [Permissions](.claude/docs/permissions.md): rules, modes and the fixed decision order.
-- [Sandbox](.claude/docs/sandbox.md): where model-written code runs and what it cannot reach.
 - [Runtime](.claude/docs/runtime.md): context-local settings.
+- [MCP](.claude/docs/mcp.md): the tools of the MCP servers a run is given.
 - [Errors](.claude/docs/errors.md): the `gd.errors` classes and when each is raised.
 - [Evals](.claude/docs/evals.md): testing an agent by tasks, offline or live.
 - [Testing](.claude/docs/testing.md): tiers, test profiles, budgets, fixtures and CI.
@@ -61,14 +61,14 @@ geomind/
 ├── types/            # messages, decisions, results, events, redaction, runlog
 ├── stores/           # RunStore, Workspace and their memory and file implementations
 ├── runtime.py        # context-local settings
-├── prompts/          # <area>/<role>.md files, skills/*.md and Prompt
+├── prompts/          # <team>/<name>.md role files, skills/*.md and Prompt
 ├── context/          # problem state, compaction, skills: the deterministic part
 ├── providers/        # LLM protocol, retry layer, OpenRouter, FakeLLM
+├── mcp/              # a small MCP client: list_tools, McpClient, McpError
 ├── schemas/          # JSON schemas and samples of the exchanged documents, generated
-├── sandbox/          # Sandbox and SandboxProvider protocols, Manifest, local, docker
-├── tools/            # Tool, tool decorator, dispatch, built-ins, code tools, Delegate, gemini/
+├── tools/            # Tool, tool decorator, dispatch, built-ins, Delegate, Team, gemini/
 ├── verify/           # verification of a design over gemini's checks
-├── agents/           # Agent, AgentResult, Model, Output, and one folder per area of agents
+├── agents/           # Agent, AgentResult, Model, Output; <team>/<name>.py per agent
 ├── engine/           # engine, session, step, delegation, log, recovery, state, context,
 │                     # callbacks, hooks, permissions, replay, compaction
 └── loops/            # Loop, ToolLoop, DesignLoop, CompareLoop

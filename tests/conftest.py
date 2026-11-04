@@ -142,6 +142,7 @@ TEST_CHEAP_MODEL = TEST_MODEL
 TEST_CONTEXT_WINDOW = "128000"
 TEST_RETRY_COUNT = "3"
 TEST_RETRY_DELAY = "0.5"
+TEST_MAX_STEPS = "30"
 
 
 @pytest.fixture(autouse=True)
@@ -153,12 +154,27 @@ def no_env_files(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def deployment_settings(monkeypatch):
-    """Name the models, the context window and the retries as a deployment does."""
-    monkeypatch.setenv("GEOMIND_MODEL", TEST_MODEL)
-    monkeypatch.setenv("GEOMIND_CHEAP_MODEL", TEST_CHEAP_MODEL)
+    """Name the models, the context window, the retries and the steps as a deployment does."""
+    from geomind.runtime import ROLES, model_variable
+
+    for role in ROLES:
+        cheap = role in ("coordinator", "summarizer")
+        monkeypatch.setenv(model_variable(role), TEST_CHEAP_MODEL if cheap else TEST_MODEL)
     monkeypatch.setenv("GEOMIND_CONTEXT_WINDOW", TEST_CONTEXT_WINDOW)
     monkeypatch.setenv("GEOMIND_RETRY_COUNT", TEST_RETRY_COUNT)
     monkeypatch.setenv("GEOMIND_RETRY_DELAY", TEST_RETRY_DELAY)
+    monkeypatch.setenv("GEOMIND_MAX_STEPS", TEST_MAX_STEPS)
+    monkeypatch.setenv("GEOMIND_MEMORY", "off")
+    monkeypatch.setenv("GEOMIND_MAX_OUTPUT_TOKENS", "16000")
+    monkeypatch.setenv("GEOMIND_DESIGN_CONCURRENCY", "3")
+    monkeypatch.setenv("GEOMIND_ENGINEER_MAX_STEPS", "12")
+    monkeypatch.setenv("GEOMIND_EVOLVE_EVALUATIONS", "40")
+    monkeypatch.setenv("GEOMIND_EVOLVE_POPULATION", "8")
+    monkeypatch.setenv("GEOMIND_EVOLVE_SEED", "0")
+    monkeypatch.setenv("GEOMIND_EVOLVE_POLISH", "0")
+    monkeypatch.setenv("GEOMIND_KNOWLEDGE_DIR", str(ROOT / "data" / "knowledge"))
+    monkeypatch.setenv("GEOMIND_MCP_SERVERS", "[]")
+    monkeypatch.setenv("GEOMIND_MCP_TIMEOUT", "10")
 
 
 @pytest.fixture(autouse=True)

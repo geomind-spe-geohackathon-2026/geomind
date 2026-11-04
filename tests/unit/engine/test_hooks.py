@@ -292,7 +292,7 @@ def test_an_unknown_result_is_refused(stored):
 
 
 def test_a_nested_run_hands_its_design_back_without_the_hook(stored):
-    """Only the root run answers the user; a designer may return a failing design to its loop."""
+    """Only the root run answers the user; a design lead may return a failing design to its loop."""
     context = stored["peak"]
     context.session.state.parent = "run-root"
     try:

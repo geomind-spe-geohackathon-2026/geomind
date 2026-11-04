@@ -1,4 +1,4 @@
-"""A nested run: its id, its events, its sandbox, its pause and its place in the log."""
+"""A nested run: its id, its events, its pause and its place in the log."""
 
 import pytest
 
@@ -7,9 +7,8 @@ from geomind import runtime
 from geomind.engine import Engine, Permissions
 from geomind.engine.recovery import recover
 from geomind.providers import FakeLLM
-from geomind.sandbox import LocalSandbox
 from geomind.stores.run import MemoryRunStore
-from tests.fixtures.runs import EXECUTED, Lead, call, context, of_type, says, uses
+from tests.fixtures.runs import EXECUTED, Lead, call, context, of_type, says, stopped_at_limit, uses
 
 HELP = call("helper", "d1", task="find it")
 
@@ -27,7 +26,7 @@ async def nested(script, **options):
     options.setdefault("permissions", Permissions(mode="auto"))
     engine = Engine(llm=FakeLLM(script), **options)
     start = context("lead the work")
-    result = await engine.run(Lead(), start)
+    result = await stopped_at_limit(engine, await engine.run(Lead(), start))
     return result, engine, engine.store.load_events(start.run_id)
 
 
@@ -64,23 +63,6 @@ async def test_usage_of_the_nested_run_adds_to_the_parent():
     """Three completions, three times the usage."""
     result, _, _ = await nested([uses(HELP), says("found"), says("end")])
     assert result.usage.input_tokens == 30
-
-
-async def test_nested_run_has_its_own_sandbox(tmp_path):
-    """Parent and child do not share a sandbox, and both close."""
-    _, _, events = await nested(
-        [
-            uses(call("run_python", "p1", code="print(1)")),
-            uses(HELP),
-            uses(call("run_python", "n1", code="print(2)")),
-            says("found"),
-            says("end"),
-        ],
-        sandbox=LocalSandbox(tmp_path),
-    )
-    runs = [event.run_id for event in of_type(events, "sandbox.provisioned")]
-    assert len(runs) == 2 and len(set(runs)) == 2
-    assert len(of_type(events, "sandbox.closed")) == 2
 
 
 async def test_failed_nested_run_is_an_error_result():
@@ -257,3 +239,25 @@ async def test_step_usage_includes_the_nested_run():
     _, _, events = await nested([uses(HELP), says("found"), says("end")])
     parent_steps = [e for e in of_type(events, "step.finished") if e.parent is None]
     assert parent_steps[0].usage.input_tokens == 20
+
+
+async def test_a_nested_run_does_not_ask_what_another_nested_run_asked():
+    """The design lead asked ``site.air.pressure``, then the case lead asked it again (bug 7)."""
+    again = call("helper", "d2", task="find it again")
+    script = [
+        uses(HELP),
+        uses(call("ask_user", "q1", question="Give site.air.pressure.")),
+        says("asked"),
+        uses(again),
+        uses(call("ask_user", "q2", question="site.air.pressure is missing: give it.")),
+        says("reused"),
+        says("end"),
+    ]
+    result, engine, _ = await nested(script)
+    assert result.status == "waiting"
+    final = await engine.resume(result.run_id, result.request.id, {"text": "unknown"})
+    assert final.status == "done" and final.answer == "end"
+    events = engine.store.load_events(final.run_id)
+    assert [e.request.call_id for e in of_type(events, "request")] == ["q1"]
+    reused = next(e for e in of_type(events, "tool.result") if e.call_id == "q2")
+    assert "Not asked again" in reused.output and "'unknown'" in reused.output

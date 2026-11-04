@@ -109,6 +109,106 @@ async def test_changes_merge_into_the_state_case():
     assert ground["surface_temperature"] == {"value": 9, "unit": "degC"}
 
 
+@pytest.mark.parametrize("unit", ["degC/km", "°C/km", "C/km"])
+async def test_a_gradient_in_degrees_per_km_is_set_as_kelvin_per_km(unit):
+    """A gradient gemini 0.6.2 refuses (request 31) is set as K/km, the same number, and listed."""
+    session, problem = await loaded("shallow_district")
+    changes = {"site": {"ground": {"gradient": {"value": 30, "unit": unit}}}}
+    result = await edited(session, problem, {"changes": changes})
+    assert result.is_error is False, result.output
+    assert state_after(session, problem).case["site"]["ground"]["gradient"] == {
+        "value": 30,
+        "unit": "K/km",
+    }
+    (entry,) = result.output["converted"]
+    assert entry["path"] == "site.ground.gradient"
+    assert entry["from"] == {"value": 30, "unit": unit}
+    assert entry["to"] == {"value": 30, "unit": "K/km"}
+    assert "request 31" in entry["reason"]
+
+
+async def test_a_gas_fraction_in_mol_percent_is_gemini_s_to_convert():
+    """A gas in ``mol%`` is set as given (gemini 0.6.2, request 15); ``%`` is named ``mol%``."""
+    session, problem = await loaded("shallow_district")
+    gas = {"CH4": {"value": 92, "unit": "mol%"}, "CO2": {"value": 8, "unit": "%"}}
+    changes = {"site": {"fluid": {"dissolved_gas": gas}}}
+    result = await edited(session, problem, {"changes": changes})
+    assert result.is_error is False, result.output
+    fluid = state_after(session, problem).case["site"]["fluid"]
+    assert fluid["dissolved_gas"] == {
+        "CH4": {"value": 92, "unit": "mol%"},
+        "CO2": {"value": 8, "unit": "mol%"},
+    }
+    (entry,) = result.output["converted"]
+    assert entry["path"] == "site.fluid.dissolved_gas.CO2"
+    assert entry["to"] == {"value": 8, "unit": "mol%"}
+    assert gas["CO2"] == {"value": 8, "unit": "%"}
+
+
+async def test_every_problem_of_a_case_comes_back_in_one_call():
+    """Three wrong values come back in one answer (gemini 0.6.2 judges the whole case, 13).
+
+    The answer names the count, each path and the accepted units by path; nothing is stored.
+    """
+    session, problem = await loaded("shallow_district")
+    changes = {
+        "site": {
+            "ground": {"gradient": {"value": 30, "unit": "K/s"}},
+            "fluid": {"density": {"value": 1030, "unit": "kg"}},
+        },
+        "demand": {"heating": {"supply_temperature": {"value": "hot", "unit": "degC"}}},
+    }
+    result = await edited(session, problem, {"changes": changes})
+    error = result.output["error"]
+    assert result.is_error and "problems at 3 paths" in error["message"]
+    for path in ("site.ground.gradient.unit", "site.fluid.density.unit", "supply_temperature"):
+        assert path in error["message"]
+    assert "site.ground.gradient: accepted units: K/km, K/m" in error["suggestions"]
+    assert "site.fluid.density: accepted units: g/m3, kg/m3, mg/l" in error["suggestions"]
+    assert state_after(session, problem).case == problem.case
+
+
+async def test_unit_names_as_sources_print_them_are_set_as_gemini_s_names():
+    """#118: units as sources print them are set under gemini's names, the same numbers.
+
+    ``kg/m³``, ``mPa·s``, ``Nm³/m³``, ``MWcool`` and ``m³/h``, each listed with "unit name".
+    """
+    session, problem = await loaded("shallow_district")
+    fluid = {
+        "density": {"value": 1030, "unit": "kg/m³"},
+        "viscosity": {"value": 0.4, "unit": "mPa·s"},
+        "gas_liquid_ratio": {"value": 0.8, "unit": "Nm³/m³"},
+    }
+    changes = {"site": {"fluid": fluid}, "demand": {"cooling": {"power": {"unit": "MWcool"}}}}
+    flow = {"on": "doublet", "quantity": "production_flow", "over": "each", "max": 300}
+    requirements = {"max_flow": {**flow, "unit": "m³/h"}}
+    result = await edited(session, problem, {"changes": changes, "requirements": requirements})
+    assert result.is_error is False, result.output
+    case = state_after(session, problem).case
+    assert case["site"]["fluid"]["density"] == {"value": 1030, "unit": "kg/m3"}
+    assert case["site"]["fluid"]["viscosity"] == {"value": 0.4, "unit": "mPa.s"}
+    assert case["demand"]["cooling"]["power"]["unit"] == "MW"
+    assert [item["unit"] for item in case["requirements"] if item["name"] == "max_flow"] == ["m3/h"]
+    converted = {entry["path"]: entry for entry in result.output["converted"]}
+    assert set(converted) == {
+        "site.fluid.density",
+        "site.fluid.viscosity",
+        "site.fluid.gas_liquid_ratio",
+        "demand.cooling.power",
+        "requirements.max_flow",
+    }
+    assert converted["site.fluid.gas_liquid_ratio"]["to"] == {"value": 0.8, "unit": "Nm3/m3"}
+    assert {entry["reason"] for entry in converted.values()} == {"unit name"}
+
+
+async def test_a_case_with_gemini_s_own_units_has_no_converted_list():
+    """Nothing mapped, nothing listed: the result keeps its two keys."""
+    session, problem = await loaded("shallow_district")
+    changes = {"site": {"ground": {"gradient": {"value": 30, "unit": "K/km"}}}}
+    result = await edited(session, problem, {"changes": changes})
+    assert set(result.output) == {"case", "version"}
+
+
 @pytest.mark.parametrize("key", ["requirements", "economics"])
 async def test_changes_refuse_the_keys_with_their_own_argument(key):
     """``requirements`` and ``economics`` have an argument each, and the error says which."""
@@ -171,6 +271,22 @@ async def test_a_rejected_requirement_stores_nothing():
     assert result.output["error"]["path"].startswith("requirements[")
     assert "expected a number" in result.output["error"]["message"]
     assert (len(session.changes), session.artifacts) == before
+
+
+async def test_an_efficiency_in_percent_with_no_unit_is_refused_with_its_fraction():
+    """#130: nemotron set pump_efficiency min 70 max 70; gemini reads that as 70, not 0.7."""
+    session, problem = await loaded("hackathon_2026")
+    before = len(session.changes)
+    recorded = {"on": "doublet", "quantity": "pump_efficiency", "min": 70, "max": 70}
+    result = await edited(session, problem, {"requirements": {"pump_efficiency": recorded}})
+    assert result.is_error is True
+    error = result.output["error"]
+    assert "a fraction 0-1: 0.7, not 70" in error["message"]
+    assert error["path"].startswith("requirements[") and error["code"] == "out_of_bounds"
+    assert len(session.changes) == before
+    right = {**recorded, "min": 0.7, "max": 0.7}
+    result = await edited(session, problem, {"requirements": {"pump_efficiency": right}})
+    assert result.is_error is False, result.output
 
 
 async def test_economics_is_a_merge_patch_on_its_file_stored_as_a_new_content():
@@ -424,6 +540,14 @@ async def test_a_tool_without_a_case_says_no_case():
     assert result.output["error"]["message"].startswith("case: the problem state has no case")
 
 
+async def test_no_case_in_a_project_with_a_case_file_says_to_load_it():
+    """A model read ``no_case`` as "the project has no case"; the error names the case file."""
+    result = await call(read_case, {}, project_session("hackathon_2026"), project="p")
+    error = result.output["error"]
+    assert error["code"] == "no_case"
+    assert "the project has a case file: set_case(source='project') loads it" in error["message"]
+
+
 async def test_a_tool_on_an_incomplete_case_names_what_is_missing():
     """A case gemini cannot read for missing values keeps gemini's message and lists the paths."""
     data = {key: value for key, value in example_case("shallow_district")[0].items()}
@@ -553,3 +677,18 @@ async def test_a_missing_search_range_stays_gemini_s_error():
         problems=[{"path": "params.depth.range", "code": "missing_value"}],
     )
     assert error_output(error)["error"]["code"] == "missing_value"
+
+
+async def test_a_section_the_case_lacks_says_it_is_unset():
+    """#107: a section the case has not set says so, not "did you mean 'about'?"."""
+    session, problem = await loaded("hackathon_2026")
+    data = {key: value for key, value in problem.case.items() if key != "about"}
+    problem = problem.model_copy(update={"case": data})
+    error = (await call(read_case, {"section": "about"}, session, "p", problem)).output["error"]
+    assert error["code"] == "unknown_name" and "the case has no 'about'" in error["message"]
+
+
+def test_set_case_takes_changes_sent_as_json_text():
+    """A model sent ``changes`` as its JSON text twice and the run ended (#67)."""
+    arguments = set_case.validate({"changes": '{"format": 1, "site": {"name": "a"}}'})
+    assert arguments["changes"] == {"format": 1, "site": {"name": "a"}}

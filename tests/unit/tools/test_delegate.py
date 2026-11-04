@@ -2,13 +2,14 @@
 
 import pytest
 
+import geomind as gd
 from geomind import runtime
 from geomind.engine import Context
 from geomind.tools import Delegate, dispatch
 from geomind.types import Request, RunResult, ToolCall
 from tests.fixtures.runs import Worker
 from tests.fixtures.runs import call as fixture_call
-from tests.fixtures.runs import context, engine_for, uses
+from tests.fixtures.runs import context, engine_for, stopped_at_limit, uses
 from tests.fixtures.sessions import StubSession
 
 
@@ -48,6 +49,16 @@ async def test_answer_is_cut_to_the_token_limit():
     )
     assert result.output == "x" * 40
     assert session.delegated[1] == "do it"
+
+
+async def test_a_typed_answer_comes_back_as_json():
+    """A typed answer is JSON text the parent can parse, not Python's repr of a dict."""
+    import json
+
+    session = StubSession()
+    session.result = RunResult(run_id="c", status="done", answer={"values": [1], "ok": True})
+    result = await dispatch(Delegate(Helper()), call(), Context(session=session))
+    assert json.loads(result.output) == {"values": [1], "ok": True}
 
 
 async def test_waiting_nested_run_pauses_the_parent():
@@ -105,5 +116,86 @@ async def test_a_crash_leaves_no_message_on_the_result():
 async def test_a_step_limit_leaves_its_message_on_the_result():
     """A stop that is no crash says why, for the parent of a nested run."""
     engine = engine_for([uses(fixture_call("lookup", key="k"))] * 3)
-    result = await engine.run(Worker(), context(), max_steps=2)
+    result = await stopped_at_limit(engine, await engine.run(Worker(), context(), max_steps=2))
     assert result.stop_reason == "step_limit" and "2 steps" in result.message
+
+
+async def test_a_limited_delegate_without_its_setting_is_refused():
+    """``design_concurrency`` has no default: unset, the call says which variable to set."""
+    session = StubSession()
+    session.result = RunResult(run_id="c", status="done", answer="x")
+    with runtime.settings(design_concurrency=None):
+        result = await dispatch(
+            Delegate(Helper(), limit="design_concurrency"), call(), Context(session=session)
+        )
+    assert result.is_error and "GEOMIND_DESIGN_CONCURRENCY" in result.output["error"]["message"]
+
+
+async def test_limited_delegates_run_at_most_the_setting_at_once():
+    """Three calls with a limit of two: never more than two nested runs at the same time."""
+    import asyncio
+
+    running, most = [0], [0]
+
+    class Session(StubSession):
+        async def delegate(self, agent, task, max_steps=None):
+            running[0] += 1
+            most[0] = max(most[0], running[0])
+            await asyncio.sleep(0.01)
+            running[0] -= 1
+            return RunResult(run_id="c", status="done", answer=task)
+
+    session = Session()
+    delegate = Delegate(Helper(), limit="design_concurrency")
+    with runtime.settings(design_concurrency=2):
+        results = await asyncio.gather(
+            *(dispatch(delegate, call(f"t{n}"), Context(session=session)) for n in range(3))
+        )
+    assert [result.output for result in results] == ["t0", "t1", "t2"] and most[0] == 2
+
+
+async def test_a_delegate_s_own_step_limit_ends_the_nested_run_without_a_question():
+    """An engineer at its own limit hands back what it has; the run asks the user nothing."""
+    from tests.fixtures.runs import Worker, of_type, run, says
+
+    class Lead(gd.Agent):
+        """Delegates to a worker with its own step limit."""
+
+        def __init__(self):
+            super().__init__()
+            self.helper = Delegate(Worker(), steps="engineer_max_steps")
+            self.model = gd.Model("fake/model")
+
+    looping = [uses(fixture_call("lookup", f"l{n}", key="k")) for n in range(3)]
+    script = [uses(fixture_call("helper", "h", task="go")), *looping, says("lead done")]
+    with runtime.settings(engineer_max_steps=2):
+        result, _, events = await run(script, agent=Lead())
+    assert result.status == "done" and result.answer == "lead done"
+    assert of_type(events, "request") == []
+    nested = [e for e in of_type(events, "run.finished") if e.agent == "worker"]
+    assert nested[0].stop_reason == "step_limit"
+
+
+async def test_a_delegate_s_step_setting_unset_is_refused_with_its_variable():
+    """``engineer_max_steps`` has no default."""
+    session = StubSession()
+    session.result = RunResult(run_id="c", status="done", answer="x")
+    with runtime.settings(engineer_max_steps=None):
+        result = await dispatch(
+            Delegate(Helper(), steps="engineer_max_steps"), call(), Context(session=session)
+        )
+    assert result.is_error and "GEOMIND_ENGINEER_MAX_STEPS" in result.output["error"]["message"]
+
+
+async def test_a_once_delegate_runs_one_time_per_run():
+    """The case lead asked its geoscientist six times in one run (Track A project run)."""
+    session = StubSession()
+    session.result = RunResult(run_id="c", status="done", answer="findings")
+    delegate = Delegate(Helper(), once=True)
+    first = await dispatch(delegate, call(), Context(session=session))
+    again = await dispatch(delegate, call("do it again"), Context(session=session))
+    assert first.output == "findings"
+    assert again.output["error"]["code"] == "already_asked"
+    other = StubSession()
+    other.result = session.result
+    assert (await dispatch(delegate, call(), Context(session=other))).output == "findings"

@@ -20,7 +20,7 @@ and `case_origin`. It is frozen: a change is a new state.
 |---|---|
 | `goal` | text |
 | `requirements` | `[{id, text, case_requirement, status}]`: the user's words; `case_requirement` is the `name` of the case requirement that gemini judges, or null; `status` starts `open` |
-| `assumptions` | `[{id, text, value, source, confirmed}]`; `source` is `user`, `agent` or `default` |
+| `assumptions` | `[{id, text, value, source, confirmed, reason, citation}]`; `source` is `user`, `agent` or `default`; `reason` and `citation` (a published source's details) are optional |
 | `design` | an object, free in shape; `reference` names the current `design/<name>`, `result` its whole-year run, `start_result` the sized start's run and `alternatives` the other families simulated, `[{family, design, result}]` |
 | `results` | `[{id, summary, reference}]`; `reference` names the stored data |
 | `verification` | an object, free in shape; `result` names the `result/<id>` that verifies the design, which `Verified` checks again |
@@ -83,7 +83,7 @@ names and the files of the demand series.
   case. `verify_design` fails a design with `case_changed` while any difference is left, so no
   agent passes by weakening the case. The design loop then asks the user: `approve` runs
   `accept_case` (only the driver holds it), which makes the current case the origin; `restore`
-  sends the designer back to `set_case(source="origin")`.
+  sends the design lead back to `set_case(source="origin")`.
 - **Who reads it.** `read_case(section=None)` returns the case, a section, `economics` (the
   parsed content of the economics file) or `schema` (`gm.Case.schema()` with
   `gm.case.Economics.schema()` under `economics_schema`). The gemini tools read the case through
@@ -118,7 +118,10 @@ once and not on every message. That key is outside the patchable document: a pat
 [tools.md](tools.md#dispatch)) is whole in the step after its call; once a later assistant message
 exists, its message is `stored_form` (kept in `RunState.stored`, built by `apply` from the
 `tool.result` event, so a replay or a recovery gives the same text). A call input over 800
-characters in an older assistant message becomes `{"shortened": outline}`. A message changes once, so
+characters in an older assistant message becomes an empty input, and its outline a line of the
+message's text, `[<tool> was called with long arguments, left out of this history: <outline>. They
+are no input to send again.]`, so nothing call-shaped is left to copy (a copied
+`{"shortened": ...}` of older logs is refused, naming the real arguments). A message changes once, so
 the prefix before it stays the same for the provider's cache, and the dynamic part stays last. The
 log and the store keep everything; compaction sees the shortened text. An event without a reference
 (0.4.x, or a short result) is never shortened.

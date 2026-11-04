@@ -33,7 +33,7 @@ def test_memory_workspace_keeps_projects_apart():
     """Values belong to one project."""
     workspace = MemoryWorkspace({"a": {"P": {"kind": "plant"}}}, {"a": DOCUMENTS})
     assert workspace.plants("a") == {"P": {"kind": "plant"}} and workspace.plants("b") == {}
-    assert workspace.documents("b", "heat") == []
+    assert workspace.rag("b", "heat") == []
 
 
 def test_file_workspace_reads_text_files(tmp_path):
@@ -43,7 +43,7 @@ def test_file_workspace_reads_text_files(tmp_path):
     (folder / "a.md").write_text("heat")
     (folder / "b.txt").write_text("heat")
     (folder / "c.bin").write_text("heat")
-    found = FileWorkspace(tmp_path).documents("p", "heat")
+    found = FileWorkspace(tmp_path).rag("p", "heat")
     assert sorted(item["id"] for item in found) == ["a.md", "b.txt"]
 
 
@@ -178,3 +178,19 @@ def test_a_file_workspace_stays_in_the_files_folder(tmp_path, name):
     (tmp_path / "p" / "files").mkdir(parents=True)
     (tmp_path / "p" / "secret.txt").write_text("secret")
     assert FileWorkspace(tmp_path).file("p", name) is None
+
+
+def test_the_files_a_case_names_beside_it_are_project_files(tmp_path):
+    """#61: the case lead said the project had no files while case.json named two CSVs beside it."""
+    import json
+
+    folder = tmp_path / "p"
+    folder.mkdir()
+    power = {"file": "heat.csv", "column": "mw", "unit": "MW"}
+    case = {"format": 1, "kind": "case", "name": "c", "demand": {"heating": {"power": power}}}
+    (folder / "case.json").write_text(json.dumps(case))
+    (folder / "heat.csv").write_text("time,mw\n2027-01-01,1\n")
+    workspace = FileWorkspace(tmp_path)
+    assert [row["name"] for row in workspace.files("p")] == ["heat.csv"]
+    assert workspace.file("p", "heat.csv").startswith(b"time,mw")
+    assert workspace.file("p", "case.json") is None

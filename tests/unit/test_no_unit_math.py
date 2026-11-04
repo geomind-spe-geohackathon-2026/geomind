@@ -7,8 +7,11 @@ import pytest
 from tests.fixtures import ROOT
 from tests.unit.test_gemini_names import geomind_files
 
-FACTORS = {0.001, 1e-6, 3.6, 60, 3600, 86400, 8760, 31536000, 31557600, 273.15, 1e5, 1e6}
-"""Numbers that only a unit conversion uses: milli, micro, minutes, hours, days, years, kelvin."""
+FACTORS = {0.001, 1e-6, 0.01, 100, 3.6, 60, 3600, 86400, 8760, 31536000, 31557600, 273.15, 1e5, 1e6}
+"""Numbers that only a unit conversion uses: milli, micro, percent, minutes, hours, days, years,
+kelvin."""
+ALLOWED = {}
+"""The one-line exceptions, ``(path, line) -> reason``; each goes when its gemini request lands."""
 UNIT_NAMES = {
     "ms",
     "s",
@@ -52,7 +55,20 @@ def _maps_units(node):
 )
 def test_the_package_has_no_unit_factor(path):
     """A conversion goes through gemini (``gm.units.convert``, ``Quantity.to``, ``units=``)."""
-    assert conversion_lines((ROOT / path).read_text()) == []
+    source = (ROOT / path).read_text()
+    lines = source.splitlines()
+    found = [
+        number
+        for number in conversion_lines(source)
+        if (path, lines[number - 1].strip()) not in ALLOWED
+    ]
+    assert found == []
+
+
+def test_each_exception_is_still_in_its_file():
+    """An exception whose line is gone is removed, so the allowlist stays as narrow as it is."""
+    for path, line in ALLOWED:
+        assert line in [text.strip() for text in (ROOT / path).read_text().splitlines()]
 
 
 def test_the_check_sees_a_factor_and_a_factor_table():
@@ -60,3 +76,4 @@ def test_the_check_sees_a_factor_and_a_factor_table():
     assert conversion_lines("x = seconds / 3600\n") == [1]
     assert conversion_lines('SECONDS = {"s": 1.0, "h": 3600.0}\n') != []
     assert conversion_lines("TOKENS = 1000\n") == []
+    assert conversion_lines("fraction = percent / 100\n") == [1]

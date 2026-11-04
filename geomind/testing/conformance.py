@@ -169,7 +169,7 @@ def check_workspace(factory, *, project, query, missing_project="conformance-mis
     )
     _expect(workspace.plants(missing_project) == {}, "an unknown project must have no plants")
     _check_case(workspace, project, missing_project)
-    found = workspace.documents(project, query)
+    found = workspace.rag(project, query)
     _expect(found, "documents must find the query")
     for document in found:
         _expect(
@@ -178,5 +178,5 @@ def check_workspace(factory, *, project, query, missing_project="conformance-mis
         )
     scores = [document["score"] for document in found]
     _expect(scores == sorted(scores, reverse=True), "documents must come best first")
-    _expect(workspace.documents(missing_project, query) == [], "an unknown project has none")
+    _expect(workspace.rag(missing_project, query) == [], "an unknown project has none")
     _check_files(workspace, project, missing_project)

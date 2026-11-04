@@ -72,10 +72,15 @@ async def test_an_unknown_category_is_gemini_s_problem_with_a_suggestion(gm):
     assert result.output["error"]["suggestions"] == ["wells"]
 
 
-async def test_describe_module_is_gemini_s_description_unchanged(gm):
-    """The description is exactly ``describe()`` of the class."""
+async def test_describe_module_is_gemini_s_description_made_compact(gm):
+    """Each parameter of ``describe()`` is one line, with its quantity's units from gemini."""
     result = await call(TOOLS.describe_module, {"name": "Pipe"})
-    assert result.output == gm.modules.get("Pipe")().describe()
+    described = gm.modules.get("Pipe")().describe()
+    lines = result.output["parameters"]
+    assert len(lines) == len(described["parameters"])
+    assert set(result.output["inlets"]) == set(described["inlets"])
+    length = next(line for line in lines if line.startswith("length"))
+    assert all(unit in length for unit in gm.units.names("length"))
 
 
 @pytest.mark.parametrize(
@@ -149,3 +154,14 @@ def test_evaluate_module_takes_the_state_and_the_step_of_a_stateful_module():
 def test_evaluate_module_needs_a_name_and_parameters():
     """The model sees which inputs are required."""
     assert TOOLS.evaluate_module.input_schema["required"] == ["name", "parameters"]
+
+
+def test_evaluate_module_shows_the_whole_inlet_with_gemini_s_fluid_fields(gm):
+    """#47: engineers sent ``kind`` beside the inlet and a bare density; the form is shown."""
+    import inspect
+
+    text = TOOLS.evaluate_module.description
+    assert '"fluid": {"kind": "brine"' in text and '"density": {"value"' in text
+    fields = inspect.signature(gm.Fluid).parameters
+    for name in ("kind", "salinity", "gas_liquid_ratio", "gas_composition", "density", "viscosity"):
+        assert name in fields and f"``{name}``" in text

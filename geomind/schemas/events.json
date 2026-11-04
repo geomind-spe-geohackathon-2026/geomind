@@ -231,6 +231,24 @@
         "stop_reason": {
           "title": "Stop Reason",
           "type": "string"
+        },
+        "suggestions": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Suggestions"
         }
       },
       "required": [
@@ -565,6 +583,18 @@
           "title": "Index",
           "type": "integer"
         },
+        "mcp": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mcp"
+        },
         "output_summary": {
           "title": "Output Summary",
           "type": "string"
@@ -613,6 +643,18 @@
           "default": {},
           "title": "Input",
           "type": "object"
+        },
+        "mcp": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mcp"
         },
         "parent": {
           "anyOf": [

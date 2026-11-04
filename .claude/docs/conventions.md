@@ -11,7 +11,7 @@ sentence in the docstring of the function, class or test that makes it.
 A package may import only the packages to its left:
 
 `geomind.utils`, `geomind.errors` ← `types` ← `stores` ← `runtime` ← `prompts` ← `context`
-← `providers` ← `sandbox` ← `tools` ← `verify` ← `agents` ← `engine` ← `loops` ← `run` ← `testing`
+← `providers` ← `mcp` ← `tools` ← `verify` ← `agents` ← `engine` ← `loops` ← `run` ← `testing`
 ← `live` ← `export` ← `cli` ← `geomind/__init__`.
 
 `tests/unit/test_package_boundaries.py` enforces this order.
@@ -19,7 +19,6 @@ A package may import only the packages to its left:
 - `stores` needs only `types`, `errors` and `utils`.
 
 - `types` sits below `providers` because a provider returns a `Completion`.
-- `sandbox` sits below `tools` because the code tools use it.
 - `tools.delegate` reaches the engine only through `context.session`, never by import. The same
   goes for `Agent.complete`, `dispatch`, the code tools and the hooks. The context is passed
   explicitly; nothing reaches the run through hidden state.

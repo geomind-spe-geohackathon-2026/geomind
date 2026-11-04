@@ -7,7 +7,7 @@ from typing import Any
 from geomind import runtime
 from geomind.errors import ToolError
 from geomind.tools.base import tool
-from geomind.tools.gemini.case import build_case, case_of
+from geomind.tools.gemini.case import CASE_FILE, build_case, case_of
 from geomind.tools.gemini.plants import load_plant
 from geomind.tools.gemini.references import reference_schema
 from geomind.tools.gemini.stored import ran_case, save_run
@@ -90,9 +90,14 @@ def service_demand(case, service, where):
 
 
 def temperature(kelvin):
-    """Return a temperature in K as ``{value, unit}`` in degrees Celsius."""
+    """Return a temperature in K as ``{value, unit}`` in degrees Celsius; ``None`` when unset.
+
+    A case may leave a return temperature open (the designers' choice); the listing says so.
+    """
     import gemini as gm
 
+    if kelvin is None:
+        return None
     return gm.units.Quantity(kelvin, "K").to(TEMPERATURE_UNIT).to_dict()
 
 
@@ -132,7 +137,9 @@ def list_profiles(context):
 def read_profile(context, service: str, start: str | None = None, end: str | None = None):
     """Return the demand of a service (heating or cooling) of the case as a series in MW.
 
-    ``start`` and ``end`` are ISO 8601 times, both inclusive.
+    ``start`` and ``end`` are ISO 8601 times, both inclusive. ``summary`` gives the ``peak`` and
+    ``minimum`` with their time, the ``mean`` and the ``energy`` of the window, computed by
+    gemini's units: take a size from it, never from adding the series by hand.
     """
     import gemini as gm
 
@@ -140,11 +147,59 @@ def read_profile(context, service: str, start: str | None = None, end: str | Non
     _, column = service_demand(case, service, "read_profile")
     first, last = parse_time(start, "start", "read_profile"), parse_time(end, "end", "read_profile")
     series = case.demand.frame[column].loc[first:last]
+    values = [gm.units.convert(float(item), "W", POWER_UNIT) for item in series]
     return {
         "service": service,
+        "summary": profile_summary(series.index, values),
         "time": [moment.isoformat() for moment in series.index],
-        "value": [gm.units.convert(float(item), "W", POWER_UNIT) for item in series],
+        "value": values,
         "unit": POWER_UNIT,
+        "case_time": {**case_span(case), "end_is": "exclusive", "steps": len(case.demand.frame)},
+        "file": file_extent(context, service),
+    }
+
+
+def profile_summary(times, values):
+    """Return the peak, minimum, mean and energy of a power series in ``POWER_UNIT`` (#71).
+
+    The energy is each value held for its step, the step being the series' own interval.
+    """
+    import gemini as gm
+
+    if not values:
+        return None
+    peak = max(range(len(values)), key=values.__getitem__)
+    low = min(range(len(values)), key=values.__getitem__)
+    seconds = (times[1] - times[0]).total_seconds() if len(times) > 1 else None
+    hours = gm.units.convert(seconds, "s", "h") if seconds else None
+    energy = sum(values) * hours if hours else None
+    return {
+        "peak": {"value": values[peak], "time": times[peak].isoformat()},
+        "minimum": {"value": values[low], "time": times[low].isoformat()},
+        "mean": sum(values) / len(values),
+        "energy": {"value": energy, "unit": f"{POWER_UNIT}h"} if energy is not None else None,
+        "unit": POWER_UNIT,
+    }
+
+
+def file_extent(context, service):
+    """Return the rows of the data file a service's power comes from, its first and last time.
+
+    The series above is the case's demand over the case's time; a file may hold more or fewer
+    rows, which this shows. ``None`` when the power names no stored file.
+    """
+    power = ((context.problem.case or {}).get("demand") or {}).get(service, {}).get("power")
+    name = power.get("file") if isinstance(power, dict) else None
+    data = context.session.load_artifact(f"{CASE_FILE}{name}") if name else None
+    if not isinstance(data, (bytes, str)):
+        return None
+    text = data.decode() if isinstance(data, bytes) else data
+    rows = [line.split(",", 1)[0] for line in text.splitlines()[1:] if line.strip()]
+    return {
+        "name": name,
+        "rows": len(rows),
+        "first": rows[0] if rows else None,
+        "last": rows[-1] if rows else None,
     }
 
 

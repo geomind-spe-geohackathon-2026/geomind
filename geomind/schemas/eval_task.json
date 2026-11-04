@@ -1,5 +1,82 @@
 {
   "$defs": {
+    "AnswerCriterion": {
+      "additionalProperties": false,
+      "description": "The answer matches the regular expression ``pattern``, or with ``present: false`` does not.\n\nFor an answer whose words are its result, such as a route or a verdict.",
+      "properties": {
+        "kind": {
+          "const": "answer",
+          "title": "Kind",
+          "type": "string"
+        },
+        "pattern": {
+          "title": "Pattern",
+          "type": "string"
+        },
+        "present": {
+          "title": "Present",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind",
+        "pattern",
+        "present"
+      ],
+      "title": "AnswerCriterion",
+      "type": "object"
+    },
+    "AnswerRule": {
+      "additionalProperties": false,
+      "description": "A user's answer by rule: the first rule whose ``match`` (a regex) is in the question.\n\nFor a question with options, ``answer`` must be one of their values; ``only_options`` keeps\na rule off the questions that ask for typed text.",
+      "properties": {
+        "answer": {
+          "title": "Answer",
+          "type": "string"
+        },
+        "match": {
+          "title": "Match",
+          "type": "string"
+        },
+        "only_options": {
+          "default": false,
+          "title": "Only Options",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "match",
+        "answer"
+      ],
+      "title": "AnswerRule",
+      "type": "object"
+    },
+    "BeforeCriterion": {
+      "additionalProperties": false,
+      "description": "``tool`` was called before the first call of ``then``; a run without ``then`` passes.\n\nThe order of the run's own tool results, so a search comes before the question it spares.",
+      "properties": {
+        "kind": {
+          "const": "before",
+          "title": "Kind",
+          "type": "string"
+        },
+        "then": {
+          "title": "Then",
+          "type": "string"
+        },
+        "tool": {
+          "title": "Tool",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "tool",
+        "then"
+      ],
+      "title": "BeforeCriterion",
+      "type": "object"
+    },
     "Message": {
       "additionalProperties": false,
       "description": "One message of a conversation.",
@@ -86,11 +163,20 @@
     },
     "QuestionCriterion": {
       "additionalProperties": false,
-      "description": "The agent asked the user a question holding ``contains``.",
+      "description": "The agent asked the user a question holding ``contains``, or any of ``contains_any``.\n\n``contains_any`` names one thing by each of its names, such as a flaw by its key or its word\n(``[\"doublet\", \"annual_operation\", \"count\"]``); the match ignores case.",
       "properties": {
         "contains": {
+          "default": "",
           "title": "Contains",
           "type": "string"
+        },
+        "contains_any": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Contains Any",
+          "type": "array"
         },
         "kind": {
           "const": "question",
@@ -99,10 +185,51 @@
         }
       },
       "required": [
-        "kind",
-        "contains"
+        "kind"
       ],
       "title": "QuestionCriterion",
+      "type": "object"
+    },
+    "SetupCall": {
+      "additionalProperties": false,
+      "description": "One tool call run by code before the task's agent, so the task starts from a fixed state.",
+      "properties": {
+        "input": {
+          "additionalProperties": true,
+          "default": {},
+          "title": "Input",
+          "type": "object"
+        },
+        "tool": {
+          "title": "Tool",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tool"
+      ],
+      "title": "SetupCall",
+      "type": "object"
+    },
+    "SourcedCriterion": {
+      "additionalProperties": false,
+      "description": "Every number of the answer and the questions is one the agent read: the agent computed none.\n\nWhat the agent read is every message it was sent that it did not write itself: the prompt,\nthe user's messages and answers, and the tools' results. A whole number up to ``small``\ncounts things or numbers a list, so it needs no source.",
+      "properties": {
+        "kind": {
+          "const": "sourced",
+          "title": "Kind",
+          "type": "string"
+        },
+        "small": {
+          "title": "Small",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind",
+        "small"
+      ],
+      "title": "SourcedCriterion",
       "type": "object"
     },
     "StateCriterion": {
@@ -158,7 +285,7 @@
     },
     "ToolCriterion": {
       "additionalProperties": false,
-      "description": "A tool was called, or with ``called: false`` was not.",
+      "description": "A tool was called, or with ``called: false`` was not.\n\nA call counts even when its result was an error. With ``succeeded: true``, at least one\ncall of the tool must have returned no error: a lead's delegate whose nested run failed\nfails it. ``succeeded`` defaults to false, the behaviour before it, so older tasks keep\ntheir meaning.",
       "properties": {
         "called": {
           "default": true,
@@ -169,6 +296,11 @@
           "const": "tool",
           "title": "Kind",
           "type": "string"
+        },
+        "succeeded": {
+          "default": false,
+          "title": "Succeeded",
+          "type": "boolean"
         },
         "tool": {
           "title": "Tool",
@@ -213,7 +345,14 @@
     "answers": {
       "default": [],
       "items": {
-        "type": "string"
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "$ref": "#/$defs/AnswerRule"
+          }
+        ]
       },
       "title": "Answers",
       "type": "array"
@@ -222,8 +361,11 @@
       "items": {
         "discriminator": {
           "mapping": {
+            "answer": "#/$defs/AnswerCriterion",
+            "before": "#/$defs/BeforeCriterion",
             "number": "#/$defs/NumberCriterion",
             "question": "#/$defs/QuestionCriterion",
+            "sourced": "#/$defs/SourcedCriterion",
             "state": "#/$defs/StateCriterion",
             "tool": "#/$defs/ToolCriterion",
             "verified": "#/$defs/VerifiedCriterion"
@@ -245,6 +387,15 @@
           },
           {
             "$ref": "#/$defs/VerifiedCriterion"
+          },
+          {
+            "$ref": "#/$defs/SourcedCriterion"
+          },
+          {
+            "$ref": "#/$defs/BeforeCriterion"
+          },
+          {
+            "$ref": "#/$defs/AnswerCriterion"
           }
         ]
       },
@@ -286,6 +437,14 @@
       ],
       "default": null,
       "title": "Plant"
+    },
+    "setup": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/SetupCall"
+      },
+      "title": "Setup",
+      "type": "array"
     }
   },
   "required": [

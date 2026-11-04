@@ -13,9 +13,13 @@ from geomind.engine.delegation import run_child
 from geomind.engine.hooks import ask_hooks, input_bound
 from geomind.engine.recovery import apply
 from geomind.engine.state import Stop
-from geomind.errors import RunError, SandboxError, TimeLimitReached, ToolError
+from geomind.errors import RunError, TimeLimitReached, ToolError
 from geomind.providers import needs_models
-from geomind.sandbox import Manifest
+from geomind.stores.memory import FileMemory
+from geomind.tools.base import with_old_names
+from geomind.tools.knowledge import has_knowledge
+from geomind.tools.mcp import MCP_TOOLS, RecordedMcpTool, load_servers, server_of
+from geomind.tools.memory import MEMORY_TOOLS
 from geomind.types import Allow, Deny, Request, Usage
 from geomind.types.events import (
     Compacted,
@@ -25,8 +29,6 @@ from geomind.types.events import (
     RequestMade,
     Retried,
     RunStarted,
-    SandboxClosed,
-    SandboxProvisioned,
     StateChanged,
     TextDelta,
 )
@@ -34,6 +36,19 @@ from geomind.types.redaction import redact
 from geomind.utils.imports import class_path
 
 FROZEN = ("design/", "study/")
+
+
+def keys_of(servers):
+    """Return the header values of the servers: secrets, never logged, stored or shown."""
+    return tuple(value for server in servers for value in server.headers.values() if value)
+
+
+def mcp_timeout():
+    """Return ``mcp_timeout`` in seconds, or refuse a run with servers and no timeout."""
+    timeout = runtime.get("mcp_timeout")
+    if timeout is None:
+        raise RunError("run: mcp_timeout = None; expected GEOMIND_MCP_TIMEOUT, seconds")
+    return timeout
 
 
 def current_versions():
@@ -70,7 +85,8 @@ class RunSession:
         self.reserved = {}
         self._index_lock = asyncio.Lock()
         self.child_limit = None
-        self._sandbox = None
+        self.limits = {}
+        self.ends_at_limit = False
         self._held_text = ""
         self._output_limit = None
         self.limit_reached = None
@@ -92,6 +108,21 @@ class RunSession:
     def versions(self):
         """Return the versions of this process, for what a tool stores beside its result."""
         return current_versions()
+
+    @property
+    def memory(self):
+        """Return the agents' memory: the engine's or the workspace's, else the settings' folder.
+
+        ``None`` when ``memory`` is ``off`` or unset; a memory tool then says it is off.
+        """
+        held = getattr(self.engine, "memory", None)
+        if held is None:
+            held = getattr(self.engine.workspace, "memory", None)
+        if held is not None:
+            return held
+        if runtime.get("memory") != "on":
+            return None
+        return FileMemory(runtime.get("memory_dir"))
 
     @property
     def store(self):
@@ -121,6 +152,11 @@ class RunSession:
 
     async def start(self, context, *, max_steps, parent=None, parent_step=None, root=None):
         """Log the start of a new run; a real provider needs every role's model first."""
+        if max_steps is None:
+            raise RunError(
+                "run: max_steps = None; expected GEOMIND_MAX_STEPS or --max-steps: the steps an "
+                "agent takes before the run asks to continue"
+            )
         if parent is None:
             await self._require_models()
         self.state.run_id = context.run_id
@@ -165,7 +201,7 @@ class RunSession:
             state.messages,
             chat=state.chat,
             project=state.project,
-            steps_left=state.max_steps - state.step,
+            steps_left=state.max_steps + state.questions - state.step,
             problem=state.problem,
             session=self,
             stored=state.stored,
@@ -206,12 +242,14 @@ class RunSession:
     def _call_settings(self, agent, messages):
         """Return the agent's settings with the output limit of this call, used once.
 
-        The limit is the least of what a hook set, the agent's ``max_tokens`` and what the
-        model's window leaves after the input bound, so no call asks for more than fits.
+        The limit is the least of what a hook set, the agent's ``max_tokens``, the
+        ``max_output_tokens`` setting and what the model's window leaves after the input bound,
+        so no call asks for more than fits and no single completion can run away.
         """
         settings = agent.model.settings()
         limit, self._output_limit = self._output_limit, None
-        limits = [item for item in (limit, settings.get("max_tokens")) if item is not None]
+        bound = runtime.get("max_output_tokens")
+        limits = [item for item in (limit, settings.get("max_tokens"), bound) if item is not None]
         window = context_window(agent.model.resolved_name())
         if window is not None and limits:
             limits.append(max(1, window - input_bound(agent, messages)))
@@ -221,6 +259,7 @@ class RunSession:
 
     async def _call_provider(self, agent, messages, on_text):
         """Call the provider for an agent."""
+        await self.ensure_mcp()
         if self.engine.llm is None:
             raise RunError("engine: llm = None; expected a provider")
         if needs_models(self.engine.llm):
@@ -229,13 +268,90 @@ class RunSession:
         settings = self._call_settings(agent, messages)
         return await llm.complete(
             list(messages),
-            agent.tool_schemas(),
+            self.offered_schemas(agent),
             model=agent.model.resolved_name(),
             settings=settings,
             on_text=on_text,
             fallbacks=agent.model.fallbacks,
             on_retry=self._on_retry,
         )
+
+    def offered_schemas(self, agent):
+        """Return the schemas of the tools offered: without those of a memory or a base not here.
+
+        The tools of the run's MCP servers come last, for every agent that has tools.
+        """
+        hidden = self.hidden_tools(agent)
+        own = [item for item in agent.tool_schemas() if item["name"] not in hidden]
+        return own + [tool.schema() for tool in self.mcp_of(agent).values()]
+
+    def hidden_tools(self, agent):
+        """Return the names of an agent's tools a run with the memory off does not offer (#127).
+
+        They are the memory tools and a member whose whole work is the memory (``needs_memory``,
+        the curator).
+        """
+        if self.memory is not None:
+            return set()
+        return {
+            name
+            for name, item in agent.tools().items()
+            if name in MEMORY_TOOLS or getattr(getattr(item, "agent", None), "needs_memory", False)
+        }
+
+    def mcp_of(self, agent):
+        """Return the MCP tools an agent is offered: ``list_mcp``, ``read_mcp`` and ``call_mcp``.
+
+        None for a run without a server that answered, a rule, or an agent with no tools.
+        """
+        servers = self.engine.mcp_servers
+        if not servers or not servers.servers or agent.model.name == "rule" or not agent.tools():
+            return {}
+        return dict(MCP_TOOLS)
+
+    def tools_of(self, agent, names):
+        """Return the tools a step looks calls up in: the agent's, its MCP tools, old names.
+
+        A replay finds a recorded MCP call by a stand-in that never runs; its result is reused.
+        """
+        tools = with_old_names({**self.mcp_of(agent), **agent.tools()})
+        for name in names:
+            if name in tools or not self.engine.recorded:
+                continue
+            if name in MCP_TOOLS:
+                tools[name] = MCP_TOOLS[name]
+            elif server_of(name):
+                tools[name] = RecordedMcpTool(name)
+        return tools
+
+    async def ensure_mcp(self):
+        """Load the tools of the run's MCP servers once per engine, never in a replay.
+
+        The servers come from ``Workspace.mcp(project_id)``; each header value becomes a secret
+        of the log. A server that fails is left out, with an ``error`` event naming it, never its
+        headers.
+        """
+        engine = self.engine
+        if engine.mcp_servers is not None:
+            return
+        engine.mcp_servers = False
+        workspace = engine.workspace
+        if engine.recorded or not callable(getattr(workspace, "mcp", None)):
+            return
+        servers = list(workspace.mcp(self.state.project) or [])
+        if not servers:
+            return
+        self.log.secrets = (*self.log.secrets, *keys_of(servers))
+        engine.mcp_servers, failures = await load_servers(
+            servers, mcp_timeout(), engine.mcp_transport
+        )
+        for server, error in failures:
+            await self.report_error(error, f"mcp:{server.name}")
+
+    def knows(self):
+        """Tell whether this run's workspace has a knowledge base with documents."""
+        workspace = self.engine.workspace
+        return has_knowledge(workspace) and bool(workspace.knowledge_files())
 
     async def summarize(self, agent, messages, turns):
         """Call the provider for a summary of ``turns`` turns and log it, without streaming."""
@@ -321,7 +437,9 @@ class RunSession:
         changed = decision.input if isinstance(decision, Allow) else None
         if decision is None or isinstance(decision, Allow):
             ask_rules = [rule for hook in self.engine.hooks() for rule in hook.ask_rules]
-            decision, rule = self.engine.permissions.decide(tool, ask=ask_rules)
+            decision, rule = self.engine.permissions.decide(
+                tool.for_call(self, call.input), ask=ask_rules
+            )
         else:
             rule = f"hook:{rule}"
         await self.emit(
@@ -405,11 +523,20 @@ class RunSession:
         kept = self.load_artifact(key)
         if kept is not None and json.loads(json.dumps(kept)) != json.loads(json.dumps(data)):
             kind, _, name = key.partition("/")
+            free = self.free_name(kind, name)
             raise ToolError(
                 f"{kind}: name = {name!r}; a {kind} with this name is stored with other content;"
-                " use a new name",
+                f" use a new name, such as {free!r}, and send the same call with it",
                 path="name",
+                suggestions=(free,),
             )
+
+    def free_name(self, kind, name):
+        """Return ``name`` with the first number after it that names no stored ``kind``."""
+        number = 2
+        while self.load_artifact(f"{kind}/{name}_{number}") is not None:
+            number += 1
+        return f"{name}_{number}"
 
     def load_artifact(self, key):
         """Return a stored artifact of this chat; called by sync tools, in a worker thread."""
@@ -423,30 +550,6 @@ class RunSession:
             message=str(error),
             where=where,
         )
-
-    async def sandbox(self):
-        """Return the sandbox of this run, provisioned on first use."""
-        if self._sandbox is not None:
-            return self._sandbox
-        provider = self.engine.sandbox
-        if provider is None:
-            raise SandboxError("sandbox: no sandbox is configured for this run")
-        self._sandbox = await provider.provision(Manifest.from_runtime())
-        await self.emit(SandboxProvisioned, provider=type(provider).__name__)
-        return self._sandbox
-
-    async def lose_sandbox(self):
-        """Forget a lost sandbox; the next code tool provisions a new one."""
-        self._sandbox = None
-        await self.emit(SandboxClosed, is_lost=True)
-
-    async def close_sandbox(self):
-        """Close the sandbox, at the end of a run and at a pause, as the process may exit."""
-        if self._sandbox is None:
-            return
-        sandbox, self._sandbox = self._sandbox, None
-        await sandbox.close()
-        await self.emit(SandboxClosed)
 
     @property
     def total_usage(self):
@@ -469,9 +572,9 @@ class RunSession:
         """Return the session of a nested run on the same log."""
         return RunSession(self.engine, self.log, state, agent, parent=self)
 
-    async def delegate(self, agent, task):
+    async def delegate(self, agent, task, max_steps=None):
         """Run a nested agent and keep what the parent needs of its result."""
-        result = await run_child(self, agent, task)
+        result = await run_child(self, agent, task, max_steps)
         self.add_child_usage(result.usage)
         if result.request is not None:
             self.waiting_child = result.run_id

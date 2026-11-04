@@ -115,12 +115,13 @@ class ToolStarted(Event):
 
     type: ClassVar[str] = "tool.started"
     is_public: ClassVar[bool] = True
-    public_fields: ClassVar[tuple[str, ...]] = ("index", "call_id", "tool", "input")
+    public_fields: ClassVar[tuple[str, ...]] = ("index", "call_id", "tool", "input", "mcp")
 
     index: int
     call_id: str
     tool: str
     input: dict[str, Any] = {}
+    mcp: str | None = None
 
 
 class ToolFinished(Event):
@@ -134,6 +135,7 @@ class ToolFinished(Event):
         "output_summary",
         "duration",
         "error",
+        "mcp",
     )
 
     index: int
@@ -141,6 +143,7 @@ class ToolFinished(Event):
     output_summary: str
     duration: float
     error: str | None = None
+    mcp: str | None = None
 
 
 class StepFinished(Event):
@@ -253,16 +256,21 @@ class UsageUpdated(Event):
 
 
 class RunFinished(Event):
-    """A run ended; ``message`` says why when it did not end with an answer."""
+    """A run ended; ``message`` says why when it did not end with an answer.
+
+    ``suggestions`` are the next steps, ``[{label, message}]``: a root run that ended ``done``
+    has one to three, any other run none, and a log before 0.4.22.dev48 none.
+    """
 
     type: ClassVar[str] = "run.finished"
     is_public: ClassVar[bool] = True
-    public_fields: ClassVar[tuple[str, ...]] = ("status", "stop_reason", "message")
+    public_fields: ClassVar[tuple[str, ...]] = ("status", "stop_reason", "message", "suggestions")
 
     status: str
     stop_reason: str
     message: str | None = None
     answer: Any = None
+    suggestions: list[dict[str, str]] | None = None
 
 
 class LLMCompleted(Event):
@@ -295,7 +303,8 @@ class Compacted(Event):
 class ToolRecorded(Event):
     """One result, or with ``call_id=None`` feedback to the model about its answer.
 
-    ``source`` says where it came from: ``tool``, ``denied``, ``answer`` or ``interrupted``.
+    ``source`` says where it came from: ``tool``, ``denied``, ``answer``, ``interrupted``, or
+    ``repeat`` for a call answered from an earlier successful one without running.
     ``feedback`` is ``output`` for a failed validation of the answer and ``finish`` for a refused
     one. ``usage`` is that of a nested run, added to this run.
     """
@@ -351,22 +360,6 @@ class Retried(Event):
     delay: float
 
 
-class SandboxProvisioned(Event):
-    """A sandbox was created for this run."""
-
-    type: ClassVar[str] = "sandbox.provisioned"
-
-    provider: str
-
-
-class SandboxClosed(Event):
-    """The sandbox of this run was closed or lost."""
-
-    type: ClassVar[str] = "sandbox.closed"
-
-    is_lost: bool = False
-
-
 class ErrorRaised(Event):
     """An error the run survived or ended with: a callback, a tool bug, a provider failure."""
 
@@ -396,8 +389,6 @@ EVENT_CLASSES = {
         ToolRecorded,
         PermissionDecided,
         Retried,
-        SandboxProvisioned,
-        SandboxClosed,
         ErrorRaised,
     )
 }

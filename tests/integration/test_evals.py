@@ -1,7 +1,7 @@
-"""The eval runner over a task folder, with the real ``Analyst``.
+"""The eval runner over a task folder, with the real ``AnalysisLead``.
 
-NOTE: the sample task of the phase needs gemini's tools, so these tasks use the tools the analyst
-has now, and they cover every kind of criterion, pass and fail.
+NOTE: the sample task of the phase needs gemini's tools, so these tasks use the tools the
+analysis lead has now, and they cover every kind of criterion, pass and fail.
 """
 
 import json
@@ -27,7 +27,7 @@ TASK = {
     "criteria": [
         {"kind": "number", "value": 2100, "tolerance": 1, "unit": "m"},
         {"kind": "tool", "tool": "update_state"},
-        {"kind": "tool", "tool": "search_documents", "called": False},
+        {"kind": "tool", "tool": "search_rag", "called": False},
         {"kind": "question", "contains": "depth"},
         {"kind": "state", "path": "/goal"},
     ],
@@ -41,18 +41,20 @@ SCRIPT = [
 
 def write_task(root, task=TASK, script=SCRIPT, name="depth"):
     """Write one task and its recording."""
-    folder = root / "tasks" / "analyst"
+    folder = root / "tasks" / "analysis_lead"
     folder.mkdir(parents=True, exist_ok=True)
     (folder / f"{name}.yaml").write_text(yaml.safe_dump(task))
     for completion in script:
-        append_line(root / "recordings" / "analyst" / f"{name}.jsonl", completion.model_dump())
+        append_line(
+            root / "recordings" / "analysis_lead" / f"{name}.jsonl", completion.model_dump()
+        )
 
 
 def test_a_task_passes_offline_and_writes_its_report(tmp_path, capsys):
     """Every kind of criterion holds, and the report has the totals."""
     write_task(tmp_path)
-    assert evals.main(["--agent", "analyst"], tmp_path) == 0
-    summary = (tmp_path / "reports" / "analyst.md").read_text()
+    assert evals.main(["--agent", "analysis_lead"], tmp_path) == 0
+    summary = (tmp_path / "reports" / "analysis_lead.md").read_text()
     assert "| depth | pass | 3 | 2 |" in summary
     assert "Total: 1 of 1 passed, 3 steps, 2 tool calls" in summary
     assert summary in capsys.readouterr().out
@@ -73,8 +75,8 @@ def test_a_task_passes_offline_and_writes_its_report(tmp_path, capsys):
 def test_a_criterion_that_fails_is_reported(tmp_path, criterion, message):
     """A failing task fails the run and says why."""
     write_task(tmp_path, {**TASK, "criteria": [criterion]})
-    assert evals.main(["--agent", "analyst"], tmp_path) == 1
-    assert message in (tmp_path / "reports" / "analyst.md").read_text()
+    assert evals.main(["--agent", "analysis_lead"], tmp_path) == 1
+    assert message in (tmp_path / "reports" / "analysis_lead.md").read_text()
 
 
 def test_a_task_with_history_and_a_state_item_by_id(tmp_path):
@@ -87,39 +89,39 @@ def test_a_task_with_history_and_a_state_item_by_id(tmp_path):
         "criteria": [{"kind": "state", "path": "/assumptions/A1/text"}],
     }
     write_task(tmp_path, task, [uses(call("update_state", changes=[change])), says("Done")])
-    assert evals.main(["--agent", "analyst"], tmp_path) == 0
+    assert evals.main(["--agent", "analysis_lead"], tmp_path) == 0
 
 
 def test_a_question_without_a_reply_ends_the_run(tmp_path):
     """The criteria judge what happened so far, and nothing hangs."""
     task = {**TASK, "answers": [], "criteria": [{"kind": "question", "contains": "depth"}]}
     write_task(tmp_path, task)
-    assert evals.main(["--agent", "analyst"], tmp_path) == 0
+    assert evals.main(["--agent", "analysis_lead"], tmp_path) == 0
 
 
 def test_a_missing_recording_fails_the_task(tmp_path):
     """An empty script ends the run with an error, which fails the task."""
     write_task(tmp_path, script=[])
-    assert evals.main(["--agent", "analyst"], tmp_path) == 1
-    assert "run: error" in (tmp_path / "reports" / "analyst.md").read_text()
+    assert evals.main(["--agent", "analysis_lead"], tmp_path) == 1
+    assert "run: error" in (tmp_path / "reports" / "analysis_lead.md").read_text()
 
 
 def test_no_tasks_is_said_plainly(tmp_path, capsys):
     """A skeleton agent has an empty folder."""
-    assert evals.main(["--agent", "designer"], tmp_path) == 2
+    assert evals.main(["--agent", "design_lead"], tmp_path) == 2
     assert "no tasks" in capsys.readouterr().err
 
 
 def test_an_unknown_agent_is_said_plainly(tmp_path, capsys):
     """A typo gets a close match."""
     assert evals.main(["--agent", "analist"], tmp_path) == 2
-    assert "did you mean 'analyst'" in capsys.readouterr().err
+    assert "did you mean 'analysis_lead'" in capsys.readouterr().err
 
 
 def test_live_needs_a_key(tmp_path, monkeypatch, capsys):
     """Without one, it stops before it spends anything."""
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
-    assert evals.main(["--agent", "analyst", "--live"], tmp_path) == 2
+    assert evals.main(["--agent", "analysis_lead", "--live"], tmp_path) == 2
     assert "OPENROUTER_API_KEY" in capsys.readouterr().err
 
 
@@ -138,8 +140,10 @@ def test_live_writes_the_recording_anew(tmp_path, monkeypatch):
 
     monkeypatch.setenv("OPENROUTER_API_KEY", "k")
     monkeypatch.setattr(evals, "OpenRouter", Service)
-    assert evals.main(["--agent", "analyst", "--live"], tmp_path) == 0
-    assert evals.main(["--agent", "analyst"], tmp_path) == 0
+    monkeypatch.setattr(evals, "fetch_prices", lambda: {})
+    assert evals.main(["--agent", "analysis_lead", "--live"], tmp_path) == 2
+    assert evals.main(["--agent", "analysis_lead", "--live", "--max-cost", "1"], tmp_path) == 0
+    assert evals.main(["--agent", "analysis_lead"], tmp_path) == 0
 
 
 def test_a_task_file_is_checked_when_it_loads(tmp_path):
@@ -168,19 +172,19 @@ def test_the_verdict_reads_the_artifacts_of_the_task_s_chat():
 
 
 def test_the_shipped_analyst_tasks_pass_offline(gemini_loaded):
-    """The tasks of ``evals/tasks/analyst`` pass from their recordings, with the real tools."""
-    outcomes = evals.run_agent("analyst")
+    """The tasks of ``evals/tasks/analysis_lead`` pass from their recordings, with real tools."""
+    outcomes = evals.run_agent("analysis_lead")
     assert len(outcomes) == 5
     assert [outcome.problems for outcome in outcomes] == [[]] * 5
 
 
 @pytest.mark.parametrize(
-    "agent", [pytest.param("designer", marks=pytest.mark.slow), "explainer", "coordinator"]
+    "agent", [pytest.param("design_lead", marks=pytest.mark.slow), "explainer", "coordinator"]
 )
 def test_the_shipped_tasks_of_the_single_agents_pass_offline(gemini_loaded, agent):
     """Each agent's tasks pass from their recordings, with the real tools.
 
-    NOTE: the designer's tasks are slow, because they size a plant and run a real search.
+    NOTE: the design lead's tasks are slow, because they size a plant and run a real search.
     """
     outcomes = evals.run_agent(agent)
     assert outcomes
@@ -192,9 +196,9 @@ NAMES = [
     "economist",
     "hackathon",
     "more_cooling",
+    "reviewer",
     "tight_budget",
     "user_profile",
-    "verifier",
 ]
 
 
@@ -251,7 +255,7 @@ def test_the_report_has_a_table_per_loop_and_main_writes_it(tmp_path, capsys):
         "## DesignLoop",
         "## CompareLoop",
     ]
-    assert "| analyst/depth | 5 of 5 | 3 | 2 | 45 | 0.0300 |" in text
+    assert "| analysis_lead/depth | 5 of 5 | 3 | 2 | 45 | 0.0300 |" in text
 
 
 @pytest.mark.slow
@@ -365,15 +369,19 @@ def run_ignored(tmp_path, task):
 
 @pytest.mark.slow
 def test_a_tight_step_budget_stops_the_loop_without_a_design(gemini_loaded, tmp_path):
-    """With 7 steps the designer cannot optimise: the loop says so and presents no design.
+    """With 7 steps the design lead cannot optimise: the loop stops at its limit with no design.
 
-    NOTE: slow, because the designer simulates and checks a year in each round.
+    NOTE: slow, because the design lead simulates and checks a year in each round. A round that
+    recorded no design is no repeated failure (70b2c43), so the loop goes on until its own 7 steps
+    end it; the step-limit question is answered ``stop`` and the answer is the partial one.
     """
     recording = evals.ROOT / "recordings" / "challenge2" / "tight_budget.jsonl"
     outcome = run_recorded(tmp_path, "tight_budget", recording)
     assert outcome.problems == []
-    assert "No design passed" in outcome.answer
-    assert "optimize" not in outcome.tools
+    assert outcome.partial and "partial answer" in outcome.answer
+    assert "reference" not in (outcome.state.get("design") or {})
+    assert "optimize" not in outcome.tools and "estimate_costs" not in outcome.tools
+    assert outcome.tools.count("design_lead") == 3
 
 
 @pytest.mark.slow
@@ -504,3 +512,73 @@ def test_the_plant_passes_its_case_and_fails_the_cooling_peak(raw_plant_verdicts
     peak = raw_plant_verdicts["more_cooling"]
     assert peak["passed"] is False
     assert {item["name"] for item in peak["failures"]} >= {"cold_delivered"}
+
+
+def test_a_task_s_step_limit_is_answered_stop():
+    """``tight_budget`` (``max_steps: 7``) gave its reply to the step-limit question and errored."""
+    from geomind.types import Request
+
+    asked = Request(
+        kind="question",
+        message="continue?",
+        options=[{"value": "continue", "label": "c"}, {"value": "stop", "label": "s"}],
+    )
+    other = Request(kind="question", message="which case?")
+    assert evals.is_step_limit(asked) and not evals.is_step_limit(other)
+
+
+def test_a_task_s_setup_runs_by_code_before_its_agent(gemini_loaded):
+    """The setup loads the project's case in the task's chat; the agent starts with it set."""
+    from evals.tasks_format import Task
+    from geomind.providers import FakeLLM
+    from geomind.stores import MemoryRunStore
+    from tests.fixtures.runs import says
+
+    task = Task.model_validate(
+        yaml.safe_load(
+            "message: Which services does the case serve?\n"
+            "plant: evals/projects/hackathon\n"
+            "setup:\n- tool: set_case\n  input: {source: project}\n"
+            "criteria:\n- kind: state\n  path: /case\n"
+        )
+    )
+    store = MemoryRunStore()
+    evals.set_up(task, store)
+    assert store.load_state(evals.CHAT)["case"]["demand"]
+    outcome = evals.run_task("t", task, "analysis_lead", FakeLLM([says("heating, cooling")]))
+    assert outcome.problems == []
+
+
+def test_a_live_eval_needs_a_cost_cap():
+    """No spending without a cap: ``--live`` without ``--max-cost`` is refused before any call."""
+    import pytest
+
+    from geomind.errors import RunError
+
+    with pytest.raises(RunError, match="--max-cost"):
+        evals.live_caps(None)
+
+
+def test_a_question_no_rule_covers_is_answered_unknown_and_noted():
+    """The first rule that matches answers; an uncovered question gets an open option or unknown."""
+    from evals.tasks_format import AnswerRule
+    from geomind.types import Request
+
+    rules = [AnswerRule(match="supply temperature", answer="100 degC")]
+    noted = []
+    asked = Request(kind="question", message="What heating supply temperature?")
+    assert evals.ruled_answer(asked, rules, noted) == "100 degC" and noted == []
+    other = Request(kind="question", message="Which air pressure?")
+    assert evals.ruled_answer(other, rules, noted) == "unknown" and noted == [other.message]
+    options = [{"value": "set_it", "label": "x"}, {"value": "leave_unset", "label": "y"}]
+    choice = Request(kind="question", message="Gas composition?", options=options)
+    assert evals.ruled_answer(choice, rules, noted) == "leave_unset"
+
+
+def test_a_task_s_workspace_has_the_knowledge_base_of_the_settings(tmp_path):
+    """#63: the eval workspace had no knowledge base, so the case lead found no cost catalogue."""
+    from evals.tasks_format import Task
+
+    task = Task(message="x", plant=str(tmp_path / "p"), criteria=())
+    workspace, project = evals._workspace(task)
+    assert project == "p" and workspace.knowledge_files()

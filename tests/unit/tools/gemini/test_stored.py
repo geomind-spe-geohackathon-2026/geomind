@@ -141,3 +141,11 @@ async def test_the_stored_case_is_the_one_the_run_read(shallow):
     reference = await save_run(context, plant, results, {}, {}, ran)
     stored = context.session.load_artifact(f"{reference.removeprefix('result/')}.case")
     assert stored == ran[0] != changed
+
+
+def test_a_reference_in_quotes_is_read_as_the_reference():
+    """#48: the explainer sent '"result/9b0d…"' and was told the reference does not exist."""
+    from geomind.tools.gemini.stored import unquoted
+
+    assert unquoted('"result/9b0db55da13a4a5b"') == "result/9b0db55da13a4a5b"
+    assert unquoted("'design/hp'") == "design/hp" and unquoted("design/hp") == "design/hp"

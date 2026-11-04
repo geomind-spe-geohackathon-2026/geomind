@@ -41,10 +41,10 @@ def test_a_set_key_is_never_printed(key):
 
 def test_a_model_missing_from_the_list_is_named_with_its_role(key):
     """Test a model missing from the list is named with its role."""
-    with runtime.settings(designer_model="vendor/unknown"):
-        lines, ready = live.report(max_cost=1, fetcher=lambda: {runtime.get("default_model")})
+    with runtime.settings(designlead_model="vendor/unknown"):
+        lines, ready = live.report(max_cost=1, fetcher=lambda: {runtime.get("caselead_model")})
     assert not ready
-    assert "model not in the OpenRouter list: vendor/unknown (role designer)" in lines
+    assert "model not in the OpenRouter list: vendor/unknown (role designlead)" in lines
 
 
 def test_no_network_skips_the_model_check(key):
@@ -74,24 +74,25 @@ def test_every_role_is_listed_with_its_model(key):
     """Test every role is listed with its model."""
     lines, _ = live.report(max_cost=1, fetcher=known_models)
     assert f"role coordinator: {runtime.get('coordinator_model')}" in lines
-    assert f"role analyst: {runtime.get('default_model')}" in lines
+    assert f"role analysislead: {runtime.get('analysislead_model')}" in lines
 
 
 def test_a_role_without_a_model_is_not_ready_and_names_the_setting(key, monkeypatch):
     """Test a role without a model is not ready and names the setting."""
-    monkeypatch.delenv("GEOMIND_MODEL")
-    monkeypatch.delenv("GEOMIND_CHEAP_MODEL")
+    monkeypatch.delenv("GEOMIND_ANALYSISLEAD_MODEL")
+    monkeypatch.delenv("GEOMIND_COORDINATOR_MODEL")
+    monkeypatch.setenv("GEOMIND_MODEL", "x/any")
     lines, ready = live.report(max_cost=1, fetcher=lambda: set())
     assert not ready
-    assert "model not set: GEOMIND_MODEL" in lines
-    assert "model not set: GEOMIND_CHEAP_MODEL" in lines
-    assert "role analyst: NOT SET" in lines
+    assert "model not set: GEOMIND_ANALYSISLEAD_MODEL" in lines
+    assert "model not set: GEOMIND_COORDINATOR_MODEL" in lines
+    assert "role analysislead: NOT SET" in lines
 
 
 def test_an_anthropic_model_is_not_ready(key):
     """Test an anthropic model is not ready."""
     model = live.FORBIDDEN_PREFIX + "x"
-    with runtime.settings(designer_model=model):
+    with runtime.settings(designlead_model=model):
         lines, ready = live.report(max_cost=1, fetcher=lambda: {model, *known_models()})
     assert not ready
-    assert f"model not allowed: {model} (role designer)" in lines
+    assert f"model not allowed: {model} (role designlead)" in lines

@@ -1,4 +1,4 @@
-"""The session of a run: sandbox lifecycle and artifacts."""
+"""The session of a run: models, artifacts and versions."""
 
 import builtins
 import platform
@@ -15,7 +15,6 @@ from geomind.engine.session import RunSession, current_versions
 from geomind.engine.state import RunState, Stop, is_cancel
 from geomind.errors import RunError
 from geomind.providers import OpenRouter
-from geomind.sandbox import LocalSandbox
 from geomind.stores import MemoryWorkspace
 from geomind.types import Cancel, Deny
 from tests.fixtures.runs import (
@@ -27,7 +26,6 @@ from tests.fixtures.runs import (
     of_type,
     run,
     says,
-    types,
     uses,
 )
 
@@ -40,36 +38,6 @@ def test_is_cancel():
 def test_stop_defaults():
     """A stop has one reason."""
     assert Stop("answer").request is None
-
-
-async def test_no_sandbox_is_provisioned_without_a_code_tool(tmp_path):
-    """Provisioning is lazy."""
-    _, _, events = await run([says()], sandbox=LocalSandbox(tmp_path))
-    assert "sandbox.provisioned" not in types(events)
-
-
-async def test_sandbox_is_provisioned_once_and_closed_at_the_end(tmp_path):
-    """Two code tools share one sandbox, closed before the run ends."""
-    result, _, events = await run(
-        [
-            uses(call("run_python", code="print(1)")),
-            uses(call("run_python", "c2", code="print(2)")),
-            says(),
-        ],
-        sandbox=LocalSandbox(tmp_path),
-    )
-    assert result.status == "done"
-    assert len(of_type(events, "sandbox.provisioned")) == 1
-    assert of_type(events, "sandbox.provisioned")[0].provider == "LocalSandbox"
-    assert types(events).index("sandbox.closed") < types(events).index("run.finished")
-    assert list(tmp_path.iterdir()) == []
-
-
-async def test_without_a_sandbox_the_model_reads_why():
-    """The run goes on, with an error result."""
-    result, _, events = await run([uses(call("run_python", code="1")), says("sorry")])
-    assert result.answer == "sorry"
-    assert "no sandbox" in str(of_type(events, "tool.result")[0].output)
 
 
 async def test_tools_reach_the_workspace_through_the_session():
@@ -131,8 +99,8 @@ async def test_a_real_provider_without_a_model_is_refused_before_any_event():
         permissions=Permissions(mode="auto"),
     )
     start = context()
-    with runtime.settings(default_model=None):
-        with pytest.raises(RunError, match="designer: set GEOMIND_MODEL or designer_model"):
+    with runtime.settings(designlead_model=None):
+        with pytest.raises(RunError, match="designlead: set GEOMIND_DESIGNLEAD_MODEL or designlea"):
             await engine.run(Worker(), start)
     assert engine.store.load_events(start.run_id) == []
 
@@ -145,3 +113,35 @@ async def test_a_scripted_run_never_fetches_the_context_windows(monkeypatch):
     )
     result, _, _ = await run([says("x")])
     assert result.status == "done"
+
+
+async def test_a_run_with_the_memory_off_is_not_offered_the_memory_tools():
+    """#42: with the memory off, agents called search_memory again and again and were refused."""
+    from geomind.agents import DesignLead
+
+    session = RunSession(engine_for([says()]), None, RunState(), None)
+    with runtime.settings(memory="off"):
+        names = [item["name"] for item in session.offered_schemas(DesignLead())]
+    assert "search_memory" not in names and "write_memory" not in names
+    assert "simulate" in names
+
+
+async def test_with_the_memory_off_the_curator_is_not_offered_and_a_call_runs_nothing():
+    """#127: with the memory off the curator is not offered, and a call of it is not_allowed.
+
+    The support lead had delegated to the curator, which called search_memory and write_lesson
+    three times with the memory off.
+    """
+    from geomind.agents.support.lead import SupportLead
+
+    agent = SupportLead()
+    completions = [uses(call("curator", task="keep the lessons")), says("no lessons kept")]
+    with runtime.settings(memory="off"):
+        session = RunSession(engine_for([says()]), None, RunState(), None)
+        names = [item["name"] for item in session.offered_schemas(agent)]
+        result, _, events = await run(completions, agent=agent)
+    assert "curator" not in names and "summarizer" in names
+    assert result.status == "done"
+    [answer] = [item for item in of_type(events, "tool.result") if item.tool == "curator"]
+    assert answer.is_error and answer.output["error"]["code"] == "not_allowed"
+    assert not of_type(events, "run.started")[1:]

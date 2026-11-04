@@ -34,6 +34,8 @@ def test_the_codes_are_the_fixed_list():
         "no_case",
         "case_incomplete",
         "files_unavailable",
+        "knowledge_unavailable",
+        "mcp_unavailable",
         "not_text",
         "nested_stopped",
         "context_exceeded",

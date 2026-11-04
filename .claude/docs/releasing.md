@@ -11,12 +11,9 @@ sha256; `[tool.uv.sources]` names the same URL for uv. `pyproject.toml` keeps th
 import it from the source folder (`pythonpath = "."`; a script needs `PYTHONPATH=.`). `make install`
 needs pip 25.1 or newer for `--group`, and raises it.
 
-The module sandbox image is `gemini-sandbox:<version>`. `make sandbox-image` pulls it from
-`ghcr.io/geomind-spe-geohackathon-2026/gemini-sandbox:<version>` and tags it with that local name.
-
 ## Updating gemini
 
-Change the URL in both places and the sha256, install in a new venv, run `make sandbox-image`, then
+Change the URL in both places and the sha256, install in a new venv, then
 all tests. When the examples changed, copy them again to `tests/fixtures/gemini_examples/`.
 
 ## Publishing a release

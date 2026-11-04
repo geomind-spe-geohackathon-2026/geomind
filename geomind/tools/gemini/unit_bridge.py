@@ -1,0 +1,159 @@
+"""Units gemini 0.6.2 refuses that the models write as the sources give them, mapped by set_case.
+
+A stopgap, reversible: gemini request 31 (``°C/km`` as a temperature gradient) makes the gradient
+mapping unneeded. gemini 0.6.2 takes ``mol%`` on a gas fraction and converts it (request 15), so a
+gas fraction in ``%`` is only named ``mol%`` here, the same number. Unit names as sources spell
+them (``kg/m³``, ``mPa·s``, ``MWth``) become gemini's name of the same unit, ``kg/m3``,
+``mPa.s``, ``MW``, only where the key's units hold that name: a name, no factor (#118).
+``set_case`` lists each mapping in its result (``converted``) so the case lead puts it in the
+confirmation question.
+"""
+
+import copy
+
+GRADIENT = ("site", "ground", "gradient")
+GRADIENT_UNITS = {
+    "degC/km": "K/km",
+    "°C/km": "K/km",
+    "C/km": "K/km",
+    "degC/m": "K/m",
+    "°C/m": "K/m",
+    "C/m": "K/m",
+}
+"""A temperature difference per length: the same number in kelvin, a unit name and no factor."""
+FRACTIONS = (("site", "fluid", "dissolved_gas"), ("utilities", "gas", "composition"))
+PERCENT_UNITS = ("%", "mol %")
+"""Names of a gas fraction in percent that gemini's ``mol%`` is: the same unit, no factor."""
+GRADIENT_REASON = "a temperature gradient: °C/km is K/km, the same number (until gemini request 31)"
+PERCENT_REASON = "a gas fraction in percent is gemini's mol%, the same number"
+SPELLINGS = {"³": "3", "²": "2", "·": "."}
+"""Characters of a unit name as sources print it, and gemini's spelling of them."""
+UNIT_NAMES = {"MWth": "MW", "MWcool": "MW"}
+"""Unit names that say what the power is for, and the unit they are in."""
+NAME_REASON = "unit name"
+
+
+def bridged_units(changes):
+    """Return ``(changes, converted)``: the changes with the units above mapped, and the list.
+
+    ``converted`` holds ``{path, from: {value, unit}, to: {value, unit}, reason}`` per value; the
+    changes are copied, never edited in place.
+    """
+    changes = copy.deepcopy(changes)
+    converted = []
+    gradient = _node(changes, GRADIENT)
+    unit = _unit(gradient)
+    if unit in GRADIENT_UNITS:
+        gradient["unit"] = GRADIENT_UNITS[unit]
+        value = gradient.get("value")
+        converted.append(_entry(GRADIENT, value, unit, value, gradient["unit"], GRADIENT_REASON))
+    for section in FRACTIONS:
+        gases = _node(changes, section)
+        for gas, item in (gases or {}).items():
+            unit = _unit(item)
+            if unit in PERCENT_UNITS:
+                item["unit"] = "mol%"
+                value = item.get("value")
+                entry = _entry((*section, gas), value, unit, value, "mol%", PERCENT_REASON)
+                converted.append(entry)
+    converted.extend(_renamed_units(changes, _case_schema(), ()))
+    return changes, converted
+
+
+def gemini_unit_name(unit, accepted):
+    """Return gemini's name of ``unit`` when ``accepted`` holds it and not ``unit``, else ``None``.
+
+    ``m³/h`` is ``m3/h``, ``mPa·s`` is ``mPa.s``, ``MWth`` and ``MWcool`` are ``MW``: the same unit.
+    """
+    if not isinstance(unit, str) or unit in accepted:
+        return None
+    name = "".join(SPELLINGS.get(char, char) for char in unit.strip())
+    name = UNIT_NAMES.get(name, name)
+    return name if name in accepted else None
+
+
+def _case_schema():
+    """Return gemini's JSON Schema of a case."""
+    import gemini as gm
+
+    return gm.Case.schema()
+
+
+def _accepted_units(schema):
+    """Return the units a field's schema accepts: its ``x-units`` or the ``unit`` enums."""
+    if not isinstance(schema, dict):
+        return set()
+    units = set(schema.get("x-units") or ())
+    unit = (schema.get("properties") or {}).get("unit")
+    units |= set((unit or {}).get("enum") or ())
+    for branch in schema.get("anyOf") or ():
+        units |= _accepted_units(branch)
+    return units
+
+
+def _child_schema(schema, key):
+    """Return the schema of ``key`` under an object schema, or ``None``."""
+    if not isinstance(schema, dict):
+        return None
+    child = (schema.get("properties") or {}).get(key)
+    extra = schema.get("additionalProperties")
+    return child if child is not None else extra if isinstance(extra, dict) else None
+
+
+def _renamed_units(changes, schema, path):
+    """Give each ``unit`` under ``changes`` gemini's name where its key takes it; return entries."""
+    if not isinstance(changes, dict) or schema is None:
+        return []
+    name = gemini_unit_name(changes.get("unit"), _accepted_units(schema))
+    if name is not None:
+        given, changes["unit"] = changes["unit"], name
+        value = changes.get("value")
+        return [_entry(path, value, given, value, name, NAME_REASON)]
+    entries = []
+    for key, item in changes.items():
+        entries.extend(_renamed_units(item, _child_schema(schema, key), (*path, key)))
+    return entries
+
+
+def _node(changes, path):
+    """Return the dict at ``path`` of a merge patch, or ``None``."""
+    node = changes
+    for key in path:
+        node = node.get(key) if isinstance(node, dict) else None
+    return node if isinstance(node, dict) else None
+
+
+def _unit(item):
+    """Return the stripped unit of a value object, or ``None``."""
+    unit = item.get("unit") if isinstance(item, dict) else None
+    return unit.strip() if isinstance(unit, str) else None
+
+
+def _entry(path, value, unit, new_value, new_unit, reason):
+    """Return one ``converted`` entry."""
+    return {
+        "path": ".".join(path),
+        "from": {"value": value, "unit": unit},
+        "to": {"value": new_value, "unit": new_unit},
+        "reason": reason,
+    }
+
+
+def bridged_requirements(requirements):
+    """Return ``(requirements, converted)``: each requirement's unit under gemini's name of it.
+
+    A requirement's ``unit`` may be any unit gemini knows, so ``m³/h`` becomes ``m3/h``; the
+    requirements are copied, never edited in place.
+    """
+    import gemini as gm
+
+    requirements = copy.deepcopy(requirements)
+    known = set(gm.units.names())
+    converted = []
+    for name, item in requirements.items():
+        unit = item.get("unit") if isinstance(item, dict) else None
+        renamed = gemini_unit_name(unit, known)
+        if renamed is not None:
+            item["unit"] = renamed
+            converted.append(_entry(("requirements", name), None, unit, None, renamed, NAME_REASON))
+    return requirements, converted

@@ -206,3 +206,16 @@ def test_a_requirement_is_text_with_a_link_to_a_case_requirement_never_a_target(
             ProblemState(),
             [{"op": "add", "path": "/requirements/-", "value": {**R1, "metric": "coverage"}}],
         )
+
+
+def test_an_assumption_keeps_its_reason_and_its_source_details():
+    """A value the user confirmed carries why it was chosen and where it came from."""
+    from geomind.context.state import Assumption, ProblemState, render
+
+    cited = {"title": "A cost survey", "publisher": "An agency", "year": 2020, "page": "12"}
+    item = Assumption(
+        id="A1", text="gas price", value=0.04, reason="the files give none", citation=cited
+    )
+    text = render(ProblemState(assumptions=(item,), version=1))
+    assert "because the files give none" in text and "A cost survey" in text
+    assert Assumption.model_validate(item.model_dump()).citation == cited

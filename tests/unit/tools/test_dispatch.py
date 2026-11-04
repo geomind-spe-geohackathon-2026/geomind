@@ -6,7 +6,7 @@ import pytest
 
 from geomind import runtime
 from geomind.engine import Context
-from geomind.errors import NotImplementedYet, SandboxError, ToolError, UnknownNameError
+from geomind.errors import NotImplementedYet, ToolError, UnknownNameError
 from geomind.tools import ask_user, dispatch, finish, tool
 from geomind.tools.dispatch import error_output, is_reported_error
 from geomind.types import TOOL_ERROR_CODES, Finish, Request, ToolCall
@@ -132,7 +132,6 @@ async def test_gemini_error_is_a_result(session, context):
     [
         (NotImplementedYet("list_modules comes in S2b"), "not_implemented"),
         (UnknownNameError("no such skill"), "unknown_name"),
-        (SandboxError("no sandbox is configured"), "not_allowed"),
         (ToolError("bad field", code="unknown_name", path="name"), "unknown_name"),
     ],
 )
@@ -210,3 +209,63 @@ async def test_builtins_return_what_the_engine_understands(session, context):
     request = await dispatch(ask_user, call(question="which?", options=["a"]), context)
     assert isinstance(request, Request) and request.options[0].value == "a"
     assert await dispatch(finish, call(answer="done"), context) == Finish(answer="done")
+
+
+async def test_a_value_with_leaked_tool_call_markup_is_refused_with_the_value_before_it():
+    """#70: DeepSeek wrote ``">Plant</</parameter name=`` as a plant name, three times alike."""
+    from geomind.tools.dispatch import leaked_markup, markup_error
+
+    value = '">HeatingCoolingPlant</</parameter name=</invoke</function_calls>Let me retry.'
+    found = leaked_markup({"project_plant": value})
+    assert found == ("project_plant", value)
+    error = markup_error(type("T", (), {"name": "read_plant"})(), found)
+    assert error.code == "invalid_input" and list(error.suggestions) == ["HeatingCoolingPlant"]
+    assert leaked_markup({"plant": {"params": {"a": [1, "x < y"]}}}) is None
+    assert leaked_markup({"a": ["ok", {"b": "v</parameter>"}]}) == ("a.1.b", "v</parameter>")
+    assert leaked_markup({"project_plant": ">HackathonPlant</"}) is not None
+    assert leaked_markup({"section": '">site'}) is not None
+    assert leaked_markup({"section": "site"}) is None
+
+
+async def test_a_markup_slip_is_an_error_but_no_validation_failure():
+    """#75: two garbled calls in a row counted as invalid calls and ended the run."""
+    from geomind.tools import read_rag
+
+    result = await dispatch(
+        read_rag, ToolCall(id="c1", name="read_rag", input={"name": ">a.md</"}), Context()
+    )
+    assert result.is_error and not result.is_validation
+    assert list(result.output["error"]["suggestions"]) == ["a.md"]
+    answer = ToolCall(id="c2", name="finish", input={"answer": "Use </br> in HTML."})
+    assert isinstance(await dispatch(finish, answer, Context(session=StubSession())), Finish)
+
+
+def test_an_object_sent_as_json_text_is_no_markup():
+    """The markup check of #70 and #75 lets the JSON text of an object through (#67)."""
+    from geomind.tools.dispatch import leaked_markup
+
+    changes = '{"format": 1, "site": {"name": "a"}, "time": {"end": "2025-01-01"}}'
+    assert leaked_markup({"changes": changes}) is None
+    assert leaked_markup({"changes": '{\n  "format": 1\n}'}) is None
+
+
+async def test_an_unknown_argument_names_the_real_ones_and_is_no_validation_failure():
+    """#126: the design lead sent ``read_plant with_schema`` 17 times; two in a row ended a run."""
+    from geomind.tools.gemini import read_plant
+
+    recorded = {"plant_class": "HeatingHeatPumpCoolingPlant", "with_schema": "True"}
+    result = await dispatch(
+        read_plant, ToolCall(id="c1", name="read_plant", input=recorded), Context()
+    )
+    assert result.is_error and not result.is_validation
+    problem = result.output["error"]
+    assert problem["path"] == "with_schema"
+    assert "plant_class" in problem["message"] and "with_schema" in problem["message"]
+    assert "plant_class" in problem["suggestions"]
+
+
+async def test_an_argument_of_a_tool_without_arguments_is_unknown(session, context):
+    """A tool that takes nothing says so."""
+    result = await dispatch(session_id, call("session_id", extra=1), context)
+    assert result.is_error and not result.is_validation
+    assert "takes no arguments" in result.output["error"]["message"]

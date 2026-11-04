@@ -1,4 +1,4 @@
-"""Errors of what the harness calls: LLM services, tools and sandboxes."""
+"""Errors of what the harness calls: LLM services and tools."""
 
 from geomind.errors.base import GeomindError
 
@@ -26,10 +26,6 @@ class ToolError(GeomindError, RuntimeError):
         self.code = code
         self.path = path
         self.suggestions = tuple(suggestions)
-
-
-class SandboxError(GeomindError, RuntimeError):
-    """A sandbox is missing, lost or was asked for a path outside itself."""
 
 
 class NotImplementedYet(GeomindError, NotImplementedError):

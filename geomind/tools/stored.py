@@ -9,6 +9,7 @@ small top-level values and an outline of the rest. ``read_stored`` returns the w
 import hashlib
 import json
 
+from geomind import runtime
 from geomind.errors import ToolError
 from geomind.tools.base import tool
 from geomind.utils.json import to_jsonable
@@ -106,16 +107,62 @@ def is_long(arguments):
     return len(json.dumps(arguments)) > INPUT_CHARACTERS
 
 
+PLACEHOLDER = "shortened"
+"""The key an old history wrote a long call's outline under, as if it were the call's input."""
+
+
 def shortened(call):
-    """Return a call whose long arguments became their outline, once the call is old.
+    """Return a call whose long arguments are left out, once the call is old: its input is empty.
 
     The call was made and its result read; what it changed is stored by the tool, which reads it
-    back (``read_plant``, ``read_case``, ``read_profile``), so the history keeps the shape only.
+    back (``read_plant``, ``read_case``, ``read_profile``), so the history keeps the shape only,
+    and in the message's text (``shortened_note``), not as input a model could send again.
     """
     if not is_long(call.input):
         return call
-    return call.model_copy(
-        update={"input": {"shortened": outline(call.input, INPUT_CHARACTERS // 2)}}
+    return call.model_copy(update={"input": {}})
+
+
+def shortened_note(call):
+    """Return the line that stands for a long call's arguments in the text of its message."""
+    shape = outline(call.input, INPUT_CHARACTERS // 2)
+    return (
+        f"[{call.name} was called with long arguments, left out of this history: {shape}. "
+        "They are no input to send again.]"
+    )
+
+
+def shortened_message(message):
+    """Return an old assistant message with each long call input left out and outlined in text."""
+    notes = [shortened_note(call) for call in message.tool_calls if is_long(call.input)]
+    if not notes:
+        return message
+    text = "\n".join(part for part in (message.content or "", *notes) if part)
+    return message.model_copy(
+        update={"content": text, "tool_calls": tuple(map(shortened, message.tool_calls))}
+    )
+
+
+def is_placeholder(tool, tool_input):
+    """Tell whether a call's input is the outline an old history showed of an earlier call."""
+    properties = tool.input_schema.get("properties") or {}
+    return (
+        isinstance(tool_input, dict)
+        and set(tool_input) == {PLACEHOLDER}
+        and PLACEHOLDER not in properties
+    )
+
+
+def placeholder_error(tool):
+    """Return the error of a call that sent an earlier call's outline as its input."""
+    names = list((tool.input_schema.get("properties") or {}).keys())
+    expected = f"its arguments are {', '.join(names)}" if names else "it takes no arguments"
+    return ToolError(
+        f"{tool.name}: input = {{{PLACEHOLDER!r}: ...}}, the outline of an earlier call in the "
+        f"shortened history, not arguments; {expected}. Send the call with its real arguments",
+        code="invalid_input",
+        path=PLACEHOLDER,
+        suggestions=names,
     )
 
 
@@ -152,13 +199,14 @@ def parts_of(value):
     return []
 
 
-@tool(effect="read", stored_input="reference")
+@tool(effect="read", stored_input="reference", keeps_result=True)
 def read_stored(context, reference: str, path: str | None = None):
     """Return a result that was stored by reference, whole or one part of it.
 
     ``reference`` is the ``result-...`` (or ``output-...``) key of a result that came back as a
     reference and an outline. ``path`` is dotted keys and list indexes into it, such as
-    ``capabilities.HeatingPlant``; a long part comes back as a reference again, so read it deeper.
+    ``capabilities.HeatingPlant`` (``/`` reads as ``.``). A part too long to show whole comes
+    back as its keys (or its length) and an outline, with the path to read deeper.
     """
     stored = context.session.load_artifact(reference)
     if stored is None:
@@ -167,6 +215,27 @@ def read_stored(context, reference: str, path: str | None = None):
             code="unknown_name",
             path="reference",
         )
-    for part in (path or "").split("."):
+    path = (path or "").replace("/", ".").strip(".")
+    for part in path.split("."):
         stored = _step(stored, part) if part else stored
-    return to_jsonable(stored)
+    value = to_jsonable(stored)
+    if len(json.dumps(value)) <= runtime.get("tool_result_limit"):
+        return value
+    return deeper(reference, path, value)
+
+
+def deeper(reference, path, value):
+    """Return the keys or length of a part too long to show, with the call that reads one."""
+    keys = parts_of(value)
+    first = keys[0] if keys else "0"
+    prefix = f"{path}." if path else ""
+    return {
+        "reference": reference,
+        "path": path or None,
+        "keys": keys,
+        "summary": outline(value),
+        "note": (
+            "too long to show whole: read one part, such as "
+            f"read_stored(reference={reference!r}, path='{prefix}{first}')"
+        ),
+    }

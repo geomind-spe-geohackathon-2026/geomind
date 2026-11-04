@@ -14,7 +14,7 @@ from geomind.utils.strings import join_names
 
 UNIT_GIVEN = re.compile(r"unit = '([^']*)'")
 UNIT_LISTED = ("accepted units", "expected a unit of")
-UNIT_QUANTITY = re.compile(r"a unit of ([a-z_]+)")
+UNIT_QUANTITY = re.compile(r"a unit of ([a-z_]+(?: [a-z_]+)*)")
 ROW = re.compile(r"\brow (\d+)\b")
 QUOTED = re.compile(r"'[^']*'")
 RANGE_SUFFIX = ".range"
@@ -291,7 +291,7 @@ def unit_retry(error, data):
         given = UNIT_GIVEN.search(problem["message"])
         if quantity is None or given is None or not problem["path"].endswith(".unit"):
             continue
-        units = list(gm.units.names(quantity[1]))
+        units = list(gm.units.names(quantity[1].replace(" ", "_")))
         field = problem["path"].removesuffix(".unit")
         sent = field_of(data, field)
         guess = unit_guess(given[1], units)
@@ -299,7 +299,7 @@ def unit_retry(error, data):
             rest = {key: value for key, value in sent.items() if key not in ("value", "unit")}
             corrected = {"value": number_of(sent.get("value")), "unit": guess, **rest}
             suggestions.append(f"{field} = {corrected!r}")
-        suggestions.append(f"accepted units: {join_names(units)}")
+        suggestions.append(f"{field}: accepted units: {join_names(units)}")
     return suggestions
 
 

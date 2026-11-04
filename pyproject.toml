@@ -1,6 +1,6 @@
 [project]
 name = "geomind"
-version = "0.4.21"
+version = "0.4.22"
 description = "Agent harness over an event log, with gemini as its physics library"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -13,7 +13,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "gemini-geothermal-suite-open>=0.5,<0.6",
+    "gemini-geothermal-suite-open>=0.6,<0.7",
     "pydantic>=2.10",
     "pydantic>=2.12.0; python_version >= '3.14'",
     "httpx>=0.27.0",
@@ -35,7 +35,7 @@ lint = [
 dev = [{ include-group = "test" }, { include-group = "lint" }]
 
 [tool.uv.sources]
-gemini-geothermal-suite-open = { url = "https://github.com/geomind-spe-geohackathon-2026/gemini/releases/download/v0.5.13/gemini_geothermal_suite_open-0.5.13-py3-none-any.whl" }
+gemini-geothermal-suite-open = { url = "https://github.com/geomind-spe-geohackathon-2026/gemini/releases/download/v0.6.2/gemini_geothermal_suite_open-0.6.2-py3-none-any.whl" }
 
 [tool.poetry]
 packages = [{ include = "geomind" }]

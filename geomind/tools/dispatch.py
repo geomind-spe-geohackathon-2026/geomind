@@ -3,6 +3,7 @@
 import asyncio
 import inspect
 import json
+import re
 from time import perf_counter
 
 import pydantic
@@ -11,17 +12,28 @@ from geomind import runtime
 from geomind.errors import (
     GeomindError,
     NotImplementedYet,
-    SandboxError,
     ToolError,
     UnknownNameError,
 )
-from geomind.tools.stored import STORE_CHARACTERS, reference_of, stored_form
+from geomind.tools.stored import (
+    STORE_CHARACTERS,
+    is_placeholder,
+    placeholder_error,
+    reference_of,
+    stored_form,
+)
 from geomind.types import Finish, Problem, Request, ToolResult
 from geomind.utils.json import to_jsonable
+from geomind.utils.strings import did_you_mean, join_names
+
+MARKUP = re.compile(r"</|<(?:parameter|invoke|function_calls|function)\b|^\s*\"?>")
+"""Tool-call markup a model leaks into an argument's value instead of ending the value (#70)."""
+
+PROSE_TOOLS = frozenset({"finish", "ask_user", "update_state", "write_lesson"})
+"""Tools whose inputs are prose, where ``</`` may be meant: no markup check for them."""
 
 CODE_OF_ERROR = {
     NotImplementedYet: "not_implemented",
-    SandboxError: "not_allowed",
     UnknownNameError: "unknown_name",
 }
 
@@ -38,10 +50,28 @@ def is_reported_error(error):
 
 
 def _validation_problem(error):
-    """Return the problem of an input that does not fit: its first field, with the whole text."""
-    fields = error.errors()[0]["loc"]
-    path = ".".join(str(field) for field in fields) or None
-    return Problem(path=path, code="invalid_input", message=str(error))
+    """Return the problem of an input that does not fit: its first field, with the whole text.
+
+    An object sent as JSON text, which models often do, gets the suggestion to send the object.
+    """
+    first = error.errors()[0]
+    path = ".".join(str(field) for field in first["loc"]) or None
+    suggestions = (
+        [f"{path} is JSON text: send the object itself, not a string"]
+        if (first["type"] == "dict_type" and _is_json_object(first.get("input")))
+        else []
+    )
+    return Problem(path=path, code="invalid_input", message=str(error), suggestions=suggestions)
+
+
+def _is_json_object(value):
+    """Tell whether ``value`` is text that reads as a JSON object."""
+    if not isinstance(value, str):
+        return False
+    try:
+        return isinstance(json.loads(value), dict)
+    except ValueError:
+        return False
 
 
 def _problem(error):
@@ -99,7 +129,9 @@ async def _bounded(context, call, output, tool=None):
 
     A result over ``STORE_CHARACTERS`` is stored and carries its reference, whole while it is fresh;
     one over ``tool_result_limit`` reaches the model only as ``stored_form``. A part of a stored
-    result (``Tool.stored_input``) keeps the reference it was read from and is not stored again.
+    result (``Tool.stored_input``) keeps the reference it was read from and is not stored again,
+    and the history keeps a tool's result whole for a few turns when it keeps its results
+    (``Tool.keeps_result``).
     """
     text = json.dumps(output)
     limit = runtime.get("tool_result_limit")
@@ -121,6 +153,70 @@ def _result(tool, call, started, output, **fields):
     return ToolResult(call_id=call.id, tool=tool.name, output=output, duration=duration, **fields)
 
 
+def leaked_markup(value, path=""):
+    """Return ``(path, value)`` of the first string of an input holding tool-call markup."""
+    if isinstance(value, str):
+        return (path or None, value) if MARKUP.search(value) else None
+    if not isinstance(value, (dict, list, tuple)):
+        return None
+    items = value.items() if isinstance(value, dict) else enumerate(value)
+    for key, item in items:
+        found = leaked_markup(item, f"{path}.{key}" if path else str(key))
+        if found is not None:
+            return found
+    return None
+
+
+def markup_error(tool, found):
+    """Return the error of a value with leaked markup, suggesting the value before it (#70).
+
+    NOTE: it is no validation failure, which two in a row end the run: the call is right but for
+    a slip of the model's formatting, and the next call is usually clean (#75).
+    """
+    path, value = found
+    guess = value.split("<", 1)[0].strip().strip('">').strip()
+    return ToolError(
+        f"{tool.name}: {path} = {value[:80]!r}...; it holds tool-call markup, not only the "
+        "value: send the call again with the value alone",
+        code="invalid_input",
+        path=path,
+        suggestions=[guess] if guess else [],
+    )
+
+
+def unknown_arguments_error(tool, unknown):
+    """Return the error of a call with arguments the tool does not have, naming its own (#126).
+
+    NOTE: it is no validation failure, which two in a row end the run: a made-up extra argument
+    (``read_plant with_schema``) is answered with the real names, and the next call drops it.
+    """
+    names = list((tool.input_schema.get("properties") or {}).keys())
+    hints = "".join(did_you_mean(name, names) for name in unknown)
+    expected = f"its arguments are {join_names(names)}" if names else "it takes no arguments"
+    return ToolError(
+        f"{tool.name}: unknown argument(s) {join_names(unknown)}; {expected}{hints}. Send the "
+        "call again without them",
+        code="invalid_input",
+        path=unknown[0],
+        suggestions=names,
+    )
+
+
+def refused_input(tool, tool_input):
+    """Return the error of an input refused before validation, or ``None``.
+
+    Leaked markup, the placeholder of an earlier call in the shortened history, and arguments
+    the tool does not have. NOTE: none is a validation failure, which ends the run in a row.
+    """
+    found = None if tool.name in PROSE_TOOLS else leaked_markup(tool_input)
+    if found is not None:
+        return markup_error(tool, found)
+    if is_placeholder(tool, tool_input):
+        return placeholder_error(tool)
+    unknown = tool.unknown_arguments(tool_input)
+    return unknown_arguments_error(tool, unknown) if unknown else None
+
+
 async def dispatch(tool, call, context):
     """Validate, run and time one call.
 
@@ -129,6 +225,9 @@ async def dispatch(tool, call, context):
     reported through the run and the model reads only that an internal error happened.
     """
     started = perf_counter()
+    refused = refused_input(tool, call.input)
+    if refused is not None:
+        return _result(tool, call, started, error_output(refused), is_error=True)
     try:
         arguments = tool.validate(call.input)
     except (pydantic.ValidationError, ToolError) as error:

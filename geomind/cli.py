@@ -20,11 +20,12 @@ from geomind.engine.hooks import CostBudget, ProjectBudget, TokenBudget
 from geomind.engine.replay import nested_runs_reused, version_differences
 from geomind.errors import GeomindError, RunError
 from geomind.export import models_by_agent, render_export
-from geomind.providers import FakeLLM, OpenRouter, Recorder
+from geomind.mcp import servers_from_text
+from geomind.providers import FakeLLM, OpenRouter, Recorder, ReplayThenLive
 from geomind.run import LOOPS, Run, loop_of
-from geomind.sandbox import DockerSandbox, LocalSandbox
 from geomind.stores import FileUsageLedger, FileWorkspace
 from geomind.stores.casefiles import named_files
+from geomind.stores.knowledge import FolderKnowledge
 from geomind.stores.run import FileRunStore
 from geomind.stores.workspace import read_bytes
 from geomind.types import Message, validate_answer
@@ -72,8 +73,8 @@ def _ask(request):
 def _answer(request, retries):
     """Return a valid answer typed in the terminal, or ``None`` when there is none.
 
-    An answer the request does not accept, such as free text where options are fixed, is asked
-    again with the options shown, at most ``retries`` times (``--answer-retries``; unset, never).
+    An answer the request does not accept, such as text to an approval, is asked again with the
+    options shown, at most ``retries`` times (``--answer-retries``; unset, never).
     The end of the input is no answer either, so the run waits and ``geomind resume`` continues it.
     """
     for attempt in range((retries or 0) + 1):
@@ -115,16 +116,11 @@ def _report(result):
     return 0 if result.status == "done" else 1
 
 
-def _sandbox(name):
-    """Return the chosen sandbox provider."""
-    return {"local": LocalSandbox, "docker": DockerSandbox, None: lambda: None}[name]()
-
-
 def _changes(args):
     """Return the runtime settings the options change."""
     changes = {}
     if args.model:
-        changes["default_model"] = args.model
+        changes.update({f"{role}_model": args.model for role in runtime.ROLES})
     if args.max_steps:
         changes["max_steps"] = args.max_steps
     if getattr(args, "concurrency", None):
@@ -135,8 +131,22 @@ def _changes(args):
 
 
 def _run_provider(args):
-    """Return the provider of ``run``: OpenRouter, or a recording; ``--record`` keeps a copy."""
-    llm = FakeLLM.from_recording(args.recording) if args.recording else OpenRouter()
+    """Return the provider of ``run``: OpenRouter, or a recording; ``--record`` keeps a copy.
+
+    ``--replay FILE --replay-steps N`` answers the first ``N`` calls from a recording and the rest
+    live, so a run after a fix goes on from where it failed; both are given or neither.
+    """
+    replay, steps = getattr(args, "replay", None), getattr(args, "replay_steps", None)
+    if (replay is None) != (steps is None):
+        raise RunError("run: --replay and --replay-steps go together; expected both or neither")
+    if replay is not None and args.recording:
+        raise RunError("run: --replay goes on live; expected no --recording with it")
+    if args.recording:
+        llm = FakeLLM.from_recording(args.recording)
+    elif replay is not None:
+        llm = ReplayThenLive.from_recording(replay, OpenRouter(), steps)
+    else:
+        llm = OpenRouter()
     return Recorder(llm, Path(args.record)) if args.record else llm
 
 
@@ -288,6 +298,7 @@ def _command_run(args):
     """
     _require_cap(args)
     workspace, project = _project(args.project)
+    _require_tool_loop(args)
     _require_case(args, workspace, project)
     with runtime.settings(**_changes(args)):
         run = Run(
@@ -296,16 +307,31 @@ def _command_run(args):
             llm=_run_provider(args),
             store=FileRunStore(RUNS_FOLDER),
             workspace=workspace,
-            sandbox=_sandbox(args.sandbox),
             permissions=Permissions(mode=args.mode),
             callbacks=[_Printer()],
             hooks=_budgets(args),
         )
         if args.loop is not None:
-            run.loop = loop_of(Route(kind="loop", loop=args.loop))
+            run.loop = _loop(args)
         result = _until_answered(run, run.start(), args.answer_retries)
         write_manifest(RUNS_FOLDER, result.run_id, args)
     return _report(result)
+
+
+def _loop(args):
+    """Return the loop of ``--loop``; with ``--agent``, the tool loop around that one agent.
+
+    ``--agent`` runs any shipped agent alone, such as ``case_lead``, to try one step of a loop.
+    """
+    if args.agent is None:
+        return loop_of(Route(kind="loop", loop=args.loop))
+    return LOOPS["tool"](agents.named(args.agent))
+
+
+def _require_tool_loop(args):
+    """Refuse ``--agent`` with any loop but the tool loop."""
+    if args.agent is not None and args.loop != "tool":
+        raise RunError(f"run: --agent {args.agent} with --loop {args.loop}; expected --loop tool")
 
 
 def _command_resume(args):
@@ -322,7 +348,6 @@ def _command_resume(args):
             llm=_run_provider(args),
             store=FileRunStore(RUNS_FOLDER),
             workspace=workspace,
-            sandbox=_sandbox(args.sandbox),
             permissions=Permissions(mode=args.mode),
             callbacks=[_Printer()],
             hooks=_budgets(args),
@@ -358,7 +383,7 @@ def _chat_provider(args):
 def _require_case(args, workspace, project):
     """Raise unless a design run has a project with a ``case.json`` or files that may hold one.
 
-    There is no fallback case; with files the design loop sends the designer to read them first.
+    There is no fallback case; with files the design loop sends the design lead to read them first.
     """
     if args.loop != "design":
         return
@@ -371,11 +396,34 @@ def _require_case(args, workspace, project):
 
 
 def _project(path):
-    """Return the workspace and the project of a project folder."""
+    """Return the workspace and the project of a project folder, with the knowledge base."""
     if path is None:
         return None, None
     folder = Path(path)
-    return FileWorkspace(folder.parent), folder.name
+    workspace = FileWorkspace(folder.parent, knowledge=_knowledge(), mcp=_servers())
+    return workspace, folder.name
+
+
+def _servers():
+    """Return the MCP servers of ``GEOMIND_MCP_SERVERS`` (a JSON list, ``[]`` for none)."""
+    text = runtime.get("mcp_servers")
+    if text is None:
+        raise RunError(
+            "run: mcp_servers = None; expected GEOMIND_MCP_SERVERS, a JSON list of "
+            "{name, url, transport, headers}, [] for none"
+        )
+    return servers_from_text(text)
+
+
+def _knowledge():
+    """Return the knowledge base of ``GEOMIND_KNOWLEDGE_DIR``; a run without it is refused."""
+    folder = runtime.get("knowledge_dir")
+    if folder is None or not Path(folder).is_dir():
+        raise RunError(
+            f"run: knowledge_dir = {folder!r}; expected GEOMIND_KNOWLEDGE_DIR, the folder of "
+            "the knowledge base's documents"
+        )
+    return FolderKnowledge(folder)
 
 
 def _state_text(chat):
@@ -565,7 +613,6 @@ def _run_options(command):
     command.add_argument("--model")
     command.add_argument("--max-steps", type=int)
     command.add_argument("--mode", choices=["ask", "auto", "readonly", "plan"], default="ask")
-    command.add_argument("--sandbox", choices=["local", "docker"])
     command.add_argument("--project")
     command.add_argument("--recording")
     command.add_argument("--record")
@@ -577,6 +624,10 @@ def _run_options(command):
     )
     _add_project_caps(command)
     _answer_retries(command)
+    command.add_argument("--replay", help="a recording whose first calls answer this run")
+    command.add_argument(
+        "--replay-steps", type=int, help="how many calls of --replay answer before going live"
+    )
 
 
 def _answer_retries(command):
@@ -595,6 +646,7 @@ def _parser():
     run = commands.add_parser("run", help="answer one message")
     run.add_argument("message")
     run.add_argument("--loop", choices=list(LOOPS))
+    run.add_argument("--agent", help="with --loop tool, the one agent to run, such as case_lead")
     _comparison_arguments(run)
     _run_options(run)
     run.set_defaults(function=_command_run)
@@ -609,7 +661,7 @@ def _parser():
     check.add_argument("--max-cost", type=float)
     check.set_defaults(function=_command_check_live)
     chat = commands.add_parser("chat", help="talk to one agent in the terminal")
-    chat.add_argument("--agent", default="analyst")
+    chat.add_argument("--agent", default="analysis_lead")
     chat.add_argument("--project")
     chat.add_argument("--live", action="store_true")
     chat.add_argument("--recording")

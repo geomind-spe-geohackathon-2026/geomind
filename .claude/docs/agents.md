@@ -57,12 +57,17 @@ hook stopped the call, and then `action` is `None`. Agent code never constructs 
 
 ## Prompt, Model, Output
 
-`Prompt("assistant")` loads `prompts/general/assistant.md`: a role has one file, in the folder of its
-area. `Prompt.text(...)` holds inline text.
+`Prompt("design/lead")` loads `geomind/prompts/design/lead.md`: a role has one file,
+`geomind/prompts/<team>/<name>.md`, as its agent is `geomind/agents/<team>/<name>.py`. Skills stay in
+`geomind/prompts/skills/`. `Prompt.text(...)` holds inline text. A role file has the headings
+Role, Inputs, Tools, Rules, Output and Examples, and holds engineering method only: every number
+comes from the case, the files, knowledge with its source, or a gemini tool.
 
 `Model(name=None, setting=None, temperature=0, max_tokens=None, fallbacks=())`: `setting` names the
-role setting in `gd.runtime`, such as `analyst_model`; with neither a name nor a set role, the model is
-`default_model`. `fallbacks` lists models tried in order when the provider keeps failing.
+role setting in `gd.runtime`, such as `designlead_model`, set by `GEOMIND_DESIGNLEAD_MODEL`. There
+is no default model and no fallback from one role to another: a role whose setting is unset has no
+model, and a real provider refuses to call. `fallbacks` lists models tried in order when the
+provider keeps failing.
 
 `Output(kind=str, max_retries=2)` is the type of the final answer, `str` or a Pydantic model. The
 answer of `finish` or of the last message is validated. A failure goes back to the model as
@@ -71,17 +76,58 @@ its JSON schema to the system prompt.
 
 ## Shipped agents
 
+The agents are a geothermal engineering team: one folder per team, each team head is `lead`, and
+each agent is `geomind/agents/<team>/<name>.py` with its prompt in `geomind/prompts/<team>/<name>.md`;
+the tests mirror it as `tests/unit/agents/<team>/test_<name>.py`. Class names stay whole and the import stays
+`gd.agents.<Class>`. Each model agent has its own required model setting,
+`GEOMIND_<CLASS>_MODEL` in capitals (`GEOMIND_CASELEAD_MODEL`).
+
 | Agent | Folder | Status | In `AGENTS` of `run.py` |
 |---|---|---|---|
-| `Analyst` | `analysis/` | complete, the sample, with the gemini tools of S2b | yes, the default route |
-| `Assistant`, `CodeAssistant` | `general/` | complete; `Run` uses `CodeAssistant` with a sandbox | `code_assistant` |
-| `Summarizer` | `general/` | complete; only compaction calls it | no |
-| `Coordinator` | `coordination/` | complete; answers with a `Route`, called by `Run.start` | no |
-| `Designer` | `design/` | complete; sizes, simulates, checks and optimises a design for the case | no |
-| `FamilyDesigner` | `design/` | complete; a `Designer` without `set_case`, `save_profile` and `ask_user`, for one family of a comparison |
-| `Verifier` | `verification/` | complete; checks the final design once with gemini | no |
-| `Economist` | `economics/` | complete; costs, compares, samples uncertainty | no |
-| `Explainer` | `reporting/` | complete; the explanation, from the state and the tools | no |
+| `ProjectLead` | `project/lead.py` | complete; a model: plans case, design, review, analysis and explanation, writes each team a brief, routes each failure to its owner, asks the user only what the teams cannot settle, stops when the review passed and the analysis is done or a failure repeats after a real change; run by `ProjectLoop` (route `project`) | no |
+| `Coordinator` | `project/coordinator.py` | complete; answers with a `Route` (`task`, a brief for an app event; `preferences`, the user's way of working, put in the problem state), called by `Run.start` | no |
+| `Reviewer` | `project/reviewer.py` | complete (the `Verifier` until 0.4.22); checks the final design once with gemini, reads the knowledge base only, never experience | no |
+| `Explainer` | `project/explainer.py` | complete; the explanation, from the state and the tools; reads the knowledge base only, to cite sources | no |
+| `CaseLead` | `case/lead.py` | complete (the `Formulator` until 0.4.22); sets the case from the project's files and the user's answers, confirms every value no file gives in one question | no |
+| `Geoscientist` | `case/geoscientist.py` | complete; reads the reports whole once and proposes the ground, reservoir, brine and dissolved-gas values to the `CaseLead` (its `geoscientist` tool) as typed `Findings`: each value with page, table, depth, quality and range, the missing ones and the disagreements with both sources; never sets the case, never fills a gap with a typical value | no |
+| `DesignLead` | `design/lead.py` | complete (the `Designer` until 0.4.22); sizes, simulates, checks and optimises a design for the case, which it reads and never sets; a comparison runs one per family without `ask_user` | no |
+| `ProcessEngineer` | `design/process.py` | complete; chooses the modules for every service of the case, a reason each, builds the skeleton and records `design.modules` and `design.owners` (parameter path prefix to discipline) | no |
+| `IntegrationEngineer` | `design/integration.py` | complete; connects the modules: ports, streams, inlets, outlets, fluids, boundaries (the PFD) | no |
+| `ReservoirEngineer` | `design/reservoir.py` | complete; doublets, spacing, flow, reservoir cooling, degasser, brine-cooling limit | no |
+| `WellEngineer` | `design/well.py` | complete; well depth and path, diameters, the ESP and its setting depth | no |
+| `EnergySystemsEngineer` | `design/energy.py` | complete; heat pump, chiller, boiler, storage, exchangers, surface pipes and network | no |
+| `AnalysisLead` | `analysis/lead.py` | complete (the `Analyst` until 0.4.22), the sample, with the gemini tools | yes, the default route |
+| `Economist` | `analysis/economist.py` | complete; costs, compares, samples uncertainty | no |
+| `SupportLead` | `support/lead.py` | complete; takes the other leads' support requests (every lead has `support_lead`), routes each to the summarizer or the curator, checks the answer and sends it back once when wrong | no |
+| `Curator` | `support/curator.py` | complete; at the end of a run keeps general per-role lessons and the user's facts in experience with their origin (`write_lesson`); never a design or a number as a rule | no |
+| `Summarizer` | `support/summarizer.py` | complete; compaction calls it, and the support lead for a handover summary | no |
+
+The project lead's guards are code: before its first model call it loads the project's case
+file by rule (`set_case(source="project")`) when the state has no case; its `reviewer` tool
+(`agents/project/review.py`) runs the `Reviewer`, then gemini's verdict (`verify_design`)
+on the state, lists each failure with the team it goes to first (a hint by gemini's domain),
+flags `repeated_failure` when a changed design fails exactly as before, and keeps a passed design
+in experience (`keep_design`); the `Verified` hook of `ProjectLoop` keeps an unverified design
+from the user; the budget, the step limit, the output limit and the stop on repeated identical
+calls are the engine's. Its `comparison` tool runs the rule-driven `ComparisonDriver`, which
+moved with `DesignDriver` and `CompareDriver` to `agents/project/drivers.py` and `agents/project/comparison.py` (`DesignLoop` and
+`CompareLoop` still run them alone, and old logs find them by their old paths). The analysis
+lead has the `economist` as its member.
+
+The design team works in order: the `DesignLead` asks the `ProcessEngineer`, then the
+`IntegrationEngineer`, then the `ReservoirEngineer`, `WellEngineer` and `EnergySystemsEngineer`
+in one step, side by side (delegates with `runs_beside` and `limit="design_concurrency"`, at most
+`GEOMIND_DESIGN_CONCURRENCY` at once, required, no default), each from the connected design and
+each storing its own name; it joins them with `merge_designs`, reviews the plant (every service
+and nothing more, sensible connections, coupled values that agree, a source or reason for each
+value), sends each problem back to its owner with the reason, and then sizes, simulates, checks
+and optimises. An engineer has a `discipline`; `patch_plant` refuses its change to a part
+another discipline owns (`design.owners`). Engineers ask nobody: what they cannot settle goes
+back to the lead.
+
+Removed in 0.4.22: `Assistant`, `CodeAssistant`, `FamilyDesigner` (a comparison's family run is a
+`DesignLead` without `ask_user`), `run_python`, `read_file`, `write_file`, `write_module`,
+`test_module` and the code sandbox. No code runs in geomind.
 
 All are exported from `gd.agents`. The skill `designing-a-plant` is general: how to read any case,
 choose families, size and optimise, the plant record, and what gemini can and cannot run today, as
@@ -97,37 +143,37 @@ frozen; the tools themselves are in [tools.md](tools.md#catalogue). Every agent 
 
 | Agent | Tools |
 |---|---|
-| `Analyst` | `list_files`, `read_document`, `read_case`, `set_case`, `list_modules`, `describe_module`, `evaluate_module`, `list_plants`, `read_plant`, `list_profiles`, `read_profile`, `save_profile`, `simulate`, `read_result`, `list_studies`, `read_study`, `compute_kpis`, `write_module`, `test_module`, `search_documents`, `update_state`, `read_skill`, `ask_user`, `finish` |
+| `AnalysisLead` | `list_files`, `read_rag`, `read_case`, `set_case`, `list_modules`, `describe_module`, `evaluate_module`, `list_plants`, `read_plant`, `list_profiles`, `read_profile`, `save_profile`, `simulate`, `read_result`, `list_studies`, `read_study`, `compute_kpis`, `search_rag`, `update_state`, `read_skill`, `search_memory`, `read_memory`, `ask_user`, `finish` |
 | `Coordinator` | none: it answers with a `Route` |
-| `Designer` | `read_case`, `set_case`, `save_profile`, `list_plants`, `read_plant`, `list_modules`, `describe_module`, `evaluate_module`, `build_plant`, `set_ranges`, `size_plant`, `list_profiles`, `read_profile`, `simulate`, `read_result`, `list_studies`, `read_study`, `check_results`, `optimize`, `run_study`, `write_module`, `test_module`, `search_documents`, `update_state`, `read_skill`, `ask_user`, `finish` |
-| `Verifier` | `check_results`, `case_changes`, `read_case`, `compute_kpis`, `read_result`, `update_state`, `read_skill`, `finish` |
-| `Economist` | `compute_kpis`, `estimate_costs`, `compare`, `run_study`, `sample_uncertainty`, `sensitivity`, `read_result`, `list_studies`, `read_study`, `update_state`, `read_skill`, `finish` |
-| `Explainer` | `read_case`, `case_changes`, `read_plant`, `read_result`, `list_studies`, `read_study`, `compute_kpis`, `estimate_costs`, `search_documents`, `finish` |
-| `CodeAssistant` | `ask_user`, `finish`, `run_python`, `read_file`, `write_file` |
-| `Assistant` | `ask_user`, `finish` |
+| `Geoscientist` | `list_files`, `read_rag`, `search_rag`, `read_case`, `read_stored`, `search_memory`, `read_memory`, `finish` |
+| `CaseLead` | `geoscientist`, `list_files`, `read_rag`, `search_rag`, `read_case`, `set_case`, `save_profile`, `list_profiles`, `read_profile`, `read_stored`, `search_memory`, `read_memory`, `update_state`, `ask_user`, `finish` |
+| `DesignLead` | `process_engineer`, `integration_engineer`, `reservoir_engineer`, `well_engineer`, `energy_systems_engineer`, `merge_designs`, `read_case`, `list_plants`, `read_plant`, `list_modules`, `describe_module`, `evaluate_module`, `build_plant`, `patch_plant`, `set_ranges`, `size_plant`, `list_profiles`, `read_profile`, `simulate`, `read_result`, `list_studies`, `read_study`, `check_results`, `optimize`, `run_study`, `update_state`, `read_skill`, `read_stored`, `search_memory`, `read_memory`, `search_rag`, `ask_user`, `finish` |
+| `Reviewer` | `check_results`, `case_changes`, `read_case`, `compute_kpis`, `read_result`, `update_state`, `read_skill`, `read_stored`, `search_rag`, `finish` |
+| `Economist` | `compute_kpis`, `estimate_costs`, `compare`, `run_study`, `sample_uncertainty`, `sensitivity`, `read_result`, `list_studies`, `read_study`, `update_state`, `read_skill`, `read_stored`, `search_memory`, `read_memory`, `search_rag`, `finish` |
+| `Explainer` | `read_case`, `case_changes`, `read_plant`, `read_result`, `list_studies`, `read_study`, `compute_kpis`, `estimate_costs`, `search_rag`, `finish` |
 | `Summarizer` | none |
 
-Package code holds no engineering default; an agent's decision is not a default. The Designer
+Package code holds no engineering default; an agent's decision is not a default. The DesignLead
 starts from a project plant when `list_plants` has `project_plants` (it builds another only when
 none fits, and says why in an assumption). Search ranges are never its choice: they come from the
 user or the case, and a missing one is asked with `ask_user` (recorded in `questions`). It also
 chooses the backup policy (`params.backup` of the plant), the objective, the ranges and options, the
 evaluations and the seed when the request gives none, and the Economist the `samples` and seed, each recorded as an assumption with `source:
-agent`, `confirmed: false` and a one-line reason, which the Verifier and the Explainer report. The
-Designer records the sized start's whole-year run as `design.start_result` and any other family it
+agent`, `confirmed: false` and a one-line reason, which the Reviewer and the Explainer report. The
+DesignLead records the sized start's whole-year run as `design.start_result` and any other family it
 simulated as `design.alternatives` (`[{family, design, result}]`). With two or more buildable
 families it compares them in one `run_study` (`minimize`, `prepare: ["size"]`) and records it as
 `design.study` (`{key, designs, method, objective, evaluations, seed, best, runs}`; `key` is the
 `study/<name>` the tool stored). Every study gets a name of its own and an answer cites the study key
-it relies on; `list_studies` and `read_study` (Designer, Economist, Analyst, Explainer) read the
+it relies on; `list_studies` and `read_study` (DesignLead, Economist, AnalysisLead, Explainer) read the
 chat's stored studies. The driver names
 those results and the study in the Economist's task, which compares only them, and puts the study's
 ranked table in the Explainer's task.
 
-The Designer optimises directly after its own `check_results`: the search counts only trials that
-`gm.evaluate.verdict` calls feasible, so no Verifier round comes before it, and when `optimize`
-returns `feasible: false` the Designer changes the ranges, the options or the topology itself.
-The Verifier calls `check_results` once, on the final design, and reviews what gemini cannot see:
+The DesignLead optimises directly after its own `check_results`: the search counts only trials that
+`gm.evaluate.verdict` calls feasible, so no Reviewer round comes before it, and when `optimize`
+returns `feasible: false` the DesignLead changes the ranges, the options or the topology itself.
+The Reviewer calls `check_results` once, on the final design, and reviews what gemini cannot see:
 the case changes since the user gave it (`case_changes`), a result that is not the design's whole
 year, and the assumptions the user has not confirmed. The driver hands its report to the
 Explainer. The verdict is still gemini's, through `verify_design`; on `case_changed` the driver
@@ -146,8 +192,8 @@ raises `NotImplementedYet` still ends the run with `stop_reason="not_implemented
 
 ## How to add or fill an agent
 
-The analyst is the worked example: `geomind/agents/analysis/analyst.py` and
-`geomind/prompts/analysis/analyst.md`.
+The analysis lead is the worked example: `geomind/agents/analysis/analysis lead.py` and
+`geomind/prompts/analysis/analysis lead.md`.
 
 1. **The folder.** A skeleton has its file already. A new agent goes in
    `geomind/agents/<area>/<name>.py`, exported from `geomind/agents/__init__.py`, with

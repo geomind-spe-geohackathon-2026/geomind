@@ -3,7 +3,7 @@
 Use `import geomind as gd`. The curated top level is `Run`, `Agent`, `Engine`, `Tool`, `tool`,
 `Prompt`, `Model`, `Output`, `Context`, `Message`, `Action`, `Request`, `Allow`, `Deny`,
 `Permissions`, `RunResult`, `runlog`, `event_from_dict`, `agents`, `tools`, `verify`, `loops`, `hooks`,
-`callbacks`, `providers`, `sandbox`, `stores`, `testing`, `runtime`, `errors` and `__version__`.
+`callbacks`, `providers`, `stores`, `testing`, `runtime`, `errors` and `__version__`.
 `tests/unit/test_public_api.py` pins this list. New top-level names require a concrete common user
 workflow, documentation, and a public-API test.
 
@@ -14,6 +14,13 @@ the `RunStore` and `Workspace` protocols.
 `gd.verify.verify(plant, results, case)` returns `{passed, checks, failures, metrics}` for a
 `gm.Plant`, its `gm.Results` and the `gm.Case` they ran on: gemini's verdict, with each failure
 routed to a domain. `verify_design(context)` does the same on the problem state's design.
+
+`gd.suggest(problem, files, project=None)` returns the next steps of a chat, `[{label,
+message}]`, one to three, from the stage of `project` (the dict of `Workspace.project_state`) or,
+without one, of `problem` (a `ProblemState` or its dict), and the names of the project's `files`: sync and with no model call, for an empty chat before its first message. Its language
+is that of the chat's goal, so English for an empty chat. A run gives the same list after an
+answer in `run.finished`'s `suggestions` (see [events.md](events.md)), and the same list in
+`RunResult.suggestions` (contract v5): a root run that ended `done` only, else `None`.
 
 ## Run
 
@@ -26,10 +33,10 @@ print(result.answer, result.usage)
 
 ```python
 run = gd.Run(message=..., chat=..., project=..., history=..., llm=..., store=...,
-             workspace=None, sandbox=None, permissions=None, callbacks=[...], hooks=[...],
+             workspace=None, permissions=None, callbacks=[...], hooks=[...],
              agent=None)
 result = run.start()                     # or: result = await run.astart()
-run = gd.Run.load(run_id, llm=..., store=..., workspace=None, sandbox=None,
+run = gd.Run.load(run_id, llm=..., store=..., workspace=None,
                   permissions=None, callbacks=[...], hooks=[...])
 result = run.resume(request_id, answer)  # or: await run.aresume(...)
 result = run.resume()                    # continue a run whose process died
@@ -37,19 +44,19 @@ run.cancel()
 ```
 
 Defaults: `chat=None`, `project=None`, `history=()`, `store=MemoryRunStore()`, `workspace=None`,
-`sandbox=None`, `permissions=Permissions(mode="ask")`, `llm=OpenRouter()`; the engine adds the
+`permissions=Permissions(mode="ask")`, `llm=OpenRouter()`; the engine adds the
 retry layer to any provider. `start` asks the `Coordinator` first: its `Route` picks the loop and the
 agent through the tables `LOOPS` and `AGENTS` of `geomind/run.py`, so the backend names neither. The
 routing call is a nested run of the run (`parent` and `root` are the run's id), logged before the run
 starts; its tokens are in `RunResult.usage`, with every delegate, loop round and summary. A routing run that fails keeps the
-default: `ToolLoop` with `Analyst`, or `CodeAssistant` when a sandbox is configured. `agent` replaces
+default: `ToolLoop` with `AnalysisLead`. `agent` replaces
 the routing, for testing one agent by hand, and so does a `run.loop` set before `start`. `answer` is `{"approved": true}`, `{"approved": false, "reason": "..."}` or
 `{"text": "..."}`. `run.start()` inside an event loop raises `RunError`: use `astart`.
 
 ## Command line
 
 - `geomind run "<message>" [--model ID] [--max-steps N] [--mode ask|auto|readonly|plan]
-  [--sandbox local|docker] [--loop tool|design|compare] [--concurrency N] [--retries N] [--project PATH]
+  [--loop tool|design|compare] [--concurrency N] [--retries N] [--project PATH]
   [--recording FILE] [--record FILE] [--max-tokens N] [--max-cost USD]` runs with `OpenRouter` and
   `FileRunStore(".runs")`, prints text as it streams, asks in the terminal when a request pauses the
   run, then resumes. `--concurrency` sets `compare_concurrency`, the families a comparison designs
@@ -70,6 +77,9 @@ the routing, for testing one agent by hand, and so does a `run.loop` set before 
   `--answer-retries N` times; unset, never. Then, or at the end of the input, the run stops as
   `waiting`: it prints the question and the `geomind resume` line, and exits 2 (`cli.WAITING`);
   done exits 0 and any other end 1.
+- `--replay FILE --replay-steps N` (on `run` and `resume`, both or neither) answers the first
+  `N` model calls from a recording, with zero usage, and the rest live (`ReplayThenLive`); a
+  recorded line carrying `input_digest` that differs from this run's tool results goes live there.
 - `geomind resume <run id> --request ID --answer TEXT` with the options of `run` (provider, mode,
   caps, `--answer-retries`) answers the request a run waits for, rebuilt from `.runs` with
   `Run.load`, and goes on as `run` does. A cap counts this process's calls, so pass what is left.
@@ -80,7 +90,7 @@ the routing, for testing one agent by hand, and so does a `run.loop` set before 
   and exits 1 when anything is missing. See `evals.md`, "First live run".
 - `geomind chat [--agent NAME] [--project PATH] [--live] [--recording FILE] [--model ID]
   [--max-steps N] [--answer-retries N]` is an interactive session with any agent of `gd.agents`, skeletons included,
-  `analyst` by default. Each turn prints the streamed
+  `analysis_lead` by default. Each turn prints the streamed
   text, every tool call with its input and a short output, the requests, answered at the prompt, and
   the problem state. `/state`, `/log` (the run log of the last turn), `/reset` (a new chat) and `/quit`
   are commands. It needs `--live` for OpenRouter or `--recording` for `FakeLLM` from a recording. Runs
@@ -103,7 +113,7 @@ the routing, for testing one agent by hand, and so does a `run.loop` set before 
 
 ## Examples
 
-`examples/basics/general/01_hello.py`, `02_custom_agent.py`, `03_approval.py`, `04_sandbox.py` and
+`examples/basics/general/01_hello.py`, `02_custom_agent.py`, `03_approval.py` and
 `examples/backend/general/01_queue_and_resume.py`. Run them from the repository root as
 `PYTHONPATH=. python examples/...`; each uses `FakeLLM` by default and OpenRouter with `--live`.
 
@@ -115,7 +125,7 @@ backend never breaks later. `gd.__version__` follows semver below 1.0, the same 
 | What | Pinned in |
 |---|---|
 | `gd.Run` and its methods, `RunResult` with statuses and stop reasons | `tests/unit/snapshots/api.json` |
-| The protocols `RunStore`, `Workspace`, `LLM`, `Sandbox`, `SandboxProvider`, and `Callback` | `api.json` |
+| The protocols `RunStore`, `Workspace`, `LLM` and `Callback` | `api.json` |
 | `gd.Permissions`, the shipped hooks, `Completion`, `Usage`, `Message` | `api.json` |
 | Every event type with its `data()` keys, the answer shapes, `gd.runlog`, `gd.__all__` | `api.json` |
 | Every tool: name, first line of the description, effect, idempotent, input schema | `tests/unit/snapshots/tools.json` |

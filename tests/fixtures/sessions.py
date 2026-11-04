@@ -2,8 +2,6 @@
 
 import asyncio
 
-from geomind.errors import SandboxError
-from geomind.sandbox import LocalSandbox, Manifest
 from geomind.types import Usage
 
 
@@ -22,8 +20,8 @@ class StubState:
 class StubSession:
     """Records what tools and agents ask of the run."""
 
-    def __init__(self, sandbox_root=None, workspace=None):
-        """Use a local sandbox below ``sandbox_root``; ``None`` means no sandbox is configured."""
+    def __init__(self, workspace=None):
+        """Start with nothing recorded."""
         self.state = StubState()
         self.workspace = workspace
         self.artifacts = {}
@@ -32,9 +30,7 @@ class StubSession:
         self.changes = []
         self.errors = []
         self.child_limit = None
-        self.sandbox_root = sandbox_root
-        self.current_sandbox = None
-        self.lost = 0
+        self.limits = {}
         self.decision = None
         self.completion = None
         self.result = None
@@ -65,20 +61,7 @@ class StubSession:
         """Keep an internal error."""
         self.errors.append((error, where))
 
-    async def sandbox(self):
-        """Return the run's sandbox, as the engine does, or raise when none is configured."""
-        if self.sandbox_root is None:
-            raise SandboxError("no sandbox is configured")
-        if self.current_sandbox is None:
-            self.current_sandbox = await LocalSandbox(self.sandbox_root).provision(Manifest())
-        return self.current_sandbox
-
-    async def lose_sandbox(self):
-        """Forget the sandbox."""
-        self.lost += 1
-        self.current_sandbox = None
-
-    async def delegate(self, agent, task):
+    async def delegate(self, agent, task, max_steps=None):
         """Return the scripted nested result."""
         self.delegated = (agent, task)
         return self.result

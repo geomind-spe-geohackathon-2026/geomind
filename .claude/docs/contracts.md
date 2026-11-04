@@ -18,6 +18,7 @@ path below exists.
 | `options` as `[{value, label}]` | `geomind/types/decisions.py` | `tests/unit/types/test_decisions.py` |
 | `ask_user` normalises `options` | `geomind/tools/builtins.py` | `tests/unit/tools/test_builtins.py` |
 | Answers to options | `geomind/types/decisions.py` | `tests/unit/types/test_decisions.py` |
+| `run.finished`'s `suggestions?` `[{label, message}]`, `gd.suggest(problem, files, project=None)` the optional `Workspace.project_state(project_id)` (contract v4, 0.4.22.dev48) and `RunResult.suggestions?`, the same list (contract v5) | `geomind/tools/suggestions.py`, `geomind/engine/engine.py` | `tests/unit/tools/test_suggestions.py` |
 | `study.recorded` as `{run, index, call_id, study, tool, method, designs, best?}` (beyond the shared contract) | `geomind/types/events.py` | `tests/unit/types/test_events.py` |
 | `state.changed` as `{version, changes}` | `geomind/types/events.py` | `tests/unit/types/test_events.py` |
 | The JSON Patch subset | `geomind/types/patch.py` | `tests/unit/types/test_patch.py` |
@@ -49,12 +50,13 @@ and to read one back `event_from_dict`.
 | Tool error codes `no_case` and `case_incomplete` (beyond the shared contract) | `geomind/tools/gemini/case.py` | `tests/unit/tools/gemini/test_case.py` |
 | Optional `Workspace.files(project_id) -> [{name, size, media_type}]`, `Workspace.file(project_id, name) -> bytes \| None` (beyond the shared contract) | `geomind/stores/workspace.py` | `tests/unit/stores/test_workspace.py` |
 | Tool error codes `files_unavailable`, `not_text` (beyond the shared contract) | `geomind/tools/files.py` | `tests/unit/tools/test_files.py` |
+| `Workspace.rag(project_id, query)` (was `documents`); tools `search_rag` (also over the knowledge base: matches with `scope` and `citation`), `read_rag` (were `search_documents`, `read_document`, then `rag_search`, `rag_read` and `search_knowledge`; old names still replay) | `geomind/stores/workspace.py` | `tests/unit/tools/test_base.py` |
+| Optional `Workspace.mcp(project_id)`, `gd.mcp.list_tools`, `McpError`, tools `list_mcp`, `read_mcp` and `call_mcp` (code `not_read_only`; `<server>__<tool>` before dev42), field `mcp` of `tool.started`/`tool.finished`, code `mcp_unavailable` (contract v2/v3) | `geomind/mcp/client.py`, `geomind/tools/mcp.py` | `tests/unit/mcp/test_client.py`, `tests/unit/tools/test_mcp.py` |
+| Optional `Workspace.knowledge_search(query)`, `knowledge_files()`, `knowledge_file(name)`, tool error code `knowledge_unavailable` (contract v2) | `geomind/tools/knowledge.py` | `tests/unit/tools/test_knowledge.py` |
 | `Completion`, `Usage`, `Message` | `geomind/types/messages.py` | `tests/unit/types/test_messages.py` |
 | `RunStore`, all seven methods, `load_events` included | `geomind/stores/run.py` | `tests/unit/testing/test_conformance.py` |
 | `Workspace` | `geomind/stores/workspace.py` | `tests/unit/testing/test_conformance.py` |
-| `SandboxProvider`, `Sandbox` | `geomind/sandbox/base.py` | `tests/unit/sandbox/test_base.py` |
-| `gd.sandbox.LocalSandbox` | `geomind/sandbox/local.py` | `tests/unit/sandbox/test_local.py` |
-| `gd.sandbox.DockerSandbox` | `geomind/sandbox/docker.py` | `tests/unit/sandbox/test_docker.py` |
+| No `SandboxProvider`, `Sandbox`, `gd.sandbox` or `sandbox=` since 0.4.22 (no code runs in geomind; the shared contract's section 3 still lists them) | `geomind/run.py` | `tests/unit/test_contract_map.py` |
 | `gd.providers.OpenRouter` | `geomind/providers/openrouter.py` | `tests/unit/providers/test_openrouter.py` |
 | `gd.providers.FakeLLM` | `geomind/providers/fake.py` | `tests/unit/providers/test_fake.py` |
 | Memory and file stores | `geomind/stores/run.py` | `tests/unit/stores/test_run.py` |
@@ -86,8 +88,8 @@ and to read one back `event_from_dict`.
 - `load_history` is read-only in the contract, so `check_run_store` takes `seed_history(store,
   chat_id, messages)` to fill a chat.
 - `gd.Run` gets no `queued` status: that one is the backend's, before `start`.
-- Pass `sandbox` and `permissions` again to `Run.load`, like hooks and callbacks; a run does not
-  store them.
+- Pass `permissions` again to `Run.load`, like hooks and callbacks; a run does not store them.
+  `Run` and `Run.load` take no `sandbox` since 0.4.22.
 - `event.to_dict()` holds every field a store must keep, and `event_from_dict` restores it.
 - **Chat artifacts (an addition).** `save_chat_artifact(chat_id, key, data)` and
   `load_chat_artifact(chat_id, key)` keep the artifacts the problem state can name in the chat's
@@ -107,7 +109,7 @@ and to read one back `event_from_dict`.
   adds both or neither. `files` returns `[{"name": str, "size": int, "media_type": str}]`, one row per
   file the user attached, `[]` without any: `name` is what the agent passes back, `size` is in bytes
   and `media_type` a MIME type. `file` returns the file's `bytes`, or `None` for any other name. Both
-  are sync, called from a worker thread. Without them `list_files`, `read_document` and
+  are sync, called from a worker thread. Without them `list_files`, `read_rag` and
   `set_case(files=...)` answer `files_unavailable` and the rest of a run is unchanged.
 - `Workspace.case(project_id)` returns the project's case as `(case dict, {name: bytes})` or
   `None`: the content of its `case.json` as written, and the bytes of every file it names,

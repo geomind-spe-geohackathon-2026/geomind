@@ -1,4 +1,4 @@
-"""The files of a project: ``list_files`` and ``read_document``.
+"""The files of a project: ``list_files`` and ``read_rag``.
 
 A project's files come from the optional ``Workspace.files`` and ``Workspace.file``. A workspace
 without them gets ``files_unavailable``, so a backend that has not added them keeps working.
@@ -10,15 +10,15 @@ import io
 from pathlib import Path
 
 from geomind.errors import ToolError
+from geomind.stores.documents import document_text
 from geomind.tools.base import tool
 from geomind.tools.stored import reference_of
 from geomind.utils.strings import join_names
 
 PAGE_CHARACTERS = 20_000
-"""The most text one ``read_document`` call returns; a longer file is read by pages."""
+"""The most text one ``read_rag`` call returns; a longer file is read by pages."""
 FIRST_ROWS = 5
 TABLE_SUFFIXES = {".csv": ",", ".tsv": "\t"}
-PDF_START = b"%PDF-"
 
 
 def file_name_schema():
@@ -84,61 +84,103 @@ def project_file(context, tool_name, name):
     )
 
 
-def not_text(name, reason):
-    """Return the error of a file that gives no text."""
-    return ToolError(f"read_document: {name!r} {reason}", code="not_text", path="name")
+STEP_UNITS = ("d", "h", "min", "s")
 
 
-def pdf_text(name, content):
-    """Return the text of a PDF, each page after its ``[page n]`` marker."""
-    from pypdf import PdfReader
-    from pypdf.errors import PyPdfError
+def _step(seconds):
+    """Return a step as a case writes it, ``{value, unit}`` in the largest whole unit."""
+    import gemini as gm
+
+    for unit in STEP_UNITS:
+        value = gm.units.convert(seconds, "s", unit)
+        if float(value).is_integer():
+            return {"value": int(value), "unit": unit}
+    return {"value": seconds, "unit": "s"}
+
+
+def _time_text(time, like):
+    """Return ``time`` written as ``like`` is: a date alone, or a time with ``Z`` for UTC."""
+    if len(like) == len("2000-01-01"):
+        return time.date().isoformat()
+    text = time.isoformat()
+    return text.replace("+00:00", "Z") if like.endswith("Z") else text
+
+
+def span_of(rows):
+    """Return ``{start, end, step}`` of a first column of evenly spaced times, else ``None``.
+
+    ``end`` is exclusive, one step after the last row, as a case's ``time.end`` is, so the case's
+    span is copied from the file and never worked out by hand.
+    """
+    from datetime import datetime
 
     try:
-        reader = PdfReader(io.BytesIO(content))
-        if reader.is_encrypted:
-            raise not_text(name, "is an encrypted PDF")
-        pages = [page.extract_text() or "" for page in reader.pages]
-    except (PyPdfError, ValueError, KeyError, OSError) as error:
-        raise not_text(name, f"is a PDF that cannot be read: {error}") from error
-    if not "".join(pages).strip():
-        raise not_text(name, "is a PDF with no text layer, such as a scan")
-    marked = [f"[page {number}]\n{text}" for number, text in enumerate(pages, start=1)]
-    return "\n\n".join(marked)
+        times = [datetime.fromisoformat(row[0]) for row in rows]
+    except ValueError:
+        return None
+    steps = {later - earlier for earlier, later in zip(times, times[1:], strict=False)}
+    if len(steps) != 1:
+        return None
+    seconds = int(steps.pop().total_seconds())
+    if seconds <= 0:
+        return None
+    end = times[-1] + (times[1] - times[0])
+    return {"start": rows[0][0], "end": _time_text(end, rows[-1][0]), "step": _step(seconds)}
 
 
-def plain_text(name, content):
-    """Return the text of a UTF-8 file; a binary file is not text."""
-    try:
-        text = content.decode("utf-8-sig")
-    except UnicodeDecodeError as error:
-        raise not_text(name, "is not UTF-8 text") from error
-    if "\x00" in text:
-        raise not_text(name, "is a binary file, not text")
-    return text
-
-
-def document_text(name, content):
-    """Return the text of a file, by its content."""
-    return pdf_text(name, content) if content.startswith(PDF_START) else plain_text(name, content)
+def only_columns(name, text, columns):
+    """Return a table's text with only ``columns``, in that order; another file is an error."""
+    delimiter = TABLE_SUFFIXES.get(Path(name).suffix.lower())
+    if delimiter is None:
+        raise ToolError(
+            f"read_rag: columns = {columns!r}; expected none for {name!r}, which is no CSV or TSV",
+            path="columns",
+        )
+    rows = [row for row in csv.reader(io.StringIO(text), delimiter=delimiter) if row]
+    header = rows[0] if rows else []
+    unknown = [column for column in columns if column not in header]
+    if unknown or not columns:
+        raise ToolError(
+            f"read_rag: columns = {columns!r}; expected some of {join_names(header)}",
+            code="unknown_name",
+            path="columns",
+            suggestions=[
+                match for item in unknown for match in difflib.get_close_matches(item, header)
+            ],
+        )
+    picked = [header.index(column) for column in columns]
+    out = io.StringIO()
+    writer = csv.writer(out, delimiter=delimiter, lineterminator="\n")
+    for row in rows:
+        writer.writerow([row[index] if index < len(row) else "" for index in picked])
+    return out.getvalue()
 
 
 def table_of(name, text):
-    """Return ``{columns, rows, first_rows}`` of a CSV or TSV, or ``None`` for another file."""
+    """Return ``{columns, rows, first_rows, last_row, span}`` of a CSV or TSV, else ``None``.
+
+    ``span`` is the case's time the rows cover, from :func:`span_of`, or ``None``.
+    """
     delimiter = TABLE_SUFFIXES.get(Path(name).suffix.lower())
     if delimiter is None:
         return None
     rows = [row for row in csv.reader(io.StringIO(text), delimiter=delimiter) if row]
     if not rows:
         return None
-    return {"columns": rows[0], "rows": len(rows) - 1, "first_rows": rows[1:][:FIRST_ROWS]}
+    return {
+        "columns": rows[0],
+        "rows": len(rows) - 1,
+        "first_rows": rows[1:][:FIRST_ROWS],
+        "last_row": rows[-1] if len(rows) > 1 else None,
+        "span": span_of(rows[1:]),
+    }
 
 
 @tool(effect="read")
 def list_files(context):
     """List the files of the project: ``files``, each with ``name``, ``size`` and ``media_type``.
 
-    Read one with ``read_document``, and give a data file to the case with ``set_case`` ``files``.
+    Read one with ``read_rag``, and give a data file to the case with ``set_case`` ``files``.
     """
     workspace = files_workspace(context, "list_files")
     return {"files": sorted(workspace.files(context.project), key=lambda item: item["name"])}
@@ -146,6 +188,29 @@ def list_files(context):
 
 PAGE_NOTE = "already read in this run: read_stored a reference, or pass force=true"
 WHOLE_NOTE = "the whole document was already read in this run: read_stored the references"
+IN_CONVERSATION = "already read at step {step}; its text is in your context; {next}"
+"""The note of a page this run read with no compaction since, ``force`` or not (#120, #122).
+
+DeepSeek, told the text was in the conversation, read the same pages 48 times in one run and
+never called ``set_case``: the note names the step of the read and, for an agent that sets the
+case, the next call.
+"""
+
+AFTER_COMPACTION = (
+    "already read in this run, before a compaction summarized it: read_stored a reference"
+)
+
+
+def next_call(context):
+    """Return what the note tells the agent to do next: ``set_case`` where it has that tool."""
+    agent = getattr(context.session, "agent", None)
+    tools = agent.tools() if agent is not None else {}
+    return "call set_case next" if "set_case" in tools else "work from it"
+
+
+def in_conversation(context, step):
+    """Return the note of a page read at ``step`` that is still in the conversation."""
+    return IN_CONVERSATION.format(step=step, next=next_call(context))
 
 
 def reads_of(context):
@@ -158,16 +223,12 @@ def read_before(context, name, start, end):
     """Return the earlier reads of ``name`` in this run covering ``start`` to ``end``, or ``None``.
 
     Each is ``{start, end, reference}``: ``reference`` is where the earlier result was stored, for
-    ``read_stored``, or ``None`` when it was short enough to stay in the conversation. A read
-    of another run of the tree counts only when its result was stored, as this run's
-    conversation does not hold it.
+    ``read_stored`` after a compaction, or ``None``. Only this run's reads count: a page another
+    run of the tree read is not in this run's conversation, so this run reads it itself, once,
+    instead of a note and a ``read_stored`` call.
     """
     run = context.session.state.run_id
-    reads = [
-        read
-        for read in (reads_of(context) or {}).get(name, [])
-        if read.get("run") == run or stored_reference(context, read)
-    ]
+    reads = [read for read in (reads_of(context) or {}).get(name, []) if read.get("run") == run]
     covered, position = [], start
     for read in sorted(reads, key=lambda item: item["start"]):
         if read["start"] <= position < read["end"]:
@@ -190,44 +251,86 @@ def remember_read(context, name, start, end):
     if reads is None:
         return
     reference = reference_of(context.call_id) if context.call_id else None
-    read = {"start": start, "end": end, "reference": reference, "run": context.session.state.run_id}
-    reads.setdefault(name, []).append(read)
+    state = context.session.state
+    read = {"start": start, "end": end, "reference": reference, "run": state.run_id}
+    read["step"] = getattr(state, "step", None)
+    reads.setdefault(name, []).append({**read, "compacted": compacted_turns(context)})
 
 
-@tool(effect="read", late_schemas={"name": file_name_schema})
-def read_document(
-    context, name: str, start: int = 0, length: int | None = None, force: bool = False
+def compacted_turns(context):
+    """Return how many turns compactions have summarized so far, 0 without one."""
+    problem = getattr(context, "problem", None)
+    compaction = getattr(problem, "compaction", None)
+    return compaction.turns if compaction else 0
+
+
+def compacted_since(context, earlier):
+    """Tell whether a compaction summarized turns since any of the ``earlier`` reads."""
+    return any(read["compacted"] < compacted_turns(context) for read in earlier)
+
+
+def document_bytes(context, name):
+    """Return the bytes of a project file, or of ``knowledge/<name>`` of the knowledge base."""
+    from geomind.tools.knowledge import PREFIX, knowledge_file
+
+    if name.startswith(PREFIX):
+        return knowledge_file(context, "read_rag", name)
+    return project_file(context, "read_rag", name)
+
+
+@tool(effect="read", late_schemas={"name": file_name_schema}, keeps_result="run")
+def read_rag(
+    context,
+    name: str,
+    start: int = 0,
+    length: int | None = None,
+    force: bool = False,
+    columns: list[str] | None = None,
 ):
-    """Read a project file as text, one page at a time.
+    """Read a project file, or a document of the knowledge base as ``knowledge/<name>``, as text.
 
     CSV, TSV, JSON, Markdown and text files read as they are, and a PDF as its extracted text with
     a ``[page n]`` marker before each page; another file is a ``not_text`` error. ``start`` is the
     first character and ``length`` the number of characters, at most 20,000. Returns ``name``,
     ``start``, ``total``, ``text`` and ``next``, where the following page starts (``null`` at the
-    end). The first page of a CSV or TSV also has ``table``: ``columns``, the number of ``rows``
-    and the ``first_rows``. A page this run already read comes back as ``already_read`` with a
-    ``note`` instead of its text; ``force`` reads it again, until the whole document was read:
-    then every page is ``already_read``, with the references of the stored results. Nested runs
-    share what the run tree read.
+    end). The first page of a CSV or TSV also has ``table``: ``columns``, the number of ``rows``,
+    the ``first_rows``, the ``last_row`` and the ``span`` its first column covers as a case's
+    time: ``start``, ``end`` (exclusive, one step after the last row) and ``step``, or ``null``
+    when that column is not evenly spaced times. ``columns`` reads only those columns of a CSV or
+    TSV, in that order, such as the ``id``, ``path`` and price of a cost table: a wide table costs
+    far fewer tokens so. A page this run already read comes back as ``already_read`` with a
+    ``note`` instead of its text: its text is in the conversation, even with ``force``, unless a
+    compaction summarized it since; after one, ``force`` reads it again until the whole document
+    was read, then every page is ``already_read`` with the references of the stored results.
+    Nested runs share what the run tree read.
     """
     if start < 0:
-        raise ToolError(f"read_document: start = {start}; expected 0 or more", path="start")
-    text = document_text(name, project_file(context, "read_document", name))
+        raise ToolError(f"read_rag: start = {start}; expected 0 or more", path="start")
+    text = document_text(name, document_bytes(context, name))
+    key = name
+    if columns is not None:
+        text = only_columns(name, text, columns)
+        key = f"{name}#{','.join(columns)}"
     size = min(length or PAGE_CHARACTERS, PAGE_CHARACTERS)
     end = min(start + size, len(text))
-    whole = read_before(context, name, 0, len(text))
-    earlier = whole or (None if force else read_before(context, name, start, end))
+    whole = read_before(context, key, 0, len(text))
+    earlier = whole or read_before(context, key, start, end)
+    if earlier is not None and force and not whole and compacted_since(context, earlier):
+        earlier = None
+    shown = {"name": name, **({"columns": columns} if columns is not None else {})}
     if earlier is not None:
         note = WHOLE_NOTE if whole else PAGE_NOTE
-        return {
-            "name": name,
-            "start": start,
-            "total": len(text),
-            "already_read": earlier,
-            "note": note,
-        }
-    remember_read(context, name, start, end)
-    page = {"name": name, "start": start, "total": len(text), "text": text[start:end]}
+        this_run = context.session.state.run_id
+        hidden = {"compacted"}
+        if all(read["reference"] is None or read["run"] == this_run for read in earlier):
+            compacted = compacted_since(context, earlier)
+            step = max((read.get("step") or 0 for read in earlier), default=0)
+            note = AFTER_COMPACTION if compacted else in_conversation(context, step)
+            hidden |= set() if compacted else {"reference"}
+        earlier = [{k: v for k, v in read.items() if k not in hidden} for read in earlier]
+        return {**shown, "start": start, "total": len(text), "already_read": earlier, "note": note}
+    remember_read(context, key, start, end)
+    page = {**shown, "start": start, "total": len(text), "text": text[start:end]}
     page["next"] = end if end < len(text) else None
     table = table_of(name, text) if start == 0 else None
     return page if table is None else {**page, "table": table}

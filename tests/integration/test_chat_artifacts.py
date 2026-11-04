@@ -4,6 +4,7 @@ import json
 
 import pytest
 
+from geomind import runtime
 from geomind.agents import Agent
 from geomind.engine import Permissions
 from geomind.prompts import Prompt
@@ -17,13 +18,13 @@ from geomind.tools.gemini.results import read_result
 from geomind.tools.gemini.runs import simulate
 from geomind.types import ToolCall
 from tests.fixtures.cases import example_case, example_plant_files
-from tests.fixtures.runs import call, of_type, says, uses
+from tests.fixtures.runs import STEPS, call, of_type, says, uses
 
 PLANT_FILE = "plants/HeatingHeatPumpCoolingPlant.json"
 CASE_FILE = "case/data/demand.csv"
 
 
-class Designer(Agent):
+class DesignLead(Agent):
     """Uses the tools that keep case files, designs and results."""
 
     def __init__(self):
@@ -61,9 +62,10 @@ def message(store, completions, chat="chat"):
         store=store,
         workspace=workspace(),
         permissions=Permissions("auto"),
-        agent=Designer(),
+        agent=DesignLead(),
     )
-    run.start()
+    with runtime.settings(max_steps=STEPS):
+        run.start()
     results = of_type(store.load_events(run.id), "tool.result")
     return run, {event.call_id: event.output for event in results}
 
@@ -149,6 +151,7 @@ def test_a_design_name_is_written_once(first, plant_file):
     results = message(store, script)[1]
     assert "error" not in results["f1"]
     assert "use a new name" in results["f2"]["error"]["message"]
+    assert results["f2"]["error"]["suggestions"] == ["start_2"]
 
 
 def test_a_run_without_a_chat_is_the_chat_of_its_root_run():
@@ -162,7 +165,7 @@ def test_a_run_without_a_chat_is_the_chat_of_its_root_run():
         store=store,
         workspace=workspace(),
         permissions=Permissions("auto"),
-        agent=Designer(),
+        agent=DesignLead(),
     )
     run.start()
     assert store.load_chat_artifact(run.id, CASE_FILE)

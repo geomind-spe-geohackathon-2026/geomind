@@ -4,9 +4,9 @@ from geomind import (
     agents,
     errors,
     loops,
+    mcp,
     providers,
     runtime,
-    sandbox,
     stores,
     testing,
     tools,
@@ -17,11 +17,12 @@ from geomind.engine import Context, Engine, Permissions, callbacks, hooks
 from geomind.prompts import Prompt
 from geomind.run import Run
 from geomind.tools import Tool, tool
+from geomind.tools.suggestions import suggest
 from geomind.types import Action, Allow, Deny, Message, Request, RunResult
 from geomind.types.events import event_from_dict
 from geomind.types.runlog import runlog
 
-__version__ = "0.4.21"
+__version__ = "0.4.22"
 __all__ = [
     "Run",
     "Agent",
@@ -42,15 +43,16 @@ __all__ = [
     "Deny",
     "RunResult",
     "runlog",
+    "suggest",
     "event_from_dict",
     "agents",
     "loops",
+    "mcp",
     "stores",
     "testing",
     "tools",
     "verify",
     "providers",
-    "sandbox",
     "runtime",
     "errors",
     "__version__",

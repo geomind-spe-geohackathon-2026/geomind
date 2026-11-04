@@ -26,7 +26,7 @@ def no_retry_delay():
 
 def route(loop="tool", **fields):
     """Return the coordinator's completion with the routing usage."""
-    text = json.dumps({"kind": "loop", "loop": loop, "agent": "analyst", **fields})
+    text = json.dumps({"kind": "loop", "loop": loop, "agent": "analysis_lead", **fields})
     return says(text, usage=ROUTING)
 
 
@@ -115,4 +115,4 @@ def test_the_manifest_names_the_routing_model():
     store = MemoryRunStore()
     result = gd.Run(message="hello", llm=FakeLLM([route(), says("answer")]), store=store).start()
     models = models_by_agent(store.load_events(result.run_id))
-    assert set(models) == {"coordinator", "analyst"}
+    assert set(models) == {"coordinator", "analysis_lead"}

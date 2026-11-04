@@ -2,8 +2,7 @@
 
 geomind is an agent harness over an event log, with
 [gemini](https://github.com/geomind-spe-geohackathon-2026/gemini) as its physics library. It holds
-the agents, the engine that drives them, their tools, permissions, a sandbox for code written by a
-model, and the `Run` facade a backend uses. Every run is a log that can be resumed and replayed.
+the agents, the engine that drives them, their tools, permissions, and the `Run` facade a backend uses. Every run is a log that can be resumed and replayed.
 
 ```python
 import geomind as gd
@@ -17,10 +16,10 @@ Read [the project rules](docs/rules.md) before you change anything. Changes by v
 Agents:
 
 - `Coordinator` routes a request.
-- `Designer` builds and sizes a plant.
-- `Analyst` answers questions by running tools.
+- `DesignLead` builds and sizes a plant.
+- `AnalysisLead` answers questions by running tools.
 - `Economist` works on the costs of a design.
-- `Verifier` checks a design.
+- `Reviewer` checks a design.
 - `Explainer` reports a result.
 - `Assistant`, `CodeAssistant` and `Summarizer` are general helpers.
 
@@ -34,8 +33,6 @@ Loops:
 
 - Python 3.11 or newer.
 - gemini, installed from its release wheel by `requirements/gemini.txt`.
-- Docker, only for the docker sandbox and its tests. They need the image `gemini-sandbox:<version>`
-  of the installed gemini, from `make sandbox-image`.
 
 ## Install for development
 
@@ -44,7 +41,6 @@ python3 -m venv .venv
 source .venv/bin/activate
 make install
 make gemini-version
-make sandbox-image   # only for the docker tests
 ```
 
 `make install` takes gemini from `requirements/gemini.txt`, then geomind's dependencies. It does not
@@ -66,8 +62,8 @@ python -m pytest -m slow --profile=release   # tests that run gemini for real
 
 1. In `requirements/gemini.txt` and in `[tool.uv.sources]` of `pyproject.toml`, set the URL of the new
    release; `requirements/gemini.txt` also takes the wheel's sha256.
-2. Run `make install` in a new venv, then `make sandbox-image`.
-3. Run `make test-all`, `make lint` and `python -m pytest -m "slow or docker" --profile=release`.
+2. Run `make install` in a new venv.
+3. Run `make test-all`, `make lint` and `python -m pytest -m slow --profile=release`.
 
 ## Release
 
@@ -110,14 +106,20 @@ geomind has no built-in model: a run on a real provider stops at the start until
 | Variable | Meaning |
 |---|---|
 | `OPENROUTER_API_KEY` | The key for OpenRouter |
-| `GEOMIND_MODEL` | The model of every agent that has no model of its own |
-| `GEOMIND_CHEAP_MODEL` | The model of the coordinator and the summarizer |
+| `GEOMIND_<ROLE>_MODEL` | Each agent's own model, required, no fallback: `GEOMIND_ANALYSISLEAD_MODEL`, `GEOMIND_CASELEAD_MODEL`, `GEOMIND_COORDINATOR_MODEL`, `GEOMIND_DESIGNLEAD_MODEL`, `GEOMIND_ECONOMIST_MODEL`, `GEOMIND_EXPLAINER_MODEL`, `GEOMIND_GEOSCIENTIST_MODEL`, `GEOMIND_REVIEWER_MODEL`, `GEOMIND_SUMMARIZER_MODEL`, `GEOMIND_PROCESSENGINEER_MODEL`, `GEOMIND_INTEGRATIONENGINEER_MODEL`, `GEOMIND_RESERVOIRENGINEER_MODEL`, `GEOMIND_WELLENGINEER_MODEL`, `GEOMIND_ENERGYSYSTEMSENGINEER_MODEL`, `GEOMIND_PROJECTLEAD_MODEL`, `GEOMIND_SUPPORTLEAD_MODEL`, `GEOMIND_CURATOR_MODEL` |
+| `GEOMIND_DESIGN_CONCURRENCY` | Required: how many engineers of the design team fill their parts side by side |
+| `GEOMIND_KNOWLEDGE_DIR` | Required for a run with a project: the folder of the knowledge base's documents, such as `data/knowledge` |
+| `GEOMIND_EVOLVE_EVALUATIONS`, `GEOMIND_EVOLVE_POPULATION`, `GEOMIND_EVOLVE_SEED`, `GEOMIND_EVOLVE_POLISH` | Required: the settings of gemini's structure search (`evolve_structure`) |
+| `GEOMIND_ENGINEER_MAX_STEPS` | Required: the steps of one engineer's run, at which it hands back what it has instead of asking to go on |
 | `GEOMIND_PROVIDER` | The OpenRouter providers to try |
 | `GEOMIND_CONTEXT_WINDOW` | The context window in tokens; unset, it is read from the provider |
 | `GEOMIND_CACHE_MARKED_MODELS` | The model id prefixes that get cache breakpoints |
 | `GEOMIND_COMPARE_CONCURRENCY` | How many families a comparison designs side by side; unset, one at a time |
 | `GEOMIND_COMPARE_RETRIES` | How often a comparison designs a rejected family again; unset, never |
 | `GEOMIND_GEMINI_THREADS` | The threads gemini work runs in; unset, asyncio's default executor |
+| `GEOMIND_MEMORY`, `GEOMIND_MEMORY_DIR`, `GEOMIND_MEMORY_SIMILARITY` | Required: the agents' memory `on` or `off`; with `on`, its folder and the least similarity (0 to 1) of a past design that is recalled; no default |
+| `GEOMIND_MAX_OUTPUT_TOKENS` | Required: the most output tokens of one model call; no default |
+| `GEOMIND_MAX_STEPS` | Required: the steps an agent takes before the run asks the user to continue; no default |
 | `GEOMIND_RETRY_COUNT`, `GEOMIND_RETRY_DELAY` | Required for a live run: retries of a failed provider call and the first delay in seconds, doubled each time; no default |
 
 A long-running host, such as a backend worker, should also set `MALLOC_ARENA_MAX=2`: gemini runs

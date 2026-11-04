@@ -13,7 +13,7 @@ Every test belongs to one automatically marked folder tier:
 - `tests/fixtures/contracts/shared.md` is a copy of the shared contract, `backend/docs/app-build/contracts.md`
   version 52 (backend commit `7f0bc92`): `tests/unit/types/test_events.py` checks the event table,
   `study.recorded` included, against it. Copy it again when the contract changes.
-- `tests/fixtures/gemini_examples/` is a copy of gemini's two example projects from tag v0.5.5 (the same in v0.5.13): the
+- `tests/fixtures/gemini_examples/` is a copy of gemini's two example projects from tag v0.5.5 (the same in v0.5.13 and v0.6.2): the
   published wheel ships no examples, and tests never read a sibling gemini folder. Refresh the copy
   when the gemini pin moves and the examples change.
 
@@ -100,9 +100,8 @@ same functions against its own.
 
 ## Docker
 
-The one `DockerSandbox` integration test has the `docker` marker and skips without a Docker
-daemon. Run it with `pytest -m docker -n 0`. It may pull the Python image, so it never runs by
-default.
+No test needs Docker since 0.4.22, when the code sandbox was removed. The `docker` marker stays
+for a test that would need a Docker daemon; such a test never runs by default.
 
 ## CI
 

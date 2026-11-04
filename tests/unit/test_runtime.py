@@ -27,20 +27,32 @@ def test_settings_work_as_decorator():
     assert read() == 2
 
 
-def test_default_model_reads_the_environment(monkeypatch):
-    """``GEOMIND_MODEL`` wins; unset means no model."""
-    monkeypatch.setenv("GEOMIND_MODEL", "x/y")
-    assert runtime.get("default_model") == "x/y"
-    monkeypatch.delenv("GEOMIND_MODEL")
-    assert runtime.get("default_model") is None
-
-
-def test_cheap_model_reads_the_environment(monkeypatch):
-    """``GEOMIND_CHEAP_MODEL`` sets the coordinator and the summarizer."""
+def test_each_role_reads_its_own_model_variable(monkeypatch):
+    """``GEOMIND_<ROLE>_MODEL`` sets one role's model; unset means no model, never another's."""
+    monkeypatch.setenv("GEOMIND_DESIGNLEAD_MODEL", "x/design")
+    monkeypatch.delenv("GEOMIND_CASELEAD_MODEL")
+    monkeypatch.setenv("GEOMIND_MODEL", "x/any")
     monkeypatch.setenv("GEOMIND_CHEAP_MODEL", "x/cheap")
-    assert (runtime.get("coordinator_model"), runtime.get("summarizer_model")) == ("x/cheap",) * 2
-    monkeypatch.delenv("GEOMIND_CHEAP_MODEL")
-    assert runtime.get("coordinator_model") is None
+    assert runtime.get("designlead_model") == "x/design"
+    assert runtime.get("caselead_model") is None
+    assert "default_model" not in runtime.state()
+
+
+def test_every_role_has_its_own_variable():
+    """The variable is the role in capitals: ``GEOMIND_CASELEAD_MODEL`` for the case lead."""
+    assert runtime.model_variable("caselead") == "GEOMIND_CASELEAD_MODEL"
+    assert {f"{role}_model" for role in runtime.ROLES} <= set(runtime.state())
+
+
+def test_a_stored_state_with_removed_settings_still_loads():
+    """A run stored with the sandbox and default model settings resumes without them."""
+    stored = {**runtime.state(), "default_model": "x/y", "sandbox_cpu": 1}
+
+    async def load():
+        runtime.load_state(stored)
+        return "sandbox_cpu" in runtime.state()
+
+    assert asyncio.run(load()) is False
 
 
 def test_provider_reads_the_environment(monkeypatch):
@@ -87,10 +99,11 @@ async def test_load_state_stays_in_its_task():
 
 
 def test_missing_model_settings_name_the_environment_variables(monkeypatch):
-    """With neither variable set, both are named and every role has no model."""
-    monkeypatch.delenv("GEOMIND_MODEL")
-    monkeypatch.delenv("GEOMIND_CHEAP_MODEL")
-    assert runtime.missing_model_settings() == ["GEOMIND_MODEL", "GEOMIND_CHEAP_MODEL"]
+    """With no role variable set, each role's own variable is named and no role has a model."""
+    for role in runtime.ROLES:
+        monkeypatch.delenv(runtime.model_variable(role))
+    missing = [runtime.model_variable(role) for role in runtime.ROLES]
+    assert runtime.missing_model_settings() == missing
     assert set(runtime.role_models().values()) == {None}
 
 

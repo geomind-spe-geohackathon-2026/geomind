@@ -1,37 +1,53 @@
-"""``Agent`` and the shipped agents.
+"""``Agent`` and the shipped agents, one folder per team: ``<team>/<name>/agent.py``.
 
 Imports ``tools`` and everything to its left; never the engine.
 """
 
 from geomind.agents.agent import Agent, AgentResult, Model, Output
-from geomind.agents.analysis.analyst import Analyst
-from geomind.agents.coordination.coordinator import Coordinator, Route
-from geomind.agents.design.designer import Designer, FamilyDesigner
-from geomind.agents.economics.economist import Economist
-from geomind.agents.general.assistant import Assistant, CodeAssistant
-from geomind.agents.general.summarizer import Summarizer
-from geomind.agents.reporting.explainer import Explainer
-from geomind.agents.verification.verifier import Verifier
+from geomind.agents.analysis.economist import Economist
+from geomind.agents.analysis.lead import AnalysisLead
+from geomind.agents.case.geoscientist import Geoscientist
+from geomind.agents.case.lead import CaseLead
+from geomind.agents.design.energy import EnergySystemsEngineer
+from geomind.agents.design.integration import IntegrationEngineer
+from geomind.agents.design.lead import DesignLead
+from geomind.agents.design.process import ProcessEngineer
+from geomind.agents.design.reservoir import ReservoirEngineer
+from geomind.agents.design.well import WellEngineer
+from geomind.agents.project.coordinator import Coordinator, Route
+from geomind.agents.project.explainer import Explainer
+from geomind.agents.project.lead import ProjectLead
+from geomind.agents.project.reviewer import Reviewer
+from geomind.agents.support.curator import Curator
+from geomind.agents.support.lead import SupportLead
+from geomind.agents.support.summarizer import Summarizer
 from geomind.errors import UnknownNameError
 from geomind.utils.strings import did_you_mean, snake_case
 
 __all__ = [
     "Agent",
     "AgentResult",
-    "Analyst",
-    "Assistant",
-    "CodeAssistant",
+    "AnalysisLead",
+    "CaseLead",
     "Coordinator",
-    "Designer",
+    "Curator",
+    "DesignLead",
     "Economist",
+    "EnergySystemsEngineer",
     "Explainer",
-    "FamilyDesigner",
+    "Geoscientist",
+    "IntegrationEngineer",
     "Model",
     "Output",
+    "ProcessEngineer",
+    "ProjectLead",
+    "ReservoirEngineer",
     "named",
+    "Reviewer",
     "Route",
     "Summarizer",
-    "Verifier",
+    "SupportLead",
+    "WellEngineer",
 ]
 
 

@@ -73,7 +73,10 @@ def test_a_new_context_gets_a_run_id():
 
 
 def test_old_results_and_long_inputs_become_short_forms_and_the_prefix_holds():
-    """A designer run of eight calls with 35k-character results: call 8 is at most 1.5x call 1."""
+    """A design lead run of eight calls with 35k-character results: call 8 is at most 1.5x call 1.
+
+    The input bound holds across the run.
+    """
     from geomind.context.compaction import estimate_tokens
     from geomind.tools.stored import outline, stored_form
     from geomind.types import ToolCall

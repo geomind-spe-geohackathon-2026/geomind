@@ -1,12 +1,12 @@
 {
   "items": {
     "AGENTS": [
-      "analyst",
-      "code_assistant"
+      "analysis_lead"
     ],
     "Agent": {
       "__call__": "(self, context)",
       "__init__": "(self)",
+      "answer_problem": "(self, context)",
       "children": "(self)",
       "complete": "(self, context, messages)",
       "forward": "(self, context)",
@@ -17,13 +17,14 @@
       "tools": "(self, recurse=False)"
     },
     "LOOPS": {
-      "compare": "(self, designer, verifier, max_rounds=5, concurrency=None, retries=None)",
-      "design": "(self, designer, verifier, max_rounds=5)",
+      "compare": "(self, design_lead, reviewer, max_rounds=5, concurrency=None, retries=None)",
+      "design": "(self, design_lead, reviewer, max_rounds=5)",
+      "project": "(self, agent, max_steps=None)",
       "tool": "(self, agent, max_steps=None)"
     },
     "Model": {
       "additionalProperties": false,
-      "description": "Which model an agent wants; ``name=None`` means a model of ``gd.runtime``.\n\n``setting`` names the runtime setting of an agent's role, such as ``analyst_model``. Unset, or\nset to ``None``, it means the default model. ``fallbacks`` lists models tried in order when the\nprovider keeps failing.",
+      "description": "Which model an agent wants; ``name=None`` means the model its role's setting names.\n\n``setting`` names the runtime setting of an agent's role, such as ``designlead_model``, set\nby ``GEOMIND_DESIGNLEAD_MODEL``. There is no default model: a role whose setting is unset has\nno model, and a real provider refuses to call. ``fallbacks`` lists models tried in order when\nthe provider keeps failing.",
       "properties": {
         "fallbacks": {
           "default": [],
@@ -84,20 +85,17 @@
       "validate": "(self, answer)"
     },
     "Prompt": {
-      "__init__": "(self, role)",
+      "__init__": "(self, role, appendix=None)",
       "render": "(self)",
       "text": "(cls, content)"
     },
     "Route": {
       "additionalProperties": false,
-      "description": "Where a message goes: a short direct answer, or a loop with an agent.\n\n``loop`` and ``agent`` name rows of ``LOOPS`` and ``AGENTS`` in ``run.py``, which sits to the\nright of this package, so a test keeps the two lists equal. The delegate reads the user's\nmessage itself, never a retelling of it.",
+      "description": "Where a message goes: a short direct answer, or a loop with an agent.\n\n``loop`` and ``agent`` name rows of ``LOOPS`` and ``AGENTS`` in ``run.py``, which sits to the\nright of this package, so a test keeps the two lists equal. The delegate reads the user's\nmessage itself, never a retelling of it; ``task`` is the coordinator's brief beside it, for\na message that is an event of the app (a form saved, a file added) rather than words.\n``preferences`` are what the user said about how they work, such as the units they read,\nkept in the problem state for every agent.",
       "properties": {
         "agent": {
-          "default": "analyst",
-          "enum": [
-            "analyst",
-            "code_assistant"
-          ],
+          "const": "analysis_lead",
+          "default": "analysis_lead",
           "title": "Agent",
           "type": "string"
         },
@@ -125,11 +123,39 @@
           "default": "tool",
           "enum": [
             "tool",
+            "project",
             "design",
             "compare"
           ],
           "title": "Loop",
           "type": "string"
+        },
+        "preferences": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Preferences"
+        },
+        "task": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Task"
         }
       },
       "required": [
@@ -149,7 +175,7 @@
         "chat": {
           "--agent": {
             "choices": null,
-            "default": "analyst"
+            "default": "analysis_lead"
           },
           "--answer-retries": {
             "choices": null,
@@ -250,15 +276,16 @@
             "choices": null,
             "default": null
           },
-          "--request": {
+          "--replay": {
             "choices": null,
             "default": null
           },
-          "--sandbox": {
-            "choices": [
-              "local",
-              "docker"
-            ],
+          "--replay-steps": {
+            "choices": null,
+            "default": null
+          },
+          "--request": {
+            "choices": null,
             "default": null
           },
           "run": {
@@ -267,6 +294,10 @@
           }
         },
         "run": {
+          "--agent": {
+            "choices": null,
+            "default": null
+          },
           "--answer-retries": {
             "choices": null,
             "default": null
@@ -278,6 +309,7 @@
           "--loop": {
             "choices": [
               "tool",
+              "project",
               "design",
               "compare"
             ],
@@ -328,15 +360,16 @@
             "choices": null,
             "default": null
           },
-          "--retries": {
+          "--replay": {
             "choices": null,
             "default": null
           },
-          "--sandbox": {
-            "choices": [
-              "local",
-              "docker"
-            ],
+          "--replay-steps": {
+            "choices": null,
+            "default": null
+          },
+          "--retries": {
+            "choices": null,
             "default": null
           },
           "message": {
@@ -361,6 +394,83 @@
     },
     "eval_task": {
       "$defs": {
+        "AnswerCriterion": {
+          "additionalProperties": false,
+          "description": "The answer matches the regular expression ``pattern``, or with ``present: false`` does not.\n\nFor an answer whose words are its result, such as a route or a verdict.",
+          "properties": {
+            "kind": {
+              "const": "answer",
+              "title": "Kind",
+              "type": "string"
+            },
+            "pattern": {
+              "title": "Pattern",
+              "type": "string"
+            },
+            "present": {
+              "title": "Present",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "kind",
+            "pattern",
+            "present"
+          ],
+          "title": "AnswerCriterion",
+          "type": "object"
+        },
+        "AnswerRule": {
+          "additionalProperties": false,
+          "description": "A user's answer by rule: the first rule whose ``match`` (a regex) is in the question.\n\nFor a question with options, ``answer`` must be one of their values; ``only_options`` keeps\na rule off the questions that ask for typed text.",
+          "properties": {
+            "answer": {
+              "title": "Answer",
+              "type": "string"
+            },
+            "match": {
+              "title": "Match",
+              "type": "string"
+            },
+            "only_options": {
+              "default": false,
+              "title": "Only Options",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "match",
+            "answer"
+          ],
+          "title": "AnswerRule",
+          "type": "object"
+        },
+        "BeforeCriterion": {
+          "additionalProperties": false,
+          "description": "``tool`` was called before the first call of ``then``; a run without ``then`` passes.\n\nThe order of the run's own tool results, so a search comes before the question it spares.",
+          "properties": {
+            "kind": {
+              "const": "before",
+              "title": "Kind",
+              "type": "string"
+            },
+            "then": {
+              "title": "Then",
+              "type": "string"
+            },
+            "tool": {
+              "title": "Tool",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "tool",
+            "then"
+          ],
+          "title": "BeforeCriterion",
+          "type": "object"
+        },
         "Message": {
           "additionalProperties": false,
           "description": "One message of a conversation.",
@@ -447,11 +557,20 @@
         },
         "QuestionCriterion": {
           "additionalProperties": false,
-          "description": "The agent asked the user a question holding ``contains``.",
+          "description": "The agent asked the user a question holding ``contains``, or any of ``contains_any``.\n\n``contains_any`` names one thing by each of its names, such as a flaw by its key or its word\n(``[\"doublet\", \"annual_operation\", \"count\"]``); the match ignores case.",
           "properties": {
             "contains": {
+              "default": "",
               "title": "Contains",
               "type": "string"
+            },
+            "contains_any": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Contains Any",
+              "type": "array"
             },
             "kind": {
               "const": "question",
@@ -460,10 +579,51 @@
             }
           },
           "required": [
-            "kind",
-            "contains"
+            "kind"
           ],
           "title": "QuestionCriterion",
+          "type": "object"
+        },
+        "SetupCall": {
+          "additionalProperties": false,
+          "description": "One tool call run by code before the task's agent, so the task starts from a fixed state.",
+          "properties": {
+            "input": {
+              "additionalProperties": true,
+              "default": {},
+              "title": "Input",
+              "type": "object"
+            },
+            "tool": {
+              "title": "Tool",
+              "type": "string"
+            }
+          },
+          "required": [
+            "tool"
+          ],
+          "title": "SetupCall",
+          "type": "object"
+        },
+        "SourcedCriterion": {
+          "additionalProperties": false,
+          "description": "Every number of the answer and the questions is one the agent read: the agent computed none.\n\nWhat the agent read is every message it was sent that it did not write itself: the prompt,\nthe user's messages and answers, and the tools' results. A whole number up to ``small``\ncounts things or numbers a list, so it needs no source.",
+          "properties": {
+            "kind": {
+              "const": "sourced",
+              "title": "Kind",
+              "type": "string"
+            },
+            "small": {
+              "title": "Small",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "kind",
+            "small"
+          ],
+          "title": "SourcedCriterion",
           "type": "object"
         },
         "StateCriterion": {
@@ -519,7 +679,7 @@
         },
         "ToolCriterion": {
           "additionalProperties": false,
-          "description": "A tool was called, or with ``called: false`` was not.",
+          "description": "A tool was called, or with ``called: false`` was not.\n\nA call counts even when its result was an error. With ``succeeded: true``, at least one\ncall of the tool must have returned no error: a lead's delegate whose nested run failed\nfails it. ``succeeded`` defaults to false, the behaviour before it, so older tasks keep\ntheir meaning.",
           "properties": {
             "called": {
               "default": true,
@@ -530,6 +690,11 @@
               "const": "tool",
               "title": "Kind",
               "type": "string"
+            },
+            "succeeded": {
+              "default": false,
+              "title": "Succeeded",
+              "type": "boolean"
             },
             "tool": {
               "title": "Tool",
@@ -574,7 +739,14 @@
         "answers": {
           "default": [],
           "items": {
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/AnswerRule"
+              }
+            ]
           },
           "title": "Answers",
           "type": "array"
@@ -583,8 +755,11 @@
           "items": {
             "discriminator": {
               "mapping": {
+                "answer": "#/$defs/AnswerCriterion",
+                "before": "#/$defs/BeforeCriterion",
                 "number": "#/$defs/NumberCriterion",
                 "question": "#/$defs/QuestionCriterion",
+                "sourced": "#/$defs/SourcedCriterion",
                 "state": "#/$defs/StateCriterion",
                 "tool": "#/$defs/ToolCriterion",
                 "verified": "#/$defs/VerifiedCriterion"
@@ -606,6 +781,15 @@
               },
               {
                 "$ref": "#/$defs/VerifiedCriterion"
+              },
+              {
+                "$ref": "#/$defs/SourcedCriterion"
+              },
+              {
+                "$ref": "#/$defs/BeforeCriterion"
+              },
+              {
+                "$ref": "#/$defs/AnswerCriterion"
               }
             ]
           },
@@ -647,6 +831,14 @@
           ],
           "default": null,
           "title": "Plant"
+        },
+        "setup": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SetupCall"
+          },
+          "title": "Setup",
+          "type": "array"
         }
       },
       "required": [
@@ -664,5 +856,5 @@
       "Model"
     ]
   },
-  "version": "0.4.21"
+  "version": "0.4.22"
 }

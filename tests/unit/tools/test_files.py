@@ -1,12 +1,12 @@
-"""The tools that read the files of a project: ``list_files`` and ``read_document``."""
+"""The tools that read the files of a project: ``list_files`` and ``read_rag``."""
 
-import json
 from pathlib import Path
 
 import pytest
 
 from geomind.stores import MemoryWorkspace
-from geomind.tools import list_files, read_document
+from geomind.tools import list_files, read_rag
+from geomind.tools.files import span_of
 from tests.fixtures.calls import call
 from tests.fixtures.sessions import StubSession
 
@@ -41,9 +41,9 @@ class NoFiles:
 
 
 async def read(name, **options):
-    """Return the output of ``read_document`` on the project's files."""
+    """Return the output of ``read_rag`` on the project's files."""
     tool_input = {"name": name, **options}
-    return (await call(read_document, tool_input, session_with(), "p")).output
+    return (await call(read_rag, tool_input, session_with(), "p")).output
 
 
 async def test_list_files_gives_name_size_and_media_type():
@@ -56,11 +56,11 @@ async def test_list_files_gives_name_size_and_media_type():
 async def test_without_a_project_the_tools_are_not_allowed():
     """A chat without a project has no files to read."""
     assert (await call(list_files, {})).output["error"]["code"] == "not_allowed"
-    result = await call(read_document, {"name": "a.csv"})
+    result = await call(read_rag, {"name": "a.csv"})
     assert result.output["error"]["code"] == "not_allowed"
 
 
-@pytest.mark.parametrize("tool, tool_input", [(list_files, {}), (read_document, {"name": "a.csv"})])
+@pytest.mark.parametrize("tool, tool_input", [(list_files, {}), (read_rag, {"name": "a.csv"})])
 async def test_a_workspace_without_files_says_so(tool, tool_input):
     """A backend that has not added the methods gets a clear code, not a crash."""
     session = StubSession()
@@ -133,7 +133,7 @@ async def test_a_long_file_is_paged():
 async def test_a_page_is_bounded_without_a_length():
     """A call without ``length`` cannot pull a whole long file into the context."""
     files = {"huge.txt": b"x" * 200_000}
-    output = (await call(read_document, {"name": "huge.txt"}, session_with(files), "p")).output
+    output = (await call(read_rag, {"name": "huge.txt"}, session_with(files), "p")).output
     assert output["next"] == len(output["text"]) < 40_000
 
 
@@ -145,12 +145,134 @@ async def test_a_negative_start_is_refused():
 async def test_a_long_read_is_stored_by_reference():
     """A read over the store limit is kept as an artifact, so old reads need not stay whole."""
     session = session_with()
-    result = await call(read_document, {"name": "long.txt"}, session, "p")
-    assert result.reference is not None
-    assert json.dumps(session.artifacts[result.reference])
+    result = await call(read_rag, {"name": "long.txt"}, session, "p")
+    assert result.reference is not None and len(result.output["text"]) == 20000
+    assert session.artifacts[result.reference]["text"] == result.output["text"]
 
 
 def test_the_name_argument_has_a_pattern_and_an_example():
     """The schema teaches the form of a name, as the reference arguments do."""
-    schema = read_document.schema()["input_schema"]["properties"]["name"]
+    schema = read_rag.schema()["input_schema"]["properties"]["name"]
     assert schema["pattern"] and schema["examples"] == ["demand.csv"]
+
+
+async def test_a_csv_of_times_gives_the_case_span_with_an_exclusive_end():
+    """The case's time is copied from the file: the agent works out no date (#64)."""
+    table = (await read("demand.csv"))["table"]
+    assert table["last_row"] == ["2030-01-14T00:00:00Z", "6"]
+    assert table["span"] == {
+        "start": "2030-01-01T00:00:00Z",
+        "end": "2030-01-15T00:00:00Z",
+        "step": {"value": 1, "unit": "d"},
+    }
+
+
+@pytest.mark.parametrize(
+    "rows, span",
+    [
+        (
+            [["2027-01-01", "1"], ["2027-01-02", "2"], ["2027-12-31", "3"]],
+            None,
+        ),
+        (
+            [["2027-12-30", "1"], ["2027-12-31", "2"]],
+            {"start": "2027-12-30", "end": "2028-01-01", "step": {"value": 1, "unit": "d"}},
+        ),
+        (
+            [["2030-01-01T00:00:00Z", "1"], ["2030-01-01T00:15:00Z", "2"]],
+            {
+                "start": "2030-01-01T00:00:00Z",
+                "end": "2030-01-01T00:30:00Z",
+                "step": {"value": 15, "unit": "min"},
+            },
+        ),
+        ([["a", "1"], ["b", "2"]], None),
+    ],
+)
+def test_the_span_is_one_step_past_the_last_row_or_none(rows, span):
+    """Uneven steps or a column that is not times give no span."""
+    assert span_of(rows) == span
+
+
+async def test_columns_read_only_those_columns_of_a_table():
+    """A wide cost table read by its id and price costs a third of the tokens (Track A)."""
+    output = await read("demand.csv", columns=["heat_mw"])
+    assert output["text"].startswith("heat_mw\n5\n") and output["columns"] == ["heat_mw"]
+    assert output["name"] == "demand.csv" and output["table"]["columns"] == ["heat_mw"]
+
+
+async def test_unknown_columns_name_the_table_s_columns():
+    """A column the table has not is ``unknown_name`` with the header."""
+    error = (await read("demand.csv", columns=["heat"]))["error"]
+    assert error["code"] == "unknown_name" and "heat_mw" in error["message"]
+    assert "heat_mw" in error["suggestions"]
+
+
+async def test_columns_of_a_file_that_is_no_table_are_refused():
+    """Only a CSV or TSV has columns."""
+    assert "no CSV or TSV" in (await read("note.md", columns=["a"]))["error"]["message"]
+
+
+async def test_a_page_this_run_read_is_in_its_conversation():
+    """The run's own stored page stays whole for the run: the note says so, not ``read_stored``."""
+    session = session_with()
+    await call(read_rag, {"name": "demand.csv"}, session, "p")
+    session.documents_read["demand.csv"][0]["reference"] = "stored"
+    again = (await call(read_rag, {"name": "demand.csv"}, session, "p")).output
+    assert again["note"] == "already read at step 1; its text is in your context; work from it"
+    assert "read_stored" not in again["note"]
+    assert all("reference" not in read for read in again["already_read"])
+
+
+class CaseAgent:
+    """An agent with the case tools, as ``session.agent``."""
+
+    def tools(self):
+        """Return the tools by name."""
+        return {"read_rag": None, "set_case": None}
+
+
+async def test_a_re_read_names_its_step_and_set_case_for_the_case_lead():
+    """#122: DeepSeek read the same pages 48 times and never called set_case; force too gets it."""
+    session = session_with()
+    session.agent = CaseAgent()
+    session.state.step = 3
+    first = (await call(read_rag, {"name": "demand.csv"}, session, "p")).output
+    session.state.step = 7
+    for force in (False, True):
+        again = (await call(read_rag, {"name": "demand.csv", "force": force}, session, "p")).output
+        assert "text" not in again and again["start"] == 0 and again["total"] == first["total"]
+        assert again["note"] == (
+            "already read at step 3; its text is in your context; call set_case next"
+        )
+        assert again["already_read"][0]["step"] == 3
+
+
+async def test_a_forced_read_of_a_page_after_a_compaction_reads_it_again():
+    """Only a compaction since the read takes the text away; then ``force`` reads the page."""
+    from geomind.context import Compaction, ProblemState
+
+    session = session_with()
+    await call(read_rag, {"name": "note.md", "length": 3}, session, "p")
+    compacted = ProblemState(compaction=Compaction(summary="earlier", turns=3))
+    options = {"name": "note.md", "length": 3, "force": True}
+    again = (await call(read_rag, options, session, "p", compacted)).output
+    assert "text" in again
+
+
+async def test_a_page_read_before_a_compaction_points_at_read_stored():
+    """#120: only a compaction since the read takes the text away; then the note names read_stored.
+
+    DeepSeek, told "after a compaction, read_stored" with none, called it 16 times in one run.
+    """
+    from geomind.context import Compaction, ProblemState
+
+    session = session_with()
+    await call(read_rag, {"name": "demand.csv"}, session, "p")
+    session.documents_read["demand.csv"][0]["reference"] = "stored"
+    session.load_artifact = lambda reference: {"text": "kept"}
+    compacted = ProblemState(compaction=Compaction(summary="earlier", turns=3))
+    again = (await call(read_rag, {"name": "demand.csv"}, session, "p", compacted)).output
+    assert "read_stored" in again["note"] and "compaction" in again["note"]
+    assert [read["reference"] for read in again["already_read"]] == ["stored"]
+    assert all("compacted" not in read for read in again["already_read"])

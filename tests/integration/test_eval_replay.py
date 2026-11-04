@@ -19,12 +19,12 @@ def stored(monkeypatch, tmp_path):
     made = []
     real_new_run = evals.new_run
 
-    def new_run(task, agent_name, llm, store, loop=None):
+    def new_run(task, agent_name, llm, store, loop=None, hooks=()):
         folder = tmp_path / f"task{len(made)}"
         folder.mkdir()
         file_store = FileRunStore(folder)
         made.append((file_store, folder, evals._workspace(task)[0]))
-        return real_new_run(task, agent_name, llm, file_store, loop)
+        return real_new_run(task, agent_name, llm, file_store, loop, hooks)
 
     monkeypatch.setattr(evals, "new_run", new_run)
     return made
@@ -66,7 +66,7 @@ def run_and_replay(stored, agent, name):
 
 
 @pytest.mark.parametrize(
-    ("agent", "name"), tasks(["analyst", "designer", "explainer", "coordinator"])
+    ("agent", "name"), tasks(["analysis_lead", "design_lead", "explainer", "coordinator"])
 )
 @pytest.mark.usefixtures("gemini_loaded")
 def test_the_recording_of_a_single_agent_task_replays(stored, agent, name):

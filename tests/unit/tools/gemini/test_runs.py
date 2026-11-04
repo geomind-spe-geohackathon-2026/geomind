@@ -203,6 +203,21 @@ async def test_read_profile_gives_the_peak_in_megawatts(name):
     assert output["unit"] == "MW"
     assert len(output["time"]) == len(output["value"]) == case_steps(name)
     assert max(output["value"]) == pytest.approx(HEATING_PEAK_MW[name])
+    assert output["summary"]["peak"]["value"] == pytest.approx(HEATING_PEAK_MW[name])
+
+
+def test_a_profile_s_summary_is_computed_by_code_not_by_the_agent():
+    """#71: engineers read a year of values again and again to find its peak and energy."""
+    import pandas as pd
+
+    from geomind.tools.gemini.runs import profile_summary
+
+    times = pd.date_range("2027-01-01", periods=3, freq="D", tz="UTC")
+    summary = profile_summary(times, [2.0, 5.0, 1.0])
+    assert summary["peak"] == {"value": 5.0, "time": "2027-01-02T00:00:00+00:00"}
+    assert summary["minimum"]["value"] == 1.0 and summary["mean"] == pytest.approx(8 / 3)
+    assert summary["energy"] == {"value": pytest.approx(8.0 * 24), "unit": "MWh"}
+    assert profile_summary(times[:0], []) is None
 
 
 @example_names
@@ -235,6 +250,18 @@ async def test_list_profiles_names_the_services_of_the_demand(name):
     assert rows["heating"]["supply_temperature"]["unit"] == "degC"
     assert rows["heating"]["peak"]["unit"] == "MW"
     assert rows["heating"]["peak"]["value"] == pytest.approx(HEATING_PEAK_MW[name])
+
+
+async def test_list_profiles_lists_a_service_with_no_return_temperature():
+    """The end-to-end case left both return temperatures open: the row says None (#125)."""
+    context = await case_context("hackathon_2026")
+    for service in ("heating", "cooling"):
+        del context.problem.case["demand"][service]["return_temperature"]
+    result = await call(TOOLS.list_profiles, {}, context.session, problem=context.problem)
+    assert not result.is_error, result.output
+    rows = {row["service"]: row for row in result.output}
+    assert rows["heating"]["return_temperature"] is None
+    assert rows["heating"]["supply_temperature"]["unit"] == "degC"
 
 
 async def test_without_a_case_the_profiles_say_what_to_call():
@@ -328,3 +355,19 @@ async def test_a_plant_that_gemini_s_check_rejects_comes_back_with_the_issue():
     error = result.output["error"]
     assert result.is_error and error["path"] == "economics.capex.drilling"
     assert error["code"] == "case_incomplete"
+
+
+@example_names
+async def test_a_profile_shows_the_case_window_and_its_file_s_own_rows(name):
+    """#60: a year ending at an exclusive 31 Dec read as a file of 364 values, and a day was cut.
+
+    Beside the series: the case's window, its end exclusive, and the data file's own rows.
+    """
+    session, problem = await designed(name)
+    output = (
+        await call(TOOLS.read_profile, {"service": "heating"}, session, problem=problem)
+    ).output
+    assert output["case_time"]["end_is"] == "exclusive"
+    assert output["case_time"]["steps"] == case_steps(name)
+    extent = output["file"]
+    assert extent is None or (extent["rows"] >= 1 and extent["first"] <= extent["last"])

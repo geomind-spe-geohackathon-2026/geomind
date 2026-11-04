@@ -6,6 +6,499 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.22] - 2026-11-04
+
+geomind 0.4.22 on gemini 0.6.2 (`>=0.6,<0.7`, the 0.6.2 wheel pinned). Its agents run on
+DeepSeek and on nemotron with the same prompts and fixtures; every team (case, design, analysis,
+support, project) has its own per-agent tests; agents read the RAG knowledge base and MCP servers
+through verb-first tools (`search_rag`, `read_rag`, `list_mcp`, `read_mcp`, `call_mcp`); a run
+ends with next-step suggestions. The sections below are the 0.4.22 development steps, newest first.
+
+Release choices (made without questions, as asked): released from `dev` at the merge of tracks k, l
+and m, on gemini 0.6.2 as tested; no new live model runs; the version is 0.4.22 with no other change
+to code or snapshots.
+
+### Known issues
+
+- `site.air.pressure` has no source in the brief or the knowledge base, so an end-to-end run stops
+  before sizing (gemini request 32).
+- The shortened-history note can invite a `{}` call (a tool called with no arguments).
+- `run_manifest.models` lists only the roles that started, not every role of the run.
+- `read_case` of a missing section is an error, not an empty answer.
+
+### gemini 0.6.2 (0.4.22.dev64)
+
+No version bump in this piece.
+
+- geomind runs on the gemini 0.6.2 release wheel (`requirements/gemini.txt`, sha256 `8c4fde3e67922eff0ff2316a7b883001f0c1592a83d338df2ddc69ffdfba9b7c`; `[tool.uv.sources]`); the range stays `>=0.6,<0.7`. 0.6.2 is additive; gemini's example projects geomind copies are unchanged.
+- Prompts: the case key trees and `describe_case` read each economics field with gemini's own description (`Economics.schema()`, requests 19/21); `ECONOMICS_FIELDS` keeps only the four fields gemini leaves undescribed (`format`, `kind`, `name`, `about`). The full case tree (read by part through `describe_case`) grows to about 20k characters; the prompts' `case_compact` is unchanged in size.
+- Prompts: a superstructure may turn a whole part on or off, the peak boiler with its gas makeup and gas grid, or the cooling branch (process engineer); a module's off path is the plant's `bypass` `{module: {inlet: outlet}}`, `{}` removing it (integration engineer); the design lead reads `evolve_structure`'s `rejected`. `build_plant` with `from_class` carries `choices` and `bypass` to gemini unchanged.
+- Contract (addition): `evolve_structure` answers `rejected` (each structure gemini refused before any simulation, `{structure, reasons}`) and `stopped` (why the search ended, gemini's `budget.stopped`).
+- Behaviour: `set_case` no longer turns a gas fraction in `mol%` or `%` into the fraction: gemini 0.6.2 takes `mol%` (request 15), and `%` or `mol %` is only named `mol%` (listed in `converted`, the same number). `percent_fraction` and the one-line allowlist of `test_no_unit_math` are gone. The gradient mapping (`°C/km` to `K/km`) stays: 0.6.2 still refuses `degC/km` (request 31).
+- Behaviour: a case gemini rejects at several paths (0.6.2 judges the whole case, request 13) comes back as one error starting `set_case: the case has problems at <n> paths, all listed here; fix every one in the next call:`; each `accepted units` suggestion names its field (`site.ground.gradient: accepted units: K/km, K/m`).
+- Prompts: `module_reference` and `describe_module` show a list of quantities (gemini 0.6.2's `type: array`, request 14) as `array {value: [<number>, ...], unit}`.
+- Prompts and data: the case lead's examples of a refused unit are those 0.6.2 still refuses (`capex.pipe` per MW and m, `opex.fixed.pipe` per MW and year); a key may take several bases, each its unit. The energy engineer gives `nominal_duty` or `energy_capacity` when the economics prices an exchanger per W of duty or a storage per MWh. Seven `path` cells of `data/knowledge/cost-sources.csv` name 0.6.2's keys (`opex.variable.chemical`, `opex.variable.waste_disposal`, `opex.per_energy.chp`; listed in `cost-sources.md`); a test checks every catalogue row's key and unit against gemini's schema, the three pipe rows gemini still refuses listed.
+### Old logs are read (0.4.22.dev64)
+
+- Behaviour: a replay of a log recorded before the case lead (geomind older than 0.4.22.dev7, or no version) that differs raises `ReplayError` saying the log was recorded by geomind <version> before the case lead and can be read, shown and exported but not re-run, with the first difference after it. Tests: the 0.3.1 compare log loads, maps its class paths (`RENAMED_CLASSES`), shows (`geomind show`, text and md) and exports (JSON run log, Markdown), and its replay raises that message.
+
+### The slow tier green again (0.4.22.dev63)
+
+The release profile's slow tests failed on dev62; none ran on a push to dev. No version bump in this piece.
+
+- Fix, behaviour: `ComparisonDriver` (the `CompareLoop`) takes the project's case it loads by rule (`set_case`) and a case lead's run as the design loop does; it went from that `set_case` straight to the explainer, with no family designed (since fdbfed8).
+- Fix, behaviour: a replay reads a recorded reference index (`results.index`, `designs.index`, `studies.index`) without the references the replayed runs make again, so an `unknown_name` message at a step lists what the run had there, not what it stored later.
+- Evals: a task with `max_steps` that ends at its step limit (the question answered `stop`) does not fail as a run; its criteria decide. `challenge2/tight_budget`: a round without a design is no repeated failure (70b2c43), so the loop's own 7 steps end it with the partial answer; its recording has a third round.
+- Evals: `challenge2/verifier` is `challenge2/reviewer`, task and recording. The `design_lead` tasks set the project's case in `setup`. `challenge2/colder_reservoir` and `user_profile` (hand-written): the design lead names the case change and the case lead's `set_case`/`save_profile` make it, the same calls and numbers; their first reply, for the case question the loop no longer asks, is gone. `evals/reports/summary.md` regenerated.
+- Tests: the 0.3.1 compare log loads and exports; its replay now stops at the driver's first move, which changed by design (case lead, case by rule, `design_lead`/`reviewer`), with `ReplayError`; the reused-call schema rule stays pinned in the unit tests. `test_studies` sets `max_steps` in its module fixture.
+
+### The third end-to-end run (0.4.22.dev62)
+
+Run 4ca94d6e (`.tmp/e2e-final4/`), fixes #138 to #143; no version bump in this piece.
+
+- Fix (#138), behaviour: a call identical (tool and whole input) to an earlier successful call of the same run does not run when its tool `repeats_same` (a pure tool not `runs_alone`, or a write with the new `Tool(sets_input=True)`, which `set_ranges` is) and no tool that is not pure ran with success between; its result is "same result as step N: <reference or outline>", `tool.result` `source` `repeat`. More than `max_retries` such steps in a row stop the run (`error`). A design lead had sent one `set_ranges` call 37 times (12.7k characters each) until two step limits.
+- Fix (#139), behaviour: a new economics file starts from its header (`format`, `kind`, `name`), so `ask_economics`'s approve all on a case without economics is stored instead of refused as an older shape (seq 424).
+- Fix (#140), behaviour: asked-once matches per path: a path named inside a multi-path question that was answered is answered (`site.air.pressure`, item 4 of request-259, then request-2872). A question with only answered paths takes the earlier answers; one with new paths too is asked with the earlier answers under it and only the new paths to answer.
+- Fix (#141), behaviour: an object or array sent as JSON text that does not parse is refused naming `json`'s message, line, column and character and the text around it, and a Python literal there (`None`), instead of pydantic's "Input should be a valid dictionary".
+- Fix (#142), contract (tool schema, additive): `ask_economics` takes null for every field of a value but `key` (`others: null`, `source: null`); a value of null is an open key; a value needs its `row` or its `source`.
+- Fix (#143), contract (tool schema, additive): `build_plant(from_class=...)` builds a free plant from a class's modules, connections, size, params and fluids with the plant's added modules, connections (one at a single-connection port replaces the class's) and `optional`. A plant with `type` naming a module its class lacks is refused naming `from_class`. The process engineer's prompt says so. It had spent its 15 steps on a free plant with `thermal_storage`.
+
+### The step-limit question keeps its shape (0.4.22.dev61)
+
+- Contract (pinned): the backend (1.1.7) takes typed text for every question with options except the step-limit one, which it knows by options exactly `continue` and `stop` and no call id. A test pins that shape; no marker is added. The contract copy's "Answers to options" says a question with options also takes typed text, which geomind marks as typed.
+
+### The second end-to-end run (0.4.22.dev60)
+
+The end-to-end run again on dev59 (nemotron for every role, memory off, e2e-final3); each fix
+pinned by a test with the run's inputs where it had them. No version bump in this piece.
+
+- Fix (#132), behaviour: `patch_plant` takes a module's parameters written at the top (`d0`, `d0.well`, `degasser`), dotted (`modules.d0.well`) or inside `modules` as under `params`; a module's `type` stays in `modules`. An engineer's parameter path that `design.owners` names no prefix of belongs to the discipline of its module's gemini type (`OWNED_MODULES`, now in `tools/gemini/ownership.py`, then the type's category), so an engineer can always write its own modules; a named owner still decides. The run had 31 `not_allowed` with the owners recorded.
+- Fix (#133), contract: a question with options takes typed text: text that is no option's value is the user's own answer (`validate_answer` no longer raises), and the model reads it as "The user typed this answer instead of choosing an option: ...". The step limit's question still takes `continue` or `stop` only. The shared contract's "Answers to options" (backend `422`) needs the same change. The case lead's answer after `change some` with no later question is refused once (`changes not asked`).
+- Fix (#134), behaviour and new tool: `ask_economics(values, open, note)` on the case lead: each economics key with its value, catalogue row, source and the other rows; `currency`, `price_year` and `discount_rate` required in `values` or `open`. Code writes the one question; on `approve all` it sets every value with `set_case`, keeps each row in `economics.about.sources` and records a confirmed assumption `economics.<key>` with its citation. `Tool.on_answer(context, input, text)` makes the result of an answered question; a replay calls it again from the result's `answer`. The prompt: a multi-row key recommends the row of the latest year and lists the others.
+- Fix (#135), behaviour: the repeat guard compares the tool and the whole input, and a failure counts once per step for both the repeat and the validation count: parallel calls of one step are sent before the model saw an error. #49's rule (the same input the error names) is gone.
+- Fix (#136), behaviour: an older assistant message shows a long call input as `{}` and its outline as a line of its text; a call whose input is `{"shortened": ...}` is an error result naming the tool's arguments, no validation failure.
+- Fix (#137), behaviour: a tool's question naming exactly the case paths of an earlier answered question in the run tree is not asked; its result is the earlier answer ("Not asked again: ..."), read from the root's log (`engine/questions.py`).
+- Settings: `GEOMIND_MAX_OUTPUT_TOKENS=32000` for nemotron runs goes in the run's env (`.tmp/e2e-final4/env.sh`); no code default.
+
+### What the end-to-end run showed (0.4.22.dev59)
+
+The end-to-end run on nemotron for every role (memory off, e2e-final), each bug pinned by a test
+with its recorded input.
+
+- Fix (#124), behaviour: `Agent.answer_problem(context)`, checked before an answer (a `finish` or a text answer) is accepted; its text goes back to the model as `finish` feedback. The case lead refuses once an answer of a run that called `set_case` and left the case with no economics and asked no `ask_user` naming economics, with its step 5. Prompts: the project lead's case brief asks for the economics and leaves the questions to the case lead; the case lead follows its workflow in a delegated run too and asks with `ask_user`, never in its answer's text. The delegated case lead had read the catalogue, set no economics and asked nothing.
+- Fix (#125): `list_profiles` lists a service with no return temperature as `null` instead of crashing.
+- Fix (#126), behaviour: a call with an argument the tool does not have is an error result naming the tool's arguments (code `invalid_input`, `path` the unknown name, `suggestions` the real names), and no validation failure: it does not count toward "2 invalid calls in a row". `read_plant with_schema` had ended two design-lead runs.
+- Fix (#127), behaviour: with the memory off, the curator is not offered (`needs_memory`) besides the memory tools, and a call of a tool the run does not offer is answered `not_allowed` without running. The support lead's prompt says to finish at once then.
+- Fix (#129), behaviour: JSON text of a list whose object closed before its last key (`"reason": "x"}, "citation": null}]`) is read with that `}` deleted, as nemotron's `update_state changes` (`tests/fixtures/live/h_update_state_early_close.json`).
+- Fix (#130), behaviour: `set_case` refuses a requirement on an efficiency, fraction or share (no unit) with a bound outside 0-1 (code `out_of_bounds`, "an efficiency is a fraction 0-1: 0.7, not 70"; no number of geomind's own: the fixed example only). nemotron wrote `pump_efficiency` 70.
+- Fix (#131), behaviour: `search_rag`'s "already searched in this run" note follows the run's conversation in call order, so a resumed run and `geomind replay` give the note the live run gave; the run tree's in-process set of searches is gone. A replay had failed on two calls of one step with the same words.
+- #128, no change of behaviour: the suggestions of `run.finished` keep one step from outside the stage's own, as before; `finish`'s description says so. gemini request 32 (`site.air.pressure` from the site's elevation) in plan.md.
+
+### The case team, fifth round (0.4.22.dev58)
+
+The case team after the A4 rerun on both models; each bug pinned by a test.
+
+- Fix (#121), prompt: the case lead works by a numbered workflow; economics are its required step 5 once the case is accepted: the cost catalogue read once, ONE `ask_user` question listing every economics value with its catalogue row (`id`, source, year, link, status; rows with different values offered there), then `set_case(economics=...)`; the checklist and the stop rule name them. nemotron had set the project case and no economics.
+- Fix (#122), behaviour: `read_rag` on a page this run already read, `force` or not, returns the note "already read at step N; its text is in your context; call set_case next" (`work from it` for an agent without `set_case`), with `already_read` (each read with its `step`), `start` and `total`; after a compaction since the read, the note names `read_stored` and `force` reads the page again, as before. DeepSeek had read the same pages 48 times and never set a case.
+- Evals (#123), contract: the `question` criterion takes `contains_any`, a list of texts of which one must be in a question (`contains` stays; one of the two is required); `geomind/schemas/eval_task.json` regenerated. The flawed case task accepts any name of its count flaw.
+- Evals: the `sourced` criterion takes a read float written with noise in its last digits (relative 1e-12), as nemotron wrote 37.50773379868328 for 37.507733798683276.
+
+### The case team, fourth round (0.4.22.dev57)
+
+The case team after the A3 rerun on both models; each bug pinned by a test.
+
+- Fix (#117), behaviour: JSON text of an object or array with a stray closing bracket in the middle (`json`'s "Extra data" before a `,`, or "Expecting ',' delimiter" at a `}` or `]` that closes nothing open) is read with that bracket deleted, up to three times, and only when no closing bracket is made up; the schema's type is still checked (`parsed_json`). nemotron's `set_case` (`..."°C"}}}}, "requirements"`) and `update_state` (`}}]}`) inputs had ended two runs; the recorded strings are the test fixtures (`tests/fixtures/live/a4_stray_brackets.json`).
+- Fix (#118), behaviour: `set_case` maps unit names as sources write them to gemini's name of the same unit, no factor: `m³` `m3`, `kg/m³` `kg/m3`, `Nm³/m³` `Nm3/m3`, `m³/h` `m3/h`, `mPa·s` `mPa.s`, `MWth` and `MWcool` `MW`, where the key's units hold the name (a requirement's unit: where gemini knows it). Contract: each is a `converted` entry with the reason `unit name`.
+- Fix (#119), prompt: a flaw of a loaded case is always a question with `ask_user` before the case lead finishes, never only a line of its answer (do/don't from nemotron's flawed run); the checklist says so too.
+- Fix (#120), behaviour: `read_rag`'s `already_read` note for a page this run read no longer says "after a compaction, read_stored a reference" and shows no reference while no compaction happened since the read: DeepSeek's project run called `read_stored` 16 times on pages in its conversation. After a compaction the note names `read_stored` and the reference.
+
+### The case team again (0.4.22.dev56)
+
+The Track A rerun on dev51 on both models; each bug pinned by a test.
+
+- Fix (#68): `read_case` and the other case tools without a case in a project that has a `case.json` say so in their `no_case` error: "the project has a case file: set_case(source='project') loads it". nemotron had read `no_case` as "the project has no case" and raised none of its flaws.
+- Fix (#69), prompt: the case lead sends the SAME full `set_case` again after `case_incomplete` or a refused full call, fixed where it names, never files alone; never calls the geoscientist after `already_asked`; writes file names as `list_files` gives them (case-sensitive).
+- Fix (#115), behaviour, reversible: `set_case` maps a `site.ground.gradient` in `degC/km`, `°C/km` or `C/km` to `K/km` (`/m` to `K/m`), the same number, and turns a value in `%` or `mol%` on `site.fluid.dissolved_gas.*` or `utilities.gas.composition.*` into the fraction (value, range and uncertainty / 100) (`geomind/tools/gemini/unit_bridge.py`). Contract: `set_case`'s result gains `converted`, `[{path, from: {value, unit}, to: {value, unit}, reason}]`, when it mapped or converted a value. To be removed when gemini requests 15 and 31 land; `test_no_unit_math` now knows the percent factor and allowlists that one line. Prompt: units as the source writes them, each `converted` entry in the one confirmation question; `search_rag` for each missing value and the cost catalogue, always, before that question.
+- Evals (#116): `Outcome.partial` marks the answer the engine wrote from the record at a limit (stop reason `step_limit` or `denied`); `sourced` leaves it out, so the cap's numbers are no longer flagged.
+
+### The project team on both models (0.4.22.dev55)
+
+Rounds E1 and E2: the coordinator, the reviewer, the explainer and the project lead, each alone (the lead's teams scripted), live on DeepSeek. Each bug is pinned by a test.
+
+- Prompts: the coordinator's prompt ends with every `Route` option and what it means (`ROUTE_OPTIONS`, kept equal to `Route` by a test), and says when `design` and `compare` apply. The reviewer's ends with gemini's verdict: each kind of reason, read from `gm.evaluate.verdict`'s docstring, and the shape of `failures`. The reviewer's and the explainer's end with gemini's metrics from `gm.evaluate.metrics()` (`geomind/tools/gemini/verdict_text.py`). Each of the four has do and don't examples from real failures.
+- Fix (#105): the metrics section said `compute_kpis` gives the costs; it gives gemini's totals and report metrics, and the costs (`capex`, `annualised_cost`, `lcoh`, ...) come from `estimate_costs`. The explainer had asked `compute_kpis` for `annualised_cost`.
+- Fix (#106): the reviewer and the explainer read their results again and again as they shrank (17 `read_stored`, 42 `read_result`, the explainer's whole input set three times): the reviewer keeps them for a few turns (`Tool.kept`), the explainer for the run.
+- Fix (#107): `read_case(section=...)` of a section gemini knows but the case has not set says it is unset (`unknown_name`, with the sections the case has), instead of "expected one of about, ...; did you mean 'about'?".
+- Fix (#108): the reviewer's prompt says the problem state is a message of the conversation; it had tried `read_stored("state")`.
+- Fix (#109): the project lead skips the case step when the state holds an accepted case, and stops briefing a team that gave the same unusable answer twice.
+- Fix (#110): the explainer converted plant values (`1500000.0 W/K` written as `1.5 MW/K`): capacities come from `compute_kpis`'s `capacities`, and `read_plant`'s values are quoted in their own units.
+- Fix (#111): the project lead asked the user for a case value with an example number of its own (`e.g. 70`): a case value is the case lead's to ask, and a question offers no value.
+- Fix (#112), behaviour: a tool input that the schema wants as an array or an object and that comes as JSON text of that type (`"[{...}]"`) is decoded before validation (`Tool.validate`, `decoded_strings`). nemotron sent `update_state`'s `changes` so twice, and the run stopped; once with one `}` too many at the end, which is taken as the value when only closing brackets follow it. Any other string still fails.
+- Evals: an `answer` criterion (`pattern`, `present`) checks an answer's words, such as a route or a verdict.
+### The design team on both models (0.4.22.dev54)
+
+Rounds D1 to D3 had started the engineers from a class plant given by its header alone, so gemini listed about a hundred inner values as missing and every engineer ran out of budget inventing them. The class's whole project file checks clean against the case.
+
+- Prompts: each design agent's appendix is made from gemini when its prompt renders (`geomind/agents/design/reference.py`): the plant file's keys and gemini's `describe()` of the modules the engineer owns (`OWNED_MODULES`, with parameters, units, list forms and ports); the plant classes with their summary and children for the process engineer; every module's ports for the integration engineer. A test fails when gemini drops or renames a module.
+- Prompts: the reservoir, well and energy engineers work in four steps (read the case and the plant together, decide, one `patch_plant` with every change, stop when no issue names their own path), answer in at most twelve lines, and carry do/don't examples from D1 to D3 (a case value is no plant value; a stored name is not reused; `evaluate_module` is not run on a whole `Doublet`).
+- Fix (#76): `evaluate_module` checks parameter and control names before gemini: a control given as a parameter (`temperature_setpoint` of a heat pump) raised a bare `KeyError` in gemini, seen as `internal`; it is `invalid_input` now, saying to give it in `controls`, and an unknown name gets close matches.
+- Fix (#77): the process engineer builds from the project's plant file of the chosen class (`read_plant(project_plant=...)`), which holds every value; `read_plant(plant_class=...)` gives a header and modules only.
+- Docs: `patch_plant` takes every value of one module or several in one patch.
+- Fix (#81): the integration engineer finishes without a patch when gemini's issues name no connection, port, fluid or boundary, and never describes a module for its ports.
+- Fix (#80): the engineers copy each value with the unit its source writes it in; both models had shown 320.15 K as 47 degC.
+- Fix (#79): `evaluate_module` names each required stream inlet a call leaves out, with the form of its fluid, `T`, `p` and `m_dot`; the energy engineer evaluates only a machine it changes.
+- Fix (#78): the design lead records `design.reference` and `design.result` before every `finish`, also for a handed design it only checked; nemotron finished with the verdict in its answer alone.
+### Evals: a delegate that failed (0.4.22.dev53)
+
+- Evals: the `tool` criterion has `succeeded` (default false, the behaviour before): with `succeeded: true` at least one call of the tool must return no error, so a lead's task no longer passes when its delegate's nested run failed (Track C, nemotron). `Outcome.succeeded` lists the tools whose result was not an error, in order, old names mapped as in `Outcome.tools`. Schema `eval_task.json` (and the agents snapshot) gain the field.
+- Evals: the `sourced` criterion takes a read number written with up to 8 decimals (0.0833333 for 0.08333333333); it took 4.
+
+### The analysis team alone (0.4.22.dev52)
+
+Round C1 (Track C): the analysis lead and the economist alone, two tasks each, on the C1 case and the D-round design (`HackathonPlant` on it), live (DeepSeek), 0.028 USD: 2 of 4 passed, each number checked against gemini's own.
+
+- Prompts: the analysis lead and the economist carry a gemini reference made when the prompt renders (`geomind/agents/analysis/reference.py`): every metric of `gm.evaluate.metrics()` with its title, display unit and whether a study may minimise it, and the economics keys with units and meanings. A test pins gemini's objectives (`annualised_cost`, `lcts`, `lcoh`, `lcoc`, `co2`) and checks that every metric the prompts cite is gemini's.
+- Prompts: the economist has `read_case` (its prompt sent it to the case's economics without the tool), names metrics as gemini does, reports a breakdown and a comparison as gemini gives them (ranks and both values, never a difference, a share or a sum it worked out), and reports a missing price with its economics path. The analysis lead no longer chooses a time zone alone, and gives gemini's values side by side instead of a share.
+- Fix (#85): the economist runs uncertainty and sensitivity only when the task asks for them.
+- Fix (#87): `Tool.validate` reads a list or an object sent as its JSON text, as nemotron sends `update_state`'s `changes`; any other string stays for the schema to judge.
+- Fix (#88): the analysis reference says `compute_kpis` has names of its own (gemini's totals and one result's report): call it without `names`; costs come from `estimate_costs`.
+- Fix (#89): a list or an object whose JSON text lacks only its closing brackets is read (nemotron's `changes` without its final `]`), and `"None"` or `"null"` is null where the schema takes a null.
+- Fix (#90): the analysis reference names the metrics a study reads (the objectives and `heating_coverage`, `cooling_coverage`, `cop`, `peak_heat`, `peak_cold`), never `capex` or `opex`; a test pins them to gemini's private list (gemini request 26).
+- Fix (#86), evals: the `sourced` criterion reads the problem state's `Case:` line. Evals: the `number` criterion reads a thousands separator (`111,667.68 MWh`).
+### Next-step suggestions (0.4.22.dev51)
+
+- Contract (addition): `run.finished` has `suggestions?`, the next steps `[{label, message}]`: one to three, on the root run that ended `done` only; `label` at most 40 characters, `message` (what the app sends as the user's message when one is picked) at most 200; in the user's language (Persian when the user's last message is in Arabic script, else English). A nested, waiting, failed or cancelled run has none, an empty list is left out, and a log before this has none; a replay compares the answer as before and makes the same list again.
+- Code picks the stage from the problem state and its steps (`geomind/tools/suggestions.py`): no case → build the case from the files (with files only), by questions, or which files are needed; a case without `design.reference` → design a plant, check the case and its unsourced values, compare plant options; a plant without a result → optimise, economics, check the design; a result → report, sensitivity, explain.
+- The project lead's `finish` takes `suggestions` `[{step, label, message}]` to reword, reorder or replace one; each must name one of the app's twelve steps, fit the limits and the user's language, and at most one may come from outside the stage, else the stage's own list is used. `Finish` has `suggestions`.
+- API (addition): `gd.suggest(problem, files, project=None)` gives the list of an empty chat before its first message: sync, no model call, in the language of the chat's goal (English when it has none).
+- Contract v4 (addition): the optional `Workspace.project_state(project_id)` returns `{case, plant, study, results, report: {state, label}, case_version, plant_version, study_case_version, case_changed_after_study}` (states `empty`, `incomplete`, `ready`, `running`, `done`); when it answers, the stage follows the project, not the chat: case not done → build it; plant neither done nor ready → design; study or results not done → optimise, economics, check (a running study: wait or explain, no new study); report not done → report, explain, sensitivity; all done → more studies (uncertainty, structure search, another objective, another case). A stale study puts "run the study again" first, an incomplete item "finish the <label>"; a new chat in a project with a case never builds one. `FileWorkspace.project_state` reads it from the project folder (`case.json`, `plants/`, `studies/`, `results/`, `report/`; stale when `case.json` is newer than the newest study). Without the method or with `None`, the chat's problem state decides, as above.
+- Contract v5 (addition): `RunResult` has `suggestions?`, the same `[{label, message}]` as the run's `run.finished` event: on a root run that ended `done` only, `None` on a nested, waiting, failed or cancelled run.
+### Case fields from gemini's code (0.4.22.dev51)
+
+- The seven case fields gemini's schema leaves undescribed (`about`, `initial_state`, `economics.about`, `demand.{heating,cooling}.{minimum,maximum}_return_temperature`) read with a meaning taken from gemini 0.6.1's code, each naming its source; `heating.maximum_return_temperature` and `cooling.minimum_return_temperature` say gemini does not use them. `undescribed()` no longer lists them (plan.md, gemini request 22).
+### Model-agnostic tool inputs (0.4.22.dev51)
+
+- Fix (#67): on `nvidia/nemotron-3.5-super-vl:free` the case lead sent `set_case`'s `changes` as its JSON text (`'{"format": 1, ...}'`), was refused twice and the run ended; `Tool.validate` now reads a string as JSON for a parameter whose schema takes an object or an array and no string, when the text gives that type. Any other string is refused as before; a string parameter keeps its string. Every tool, the hand-made ones too.
+
+### The support team alone (0.4.22.dev50)
+
+Rounds D0 to D3: the support lead, the summarizer and the curator alone, nine tasks, live (DeepSeek, 0.04 USD; nemotron free); the curator on a scratch memory. Each bug is pinned by a test.
+
+- Fix (#95): `search_memory` gave the curator only its own role's lessons, so it could not see a case lead's lesson and wrote it again; the curator now reads every role's lessons and the user's facts.
+- Contract (addition): `write_lesson` refuses a `role` that is no agent's snake name or `all` (`unknown_name`, with a close match): a lesson for `designlead` reached no agent.
+- Fix (#96): the curator wrote "the GEMINI brief" into a lesson; its prompt now says every field of an entry (`kind`, `role`, `text`, `source`, `id`), lists the roles from the agents themselves, and gives do and don't examples from the runs.
+- Fix (#97): the support lead was told to hand the summarizer references, which the summarizer, with no tools, cannot read; it now hands the material itself, whole.
+- Fix (#98): the summarizer spent 16,000 output tokens reasoning before a 2.7k-character handover and wrote nothing; it runs at temperature 0 and writes in one pass. Its prompt covers a handover as well as a compaction, and keeps every number, source, id and open question as written.
+- Fix (#99): on nemotron, the curator called the memory tools it was not offered when the memory was off; its prompt says the memory is off when those tools are not offered.
+- Round F ran every task once on DeepSeek and once on `nvidia/nemotron-3.5-super-vl:free`: 9 of 9 on both (plan.md, Model comparison).
+
+### The case lead asks its geoscientist once (0.4.22.dev49)
+
+The fresh project case on DeepSeek (0.086 USD, 31 steps, 1423 s) set no case: the case lead began its work again four times, read the brief again each time and asked its geoscientist six times, until its steps ran out.
+
+- Contract (addition): `Delegate(..., once=True)` runs its agent at most once per run; a second call is the error `already_asked`, whose message says the findings are in the conversation. The case lead's geoscientist is such a delegate.
+
+### The case lead chooses among the catalogue's rows (0.4.22.dev48)
+
+Sahand's cost catalogue now has 133 rows (61 verified, 53 secondary, 19 placeholder), several for many keys.
+
+- Prompts: the case lead takes a sourced row over a placeholder and a verified one over a secondary; rows left with different values go into one question for all such keys, each with its 2015 value, unit, source, year and link. A row whose unit the key does not accept (`describe_case`) never goes in and is listed; a basis word is no other unit (`EUR/W heat` is `EUR/W`). It reads the catalogue's `year` and `url` columns for the citation.
+- Data: the catalogue's rows whose unit gemini's key does not accept, listed for Sahand: `capex.ice_storage` (EUR/MWh cold; the key takes EUR/m3), `capex.heat_exchanger` (EUR/W; EUR/(W/K)), one `capex.pipe` row (EUR/MW/m; EUR/m), `capex.production_pump` (EUR; EUR/W), `opex.fixed.heat_pump` and `opex.fixed.pipe` (EUR/MW/yr, EUR/MW/km/yr; %/yr), `revenue.subsidy.amount` (EUR/MWh; EUR/yr). Paths that are no economics key: `emissions.CO2.electricity` (the case's `utilities.electricity.co2_intensity`), `opex.chemical`, `opex.waste_disposal` (gemini: `opex.variable.waste_disposal`), `opex.variable.chp`, `opex.variable.corrosion_inhibitor`, `opex.variable.scale_inhibitor`.
+
+### Shared rules for every agent, gemini's module reference, and set_case loads the files the case names (0.4.22.dev47)
+
+- Prompts: every role prompt ends with `prompts/shared/rules.md`, said once for all 17 roles: the source order (user, files, knowledge base, MCP, then ask), citations, the user's confirmation of a value no file gave, no defaults, units and physics left to gemini, and applying an error's fix.
+- Prompts: `module_reference(*names)` and `modules_of(*categories)` (`geomind/tools/gemini/skeleton.py`) give gemini's own `describe()` of modules as prompt text, made when the prompt renders, for an agent's appendix. A test checks that every module or plant class a prompt names in backticks is one of gemini's.
+- Behaviour (#65 again): `set_case` loads every project file a series of `changes` names, without `files`. The case lead of the project run still sent the files alone three times and stopped; `files` alone on no case says so.
+
+### The design team alone (0.4.22.dev46)
+
+Rounds D1 and D2: each design agent alone on the C1 case, live (DeepSeek). Each bug is pinned by a test.
+
+- Fix (#70): an input whose string holds tool-call markup (`</parameter`, `</invoke`, `function_calls`) is refused before the tool runs, `invalid_input` with the value before the markup as its suggestion; DeepSeek had sent a garbled plant name three times alike.
+- Fix (#71), contract (addition): `read_profile` gives `summary`: `peak` and `minimum` `{value, time}`, `mean`, `energy` `{value, unit: "MWh"}` and `unit`, computed by code over the window. `Tool.kept()` returns a copy whose results stay whole for a few turns; the design engineers keep `read_case`, `read_plant` and `describe_module` so, and read each once. They had read the case up to 16 times.
+- Fix (#72): the design lead records a design handed to it complete, once checked, as `design.reference` and `design.result`.
+- Fix (#73): the process engineer compares plants with `list_plants` and reads only the one it chooses, in one call.
+- Fix (#75): a markup slip is an error result but no validation failure, so two in a row no longer end the run; a lone `</` or a leading `">` counts as markup; `finish`, `ask_user`, `update_state` and `write_lesson`, whose inputs are prose, are not checked.
+- Fix (#74): the well engineer's prompt gives the form of a well path's section lists, `{"value": [..], "unit": "m"}`; gemini describes them as numbers (gemini request 14).
+
+### What the second Track A round showed (0.4.22.dev45)
+
+With the provider pinned to DeepSeek the six case tasks cost 0.035 USD instead of 0.112, and from_files 15 model calls instead of 39; it stopped on #65.
+
+- Fix (#65): after a call that named data files it did not pass, the retry said `changes=<the same changes>`; the case lead sent the files alone three times and the run stopped. The retry now says to send the files with everything else of the call, since a rejected call stores nothing, and `set_case` with files alone on a chat without a case says they go with the changes that name them (still `case_incomplete`, with the skeleton).
+- Fix (#66): a wrong unit whose quantity has two words (`temperature gradient`) was read as its first word, so `degC/km` got `{'unit': 'degC'}` and the units of temperature; the whole quantity is read now (`K/km, K/m`).
+- Evals: the `sourced` criterion reads a number after a JSON line break (`\n3.1`), takes a read number written with fewer decimals (34.64 for 34.6364) and a space as a thousands separator (`111 667.7`).
+
+### The case team re-reads nothing (0.4.22.dev44)
+
+The first live round after dev43 still spent 10 `read_stored` calls in from_files: on pages the case lead read before its geoscientist, on search results, on `describe_case` answers and on the geoscientist's findings, each shrunk to a reference one step after it came.
+
+- Behaviour: `read_rag` counts only this run's reads as already read. A nested run (a delegate, a design round) reads a page another run read itself, once, instead of getting a note and spending a `read_stored` call.
+- Behaviour: `search_rag` keeps its results whole for `compaction_keep_turns` turns, `describe_case` for the run, and the case lead keeps its geoscientist's findings for the run.
+- Evals: the `sourced` criterion skips numbers joined to a word (`A14`, `CO2`) and list markers (`13.`).
+
+### The case team: fewer calls, fewer tokens (0.4.22.dev43)
+
+The case lead's from_files run took 39 model calls and 1.15M input tokens. It read the brief again four times with `read_stored` once the page shrank after six turns, read the 40k-character cost catalogue three times, asked for the same missing values three times, and rounded catalogue prices.
+
+- Contract (addition): `Tool.keeps_result` may be `"run"`: the result stays whole in the history for the whole run (until compaction). `read_rag` keeps its pages so; other kept tools (`read_plant`, `read_stored`) keep the window of `compaction_keep_turns`. The `already_read` note of a page this run read says it is in the conversation, even when it was stored.
+- Contract (addition): `read_rag(columns=[...])` reads only those columns of a CSV or TSV, in that order; the result names `columns`. A column the table lacks is `unknown_name` with the header; a file that is no table is refused. The cost catalogue read by id, path, 2015 price, unit, status, source and page is 11.6k characters instead of 40k.
+- Contract (addition): tool `describe_case(path)` returns `keys`, the lines of the case or economics keys under a dotted path with their units, meanings and sources (`requirements` also gives what each option means). An unknown path is `unknown_name`.
+- The case lead and the geoscientist carry the compact key tree (`trees("case_compact")`, 8.2k characters instead of 13.5k): each key, its form and its source tag (`[brief/report]`, `[derived]`), the requirement options, and no unit lists or meanings. `set_case` names the accepted units of a wrong one, and `describe_case` gives the meanings.
+- Prompts: independent tools run in one step; a page once read is never read again; the case is set in as few `set_case` calls as possible; the cost catalogue is read once by its columns; numbers are copied digit for digit; the user's answer is final, so a value left open is never asked for again.
+
+### Verb-first RAG tools and three MCP tools (0.4.22.dev42)
+
+Sahand's naming: a tool's name starts with its verb.
+
+- Contract (rename): `rag_read` is `read_rag` and `rag_search` is `search_rag`. Old logs and recordings still replay: `RENAMED_TOOLS` maps `rag_read`, `rag_search`, `search_knowledge` (and the older `read_document`, `search_documents`) to the new names.
+- Contract (removal): `search_knowledge` is gone. `search_rag` is one search over the project's documents and files and the knowledge base. Each match has `scope` (`project` or `knowledge`), `text`, `score` and `citation`: `{document, title}` for a project document, `{file, page}` for a passage of a project file, and `{document, title, page}` for a knowledge passage, whose `name` is `knowledge/<document>` for `read_rag`. The best of each scope come in turn, because their scores come from different rankings. With neither a project nor a knowledge base it answers `not_allowed`. Its no-match note now says to try MCP and then ask the user for a value of the case, and to choose and record an assumption only for a design choice.
+- Contract (MCP, replaces `<server>__<tool>`): every agent that has tools is offered three fixed tools when the run has a server that answered. `list_mcp(server?)` returns `tools` `[{server, name, description, read_only, input_schema}]`. `read_mcp(server, tool, arguments)` calls a read-only tool and answers `not_read_only` for any other. `call_mcp(server, tool, arguments)` calls any tool, and a tool that is not read-only asks for approval (`request` kind `approval`) through the new `Tool.for_call(session, input)`. Kept: `tool.started` and `tool.finished` carry `mcp` (the `server` input); header values are never logged, stored, echoed or replayed; `GEOMIND_MCP_TIMEOUT` is required when a server is given; `mcp_unavailable` answers a run without a server or a failing one; an unknown server or tool is `unknown_name`. `Engine.mcp_tools` is now `Engine.mcp_servers`. A log with `<server>__<tool>` calls still replays (tested on a dev41 log).
+- Prompts: the shared `KNOWLEDGE` and `MCP` sections name the new tools; the case lead and the geoscientist search the knowledge base with `search_rag`, then a server through `read_mcp`, before they ask.
+- Evals: `Outcome.tools` holds the new names, also for old recordings.
+
+### A missing value is searched before it is asked for (0.4.22.dev41)
+
+Sahand's rule: a value the user's files lack comes from the knowledge base, then from an MCP tool, and only then from the user; the user confirms what was found, with its source. Prices come from the knowledge base's cost catalogue.
+
+- Prompts: the case lead takes each value from the first of: the user, the project's files, the knowledge base (cited by document and page, or a table's row `id`), an MCP tool (cited by server, tool and time), and only then asks the user for the value itself. Economics are built from `knowledge/cost-sources.csv`, one row per key by its `path` column, in its `value_2015` prices; a `placeholder` row is named as having no source. A key that takes a constant or a series (the outside air) may take a cited constant, said to be constant.
+- Prompts: the geoscientist searches the knowledge base, then MCP, for a quantity the reports lack, as an `estimated` proposal with its source, before it calls the quantity missing; an MCP value's `source.file` is `<server>__<tool>`.
+- Evals: a `before` criterion (`tool`, `then`) fails when `then` is called before any call of `tool`.
+
+### Agents write no number they worked out (0.4.22.dev40)
+
+Round C2 of the case team passed 6 of 6, but in one question the case lead worked out a room dew point (14.6 degC) itself. Replaying C2 with the new eval criterion found more: a reservoir temperature worked out from the gradient, a GWP recalled from memory, an end date and a step count worked out by hand.
+
+- Fix (#64): the case lead's prompt forbids any number it worked out or knows from memory, in its questions, notes and answer as in the case; a derived number is left to gemini or asked for.
+- Contract (addition): `rag_read`'s `table` of a CSV or TSV has `last_row` and `span` (`start`, `end` exclusive, one step after the last row, and `step` as a case writes it, `{value, unit}`), or `span: null` when the first column is not evenly spaced times. The case lead copies the case's time from it.
+- Evals: a `sourced` criterion (`small`: the largest whole number that needs no source) fails when the answer or a question holds a number that no message the agent was sent holds; the agent's own turns and its problem state do not count. `Outcome.read` holds that text.
+
+### What the case team alone showed (0.4.22.dev39)
+
+Round C1: the case lead and the geoscientist alone, six tasks live (DeepSeek, 0.062 USD): 6 of 6 passed. The case lead caught every flaw of a flawed case file (a duration stored as a count, a chilled-water return colder than its supply, a span one day short, a derived temperature set by hand) and asked; it invented no value. Each bug is pinned by a test.
+
+- Fix (#61): `FileWorkspace.files` and `file` list and read the data files `case.json` names beside it, not only `files/`; the case lead had said the project held no files while its case named two demand files.
+- Fix (#62): the case lead reads the case before and after a change and reports the value before as the case showed it; it had said a cap "was 200" where the case held 300.
+- Fix (#63): an eval task's workspace has the knowledge base of `GEOMIND_KNOWLEDGE_DIR`, as the command line's has; the case lead had found no cost catalogue.
+- Evals: an answer rule may be `only_options`, kept off questions that ask for typed text.
+
+### The case team knows the case format (0.4.22.dev38)
+
+- The case's key tree (`case_tree`, in the case lead's and the geoscientist's prompts) says after each key what it means and where its value comes from (brief, data, report, user, economics), marks the keys gemini derives (leave them unset), and explains every option of the requirements (`on`, `quantity`, `over`, `when`), with how operating days and counts are written (`geomind/tools/gemini/fields.py`). gemini's schema has no descriptions; the texts are geomind's, from gemini's docstrings; `undescribed()` lists the fields gemini describes nowhere. About 13,500 characters, in the cached prefix.
+- The case lead's prompt holds the case format's facts and a checklist before it hands over: `time.end` exclusive and the span equal to the data; demand files (time column, unit, rows, time zone); supply and return sides; durations never counts; the brine's gas never the grid gas; flaws of an existing case asked about, never corrected silently; a change of one value changes nothing else.
+- Evals: a task's `answers` may be rules `{match, answer}`: the first rule whose pattern is in the question answers it; a question no rule covers is answered as a user who does not know (an option that leaves the value open, or `unknown`) and listed in the outcome's `unanswered`. `eval_task.json` gains the rule form (additive).
+
+### MCP: the tools of the servers a run is given (0.4.22.dev37)
+
+**Contract changes for the backend (contract v2 and v3 names):**
+
+- Optional `Workspace.mcp(project_id) -> [{name, url, transport: http|sse, headers}]`: the project's MCP servers. `name` matches `[a-z0-9_-]{1,32}`; header values are secrets geomind never logs, stores, shows in an error or replays (they join the log's secrets).
+- New public module `gd.mcp`: `list_tools(server) -> [{name, description, read_only}]` (sync; `read_only` from `readOnlyHint`, false when missing), `McpError` with `.code` `unreachable`, `auth_refused` or `bad_response`, `Server`, `McpClient`, `servers_from_text`.
+- In a run, each server's tools are offered to every agent that has tools, named `<server>__<tool>`; a read-only tool has the effect `read`, any other `external`, so the `ask` mode asks for approval (request kind `approval`). Each result carries its origin `{server, tool, time}`.
+- `tool.started` and `tool.finished` have a new optional field `mcp`, the server's name (`null` for a geomind tool); public events and `events.json` gain it (additive).
+- New tool error code `mcp_unavailable` (a server that failed during a call). A server that fails while its tools are listed is left out, with an `error` event naming it.
+- The command line needs `GEOMIND_MCP_SERVERS` (a JSON list, `[]` for none) for a run with a project and `GEOMIND_MCP_TIMEOUT` (seconds, a plain number) when it names a server; no defaults.
+- A replay reuses the recorded answers and never reaches a server.
+- Agents read a shared prompt section on connected servers: cite a server's value with its origin; it enters the case or the plant only after the user confirms it.
+
+### Documents are "rag" (contract v3 names, 0.4.22.dev36)
+
+**Contract changes for the backend (renames; the backend keeps its old methods until this release):**
+
+- `Workspace.documents(project_id, query)` is `Workspace.rag(project_id, query)`. `files`, `file`, `memory` and the `knowledge_*` methods are unchanged.
+- The tool `search_documents` is `rag_search`, and `read_document` is `rag_read` (it also reads `knowledge/<name>`): tool calls, `tool.started`/`tool.finished` and the runlog name the new ones.
+- An older log or recording that names `read_document` or `search_documents` still replays and resumes: the engine finds the renamed tool by its old name (`RENAMED_TOOLS`).
+- Prompts and docs use the new names.
+
+### Knowledge is a document base (retrieval); memory is experience only (0.4.22.dev35)
+
+Contract v2 with the backend: knowledge and memory are never mixed.
+
+**Contract changes for the backend:**
+
+- Optional `Workspace.knowledge_search(query) -> [{id, document, title, page, text, score}]`, `knowledge_files() -> [{name, size, media_type}]`, `knowledge_file(name) -> bytes | None`: the shared knowledge base. Without them, or with no document, `search_knowledge` answers the new tool error code `knowledge_unavailable` and the tool is not offered.
+- `search_knowledge(query)` now searches the knowledge base and returns `{passages}`, each with its citation; `read_document` reads a knowledge document as `knowledge/<name>`. A value taken from knowledge is cited and confirmed by the user like any value no project file gives.
+- The command line needs `GEOMIND_KNOWLEDGE_DIR` (a folder of documents, `FolderKnowledge`) for a run with a project, no default; `.env` points it at `data/knowledge`, where the cost catalogue `cost-sources.csv` is now a document.
+- Memory keeps only `experience`: designs that passed (written by code, with `origin` `{run, source: code}` and `project_id`) and the curator's lessons and the user's facts (with `origin` and `project_id`). **Removed:** the memory's `knowledge` section, `write_memory`, `read_knowledge`, `checked_knowledge`, `catalogue_entries`, `search_knowledge` of `geomind.stores.memory`, and `geomind memory seed`. `search_memory()` takes no argument (was `query, section`) and `read_memory(id)` no section.
+- The reviewer and the explainer read the knowledge base, never experience; user preferences stay in the problem state.
+- Document text extraction moved to `geomind/stores/documents.py`, shared by the project's files and the knowledge base.
+
+### A superstructure searched by gemini's genetic algorithm (0.4.22.dev34)
+
+**Contract changes for the backend:** a new tool `evolve_structure` (design lead) and four new required settings, no default: `GEOMIND_EVOLVE_EVALUATIONS`, `GEOMIND_EVOLVE_POPULATION`, `GEOMIND_EVOLVE_SEED`, `GEOMIND_EVOLVE_POLISH` (a live run lacking one is refused; the tool names any unset one). A study `study/<name>` of `tool: evolve_structure` and gemini's `method: evolve` (`study.recorded` as any study); its front designs are stored as `design/<name>_<n>`. The plant file's `optional` and `choices` (gemini 0.6.1) pass through `build_plant` and `patch_plant` unchanged.
+
+- The process engineer builds a superstructure when more than one way to meet a service is sensible: `optional` modules and `choices` `{choice: {group: [modules]}}`, each option with its reason; `patch_plant` gives both keys to the process engineer. The integration engineer wires every option as if on; the reservoir, well and energy engineers fill every option they own.
+- `evolve_structure(design, objectives, name)` runs `gm.study.evolve` (the settings above) and returns the front compactly: each design's reference, `structure`, `metrics`, `feasible` and `reason`, then `best`, `evaluations`, `invalid` and the study key. The objectives come from the case or the brief, never the agent. The design lead takes the chosen design on to size, simulate and check, and the reviewer checks it from scratch.
+- With a superstructure there is no design per family; the project lead's `comparison` is for designs the user names.
+
+### A flat layout for every agent (0.4.22.dev33)
+
+**Contract changes for the backend (module paths; `gd.agents.<Class>` is unchanged):**
+
+- Each agent is `geomind/agents/<team>/<name>.py` (was `geomind/agents/<team>/<name>/agent.py`): `agents/analysis/lead.py`, `analysis/economist.py`, `case/lead.py`, `case/geoscientist.py`, `design/lead.py`, `design/process.py`, `design/integration.py`, `design/reservoir.py`, `design/well.py`, `design/energy.py`, `project/lead.py`, `project/coordinator.py`, `project/reviewer.py`, `project/explainer.py`, `support/lead.py`, `support/curator.py`, `support/summarizer.py`.
+- Each prompt is `geomind/prompts/<team>/<name>.md` (was `geomind/agents/<team>/<name>/prompt.md`); `Prompt("<team>/<name>")` is unchanged. Skills stay in `geomind/prompts/skills/`.
+- The project lead's other modules are siblings: `agents/project/review.py` (was `project/lead/review.py`), `agents/project/drivers.py` (`DesignDriver`, was `project/lead/design_driver.py`) and `agents/project/comparison.py` (`CompareDriver`, `ComparisonDriver`, was `project/lead/comparison_driver.py`).
+- Tests mirror it: `tests/unit/agents/<team>/test_<name>.py`.
+- A log naming an old class path (`geomind.agents.<team>.<name>.agent:<Class>`, `geomind.agents.project.lead.design_driver:DesignDriver`, ...) still resumes and replays (`RENAMED_CLASSES`).
+
+### gemini 0.6.1
+
+- geomind runs on the gemini 0.6.1 release wheel (`requirements/gemini.txt`, sha256 `fca120290b87ac87a1dd4aca4ab85a725c6459986c5b8ccd53884eeae8d45655`; `[tool.uv.sources]`). 0.6.1 is additive: optional modules and choice groups of a plant, its structures, and `gm.study.evolve`; nothing breaks, and every test passes unchanged. The range stays `>=0.6,<0.7`.
+
+### What the second end-to-end run showed (0.4.22.dev32)
+
+Run E2: the case lead found two flaws of the test project's own `case.json` (the 330 operating days stored as a count of 330 doublets; a cooling return colder than its supply) and asked instead of guessing. Each bug is pinned by a test.
+
+**Contract change for the backend:** `read_profile` returns two more keys, `case_time` (the case's start, end and step, `end_is: "exclusive"`, `steps`) and `file` (`{name, rows, first, last}` of the data file the series comes from, or `None`).
+
+- Fix (#60): `read_profile` showed the case's demand clipped to the case's time with no word of it, so a year ending at an exclusive 31 Dec read as a file of 364 values; it now shows the window and the file's own rows beside the series.
+- Fix (#58): the case lead knows `time.end` is exclusive and that a span that differs from the data's rows is the span's fault, never the data's; it had proposed to cut 31 Dec.
+- Fix (#59): `ask_user` says that with options the answer is exactly one option's value, and that a typed answer needs a question without options; the case lead had asked for a path and a value with options three times.
+
+### Cost cuts from the first end-to-end run (0.4.22.dev31)
+
+E1 spent its 1 USD cap before a verified design: 7.0M input tokens (3.9M cached) over about 400 model calls, 119 of 334 tool calls failing. Measured offline on its log.
+
+**Contract changes for the backend:** a new required setting `GEOMIND_ENGINEER_MAX_STEPS` (required for a live run, no default): the steps of one engineer's run, at which it ends with what it has instead of asking the user to continue.
+
+- Fix (#56): the process engineer recorded owners as `params.d0.reservoir`, and the ownership check looked up `d0.reservoir...`: every engineer's patch was refused as owned by no discipline (61 refusals in the last segment, 21 on one path). A prefix with or without `params.` is found.
+- Fix (#57): `build_plant` reads a `format` given as text (`"1"`) as its number; it had been refused as an old header four times.
+- `Delegate(..., steps=SETTING)`: a nested run with its own step limit that ends at it and answers from what it has (`step_limit`), with no question; the design team's delegates use `engineer_max_steps`. `RunSession.delegate` and `run_child` take `max_steps`.
+- The design lead designs one family unless the request or its brief asks to compare (then 2 to 6); the project lead uses `comparison` only when the request compares. E1 designed two families for a request that compared nothing.
+- Tool descriptions keep the whole docstring (#50): the design lead's tools are about 7,400 tokens, sent from the cache; E1's cost came from the calls and the refusals, not from them.
+
+### gemini 0.6.0 (0.4.22.dev30)
+
+**Contract change for the backend (breaking):** geomind now needs gemini `>=0.6,<0.7` (was `>=0.5,<0.6`) and pins the 0.6.0 release wheel (`requirements/gemini.txt`, sha256 `738567e46cc706ca48051bcf115926774d9d8013534ed0bee1713edc2451f2a8`; `[tool.uv.sources]`). The backend moves to gemini 0.6.0 together with this geomind. gemini 0.6 replaces `Inlet` and `Outlet` with one `Port`; geomind used neither outside a test fixture of the removed module sandbox, now deleted. The plant file format is unchanged: every example and project plant builds, and results are byte-identical to 0.5.14.
+
+- A connection gemini 0.6 refuses comes back as `stream_mismatch` at its path, naming both ends and what each carries, with gemini's suggested ports (`build_plant`, `patch_plant`, `merge_designs`); `plant_issues` (`gm.check`, or `plant.check()` without a case) also lists `generic_conflict` and `unconnected_port` before the design lead's review. No tool for `plant.suggest` yet (waits for Sahand).
+- Old logs replay: a log of another version replays with its recorded tool results.
+
+### What the first end-to-end run showed (0.4.22.dev29)
+
+Run E1: the coordinator, then the project lead with every team, DeepSeek, memory off, capped at 1 USD (it stopped there, 0.997 USD, before a verified design). Each bug is pinned by a test.
+
+**Contract change for the backend:** a new tool `fill_parts` of the design lead, which runs the reservoir, well and energy systems engineers as nested runs at the same time (their events interleave under `design_lead`).
+
+- Fix (#55): the design lead called the reservoir, well and energy systems engineers one by one; `fill_parts` (`Team` in `geomind/tools/delegate.py`) takes one brief each and runs them side by side in code, within `design_concurrency`, a failing member's error beside the others' answers. A single engineer is still called alone to send it back a problem of its own.
+- Fix (#53): the project lead asked the user again about a case value the user had just approved through the case lead; a change the user confirmed is accepted (`accept_case`), never asked again.
+- Fix (#54): the design lead made up a grid gas composition and tried to put that case value under three plant paths; the design lead and the engineers hand a value gemini asks for at a case path over at once, never into the plant and never with a number of their own.
+
+### gemini 0.5.14
+
+- geomind runs on the gemini 0.5.14 release wheel (`requirements/gemini.txt`, sha256 `91b8cc2428d1bfde4da936fe49308de8ac0c736bfa205023f75ac261b0a7e6ec`; `[tool.uv.sources]` in `pyproject.toml`). 0.5.14 runs a `Study`'s plants and cases in worker processes when gemini's runtime `processes` setting is above 1, with the same results in the same order and no API change; geomind does not set it. No sandbox image is needed any more.
+
+### What each agent alone showed, live (0.4.22.dev28)
+
+Every agent ran alone on a fixed input from the earlier runs (15 tasks, DeepSeek, 0.43 USD); all passed their criteria, and their outputs were read one by one. Each bug is pinned by a test.
+
+**Contract change for the backend:** a tool's `description` (in `tool_schemas()` and the `tools.json` snapshot) is its whole docstring without `NOTE:` paragraphs, one line per paragraph, instead of the first paragraph only.
+
+- Fix (#50): a model saw only the first paragraph of each tool's docstring, so no usage rule, shape or example written there reached it (`evaluate_module`'s inlet form, `patch_plant`'s ownership, `set_case`'s details). `tool_description` gives the whole docstring but its `NOTE:` paragraphs.
+- Fix (#47): `evaluate_module` shows a whole inlet with its fluid and gemini's fluid fields, each property as `{value, unit}`; engineers had sent `kind` beside the inlet and a bare density.
+- Fix (#42): a run with the memory off no longer offers the memory tools, nor their prompt sections; agents had called `search_memory` again and again and were refused.
+- Fix (#43, #44): the case lead computes nothing (a value gemini derives, such as the reservoir temperature from the ground's gradient, stays unset) and proposes no number with no source: knowledge with its source, or a question to the user.
+- Fix (#45): the engineers and the design lead compute nothing by hand (no formula, conversion or derived value); a module's top-level values come first and gemini derives the inner ones; the reservoir engineer had computed a productivity index from Darcy's law.
+- Fix (#46): an empty text is no answer: the model is asked for it; the energy systems engineer had ended with `''`.
+- Fix (#48): a reference wrapped in quotes (`'"result/…"'`) is read as the reference.
+- Fix (#51): a design or study name stored with other content is refused with a free name in `suggestions` (`<name>_2`) and the advice to send the same call with it; the well engineer had spent its last steps on the refused name and stored nothing.
+- Fix (#49): the same bad input value failing the same way counts as the same failure even beside other input; the explainer had asked six times for a result it made up, each with another `path`.
+
+### Evals: a fixed start and a live cap (0.4.22.dev27)
+
+- A task may hold `setup`, tool calls `{tool, input}` that code runs in the task's chat before its agent (`SetupAgent`, no model), so an agent is tested alone from a fixed state: a case loaded, a design built and simulated, owners recorded. A setup call that fails stops the task. `eval_task.json` gains `setup` (additive).
+- `python -m evals.run --live` needs `--max-cost USD`, the cap of each task with OpenRouter's prices; without it nothing is called.
+
+### The engineering team, step 4: ProjectLead, SupportLead, Curator (0.4.22.dev27)
+
+**Contract changes for the backend:**
+
+- New required settings, no fallback: `GEOMIND_PROJECTLEAD_MODEL`, `GEOMIND_SUPPORTLEAD_MODEL`, `GEOMIND_CURATOR_MODEL`.
+- `Route.loop` has a new value `project` (the coordinator's route for design, comparison and case changes), and `LOOPS["project"]` is `ProjectLoop` with the `ProjectLead`. `run.started.loop` is `project` for such a run, and its agent `project_lead`, with the nested teams below it (`project_lead.case_lead`, `project_lead.design_lead`, `project_lead.reviewer`, `project_lead.analysis_lead`, `project_lead.explainer`, `project_lead.support_lead`, `project_lead.comparison`). `design` and `compare` stay as the rule-driven loops.
+- `Route` gains optional `task` (the coordinator's brief for an app event; it follows the user's message as a second user message starting `The coordinator's brief: `) and `preferences` (`{name: value}`).
+- The problem state gains `preferences` (`{name: value}`, default `{}`), rendered for every agent; `problem_state.json` is regenerated (additive).
+- New tools: `write_lesson` (curator); `support_lead` on the project, case, design and analysis leads; `economist` on the analysis lead.
+- Experience gains lesson entries `{id, kind: lesson|user_fact, role, text, origin: {run, source}}`; `search_memory` returns `lessons` with the experience section.
+- `DesignDriver`, `CompareDriver` and `ComparisonDriver` moved from `geomind.loops.design`/`geomind.loops.compare` to `geomind.agents.project.lead.design_driver`/`comparison_driver`; old logs naming the old class paths still resume and replay.
+
+- New agent `ProjectLead` (`agents/project/lead/`), a model that plans case, design, review, analysis and explanation, writes each team a brief, routes each failure to its owner, never loosens the case, asks the user only what teams cannot settle (one question, options, recommendation first) and stops when the review passed and analysis is done, or on `repeated_failure`. Code guards: the project's case file loaded by rule before its first call; its `reviewer` tool runs gemini's verdict after the `Reviewer`, lists each failure with the team it goes to first (gemini's domain as a hint), flags a repeated failure on a changed design, and keeps a passed design as experience by code; the `Verified` hook; the engine's budget, step limit, output limit and repeated-call stop. Its `comparison` tool runs the rule-driven comparison.
+- New agents `SupportLead` (`agents/support/lead/`: routes the other leads' support requests to the summarizer or the curator and checks the answer) and `Curator` (`agents/support/curator/`: the run's general per-role lessons and the user's facts into experience with their origin; a digit in a lesson is refused).
+- The `Coordinator` routes design work to `project`, writes a brief for app events and keeps the user's preferences.
+- The `AnalysisLead` leads the analysis team: its `economist`, and improvement proposals for the design lead.
+- `remember_design` became `keep_design(context, found, rejected)` in `geomind/tools/memory.py`.
+
+### The engineering team, step 3: the design team (0.4.22.dev26)
+
+**Contract changes for the backend:** new required settings `GEOMIND_PROCESSENGINEER_MODEL`, `GEOMIND_INTEGRATIONENGINEER_MODEL`, `GEOMIND_RESERVOIRENGINEER_MODEL`, `GEOMIND_WELLENGINEER_MODEL`, `GEOMIND_ENERGYSYSTEMSENGINEER_MODEL` (no fallback) and `GEOMIND_DESIGN_CONCURRENCY` (how many engineers run side by side; required for a live run, no default). New nested agents under `design_lead`: `process_engineer`, `integration_engineer`, `reservoir_engineer`, `well_engineer`, `energy_systems_engineer`; the three last run at the same time, so their events interleave. A new tool `merge_designs` (`tool.started`/`tool.finished` as any tool).
+
+- New agents in `agents/design/`: `ProcessEngineer` (`process/`: the modules, a reason each, `design.modules` and `design.owners`), `IntegrationEngineer` (`integration/`: connections, inlets, outlets, fluids, boundaries), `ReservoirEngineer` (`reservoir/`), `WellEngineer` (`well/`), `EnergySystemsEngineer` (`energy/`). Each prompt is method only, with experience a starting point only.
+- The `DesignLead` leads them: process, then integration, then reservoir, well and energy in one step side by side (bounded by `design_concurrency`), `merge_designs`, its review checklist, each problem back to its owner, then size, simulate, check and optimise as before.
+- `patch_plant` refuses an engineer's change to a part another discipline owns (`not_allowed`, the path and its owner in the message); the design lead and other agents are not checked.
+- `merge_designs(base, designs, name)`: joins designs patched side by side from one base; a value two designs set differently is a conflict naming the path and both designs, and nothing is stored.
+- `Delegate(..., limit=SETTING)` bounds how many delegates of one limit run at once in a run; an unset limit is refused naming its variable.
+
+### The engineering team, step 2: the Geoscientist (0.4.22.dev25)
+
+**Contract changes for the backend:** a new required setting `GEOMIND_GEOSCIENTIST_MODEL` (no fallback); a new nested agent `geoscientist` under `case_lead` in events and the runlog (`design_driver.case_lead.geoscientist`).
+
+- New agent `Geoscientist` (`gd.agents.Geoscientist`, `agents/case/geoscientist/`): reads each report whole once and proposes the ground, reservoir, brine and dissolved-gas values (salinity, CO2, CH4, GWR when given; transmissivity, not permeability alone) as typed `Findings` (`values` with page, table, depth, quote, quality and range with the base case; `missing`; `disagreements` with both sources; `files_read`). It never sets the case and never fills a gap with a typical value. The `CaseLead` asks it through its new tool `geoscientist` and puts each value in the case with its page as the source.
+- Fix: a delegate gave a typed answer back as Python's repr of a dict (`{'values': ...}`), which the parent model could not read as JSON; it is JSON text now.
+
+### The engineering team, step 1: renames, removals and the folder layout (0.4.22.dev24)
+
+**Contract changes for the backend (breaking, listed for the backend update):**
+
+- **Models:** every model agent has its own required setting, with no fallback: `GEOMIND_ANALYSISLEAD_MODEL`, `GEOMIND_CASELEAD_MODEL` (was `GEOMIND_FORMULATOR_MODEL`), `GEOMIND_COORDINATOR_MODEL`, `GEOMIND_DESIGNLEAD_MODEL`, `GEOMIND_ECONOMIST_MODEL`, `GEOMIND_EXPLAINER_MODEL`, `GEOMIND_REVIEWER_MODEL`, `GEOMIND_SUMMARIZER_MODEL`. **Removed:** `GEOMIND_MODEL`, `GEOMIND_CHEAP_MODEL`, `GEOMIND_FORMULATOR_MODEL` and the runtime setting `default_model`. A live run and `geomind check-live` name each unset one (`designlead: set GEOMIND_DESIGNLEAD_MODEL or designlead_model`). Runtime role settings are renamed: `analyst_model` to `analysislead_model`, `designer_model` to `designlead_model`, `verifier_model` to `reviewer_model`, `formulator_model` to `caselead_model`; `role_models()` keys are the class names in lower case (`designlead`). A stored run with the old names still resumes (`REMOVED_SETTINGS` are dropped).
+- **Sandbox removed:** `gd.sandbox` (`LocalSandbox`, `DockerSandbox`, `Sandbox`, `SandboxProvider`, `Manifest`), `Run(sandbox=...)`, `Run.load(sandbox=...)`, `Engine(..., sandbox=...)` (it was the fourth positional parameter), `gd.errors.SandboxError`, the internal events `sandbox.provisioned` and `sandbox.closed` (an old log holding them still loads: unknown types are skipped), the settings `sandbox_timeout`, `sandbox_memory`, `sandbox_disk`, `sandbox_cpu`, `geomind run --sandbox`, `make sandbox-image`. The shared contract's section 3 (`SandboxProvider`, `sandbox=gd.sandbox.DockerSandbox()`) must drop them; the backend passes no `sandbox` any more.
+- **Tools removed:** `run_python`, `read_file`, `write_file`, `write_module`, `test_module`, and the skill `writing-a-gemini-module`. No code runs in geomind; a family that needs a model gemini lacks is `blocked`.
+- **Agents renamed** (event `agent` and the dotted runlog paths change): `Formulator` to `CaseLead` (`case_lead`), `Designer` to `DesignLead` (`design_lead`), `Verifier` to `Reviewer` (`reviewer`), `Analyst` to `AnalysisLead` (`analysis_lead`). The design loop's nested runs are `design_driver.case_lead`, `design_driver.design_lead`, `design_driver.reviewer`; a comparison's family run is a `design_lead` (the delegate tool `family_design_lead`), no longer `family_designer`. **Removed:** `Assistant`, `CodeAssistant`, `FamilyDesigner`.
+- **Route:** `Route.agent` is `analysis_lead` only (was `analyst` or `code_assistant`); `AGENTS` in `run.py` holds `analysis_lead`. `geomind chat --agent` and `geomind run --agent` take the new snake names.
+- **Memory:** the Reviewer and the Explainer read the knowledge only (`search_knowledge(query)`, `read_knowledge(id)`, new tools), never experience; the Reviewer no longer writes memory. The case, design and analysis teams keep `search_memory`, `read_memory`, `write_memory`.
+
+**Layout:** each agent is `geomind/agents/<team>/<name>/agent.py` with its `prompt.md` beside it (`project/coordinator`, `project/reviewer`, `project/explainer`, `case/lead`, `design/lead`, `analysis/lead`, `analysis/economist`, `support/summarizer`), tests in `tests/unit/agents/<team>/<name>/test_agent.py`; `gd.agents.<Class>` is unchanged as the import. `Prompt("design/lead")` loads the role file by `<team>/<name>`; skills stay in `geomind/prompts/skills/`. Eval suites `analyst` and `designer` are now `analysis_lead` and `design_lead`.
+
+- `geomind run --model ID` sets every role's model (it set `default_model`).
+- Fix: an eval task's `max_steps` is its limit: the runner answers the step-limit question `stop` instead of giving it the task's reply (`challenge2/tight_budget` ended with `RequestError`, and the checked-in report was stale).
+
+**Required settings (backend):** `GEOMIND_MAX_OUTPUT_TOKENS` (the most output tokens of one model call), `GEOMIND_MEMORY` (`on` or `off`; with `on` also `GEOMIND_MEMORY_DIR` and `GEOMIND_MEMORY_SIMILARITY`), `GEOMIND_FORMULATOR_MODEL` names the new Formulator's model; it has no fallback to `GEOMIND_MODEL`. `GEOMIND_MAX_STEPS` (or `--max-steps`) has no default any more: a run without it refuses to start. It is how many steps an agent takes before the run asks the user to continue; set it next to `GEOMIND_RETRY_COUNT` and `GEOMIND_RETRY_DELAY`.
+
+- `patch_plant(design, changes, name)`: build a plant in small steps, a JSON merge patch of one module's values at a time on a stored design, each checked by gemini and stored under a new name, with what is still missing (`missing`). The Designer builds the header and type first, then patches; the whole-file path of `build_plant` still works. A class's whole file is 2,100 to 7,700 characters of structure (5 to 28 modules, 7 to 61 connections) with 92 to 136 values to fill.
+- Fix (#41): `build_plant`'s `plant` schema names every top-level key of `gm.plants.schema()` and requires the header (`minProperties`), instead of a bare object; an empty plant is refused as such, with the smallest file as an example. The provider's answers were whole (`finish_reason: tool_calls`): the model had sent `{}` to a schema with no keys.
+- Fix (#40): the same call failing the same way more than its tool's `max_retries` times in a row stops the agent's run (`step_limit`-like `error` with the reason) instead of spending; a designer had sent `build_plant` with an empty plant 35 times.
+- Fix (#39): a plant's issues are compact (`path`, `code`, `kind`, the message without its path, `units` as one `a|b` text: 30,800 characters became 21,200 for one class), and `read_plant` keeps its result whole for the kept turns; the designer had read one plant file back in 29 parts.
+- Fix (#38): a plant issue at a case path (site, demand, utilities, time, economics, requirements) suggests handing over `case change needed: <path>: <why>`; the designer had tried 12 times to put a case value in the plant file.
+- Fix (#37): when the project holds a `case.json`, the design loop loads it by rule (`set_case(source='project')`) before any agent, and the Formulator runs only for what it lacks; the Formulator had asked the user for the whole case.
+- One builder makes the compact key tree of any gemini public schema (`key_tree`, `tree_text`, `trees(...)`): the case and its economics for the Formulator, the plant file and the study for the Designer, the study for the Economist; each agent gets only the trees of its tools, in its cached system prompt, and a test checks every top-level key of each schema is in its tree. Sizes: case about 7,500 characters, plant about 1,900, study about 350.
+- The Designer's system prompt carries the plant file's key tree (`plant_tree`, from `gm.plants.schema()`, with gemini's module types), and `describe_module` returns a module's compact description built from gemini's `describe()`: each parameter and control on one line with its quantity's accepted units, bounds and options (* when it has no default), its ports, outputs and children, about a quarter of the size.
+- Fix (#36): one model call's output is bounded by `GEOMIND_MAX_OUTPUT_TOKENS` (required, no default), the least of the limits of each call; a single runaway completion had written 103,404 tokens. A completion the limit cut (`finish_reason: length`) runs nothing: the model is told so (`feedback: length`) and answers again, shorter.
+- Fix (#35): the key tree holds the economics file's keys too (`gm.case.Economics.schema()`), so the Formulator no longer reads the economics schema part by part. It sets the case in parts, each `set_case` with only the keys it adds or fixes.
+- A kept result (`Tool.keeps_result`: a document page, a stored part) is stored again and stays whole in the history for the last `compaction_keep_turns` turns, then shrinks to its outline and reference like any other, instead of staying whole for the whole run.
+- The Formulator's system prompt carries the case's key tree (`case_tree`), made at render time from gemini's public `Case.schema()`: every path with its form, units or options, and `*` when required, about 4,000 characters. A key gemini renames shows at once; there is no copy. `Prompt(role, appendix=...)` adds such text when a prompt renders.
+- Shared memory for every agent (`.claude/docs/memory.md`): `knowledge` (cited reference values with source and status) and `experience` (designs that passed verification, written by the design loop in code); `search_memory`, `read_memory`, `write_memory`; experience only above `memory_similarity`, a starting point that is simulated, checked and optimised again. `FileMemory` for the CLI, `Workspace.memory` or `Engine(memory=...)` for a backend. `geomind memory seed FILE` loads a cited catalogue; `data/knowledge/cost-sources.csv` is a copy of gemini's cost catalogue (v0.5.13), owned by geomind. An assumption may cite a knowledge entry.
+- Design change: a new agent, `Formulator` (`gd.agents.Formulator`, `agents/formulation/`), owns the case. The design loop runs it before round 1 when the case is missing (from the project's files or its `case.json`) and again when a round names `case change needed: <path>: <why>` or the user's case must be restored; the `Designer` reads the case and no longer has `set_case`, `save_profile`, `list_files`, `read_document` or `search_documents`, so later rounds never read the files again. Every case value no file gives is confirmed by the user in one question (`approve all`, `change some`, `stop`) and recorded as an assumption with its source or reason. The event shapes are unchanged: the backend sees one more nested agent, `formulator`.
+- Fix (#31): a plant value gemini lists as missing that no file gives (an equipment parameter) is the designer's assumption with a reason, never a question for a datasheet.
+- Fix (#32): a document page (`read_document`) or a part of a stored result (`read_stored`) up to the result limit stays whole in the history and is not stored (`Tool.keeps_result`); it had shrunk to an outline after one step, so the run read the same brief again and again.
+- Fix (#33): an assumption carries an optional `reason` and `citation` (title, publisher, year, price year, currency, page or link, note), shown in the problem state; the Formulator records the values the user confirmed with them. `problem_state.json` gains the two optional fields; nothing existing changes.
+- Fix (#34): `read_stored` of a part too long to show whole returns its keys (or length), an outline and the call that reads one deeper, instead of the same outline again; a path with `/` reads as `.`.
+- The Formulator builds a case from the chat too: the design loop starts with it whether or not the project has files; it takes the user's words first, then files, then values it proposes; without files it asks a few grouped questions with units; a value the user typed is recorded as the user's, with `citation: {"origin": "user message"}`, and needs no confirmation.
+- `geomind run --loop tool --agent NAME` runs one shipped agent alone, such as `formulator`.
+- The step limit no longer ends an agent's work: the run waits on a question with the options `continue` and `stop` (point `steps`). `continue` gives it as many steps again and `stop` ends it with `step_limit` as before; a budget still bounds the cost, and a replay takes the recorded decisions.
+
+What the fifth live run showed, each pinned by a test on its recorded calls.
+
+- `search_documents` returns `{matches, note}` instead of a list: without a match the note says the project does not state it (an assumption with its reason, or `ask_user`); the same words searched again in the run tree are noted; a file's name alone is no match.
+- A series naming a column by its old name after `columns` renamed it gets the new name in `suggestions`.
+- A table (CSV, TSV) is not searched as text: its rows matched words of the brief.
+- The design loop's next round after a question on the case carries the last round's answer (at most 6,000 characters), so it goes on from there instead of reading everything again.
+- Fix: a run waiting on a nested run's question reports that run's usage too (segment 7 printed 0.033 USD of 0.093).
+- Fix: the round after a failed verification carries the last round's answer as well.
+- Fix: two rounds that recorded no design (their steps ran out) no longer stop the design loop as `repeated_failure`; it goes on to its round limit.
+- Fix: a step that asked the user a question gives its step back (`RunState.questions`), so an answer to a question on the last step is acted on.
+- Fix: an object sent as JSON text gets the suggestion to send the object itself, beside pydantic's error.
+- Fix: a PDF reads in layout order (pypdf's layout mode, runs of spaces shortened), so a table drawn word by word keeps each row on one line instead of one word per line.
+- `geomind run --replay FILE --replay-steps N` answers the first `N` calls from a recording at no cost and the rest live, so a run after a fix goes on from where it failed; both or neither, no default. `Recorder` writes an `input_digest` of the tool results each call answered; a line whose digest differs from this run's goes live at that step. `ReplayThenLive` is the provider.
+
 ## [0.4.21] - 2026-11-03
 
 What the fourth live run showed, each pinned by a test on its recorded calls. CLI and tools only.

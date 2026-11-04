@@ -20,7 +20,7 @@ comes next. It is finite: it never sleeps or schedules itself. Code is in `geomi
 
 ## API
 
-`Engine(callbacks=None, hooks=None, permissions=None, sandbox=None, *, llm=None, store=None,
+`Engine(callbacks=None, hooks=None, permissions=None, *, llm=None, store=None,
 workspace=None)`. `llm`, `store` and `workspace` are keywords beyond the agreed signature, since a
 run needs them. `llm` gets the retry layer, `store` defaults to `MemoryRunStore`, and `permissions`
 to `Permissions(mode="ask")`.
@@ -103,25 +103,25 @@ place in another process.
 Loops are written as resumable steps, never with state held only in local variables.
 `ToolLoop(agent, max_steps=None)` is one engine run of one agent.
 
-`DesignLoop(designer, verifier, max_rounds=5)` (`loops/design.py`) runs one root run whose agent is
-a rule-based `DesignDriver`. The order is: the designer (size, simulate, self-check, optimise, and
-record `design.reference` and `design.result`), the verifier on that final design once, the
-`Economist`, the `Explainer`, which finishes the run. The designer's first task names the project's
+`DesignLoop(design lead, reviewer, max_rounds=5)` (`loops/design.py`) runs one root run whose agent is
+a rule-based `DesignDriver`. The order is: the design lead (size, simulate, self-check, optimise, and
+record `design.reference` and `design.result`), the reviewer on that final design once, the
+`Economist`, the `Explainer`, which finishes the run. The design lead's first task names the project's
 plant files (`project_plant_names`, read from the workspace without an LLM call; nothing is said
 when there are none), so it stores one with `read_plant(project_plant=...)` and `build_plant`
 before it sizes or searches. Before designing, a state with no case or a
 case without demand makes the driver ask the user (`ask_user`); it stops with `no_case` at
-`max_rounds` when the designer still leaves none. After the verifier the driver checks the design
+`max_rounds` when the design lead still leaves none. After the reviewer the driver checks the design
 again with gemini (`gd.verify` over the stored run, `verify/design.py`). Pass or fail is `gm.evaluate.verdict` alone. Only a failure sends the
-design back to the designer, with a task that routes gemini's failures (name, detail) by their
+design back to the design lead, with a task that routes gemini's failures (name, detail) by their
 domain: subsurface, surface, sizing, or coupled (subsurface first). The loop stops on a pass, at
 `max_rounds`, when one round fails exactly as the one before, or when an agent asks the user; each
 stop is written as `stop: <reason>` in the driver's step text and the answer. A loop that ends
 without a pass moves the design to `design.rejected` before it answers, so it never presents it. It
 registers the `Verified` hook.
 
-`CompareLoop(designer, verifier, max_rounds=5, concurrency=None)` (name `compare`, driver
-`ComparisonDriver`) compares families. The `Designer` plans: the families come from the request or
+`CompareLoop(design lead, reviewer, max_rounds=5, concurrency=None)` (name `compare`, driver
+`ComparisonDriver`) compares families. The `DesignLead` plans: the families come from the request or
 the case, else it proposes them from `list_plants`, confirmed with `ask_user` or, in an `auto` run,
 recorded as unconfirmed assumptions. It records `design.families` and `design.search`. One
 `FamilyDesigner` nested run per family designs it (no `set_case`, `save_profile` or `ask_user`) and
@@ -129,7 +129,7 @@ adds its entry at `/design/alternatives/-`. `concurrency` (else the setting `com
 unset meaning one at a time) is how many run in one driver step; a run that may wait for a user,
 mode `ask`, always takes one at a time, since a run holds one pending request. A family that
 fails or is infeasible keeps its reason and stops nothing. The driver then moves the state's design
-to each feasible family, the `Verifier` checks it once and gemini's verdict sets `verified` or
+to each feasible family, the `Reviewer` checks it once and gemini's verdict sets `verified` or
 `rejected`. A rejected family runs again in a new nested run, told gemini's reason and given new
 names (`<family>_r<n>_`), up to `retries` times (setting `compare_retries`; unset, never); the
 shared budget covers the retries. The `Economist` compares the verified ones (`design.comparison`), the driver names the
@@ -208,6 +208,16 @@ completions, the calls, the step order and the answers are still compared. A dif
 alone only reports (`versions differ`) and runs the tools. `Engine.reuses_tools` carries this and
 `reuses_tool_results` decides it.
 
+**A log from before the case lead is read, not re-run.** A log whose root `run.started` records a
+geomind older than `CASE_LEAD_VERSION` (0.4.22.dev7, the case lead then named formulator), or none,
+still loads, shows (`geomind show`, text and `--format md`) and exports (`runlog`, `render_export`),
+its old class paths found through `RENAMED_CLASSES` and its old tool names through
+`RENAMED_TOOLS`. Its replay differs by design (the case lead, the case by rule, `design_lead` and
+`reviewer`), so a difference raises `ReplayError("replay: this log was recorded by geomind 0.3.1
+before the case lead (0.4.22.dev7); it can be read, shown and exported, but not re-run (first
+difference: ...)")`; `predates_case_lead` decides it. The 0.3.1 compare log of
+`tests/integration/test_old_log.py` pins all of it.
+
 ## Stores and workspaces
 
 `RunStore` is the nine-method protocol of the contract, `load_events` and the two chat-artifact
@@ -233,7 +243,7 @@ engine today. `design/<name>` and `study/<name>` are written once: the same cont
 An artifact key of `FileRunStore` is one safe name, or a [reference](tools.md#references) of the
 form `design/<name>`, `study/<name>`, `result/<id>` or `case/<file name>`; any other `/` raises `RunError`.
 
-`Workspace` has `plants(project_id)`, `case(project_id)` and `documents(project_id, query)`.
+`Workspace` has `plants(project_id)`, `case(project_id)` and `rag(project_id, query)`.
 `MemoryWorkspace(plants, documents, cases)` holds values; `FileWorkspace(root)` reads gemini's
 project folder `<root>/<project id>/`: the plant files `plants/*.json` as dicts by file stem, and
 text files in `documents/`, searched by keyword count.

@@ -25,13 +25,20 @@ class Requirement(Record):
 
 
 class Assumption(Record):
-    """A value the work relies on, and where it came from."""
+    """A value the work relies on, and where it came from.
+
+    ``reason`` says why a value was chosen; ``citation`` holds the details of a published source,
+    such as ``title``, ``publisher``, ``year``, ``price_year``, ``currency``, ``page`` or ``link``
+    and a ``note``, so the explainer and the export can show them.
+    """
 
     id: str
     text: str
     value: Any = None
     source: Literal["user", "agent", "default"] = "agent"
     confirmed: bool = False
+    reason: str | None = None
+    citation: dict[str, Any] | None = None
 
 
 class Result(Record):
@@ -142,7 +149,9 @@ class ProblemState(Record):
     """The notes of one chat; ``version`` is raised by one with every change.
 
     NOTE: the state is frozen, so a change is always a new state and the only writer is ``apply`` of
-    the engine, over events. ``case_origin`` is ``{case, files}``, the case the user or the project
+    the engine, over events. ``preferences`` are what the user said about how they work, such as
+    the units they read, set from the coordinator's route. ``case_origin`` is ``{case, files}``,
+    the case the user or the project
     gave, which ``set_case`` writes and verification compares the case with. NOTE: ``compaction``
     is kept here because ``save_state`` is the only
     per-chat storage of the contract, and ``load_history`` always returns every message. It is no
@@ -159,6 +168,7 @@ class ProblemState(Record):
     questions: tuple[Question, ...] = ()
     case: dict[str, Any] | None = None
     case_origin: dict[str, Any] | None = None
+    preferences: dict[str, Any] = {}
     compaction: Compaction | None = None
 
     @field_validator("design", mode="before")
@@ -300,7 +310,9 @@ def _assumption_line(item):
     """Return one assumption as a line."""
     status = "confirmed" if item.confirmed else "unconfirmed"
     value = f" = {json.dumps(item.value)}" if item.value is not None else ""
-    return f"Assumption {item.id} [{status}, {item.source}]: {item.text}{value}"
+    reason = f", because {item.reason}" if item.reason else ""
+    cited = f"; source: {json.dumps(item.citation)}" if item.citation else ""
+    return f"Assumption {item.id} [{status}, {item.source}]: {item.text}{value}{reason}{cited}"
 
 
 def _result_line(item):
@@ -330,10 +342,15 @@ def _case_line(case):
 
 
 def render(state):
-    """Return compact text, one line per item, or ``""`` for an untouched state."""
-    if state.version == 0:
+    """Return compact text, one line per item, or ``""`` for an untouched state.
+
+    The user's preferences show even before the first change, so every agent follows them.
+    """
+    if state.version == 0 and not state.preferences:
         return ""
     lines = [f"Problem state, version {state.version}"]
+    if state.preferences:
+        lines.append(f"User preferences: {json.dumps(state.preferences)}")
     if state.goal:
         lines.append(f"Goal: {state.goal}")
     lines += [_requirement_line(item) for item in state.requirements]

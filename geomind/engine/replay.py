@@ -1,5 +1,6 @@
 """Rerun a stored run offline and check that it behaves the same."""
 
+import re
 from math import inf
 
 from geomind import runtime
@@ -13,9 +14,12 @@ from geomind.engine.session import current_versions
 from geomind.errors import ReplayError
 from geomind.providers import FakeLLM, with_retries
 from geomind.stores.run import MemoryRunStore
+from geomind.tools.gemini.references import is_index, references_in, without_references
 from geomind.types import Allow, Cancel, Deny
 
 END_OF_RECORDING = "end of the recording"
+CASE_LEAD_VERSION = "0.4.22.dev7"
+"""The first geomind with a case lead (then the formulator, efb1066): its runs set the case."""
 ANSWERED = ("answer", "finish")
 
 
@@ -115,25 +119,46 @@ class _ReplayStore(MemoryRunStore):
 
     NOTE: a replayed nested run saves what its tools write, but an artifact it did not write
     itself, such as one a reused nested run stored, is read from the original store; what the
-    replay saves itself comes first.
+    replay saves itself comes first. A reference index (``results.index``, ...) grows as the run
+    goes, and the recorded one is the one of the end: until the replay writes its own, it reads
+    the recorded index without ``remade``, the references the replayed runs make again, so a
+    listing at a step is the one the run had there.
     """
 
-    def __init__(self, original, run_id, chat_id):
-        """Keep the store, the root run id and the chat id of the recording."""
+    def __init__(self, original, run_id, chat_id, remade=frozenset()):
+        """Keep the store, the root run id, the chat id and the references made again."""
         super().__init__()
         self.original = original
         self.run_id = run_id
         self.chat_id = chat_id
+        self.remade = remade
+
+    def _recorded(self, key, found):
+        """Return a recorded artifact, an index without what the replay makes again."""
+        if found is None or not is_index(key):
+            return found
+        return without_references(key, found, self.remade)
 
     def load_artifact(self, run_id, key):
         """Return the replay's own artifact, else the recorded run's."""
         found = super().load_artifact(run_id, key)
-        return found if found is not None else self.original.load_artifact(self.run_id, key)
+        if found is not None:
+            return found
+        return self._recorded(key, self.original.load_artifact(self.run_id, key))
 
     def load_chat_artifact(self, chat_id, key):
         """Return the replay's own chat artifact, else the recorded chat's."""
         found = super().load_chat_artifact(chat_id, key)
-        return found if found is not None else self.original.load_chat_artifact(self.chat_id, key)
+        if found is not None:
+            return found
+        return self._recorded(key, self.original.load_chat_artifact(self.chat_id, key))
+
+
+def _remade(tree, plan):
+    """Return the references the tool results of the runs of ``plan`` hold: made again."""
+    return frozenset().union(
+        *(references_in(e.output) for e in _results(tree) if e.run_id in plan and not e.is_error)
+    )
 
 
 class _RecordedLoop:
@@ -307,6 +332,11 @@ def _arm(engine, tree, scripts):
             key: event for key, event in scripts[parent].results.items() if key not in children
         }
         engine.recorded_changes[parent] = _nested_changes(tree, parent)
+        engine.recorded_steps[parent] = [
+            e.decision
+            for e in tree
+            if e.type == "permission" and e.run_id == parent and e.point == "steps"
+        ]
         for child in children.values():
             task = started[child].messages[0].content if started[child].messages else None
             engine.recorded_children[(parent, started[child].parent_step, task)] = child
@@ -350,7 +380,55 @@ def nested_runs_reused(events, workspace):
     )
 
 
+def _version_key(version):
+    """Return a sortable key of a version like ``0.4.22.dev7``; a release sorts after its devs."""
+    found = re.match(r"(\d+(?:\.\d+)*)(?:\.?dev(\d+))?", version or "")
+    if found is None:
+        return None
+    release = tuple(int(part) for part in found.group(1).split("."))
+    release += (0,) * (3 - len(release))
+    return release, inf if found.group(2) is None else int(found.group(2))
+
+
+def predates_case_lead(started):
+    """Tell whether a root ``run.started`` was recorded by a geomind older than the case lead.
+
+    A log without a geomind version (0.3.0) is older too.
+    """
+    recorded = _version_key(started.versions.get("geomind"))
+    return recorded is None or recorded < _version_key(CASE_LEAD_VERSION)
+
+
+def _old_log_error(started, error):
+    """Return the ``ReplayError`` of a log older than the case lead whose replay differed."""
+    version = started.versions.get("geomind") or "an unrecorded version (0.3.0)"
+    return ReplayError(
+        f"replay: this log was recorded by geomind {version} before the case lead "
+        f"({CASE_LEAD_VERSION}); it can be read, shown and exported, but not re-run "
+        f"(first difference: {error})"
+    )
+
+
 async def replay_run(engine_class, store, run_id, *, replayed=None, workspace=None):
+    """Rerun a stored run and compare it with its log; see ``_replay_run``.
+
+    A log older than the case lead (``predates_case_lead``) whose replay differs raises a
+    ``ReplayError`` that says so: such a log is read, shown and exported as before, but today's
+    agents decide differently (the case lead, the case by rule, ``design_lead``/``reviewer``).
+    """
+    try:
+        return await _replay_run(
+            engine_class, store, run_id, replayed=replayed, workspace=workspace
+        )
+    except ReplayError as error:
+        events = store.load_events(run_id)
+        started = next((e for e in events if e.type == "run.started" and e.run_id == run_id), None)
+        if started is None or not predates_case_lead(started):
+            raise
+        raise _old_log_error(started, error) from error
+
+
+async def _replay_run(engine_class, store, run_id, *, replayed=None, workspace=None):
     """Rerun a stored run and every nested run of its tree with their recorded completions.
 
     ``read`` and ``compute`` tools run again, in every run; others reuse their recorded results, as
@@ -376,7 +454,7 @@ async def replay_run(engine_class, store, run_id, *, replayed=None, workspace=No
         permissions=Permissions(mode="auto"),
         llm=scripts[run_id].llm,
         workspace=workspace,
-        store=_ReplayStore(store, run_id, started.chat or started.root),
+        store=_ReplayStore(store, run_id, started.chat or started.root, _remade(tree, scripts)),
     )
     _arm(engine, tree, scripts)
     engine.reuses_tools = reuses_tool_results(started)
@@ -387,7 +465,7 @@ async def replay_run(engine_class, store, run_id, *, replayed=None, workspace=No
         project=started.project,
         problem=ProblemState.model_validate(started.problem),
     )
-    with runtime.settings(**started.settings):
+    with runtime.settings(**runtime.stored(started.settings)):
         agent = agent_class(started)()
         agent.load_loop_state(started.loop_state)
         loop = _RecordedLoop(started) if started.loop else None

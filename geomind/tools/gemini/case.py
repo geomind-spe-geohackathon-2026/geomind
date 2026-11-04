@@ -14,6 +14,7 @@ case.
 """
 
 import copy
+import difflib
 import hashlib
 import io
 import json
@@ -27,6 +28,7 @@ from geomind.tools.base import tool
 from geomind.tools.files import file_names_schema, project_file
 from geomind.tools.gemini.explain import MISSING_CODES, shown_message, unit_error, unit_retry
 from geomind.tools.gemini.skeleton import case_skeleton, requirement_shape
+from geomind.tools.gemini.unit_bridge import bridged_requirements, bridged_units
 from geomind.utils.strings import did_you_mean, join_names
 
 CASE_FILE = "case/"
@@ -71,12 +73,29 @@ def state_case(context):
     """Return a copy of the state's case dict, or raise what the model must do."""
     data = context.problem.case
     if data is None:
+        if project_has_case(context):
+            raise ToolError(
+                "case: the problem state has no case yet, but the project has a case file: "
+                "set_case(source='project') loads it",
+                code="no_case",
+            )
         raise ToolError(
             "case: the problem state has no case; expected one. Call set_case (source='project' "
             "for the project's case, or changes with the values) or ask_user for them",
             code="no_case",
         )
     return copy.deepcopy(data)
+
+
+def project_has_case(context):
+    """Return whether the run's project has a case file, so ``no_case`` can say to load it."""
+    workspace = context.session.workspace
+    if workspace is None or context.project is None:
+        return False
+    try:
+        return workspace.case(context.project) is not None
+    except (OSError, ValueError):
+        return False
 
 
 def file_contents(context, data, supplied):
@@ -236,7 +255,41 @@ def checked_case(data, files):
             suggestions=first["suggestions"],
             problems=[issue.problem() for issue in issues],
         )
+    fraction_bounds(case)
     return case
+
+
+FRACTION_WORDS = ("efficiency", "fraction", "share")
+"""Words of a requirement quantity whose bounds are a fraction 0-1 when it has no unit (#130)."""
+
+
+def fraction_bounds(case):
+    """Raise for a requirement on an efficiency or fraction with a bound outside 0-1 (#130).
+
+    gemini reads such a bound with no unit as a fraction, so ``70`` meant as 70 % passes its
+    check and fails every design; nemotron wrote ``pump_efficiency`` ``min 70, max 70``.
+    """
+    import gemini as gm
+
+    roles = gm.plants.roles()
+    for index, item in enumerate(case.requirements or ()):
+        read = roles.get(item.on, {}).get(item.quantity, {})
+        if read.get("dimension") is not None or item.over == "duration":
+            continue
+        if not any(word in item.quantity for word in FRACTION_WORDS):
+            continue
+        bounds = [value for value in (item.min, item.max) if value is not None]
+        wrong = [value for value in bounds if not 0 <= value <= 1]
+        if not wrong:
+            continue
+        given = item.to_dict()
+        raise gm.errors.ValidationError(
+            f"requirements[{index}] ({given.get('name')}): {item.quantity} min = "
+            f"{given.get('min')}, max = {given.get('max')}; an efficiency is a fraction 0-1: "
+            "0.7, not 70",
+            path=f"requirements[{index}]",
+            code="out_of_bounds",
+        )
 
 
 def case_of(context):
@@ -369,11 +422,37 @@ def case_retries(error, data, supplied, files, columns, changes):
     needed = unpassed_files(changes or {}, files)
     if needed != list(files or []) and not set(needed) <= supplied.keys():
         shown = f", columns={columns!r}" if columns else ""
-        retries.append(f"set_case(files={needed!r}{shown}, changes=<the same changes>)")
+        retries.append(
+            f"set_case(files={needed!r}{shown}, changes=<the same changes>, and the same "
+            "requirements and economics): a rejected call stored nothing, so send the files "
+            "together with everything else of this call"
+        )
     if error.code == "invalid_unit":
         retries.extend(unit_retry(error, data))
     retries.append(zone_retry(error, files, columns))
+    retries.extend(renamed_columns(error, data, columns))
     return [retry for retry in retries if retry is not None]
+
+
+def renamed_columns(error, data, columns):
+    """Return the column a series names by the name ``columns`` gave it, for each one renamed."""
+    from geomind.tools.gemini.explain import field_of
+
+    problems = getattr(error, "problems", None) or [error.to_dict()]
+    retries = []
+    for problem in problems:
+        path = problem.get("path") or ""
+        if not path.endswith(".column"):
+            continue
+        named = field_of(data, path)
+        for file, renames in (columns or {}).items():
+            if named in renames:
+                new = renames[named]
+                retries.append(
+                    f"{path} = {new!r}: columns renamed {named!r} to {new!r} in {file}, so the "
+                    f"series names the new header"
+                )
+    return retries
 
 
 NO_OFFSET = "has no offset"
@@ -437,11 +516,23 @@ def edited_requirements(current, edits):
     return items
 
 
+def economics_header(data):
+    """Return the header of a new economics file of the case ``data``: format, kind and name.
+
+    The run: ``ask_economics`` on a case without economics wrote the values alone, gemini refused
+    the file as an older shape, and the user's approve all was lost (#139).
+    """
+    name = data.get("name")
+    return {"format": 1, "kind": "economics", "name": f"{name} economics" if name else "economics"}
+
+
 def edited_economics(context, data, supplied, patch):
     """Set the economics of ``data`` by a merge ``patch``; return the files with the new content.
 
     The economics file is stored whole as a new content, under the name the case gives it (or
     ``economics.json`` for a case that has none); an economics written inline is patched in place.
+    A new file starts from its header (``economics_header``), so a patch of values alone, such as
+    ``ask_economics`` sets on approve all, is never refused as an older shape.
     """
     named = data.get("economics")
     if isinstance(named, dict):
@@ -450,9 +541,26 @@ def edited_economics(context, data, supplied, patch):
     name = checked_name(named or ECONOMICS_FILE)
     data["economics"] = name
     current = file_contents(context, data, supplied).get(name)
-    content = json.loads(current) if current is not None else {}
+    content = json.loads(current) if current is not None else economics_header(data)
     text = json.dumps(merge_patch(content, patch), indent=2, ensure_ascii=False)
     return {**supplied, name: text.encode()}
+
+
+def changes_files(context, changes, files, supplied):
+    """Return ``files`` with each project file a series of ``changes`` names that is not given.
+
+    The case lead named the files in ``changes`` and sent ``files`` alone in another call, again
+    and again (#65); a file the changes name is loaded from the project as if it were passed.
+    """
+    workspace = context.session.workspace
+    listed = workspace.files(context.project) if hasattr(workspace, "files") else []
+    project = {entry["name"] for entry in listed} if context.project is not None else set()
+    needed = unpassed_files(changes or {}, files)
+    return [
+        name
+        for name in needed
+        if name in (files or []) or (name in project and name not in supplied)
+    ]
 
 
 def project_files_of(context, names, columns=None):
@@ -493,23 +601,44 @@ async def set_case(
     ``economics`` is a merge patch on the content of the case's economics file. ``files`` names
     project files (``list_files``): their bytes go to gemini, under the same name, so a data file
     is given to the case and never retyped: name it in ``changes``, as the ``file`` of a series.
-    ``columns`` renames header names of those files, such as ``{"demand.csv": {"date": "time"}}``:
-    gemini reads a series' times from a column named ``time``. The sections are
+    A project file the changes name is loaded even when ``files`` leaves it out. ``columns``
+    renames header names of those files, such as ``{"demand.csv": {"date": "time"}}``:
+    gemini reads a series' times from a column named ``time``. Once a case is stored, send only
+    the keys that change: ``changes`` merges into it, and a rejected call stores nothing. The
+    sections are
     in ``read_case(section="schema")``, the exact schema. gemini validates the result: a rejected
     case comes back with the path and message to fix, and nothing is stored; a case with values
     missing is ``case_incomplete``, every missing path in ``suggestions``. The project's case, or
     the first case of a chat, is the case the user gave; a design is verified only on it, so any
-    later change of it, economics included, waits for the user's approval. Returns the case and
-    the state version.
+    later change of it, economics included, waits for the user's approval. Write units as the
+    source gives them: a gradient in °C/km becomes K/km, a gas fraction in % is mol% (gemini
+    converts mol%), and a unit name as sources print it becomes gemini's name of it (``kg/m³`` is
+    ``kg/m3``, ``mPa·s`` is ``mPa.s``, ``MWth`` is ``MW``). Returns the case, the state version
+    and ``converted``, each value set_case mapped or converted (``{path, from, to, reason}``), to
+    list in the user's confirmation question.
     """
     import gemini as gm
 
+    alone = files and source is None and not (changes or requirements or economics)
+    if alone and context.problem.case is None:
+        raise ToolError(
+            f"set_case: files = {files!r} and nothing else; expected changes that name each file "
+            "as the `file` of its series: set_case loads the project files the changes name, so "
+            "`files` is not needed, and files alone set no case",
+            code="case_incomplete",
+            path="format",
+            suggestions=[json.dumps(case_skeleton())],
+        )
     base, supplied = base_case(context, source)
+    files = changes_files(context, changes, files, supplied)
     if files:
         given = await runtime.in_gemini_thread(project_files_of, context, files, columns)
         supplied = {**supplied, **given}
-    data = merge_patch(base, checked_changes(changes or {}, files))
+    changes, converted = bridged_units(changes or {})
+    data = merge_patch(base, checked_changes(changes, files))
     if requirements:
+        requirements, renamed = bridged_requirements(requirements)
+        converted += renamed
         data["requirements"] = edited_requirements(data.get("requirements"), requirements)
     contents = edited_economics(context, data, supplied, economics) if economics else supplied
     origin = given_case(context, source, (base, supplied), (data, contents))
@@ -517,12 +646,33 @@ async def set_case(
         version = await store_case(context, data, contents, origin)
     except gm.errors.ValidationError as error:
         retries = case_retries(error, data, supplied, files, columns, changes)
-        if not retries:
+        paths = problem_paths(error)
+        if not retries and len(paths) < 2:
             raise
         raise ToolError(
-            shown_message(error), code=error.code, path=error.path, suggestions=retries
+            every_problem(error, paths), code=error.code, path=error.path, suggestions=retries
         ) from error
-    return {"case": data, "version": version}
+    result = {"case": data, "version": version}
+    return {**result, "converted": converted} if converted else result
+
+
+def problem_paths(error):
+    """Return the paths of every problem of a rejected case, in gemini's order, each once.
+
+    gemini 0.6.2 judges a whole case at once (request 13): one error holds every issue.
+    """
+    problems = getattr(error, "problems", None) or ()
+    return list(dict.fromkeys(item.get("path") for item in problems if isinstance(item, dict)))
+
+
+def every_problem(error, paths):
+    """Return gemini's message of a rejected case, led by how many paths it names."""
+    if len(paths) < 2:
+        return shown_message(error)
+    return (
+        f"set_case: the case has problems at {len(paths)} paths, all listed here; fix every one "
+        f"in the next call: {shown_message(error)}"
+    )
 
 
 def given_case(context, source, base, current):
@@ -554,6 +704,30 @@ def economics_of(context, data):
     return json.loads(content)
 
 
+@tool(effect="read", keeps_result="run")
+def describe_case(path: str):
+    """Say what each key of the case or its economics under ``path`` means, with its units.
+
+    ``path`` is a dotted key or a part of one, such as ``site.air``, ``demand.cooling``,
+    ``requirements`` (also what each option means) or ``economics.capex``. Returns ``keys``, one
+    line each: the key, its form and units, its meaning and where its value comes from.
+    """
+    from geomind.tools.gemini.skeleton import keys_under
+
+    lines = keys_under(path)
+    if lines:
+        return {"keys": lines}
+    parts = ["format", "kind", "name", "time", "site", "demand", "utilities", "requirements"]
+    parts += ["economics"]
+    raise ToolError(
+        f"describe_case: path = {path!r}; expected a key or a part of one, such as "
+        f"{', '.join(parts)}",
+        code="unknown_name",
+        path="path",
+        suggestions=difflib.get_close_matches(path.split(".")[0], parts),
+    )
+
+
 @tool(effect="read")
 def read_case(context, section: str | None = None):
     """Return the case of the problem state, one of its sections, its economics or the schema.
@@ -571,6 +745,14 @@ def read_case(context, section: str | None = None):
         return data
     if section == "economics":
         return economics_of(context, data)
+    if section not in data and section in gm.Case.schema()["properties"]:
+        raise ToolError(
+            f"read_case: section = {section!r}; the case has no {section!r} (it is unset): "
+            f"the case has {join_names(sorted(data))}",
+            code="unknown_name",
+            path="section",
+            suggestions=sorted(data),
+        )
     if section not in data:
         names = sorted(gm.Case.schema()["properties"])
         raise ToolError(

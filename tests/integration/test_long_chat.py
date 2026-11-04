@@ -3,13 +3,12 @@
 import pytest
 
 from geomind import runtime
-from geomind.agents import Assistant
 from geomind.context.compaction import estimate_tokens
 from geomind.engine import Permissions
 from geomind.run import Run
 from geomind.stores import MemoryRunStore
 from geomind.types import Completion, Message
-from tests.fixtures.runs import of_type
+from tests.fixtures.runs import Worker, of_type
 
 TURNS = 50
 FACT_TURN = 3
@@ -70,7 +69,7 @@ def take_turn(store, llm, number):
         llm=llm,
         store=store,
         permissions=Permissions("auto"),
-        agent=Assistant(),
+        agent=Worker(),
     )
     result = run.start()
     store.add_message("long", Message(role="user", content=message))

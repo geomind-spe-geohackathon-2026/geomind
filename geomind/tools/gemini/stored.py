@@ -26,13 +26,12 @@ from geomind.tools.gemini.case import (
     kept_files,
     state_case,
 )
-from geomind.tools.gemini.references import index_reference, unknown_reference
+from geomind.tools.gemini.references import STUDY_INDEX, index_reference, unknown_reference
 from geomind.types.events import StudyRecorded
 
 DESIGN = "design/"
 RESULT = "result/"
 STUDY = "study/"
-STUDY_INDEX = "studies.index"
 DESIGN_NAME = re.compile(r"[A-Za-z0-9._-]+")
 RUN_PARTS = ("plant", "case", "files", "results")
 
@@ -54,10 +53,19 @@ async def save_design(context, name, plant):
     return reference
 
 
+def unquoted(reference):
+    """Return a reference without the quotes a model may wrap it in, such as ``'"result/x"'``."""
+    text = reference.strip()
+    if len(text) > 1 and text[0] == text[-1] and text[0] in "\"'`":
+        return text[1:-1].strip()
+    return text
+
+
 def load_design(context, design, where):
     """Return a new gemini plant of a stored ``design/<name>``, or raise ``unknown_name``."""
     import gemini as gm
 
+    design = unquoted(design)
     data = context.session.load_artifact(design) if design.startswith(DESIGN) else None
     if data is None:
         raise unknown_reference(context, "design", design, where, "design")
@@ -109,6 +117,7 @@ def load_run(context, reference, where):
     """
     import gemini as gm
 
+    reference = unquoted(reference)
     identifier = reference.removeprefix(RESULT) if reference.startswith(RESULT) else ""
     parts = [context.session.load_artifact(f"{identifier}.{part}") for part in RUN_PARTS]
     if not identifier or None in parts:

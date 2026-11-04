@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 
 from geomind.stores import MemoryWorkspace
-from geomind.tools import read_document, read_stored
+from geomind.tools import read_rag, read_stored
 from geomind.tools.gemini.case import case_skeleton, set_case
 from tests.fixtures.calls import call
 from tests.fixtures.sessions import StubSession
@@ -84,11 +84,13 @@ async def test_a_page_read_twice_in_one_run_is_a_short_note():
     """The recorded run read the same 7,000 characters of a CSV again and again."""
     session = session_with_files()
     first = recorded(72, "read_document")
-    once = (await call(read_document, first, session, "p")).output
-    again = (await call(read_document, first, session, "p")).output
+    once = (await call(read_rag, first, session, "p")).output
+    again = (await call(read_rag, first, session, "p")).output
     assert once["text"] and "text" not in again
     [earlier] = again["already_read"]
     assert (earlier["start"], earlier["end"]) == (0, len(once["text"]))
-    assert session.artifacts[earlier["reference"]]["text"] == once["text"]
-    forced = (await call(read_document, {**first, "force": True}, session, "p")).output
+    assert "reference" not in earlier
+    [read] = session.documents_read[first["name"]]
+    assert session.artifacts[read["reference"]]["text"] == once["text"]
+    forced = (await call(read_rag, {**first, "force": True}, session, "p")).output
     assert "text" not in forced and forced["already_read"] == again["already_read"]

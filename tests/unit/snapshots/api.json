@@ -187,11 +187,11 @@
     },
     "Permissions": "(self, mode='ask', allow=(), ask=(), deny=())",
     "Run": {
-      "__init__": "(self, message=None, *, chat=None, project=None, history=(), llm=None, store=None, workspace=None, sandbox=None, permissions=None, callbacks=(), hooks=(), agent=None)",
+      "__init__": "(self, message=None, *, chat=None, project=None, history=(), llm=None, store=None, workspace=None, permissions=None, callbacks=(), hooks=(), agent=None)",
       "aresume": "(self, request_id=None, answer=None)",
       "astart": "(self)",
       "cancel": "(self)",
-      "load": "(cls, run_id, *, llm=None, store=None, workspace=None, sandbox=None, permissions=None, callbacks=(), hooks=())",
+      "load": "(cls, run_id, *, llm=None, store=None, workspace=None, permissions=None, callbacks=(), hooks=())",
       "resume": "(self, request_id=None, answer=None)",
       "start": "(self)"
     },
@@ -303,7 +303,7 @@
         }
       },
       "additionalProperties": false,
-      "description": "How a run ended, or that it waits for an answer to ``request``.\n\n``message`` says why a run stopped without an answer; a crash keeps its text in the log only.",
+      "description": "How a run ended, or that it waits for an answer to ``request``.\n\n``message`` says why a run stopped without an answer; a crash keeps its text in the log only.\n``suggestions`` are the next steps, ``[{label, message}]``, the same list as the run's\n``run.finished`` event: a root run that ended ``done`` has one to three, any other run none.",
       "properties": {
         "answer": {
           "default": null,
@@ -356,6 +356,24 @@
           ],
           "default": null,
           "title": "Stop Reason"
+        },
+        "suggestions": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Suggestions"
         },
         "usage": {
           "$ref": "#/$defs/Usage",
@@ -425,11 +443,12 @@
       "event_from_dict",
       "hooks",
       "loops",
+      "mcp",
       "providers",
       "runlog",
       "runtime",
-      "sandbox",
       "stores",
+      "suggest",
       "testing",
       "tool",
       "tools",
@@ -466,7 +485,7 @@
         },
         "Reply": {
           "additionalProperties": false,
-          "description": "The answer to a question: free text, or the value of one option.",
+          "description": "The answer to a question: free text, or the value of one option.\n\nA question with options takes typed text too: text that is no option's value is the user's\nown answer, which the model reads as typed (``typed_answer``).",
           "properties": {
             "text": {
               "title": "Text",
@@ -565,7 +584,8 @@
         "data": [
           "message",
           "status",
-          "stop_reason"
+          "stop_reason",
+          "suggestions"
         ],
         "is_public": true
       },
@@ -576,20 +596,6 @@
           "run"
         ],
         "is_public": true
-      },
-      "sandbox.closed": {
-        "class": "SandboxClosed",
-        "data": [
-          "is_lost"
-        ],
-        "is_public": false
-      },
-      "sandbox.provisioned": {
-        "class": "SandboxProvisioned",
-        "data": [
-          "provider"
-        ],
-        "is_public": false
       },
       "state.changed": {
         "class": "StateChanged",
@@ -645,6 +651,7 @@
           "duration",
           "error",
           "index",
+          "mcp",
           "output_summary"
         ],
         "is_public": true
@@ -674,6 +681,7 @@
           "call_id",
           "index",
           "input",
+          "mcp",
           "tool"
         ],
         "is_public": true
@@ -734,24 +742,20 @@
         "save_event": "(self, run_id, event)",
         "save_state": "(self, chat_id, state)"
       },
-      "Sandbox": {
-        "close": "(self)",
-        "execute": "(self, command, *, timeout)",
-        "read": "(self, path)",
-        "write": "(self, path, data)"
-      },
-      "SandboxProvider": {
-        "provision": "(self, manifest)"
-      },
       "UsageLedger": {
         "spent": "(self, project_id)"
       },
       "Workspace": {
         "case": "(self, project_id)",
-        "documents": "(self, project_id, query)",
         "file": "(self, project_id, name)",
         "files": "(self, project_id)",
-        "plants": "(self, project_id)"
+        "knowledge_file": "(self, name)",
+        "knowledge_files": "(self)",
+        "knowledge_search": "(self, query)",
+        "mcp": "(self, project_id)",
+        "plants": "(self, project_id)",
+        "project_state": "(self, project_id)",
+        "rag": "(self, project_id, query)"
       }
     },
     "runlog": {
@@ -1098,5 +1102,5 @@
       "step_limit": "failed"
     }
   },
-  "version": "0.4.21"
+  "version": "0.4.22"
 }

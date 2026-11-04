@@ -1,0 +1,3 @@
+{
+ "design_update_state_changes": "[{\"op\": \"add\", \"path\": \"/assumptions/-\", \"value\": {\"id\": \"A7\", \"text\": \"Family: HeatingHeatPumpCoolingPlant (heat-pump heating with peak boiler, compression chiller cooling) on one geothermal doublet\", \"value\": \"HeatingHeatPumpCoolingPlant\", \"source\": \"agent\", \"confirmed\": false, \"reason\": \"Case needs both heating (100°C supply, above the 87°C reservoir so a heat pump is needed) and cooling (20°C supply via compression chiller); no project plant exists so a class plant is used\"}, \"reason\": \"No project plant fits; class plant chosen for heating+cooling\"}, \"citation\": null}]"
+}

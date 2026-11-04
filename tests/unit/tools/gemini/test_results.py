@@ -6,7 +6,7 @@ import geomind as gd
 from geomind.engine import Context
 from geomind.errors import ToolError
 from geomind.stores import MemoryWorkspace
-from geomind.tools import search_documents
+from geomind.tools import search_rag
 from tests.fixtures.calls import call
 from tests.fixtures.cases import EXAMPLES, example_names
 from tests.fixtures.sessions import StubSession
@@ -99,8 +99,34 @@ def context(workspace=None, project="p1"):
 def test_search_documents_searches_the_project():
     """The workspace of the run answers."""
     documents = {"p1": [{"id": "a", "title": "Pumps", "text": "the pump runs at 50 Hz"}]}
-    output = search_documents.function(context(MemoryWorkspace(documents=documents)), "pump")
-    assert output[0]["id"] == "a"
+    output = search_rag.function(context(MemoryWorkspace(documents=documents)), "pump")
+    assert output["matches"][0]["id"] == "a"
+
+
+def test_the_same_words_twice_in_one_step_note_the_later_call_in_any_order_they_run():
+    """#131: the note follows the order of the calls in the run's conversation.
+
+    The case lead searched these two queries in one step; the live run noted the first, a replay
+    the second, as they ran together, so ``geomind replay`` failed.
+    """
+    from geomind.types import Message, ToolCall
+
+    documents = {"p1": [{"id": "a", "title": "Air", "text": "the site air pressure"}]}
+    workspace = MemoryWorkspace(documents=documents)
+    first = ToolCall(
+        id="c1", name="search_rag", input={"query": "site.air.pressure atmospheric pressure site"}
+    )
+    second = ToolCall(
+        id="c2", name="search_rag", input={"query": "atmospheric pressure air pressure site"}
+    )
+    messages = [Message(role="assistant", tool_calls=(first, second))]
+    run = Context(messages=messages, project="p1", session=StubSession(workspace=workspace))
+    for order in ((second, first), (first, second)):
+        notes = {
+            item.id: search_rag.function(run.for_call(item.id), **item.input) for item in order
+        }
+        assert "already searched" in notes["c2"].get("note", "")
+        assert "already searched" not in notes["c1"].get("note", "")
 
 
 @pytest.mark.parametrize("options", [{"workspace": None}, {"project": None}])
@@ -108,9 +134,9 @@ def test_search_documents_needs_a_project(options):
     """A run without one gets an error result, not a crash."""
     arguments = {"workspace": MemoryWorkspace(), "project": "p1", **options}
     with pytest.raises(ToolError, match="no project"):
-        search_documents.function(context(**arguments), "pump")
+        search_rag.function(context(**arguments), "pump")
 
 
 def test_both_only_read():
     """Reading needs no approval, and a replay reads again."""
-    assert (TOOLS.read_result.effect, search_documents.effect) == ("read", "read")
+    assert (TOOLS.read_result.effect, search_rag.effect) == ("read", "read")

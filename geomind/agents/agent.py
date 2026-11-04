@@ -22,11 +22,12 @@ from geomind.utils.strings import did_you_mean, first_paragraph, join_names, joi
 
 
 class Model(Record):
-    """Which model an agent wants; ``name=None`` means a model of ``gd.runtime``.
+    """Which model an agent wants; ``name=None`` means the model its role's setting names.
 
-    ``setting`` names the runtime setting of an agent's role, such as ``analyst_model``. Unset, or
-    set to ``None``, it means the default model. ``fallbacks`` lists models tried in order when the
-    provider keeps failing.
+    ``setting`` names the runtime setting of an agent's role, such as ``designlead_model``, set
+    by ``GEOMIND_DESIGNLEAD_MODEL``. There is no default model: a role whose setting is unset has
+    no model, and a real provider refuses to call. ``fallbacks`` lists models tried in order when
+    the provider keeps failing.
     """
 
     name: str | None = None
@@ -41,8 +42,7 @@ class Model(Record):
 
     def resolved_name(self):
         """Return the name to call the provider with."""
-        role = runtime.get(self.setting) if self.setting else None
-        return self.name or role or runtime.get("default_model")
+        return self.name or (runtime.get(self.setting) if self.setting else None)
 
     def settings(self):
         """Return the settings a provider receives."""
@@ -54,7 +54,7 @@ class Output:
     """The type of the final answer: ``str`` or a Pydantic model.
 
     A failed validation goes back to the model as feedback, up to ``max_retries``, then the run
-    fails.
+    fails. An empty text is no answer.
     """
 
     kind: type = str
@@ -63,8 +63,13 @@ class Output:
     def validate(self, answer):
         """Return the JSON-safe answer, or raise ``OutputError``."""
         if self.kind is str:
-            if isinstance(answer, str):
+            if isinstance(answer, str) and answer.strip():
                 return answer
+            if isinstance(answer, str):
+                raise OutputError(
+                    "output: answer = ''; expected the answer as text: what you did, the "
+                    "references you stored and what is open"
+                )
             raise OutputError(f"output: answer = {answer!r}; expected text")
         try:
             if isinstance(answer, str):
@@ -107,7 +112,7 @@ class Agent:
     """
 
     def __init__(self):
-        """Start with no tools, no children, no prompt, a text output and the default model."""
+        """Start with no tools, no children, no prompt, a text output and no model."""
         for name, value in (
             ("_tools", {}),
             ("_children", {}),
@@ -193,6 +198,15 @@ class Agent:
         for child in self.children():
             found.update(child.named_agents())
         return found
+
+    def answer_problem(self, context):
+        """Return why the answer this agent proposes is not done yet, or ``None`` (#124).
+
+        A rule of the role that code can check on the run, such as a required step; the engine
+        sends the text back to the model instead of ending. NOTE: an agent refuses at most once
+        per run, so a model that cannot do the step still ends.
+        """
+        return None
 
     def tool_schemas(self):
         """Return what a provider needs to offer this agent's tools."""

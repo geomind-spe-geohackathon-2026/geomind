@@ -26,6 +26,8 @@ class RunResult(Record):
     """How a run ended, or that it waits for an answer to ``request``.
 
     ``message`` says why a run stopped without an answer; a crash keeps its text in the log only.
+    ``suggestions`` are the next steps, ``[{label, message}]``, the same list as the run's
+    ``run.finished`` event: a root run that ended ``done`` has one to three, any other run none.
     """
 
     run_id: str
@@ -36,3 +38,4 @@ class RunResult(Record):
     steps: int = 0
     stop_reason: str | None = None
     message: str | None = None
+    suggestions: list[dict[str, str]] | None = None

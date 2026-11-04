@@ -4,6 +4,7 @@ import json
 from typing import Literal
 
 from geomind import runtime
+from geomind.errors import ToolError
 from geomind.tools.base import tool
 from geomind.tools.gemini.case import build_case
 from geomind.tools.gemini.explain import range_guidance
@@ -364,3 +365,111 @@ async def compare(context, references: list[str], by: list[str]):
         }
         for reference, entry, display in zip(references, entries, shown)
     ]
+
+
+EVOLVE_SETTINGS = {
+    "evaluations": "evolve_evaluations",
+    "population": "evolve_population",
+    "seed": "evolve_seed",
+    "polish": "evolve_polish",
+}
+"""The settings of ``evolve_structure`` by gemini's argument, each required, with no default."""
+
+
+def evolve_settings():
+    """Return gemini's ``evolve`` settings from the runtime; an unset one is refused by name."""
+    found = {argument: runtime.get(setting) for argument, setting in EVOLVE_SETTINGS.items()}
+    missing = [EVOLVE_SETTINGS[argument] for argument, value in found.items() if value is None]
+    if missing:
+        names = ", ".join(f"GEOMIND_{name.upper()}" for name in missing)
+        raise ToolError(f"evolve_structure: {names} not set; expected each", code="not_allowed")
+    return found
+
+
+def evolve_design(plant, case, objectives, settings):
+    """Return gemini's genetic search over the plant's structures and values."""
+    import gemini as gm
+
+    return gm.study.evolve(
+        plant,
+        case,
+        objectives,
+        settings["evaluations"],
+        settings["seed"],
+        population=settings["population"],
+        polish=settings["polish"],
+    )
+
+
+def front_entry(design, reference):
+    """Return one design of the front as the model reads it: no plant and no parameters."""
+    shown = design.to_dict()
+    kept = {key: shown.get(key) for key in ("structure", "metrics", "feasible", "reason")}
+    return {"design": reference, **kept}
+
+
+def evolved(data):
+    """Return gemini's plain form of an evolution, as a study keeps it: no plants."""
+    front = [without_plant(item) for item in data["front"]]
+    return {**data, "front": front, "best": without_plant(data["best"])}
+
+
+def without_plant(item):
+    """Return a design of an evolution without its plant, which its stored design keeps."""
+    return {**item, "plant": None}
+
+
+@tool(
+    effect="compute",
+    timeout=STUDY_TIMEOUT_S,
+    runs_alone=True,
+    late_schemas={"design": reference_schema("design")},
+)
+async def evolve_structure(context, design: str, objectives: list[str], name: str):
+    """Search a superstructure's structures and values by gemini's genetic algorithm.
+
+    ``design`` holds optional modules (``optional``) and choice groups (``choices``) with their
+    ranges; ``objectives`` are the metrics the case or the brief names to minimise (a leading
+    ``-`` maximises), never ones you choose. The evaluations, population, seed and polish are
+    settings, not yours. Each design of the front (none beats it on every objective) is stored
+    as ``design/<name>_<n>``; the answer lists each with its ``structure``, ``metrics``,
+    ``feasible`` and ``reason``, then ``best`` (on the first objective), the ``evaluations``
+    run, the ``invalid`` candidates refused, each structure gemini refused before any simulation
+    with its reasons (``rejected``: a port a bypass leaves open, say), why the search stopped
+    and the ``study`` key. Take the chosen design on as any other: size, simulate, check.
+    """
+    settings = evolve_settings()
+    study_settings = {"method": "evolve", "objectives": objectives, **settings}
+    ran, plants, study, case = prepared(
+        context, "evolve_structure", name, [design], study_settings, []
+    )
+    found = await runtime.in_gemini_thread(
+        evolve_design, plants[design], build_case(*ran), objectives, settings
+    )
+    front, wrote = [], []
+    for number, item in enumerate(found["front"], 1):
+        reference = await save_design(context, f"{name}_{number}", item["plant"])
+        wrote.append(reference)
+        front.append(front_entry(item, reference))
+    best = next(
+        (entry["design"] for item, entry in zip(found["front"], front) if item is found["best"]),
+        None,
+    )
+    recommended = best if found["best"]["feasible"] else None
+    data = found.to_dict()
+    recorded = (study.to_dict(), evolved(data))
+    key = await save_study(
+        context, name, "evolve_structure", recorded, ([design], wrote), recommended, case
+    )
+    return {
+        "front": front,
+        "best": best,
+        "evaluations": found["evaluations"],
+        "invalid": found["invalid"],
+        "rejected": [
+            {"structure": item["structure"], "reasons": item["reasons"]}
+            for item in data["rejected"]
+        ],
+        "stopped": data["budget"]["stopped"],
+        "study": key,
+    }

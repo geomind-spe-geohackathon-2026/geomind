@@ -15,19 +15,31 @@ from geomind.utils.strings import did_you_mean, join_names
 
 
 def plant_schema():
-    """Return the short schema ``build_plant`` offers as the input ``plant``.
+    """Return the schema ``build_plant`` offers as the input ``plant``: gemini's top-level keys.
 
-    The full schema is large and is sent with every call, so the tool offers an object and the
-    two ways a plant file is given; ``list_plants`` ``schema`` returns gemini's whole schema and
-    ``read_plant`` a class's file. Validation is gemini's, when the plant is built.
+    Each key of ``gm.plants.schema()`` is named with its type (the classes are in the
+    design_lead's plant tree) and the header is required, so a model writes the file's keys
+    instead of an empty object; the nested parts are gemini's to validate, when the plant is
+    built. ``read_plant`` gives a class's file.
     """
+    import gemini as gm
+
+    schema = gm.plants.schema()
+    properties = {
+        key: {key_name: value for key_name, value in sub.items() if key_name in ("type", "const")}
+        or {"type": "object"}
+        for key, sub in schema["properties"].items()
+    }
     return {
         "type": "object",
         "description": (
-            "The plant file: a class file has type, a module file has modules and connections. "
-            "Read one with read_plant; list_plants(with_schema=true) gives the full schema."
+            "The plant file: the header format, kind and name, then either type (a class, with "
+            "size and params) or modules and connections. Read one with read_plant."
         ),
-        "anyOf": [{"required": ["type"]}, {"required": ["modules", "connections"]}],
+        "properties": properties,
+        "required": list(schema["required"]),
+        "minProperties": len(schema["required"]),
+        "anyOf": schema["anyOf"],
     }
 
 
@@ -143,14 +155,43 @@ def as_quantity(value):
     return value
 
 
+CASE_SECTIONS = ("site.", "demand.", "utilities.", "time.", "economics.", "requirements")
+"""The paths of a case: a value there belongs to the case, never to the plant file."""
+
+
+def routed_issue(issue):
+    """Return an issue at a case path with the suggestion to ask for a case change.
+
+    A design lead never sets the case: a value the case lacks is named in its answer as
+    ``case change needed: <path>: <why>``, which the design loop routes to the case lead.
+    """
+    path = issue.get("path") or ""
+    if not path.startswith(CASE_SECTIONS):
+        return issue
+    hint = (
+        f"a value of the case, not of the plant file: hand over with 'case change needed: "
+        f"{path}: <why>' in your answer"
+    )
+    return {**issue, "suggestions": [hint, *(issue.get("suggestions") or [])]}
+
+
 def issue_dict(issue):
-    """Return an ``Issue`` of gemini as plain data: its problem with its kind and accepted units."""
-    return {
-        **issue.problem(),
-        "kind": issue.kind,
-        "quantity": issue.quantity,
-        "accepted": list(issue.accepted),
-    }
+    """Return an ``Issue`` of gemini as compact data: path, code, kind, message, units.
+
+    The message drops the path it starts with, and the accepted units are one ``a|b`` text, so a
+    plant's many issues stay small enough for the model to keep.
+    """
+    problem = issue.problem()
+    path, message = problem["path"] or "", problem["message"]
+    short = path.removeprefix("params.")
+    for prefix in (f"{path}: ", f"{short}: "):
+        message = message.removeprefix(prefix)
+    item = {"path": path, "code": problem["code"], "kind": issue.kind, "message": message}
+    if problem.get("suggestions"):
+        item["suggestions"] = list(problem["suggestions"])
+    if issue.accepted:
+        item["units"] = "|".join(issue.accepted)
+    return routed_issue(item)
 
 
 def plant_issues(context, plant):
@@ -204,7 +245,11 @@ def plant_view(plant):
     }
 
 
-@tool(effect="read", late_schemas={"design": reference_schema("design", optional=True)})
+@tool(
+    effect="read",
+    late_schemas={"design": reference_schema("design", optional=True)},
+    keeps_result=True,
+)
 def read_plant(
     context,
     design: str | None = None,
@@ -239,7 +284,7 @@ def read_plant(
 
 
 @tool(effect="write", late_schemas={"plant": plant_schema})
-async def build_plant(context, plant: dict[str, Any], name: str):
+async def build_plant(context, plant: dict[str, Any], name: str, from_class: str | None = None):
     """Build a plant from a plant file and store it as design/<name>; return its issues.
 
     ``plant`` is the plant file (``read_plant`` shows one). Every value with a dimension is
@@ -248,13 +293,34 @@ async def build_plant(context, plant: dict[str, Any], name: str):
     stored. A file without its header is ``old_format``, the smallest plant file of gemini's
     schema last in ``suggestions``. A file that builds is stored even with ``issues`` (the values
     still missing, checked as in ``read_plant``): fill them in a new file or with ``simulate``
-    ``changes``.
+    ``changes``. A plant with ``type`` takes only the modules of its class. To add a module to a
+    class (``thermal_storage``), name the class in ``from_class`` and give ``plant`` without
+    ``type``, holding only what differs: the added ``modules``, their ``connections``,
+    ``optional`` or ``choices``; the class gives every other module and connection, its size,
+    params and fluids. A connection you give at a port that takes one connection replaces the
+    class's connection there; connect each port of an added module (``describe_module`` lists
+    them).
     """
     import gemini as gm
 
+    if not plant:
+        example = {**plant_skeleton(), "type": "<plant class>"}
+        raise ToolError(
+            "build_plant: plant = {}; it is empty: expected the plant file, its header and its "
+            "type or its modules and connections",
+            path="plant",
+            suggestions=[json.dumps(example)],
+        )
+    if isinstance(plant.get("format"), str) and plant["format"].strip().isdigit():
+        plant = {**plant, "format": int(plant["format"])}
+    if from_class is not None:
+        plant = await runtime.in_gemini_thread(extended_plant, plant, from_class)
     try:
         built = await runtime.in_gemini_thread(gm.Plant.from_dict, plant)
     except gm.errors.ValidationError as error:
+        foreign = foreign_modules(gm, plant) if from_class is None else []
+        if foreign:
+            raise class_refusal(error, plant["type"], foreign) from error
         if error.code != "old_format":
             raise
         raise ToolError(
@@ -267,7 +333,199 @@ async def build_plant(context, plant: dict[str, Any], name: str):
     return {"design": design, **plant_issues(context, built)}
 
 
+def foreign_modules(gm, plant):
+    """Return the modules a class plant names (in ``modules``, ``optional``) its class lacks.
+
+    The run: ``optional: ["thermal_storage"]`` on a ``HeatingHeatPumpCoolingPlant`` was "expected
+    a module of the plant", and the process engineer spent its 15 steps on a free plant (#143).
+    """
+    kind = plant.get("type")
+    if not isinstance(kind, str) or kind not in gm.plants.names():
+        return []
+    own = set(gm.plants.get(kind).to_dict(structure=True).get("modules") or {})
+    named = list(plant.get("modules") or {}) + [
+        item for item in plant.get("optional") or [] if isinstance(item, str)
+    ]
+    return sorted({item for item in named if item not in own})
+
+
+def class_refusal(error, kind, foreign):
+    """Return the error of a class plant with modules its class lacks, naming how to add them."""
+    return ToolError(
+        f"{shown_message(error)}. build_plant: {join_names(foreign)} is no module of the class "
+        f"{kind}, and a plant with type takes only its class's modules. To add it: build_plant "
+        f"with from_class={kind!r} and a plant without type that holds only the added modules "
+        "(with their type), the connections of each of their ports (describe_module lists them; "
+        "one at a port that takes one connection replaces the class's), and optional or choices; "
+        "the class gives every other module and connection",
+        code="unknown_name",
+        path="from_class",
+        suggestions=[kind],
+    )
+
+
+def extended_plant(plant, from_class):
+    """Return the free plant file of a class with the modules and connections of ``plant`` added.
+
+    The class's own file (``structure=True``) gives the modules, connections, size, params and
+    fluids; ``plant`` adds or replaces modules, merges params, and adds its connections, each
+    replacing the class's at a port that takes one connection. Its other keys win; ``type`` goes.
+    """
+    import gemini as gm
+
+    from geomind.tools.gemini.case import merge_patch
+
+    names = gm.plants.names()
+    if from_class not in names:
+        raise ToolError(
+            f"build_plant: from_class = {from_class!r}; expected a plant class from list_plants"
+            f"{did_you_mean(from_class, names)}",
+            code="unknown_name",
+            path="from_class",
+        )
+    base = gm.plants.get(from_class).to_dict(structure=True)
+    modules = {**(base.get("modules") or {}), **(plant.get("modules") or {})}
+    given = [item for item in plant.get("connections") or [] if isinstance(item, dict)]
+    single = single_ports(gm, modules, given)
+    kept = [
+        item
+        for item in base.get("connections") or []
+        if item.get("source") not in single and item.get("target") not in single
+    ]
+    extended = {key: value for key, value in base.items() if key != "type"}
+    extended.update({key: value for key, value in plant.items() if key != "type"})
+    extended["modules"] = modules
+    extended["connections"] = kept + given
+    params = merge_patch(base.get("params") or {}, plant.get("params") or {})
+    if params:
+        extended["params"] = params
+    else:
+        extended.pop("params", None)
+    return extended
+
+
+def single_ports(gm, modules, connections):
+    """Return the ports ``connections`` use that take one connection (a port not ``many``).
+
+    A port whose module type is not found counts as one that takes many: the class's connection
+    stays, and gemini names a port used twice.
+    """
+    found = set()
+    for item in connections:
+        for side in ("source", "target"):
+            port = item.get(side)
+            if isinstance(port, str) and port_takes_one(gm, modules, port):
+                found.add(port)
+    return found
+
+
+def port_takes_one(gm, modules, port):
+    """Tell whether a port ``<module path>.<port>`` of the plant's modules takes one connection."""
+    *path, name = port.split(".")
+    node = {"modules": modules}
+    for part in path:
+        node = (node.get("modules") or {}).get(part) if isinstance(node, dict) else None
+    kind = node.get("type") if isinstance(node, dict) else None
+    if not isinstance(kind, str) or not path:
+        return False
+    try:
+        description = gm.modules.get(kind)().describe()
+    except gm.errors.GeminiError:
+        return False
+    ports = {**description.get("inlets", {}), **description.get("outlets", {})}
+    item = ports.get(name)
+    return isinstance(item, dict) and not item.get("port", {}).get("many", False)
+
+
 @tool(effect="write", late_schemas={"design": reference_schema("design")})
+async def patch_plant(context, design: str, changes: dict[str, Any], name: str):
+    """Change a stored design by a small patch, stored as design/<name>, and list what is missing.
+
+    ``changes`` is a JSON merge patch (RFC 7386) on the plant file of ``design``, such as
+    ``{"params": {"d0": {"drainage_radius": {"value": 500, "unit": "m"}}}}``: every value you
+    change, of one module or several, in one patch, never the whole file. gemini builds the
+    result: a patch it refuses is its error, and nothing is stored. Returns the new design, its
+    ``issues`` (what is still missing, checked as in ``read_plant``) and their count,
+    ``missing``. An engineer of the design team
+    patches only its own part (``design.owners``, else its module's type); another part is
+    ``not_allowed``. A module's parameters written at the top or inside ``modules`` are taken as
+    under ``params``.
+    """
+    import gemini as gm
+
+    from geomind.tools.gemini.case import merge_patch
+    from geomind.tools.gemini.ownership import check_ownership, placed_parameters
+
+    plant = load_design(context, design, "patch_plant").to_dict(structure=True)
+    changes = placed_parameters(changes, plant)
+    check_ownership(context, changes, "patch_plant", plant)
+    patched = merge_patch(plant, changes)
+    built = await runtime.in_gemini_thread(gm.Plant.from_dict, patched)
+    stored = await save_design(context, name, built)
+    issues = plant_issues(context, built)
+    return {"design": stored, **issues, "missing": len(issues["issues"])}
+
+
+def plant_difference(base, other):
+    """Return the JSON merge patch that turns ``base`` into ``other``; a list is one value."""
+    if not isinstance(base, dict) or not isinstance(other, dict):
+        return other
+    patch = {key: None for key in base if key not in other}
+    for key, value in other.items():
+        if key not in base:
+            patch[key] = value
+        elif base[key] != value:
+            patch[key] = plant_difference(base[key], value)
+    return patch
+
+
+def leaf_changes(patch, prefix=""):
+    """Return ``{dotted path: value}`` of every leaf a merge patch sets or removes."""
+    if not isinstance(patch, dict) or not patch:
+        return {prefix: patch}
+    found = {}
+    for key, value in patch.items():
+        found.update(leaf_changes(value, f"{prefix}.{key}" if prefix else key))
+    return found
+
+
+@tool(effect="write", late_schemas={"base": reference_schema("design")})
+async def merge_designs(context, base: str, designs: list[str], name: str):
+    """Join the designs the engineers patched side by side from ``base``, stored as design/<name>.
+
+    Each of ``designs`` started from ``base``; what each changed is applied to ``base`` in order.
+    Two designs that set one value differently are a conflict: nothing is stored and the error
+    names the path and both designs. gemini builds the result, and the answer lists what is
+    still missing, as ``patch_plant`` does.
+    """
+    import gemini as gm
+
+    from geomind.tools.gemini.case import merge_patch
+
+    start = load_design(context, base, "merge_designs").to_dict(structure=True)
+    merged, setters = start, {}
+    for design in designs:
+        patch = plant_difference(
+            start, load_design(context, design, "merge_designs").to_dict(structure=True)
+        )
+        for path, value in leaf_changes(patch).items():
+            earlier = setters.get(path)
+            if earlier is not None and earlier[1] != value:
+                raise ToolError(
+                    f"merge_designs: {path} is set by {earlier[0]} and differently by {design}; "
+                    "send it back to its owner with both values",
+                    code="invalid_input",
+                    path="designs",
+                )
+            setters[path] = (design, value)
+        merged = merge_patch(merged, patch)
+    built = await runtime.in_gemini_thread(gm.Plant.from_dict, merged)
+    stored = await save_design(context, name, built)
+    issues = plant_issues(context, built)
+    return {"design": stored, **issues, "missing": len(issues["issues"])}
+
+
+@tool(effect="write", sets_input=True, late_schemas={"design": reference_schema("design")})
 async def set_ranges(
     context,
     design: str,

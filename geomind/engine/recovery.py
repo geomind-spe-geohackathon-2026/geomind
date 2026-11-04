@@ -4,11 +4,13 @@
 is saved, and ``recover`` calls it on stored events, so the engine holds nothing the log does not.
 """
 
+import json
+
 from geomind.context import Compaction, ProblemState, apply_changes
 from geomind.context.history import replace_older
-from geomind.engine.state import PendingAction, RunState
+from geomind.engine.state import PendingAction, RunState, Succeeded
 from geomind.errors import RunError
-from geomind.tools.stored import is_stored_form, stored_form
+from geomind.tools.stored import is_stored_form, outline, stored_form
 from geomind.types import Action, Message, Usage
 from geomind.types.events import LLM_EVENTS
 from geomind.utils.imports import import_class
@@ -28,6 +30,7 @@ def _run_started(state, event):
     state.loop = event.loop
     state.loop_state = dict(event.loop_state)
     state.max_steps = event.max_steps
+    state.step_grant = event.max_steps
     state.settings = dict(event.settings)
     state.messages = list(event.messages)
     state.problem = ProblemState.model_validate(event.problem)
@@ -48,6 +51,8 @@ def _llm_completed(state, event):
         Message(role="assistant", content=completion.text, tool_calls=completion.tool_calls)
     )
     state.action = Action(text=completion.text, tool_calls=completion.tool_calls)
+    raw = completion.raw if isinstance(completion.raw, dict) else {}
+    state.is_cut = raw.get("finish_reason") == "length"
     state.calls = list(completion.tool_calls)
     state.usage += completion.usage
     state.step_usage += completion.usage
@@ -85,11 +90,76 @@ def _feedback(state, event):
 
 
 def _count_failure(state, event):
-    """Count validation failures of one tool in a row."""
+    """Count validation failures of one tool in a row, and the same failing call in a row.
+
+    A tool counts once per step: the calls of one step are sent together, before the model has
+    seen any of their errors, so only a failure the model saw and repeated counts again.
+    """
+    _count_repeat(state, event)
     if event.is_validation:
-        state.failures[event.tool] = state.failures.get(event.tool, 0) + 1
+        if state.failure_steps.get(event.tool) != state.step:
+            state.failures[event.tool] = state.failures.get(event.tool, 0) + 1
+        state.failure_steps[event.tool] = state.step
         return
     state.failures.pop(event.tool, None)
+    state.failure_steps.pop(event.tool, None)
+
+
+def _count_repeat(state, event):
+    """Count how often in a row the same call failed, in steps after the model saw its error.
+
+    A call is the same when its tool and its whole input are: three calls of one tool with
+    another argument each are three calls, even when they fail with one error. The same call
+    sent again in the step that first failed counts once, since the model has not seen the error.
+    """
+    if not event.is_error or event.call_id is None:
+        state.last_failure, state.repeated = None, 0
+        return
+    call = next((item for item in state.calls if item.id == event.call_id), None)
+    if call is None:
+        return
+    key = call_key(call.name, call.input)
+    if key != state.last_failure:
+        state.repeated = 1
+    elif state.last_failure_step != state.step:
+        state.repeated += 1
+    state.last_failure, state.last_failure_step = key, state.step
+
+
+OUTLINE_CHARACTERS = 300
+"""How long the outline of a result that a repeated call is answered with is at most."""
+
+
+def call_key(name, tool_input):
+    """Return the key of a call: its tool and its whole input, so two calls are the same or not."""
+    return json.dumps([name, tool_input], sort_keys=True, default=str)
+
+
+def _count_same(state, event):
+    """Remember a call that ran with success, and count the steps answered from an earlier one.
+
+    A repeat answered in a step counts once per step, as failures do; any other result of a call
+    ends the run of repeats.
+    """
+    if event.source == "repeat":
+        if state.same_call_step != state.step:
+            state.same_calls += 1
+        state.same_call_step = state.step
+        return
+    state.same_calls, state.same_call_step = 0, None
+    if event.is_error or event.is_finish or event.source != "tool":
+        return
+    output = to_jsonable(event.output)
+    shown = output.get("summary") if is_stored_form(output, event.reference) else output
+    state.succeeded.append(
+        Succeeded(
+            key=call_key(event.tool, event.input),
+            tool=event.tool,
+            step=state.step,
+            reference=event.reference,
+            outline=outline(shown, OUTLINE_CHARACTERS),
+        )
+    )
 
 
 def _remember_stored(state, event):
@@ -115,6 +185,7 @@ def _tool_result(state, event):
     if event.call_id is None:
         return
     _count_failure(state, event)
+    _count_same(state, event)
     if state.pending is not None and state.pending.call.id == event.call_id:
         state.pending = None
     state.results[event.call_id] = Message(
@@ -142,7 +213,13 @@ def _permission(state, event):
             request=event.request, point=event.point, call=event.call, child=event.child
         )
         return
+    if event.point == "steps":
+        state.pending = None if event.request is not None else state.pending
+        state.max_steps += state.step_grant if event.decision == "allow" else 0
+        return
     if event.request is not None:
+        if event.decision == "answer" and event.request.kind == "question":
+            state.questions += 1
         state.pending = None
     if event.decision == "allow":
         state.allowed.append(event.call_id if event.point == "tool" else event.point)
@@ -225,9 +302,77 @@ def recover(events, run_id=None):
     return state
 
 
+RENAMED_CLASSES = {
+    "geomind.agents.analysis.lead.agent:AnalysisLead": "geomind.agents.analysis.lead:AnalysisLead",
+    "geomind.agents.analysis.economist.agent:Economist": (
+        "geomind.agents.analysis.economist:Economist"
+    ),
+    "geomind.agents.case.lead.agent:CaseLead": "geomind.agents.case.lead:CaseLead",
+    "geomind.agents.case.geoscientist.agent:Geoscientist": (
+        "geomind.agents.case.geoscientist:Geoscientist"
+    ),
+    "geomind.agents.design.lead.agent:DesignLead": "geomind.agents.design.lead:DesignLead",
+    "geomind.agents.design.process.agent:ProcessEngineer": (
+        "geomind.agents.design.process:ProcessEngineer"
+    ),
+    "geomind.agents.design.integration.agent:IntegrationEngineer": (
+        "geomind.agents.design.integration:IntegrationEngineer"
+    ),
+    "geomind.agents.design.reservoir.agent:ReservoirEngineer": (
+        "geomind.agents.design.reservoir:ReservoirEngineer"
+    ),
+    "geomind.agents.design.well.agent:WellEngineer": "geomind.agents.design.well:WellEngineer",
+    "geomind.agents.design.energy.agent:EnergySystemsEngineer": (
+        "geomind.agents.design.energy:EnergySystemsEngineer"
+    ),
+    "geomind.agents.project.lead.agent:ProjectLead": "geomind.agents.project.lead:ProjectLead",
+    "geomind.agents.project.coordinator.agent:Coordinator": (
+        "geomind.agents.project.coordinator:Coordinator"
+    ),
+    "geomind.agents.project.coordinator.agent:Answer": "geomind.agents.project.coordinator:Answer",
+    "geomind.agents.project.reviewer.agent:Reviewer": "geomind.agents.project.reviewer:Reviewer",
+    "geomind.agents.project.explainer.agent:Explainer": (
+        "geomind.agents.project.explainer:Explainer"
+    ),
+    "geomind.agents.project.lead.design_driver:DesignDriver": (
+        "geomind.agents.project.drivers:DesignDriver"
+    ),
+    "geomind.agents.project.lead.comparison_driver:CompareDriver": (
+        "geomind.agents.project.comparison:CompareDriver"
+    ),
+    "geomind.agents.project.lead.comparison_driver:ComparisonDriver": (
+        "geomind.agents.project.comparison:ComparisonDriver"
+    ),
+    "geomind.agents.support.lead.agent:SupportLead": "geomind.agents.support.lead:SupportLead",
+    "geomind.agents.support.curator.agent:Curator": "geomind.agents.support.curator:Curator",
+    "geomind.agents.support.summarizer.agent:Summarizer": (
+        "geomind.agents.support.summarizer:Summarizer"
+    ),
+    "geomind.agents.analysis.analyst:Analyst": "geomind.agents.analysis.lead:AnalysisLead",
+    "geomind.agents.formulation.formulator:Formulator": "geomind.agents.case.lead:CaseLead",
+    "geomind.agents.design.designer:Designer": "geomind.agents.design.lead:DesignLead",
+    "geomind.agents.verification.verifier:Verifier": ("geomind.agents.project.reviewer:Reviewer"),
+    "geomind.agents.economics.economist:Economist": ("geomind.agents.analysis.economist:Economist"),
+    "geomind.agents.reporting.explainer:Explainer": ("geomind.agents.project.explainer:Explainer"),
+    "geomind.agents.coordination.coordinator:Coordinator": (
+        "geomind.agents.project.coordinator:Coordinator"
+    ),
+    "geomind.agents.coordination.coordinator:Answer": ("geomind.agents.project.coordinator:Answer"),
+    "geomind.loops.design:DesignDriver": ("geomind.agents.project.drivers:DesignDriver"),
+    "geomind.loops.compare:CompareDriver": ("geomind.agents.project.comparison:CompareDriver"),
+    "geomind.loops.compare:ComparisonDriver": (
+        "geomind.agents.project.comparison:ComparisonDriver"
+    ),
+    "geomind.agents.general.summarizer:Summarizer": (
+        "geomind.agents.support.summarizer:Summarizer"
+    ),
+}
+"""The class path an older log names (0.4.22.dev32 or earlier), by its path now."""
+
+
 def agent_class(state):
-    """Return the class of the agent a run names."""
+    """Return the class of the agent a run names; a renamed agent is found by its new path."""
     try:
-        return import_class(state.agent_class)
+        return import_class(RENAMED_CLASSES.get(state.agent_class, state.agent_class))
     except ImportError as error:
         raise RunError(f"recover: {error}") from error

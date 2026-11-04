@@ -89,12 +89,10 @@ async def test_a_nested_run_past_the_window_says_so():
     assert output["error"]["code"] == "context_exceeded" and "1048576" in output["error"]["message"]
 
 
-async def test_a_series_whose_file_was_not_passed_gets_the_call_with_files():
-    """The run named the CSVs in ``changes`` without ``files=``; the retry names them."""
-    error = (await call(set_case, recorded(27, "set_case"), session_with_files(), "p")).output
-    retry = next(item for item in error["error"]["suggestions"] if item.startswith("set_case("))
-    files = ["GEMINI_Cooling_Demand_Daily_2027.csv", "GEMINI_Heating_Demand_Daily_2027.csv"]
-    assert f"files={files!r}" in retry
+async def test_a_series_whose_file_was_not_passed_is_loaded_from_the_project():
+    """The run named the CSVs in ``changes`` without ``files=``; they load anyway (#65)."""
+    output = (await call(set_case, recorded(27, "set_case"), session_with_files(), "p")).output
+    assert "not found" not in json.dumps(output)
 
 
 async def test_a_wrong_unit_gets_the_accepted_units_and_that_field_corrected():
@@ -103,7 +101,9 @@ async def test_a_wrong_unit_gets_the_accepted_units_and_that_field_corrected():
     error = (await call(set_case, tool_input, session_with_files(), "p")).output["error"]
     assert error["code"] == "invalid_unit"
     assert "time.step = {'value': 1, 'unit': 'd'}" in error["suggestions"]
-    accepted = [item for item in error["suggestions"] if item.startswith("accepted units:")]
+    accepted = [
+        item for item in error["suggestions"] if item.startswith("time.step: accepted units:")
+    ]
     assert accepted and " d," in accepted[0]
 
 

@@ -18,7 +18,6 @@ EXPECTED = {
     "01_hello.py": "Hello!",
     "02_custom_agent.py": "42",
     "03_approval.py": "The report is sent.",
-    "04_sandbox.py": "5050",
     "05_case.py": "unmet requirements: 0",
     "01_queue_and_resume.py": "event: request",
 }

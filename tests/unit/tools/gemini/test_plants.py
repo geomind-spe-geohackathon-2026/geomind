@@ -13,6 +13,7 @@ from geomind.engine import Context
 from geomind.errors import ToolError
 from geomind.stores import FileWorkspace, MemoryWorkspace
 from geomind.tools.gemini.plants import load_plant, set_ranges, workspace_plant
+from tests.fixtures import ROOT
 from tests.fixtures.calls import call
 from tests.fixtures.cases import (
     PLANTS,
@@ -81,7 +82,7 @@ def test_build_plant_offers_a_short_schema_and_list_plants_gives_gemini_full_one
     """The offered ``plant`` is small; gemini's whole schema is one call away."""
     schema = gm.plants.schema()
     offered = TOOLS.build_plant.schema()["input_schema"]
-    assert offered["properties"]["plant"]["anyOf"] == schema["anyOf"]
+    assert set(offered["properties"]["plant"]["properties"]) == set(schema["properties"])
     assert "$defs" not in offered
     assert len(str(offered)) < len(str(schema)) / 4
     full = asyncio.run(call(TOOLS.list_plants, {"with_schema": True}))
@@ -131,9 +132,9 @@ def test_without_a_case_the_issues_are_those_of_the_plant(gm, reads, example, pl
     without_case, _ = reads[(example, plant)]
     expected = [issue.problem() for issue in example_plant(example, plant).check()]
     assert without_case["checked_against"] == "plant"
-    assert [
-        {key: issue[key] for key in expected[0]} for issue in without_case["issues"]
-    ] == expected
+    assert [(issue["path"], issue["code"]) for issue in without_case["issues"]] == [
+        (item["path"], item["code"]) for item in expected
+    ]
 
 
 @pytest.mark.parametrize("example", ["hackathon_2026", "shallow_district"])
@@ -170,15 +171,7 @@ async def test_a_class_name_reads_as_a_plant_with_its_missing_values(gm):
     assert result.output["plant"] == plant.to_dict(structure=True)
     assert result.output["checked_against"] == "plant"
     assert {issue["kind"] for issue in result.output["issues"]} == {"missing"}
-    assert set(result.output["issues"][0]) == {
-        "path",
-        "code",
-        "message",
-        "suggestions",
-        "kind",
-        "quantity",
-        "accepted",
-    }
+    assert set(result.output["issues"][0]) == {"path", "code", "message", "kind", "units"}
 
 
 @pytest.mark.parametrize("example", ["hackathon_2026", "shallow_district"])
@@ -454,3 +447,242 @@ def test_a_file_workspace_project_with_several_plants_needs_a_name(tmp_path):
         workspace_plant(context, "read_plant")
     plant = workspace_plant(context, "read_plant", "HeatingPlant")
     assert plant.to_dict()["type"] == "HeatingPlant"
+
+
+async def test_a_plant_is_built_step_by_step_with_small_patches(gm):
+    """A class plant starts small; a patch fills one module's values and only the rest is listed."""
+    session = StubSession()
+    start = {
+        "name": "p0",
+        "plant": {"format": 1, "kind": "plant", "name": "p", "type": "HeatingPlant"},
+    }
+    first = (await call(TOOLS.build_plant, start, session)).output
+    missing = {issue["path"] for issue in first["issues"]}
+    assert "params.d0.drainage_radius" in missing
+    patch = {"params": {"d0": {"drainage_radius": {"value": 500, "unit": "m"}}}}
+    step = {"design": "design/p0", "changes": patch, "name": "p1"}
+    second = (await call(TOOLS.patch_plant, step, session)).output
+    assert second["design"] == "design/p1"
+    still = {issue["path"] for issue in second["issues"]}
+    assert "params.d0.drainage_radius" not in still and still < missing
+    assert second["missing"] == len(still)
+
+
+async def test_a_patch_gemini_refuses_stores_nothing(gm):
+    """A wrong key comes back as gemini's error; the earlier design stays as it was."""
+    session = StubSession()
+    start = {
+        "name": "p0",
+        "plant": {"format": 1, "kind": "plant", "name": "p", "type": "HeatingPlant"},
+    }
+    await call(TOOLS.build_plant, start, session)
+    step = {
+        "design": "design/p0",
+        "changes": {"params": {"d0": {"nope": {"value": 1}}}},
+        "name": "p1",
+    }
+    result = await call(TOOLS.patch_plant, step, session)
+    assert result.is_error and "design/p1" not in session.artifacts
+
+
+async def test_designs_patched_side_by_side_are_merged_on_their_base(gm):
+    """Two engineers patch different modules from one base; the merge holds both changes."""
+    session = StubSession()
+    start = {
+        "name": "base",
+        "plant": {"format": 1, "kind": "plant", "name": "p", "type": "HeatingPlant"},
+    }
+    await call(TOOLS.build_plant, start, session)
+    radius = {"params": {"d0": {"drainage_radius": {"value": 500, "unit": "m"}}}}
+    roughness = {"params": {"d0": {"roughness": {"value": 0.0001, "unit": "m"}}}}
+    for name, patch in (("a", radius), ("b", roughness)):
+        step = {"design": "design/base", "changes": patch, "name": name}
+        await call(TOOLS.patch_plant, step, session)
+    merged = {"base": "design/base", "designs": ["design/a", "design/b"], "name": "m"}
+    output = (await call(TOOLS.merge_designs, merged, session)).output
+    params = session.artifacts["design/m"]["params"]["d0"]
+    assert output["design"] == "design/m"
+    assert params["drainage_radius"]["value"] == 500 and params["roughness"]["value"] == 0.0001
+    still = {issue["path"] for issue in output["issues"]}
+    assert "params.d0.drainage_radius" not in still and "params.d0.roughness" not in still
+
+
+async def test_two_designs_setting_one_value_differently_are_a_conflict(gm):
+    """Nothing is stored and the error names the path and both designs."""
+    session = StubSession()
+    start = {
+        "name": "base",
+        "plant": {"format": 1, "kind": "plant", "name": "p", "type": "HeatingPlant"},
+    }
+    await call(TOOLS.build_plant, start, session)
+    for name, radius in (("a", 500), ("b", 600)):
+        patch = {"params": {"d0": {"drainage_radius": {"value": radius, "unit": "m"}}}}
+        step = {"design": "design/base", "changes": patch, "name": name}
+        await call(TOOLS.patch_plant, step, session)
+    merged = {"base": "design/base", "designs": ["design/a", "design/b"], "name": "m"}
+    result = await call(TOOLS.merge_designs, merged, session)
+    assert result.is_error and "design/m" not in session.artifacts
+    assert "params.d0.drainage_radius.value" in result.output["error"]["message"]
+    assert "design/a" in result.output["error"]["message"]
+
+
+def test_a_merge_patch_of_two_plant_files_holds_only_what_differs():
+    """Changed leaves, added keys and removed keys; a list is one value."""
+    from geomind.tools.gemini.plants import leaf_changes, plant_difference
+
+    base = {"a": {"b": 1, "c": 2}, "d": [1], "e": 3}
+    other = {"a": {"b": 1, "c": 5}, "d": [1, 2], "f": 4}
+    patch = plant_difference(base, other)
+    assert patch == {"a": {"c": 5}, "d": [1, 2], "e": None, "f": 4}
+    assert leaf_changes(patch) == {"a.c": 5, "d": [1, 2], "e": None, "f": 4}
+
+
+async def test_a_stream_mismatch_reaches_the_agent_with_both_ends_and_suggestions(gm):
+    """A connection gemini 0.6 refuses, electricity into a brine inlet, names both ends."""
+    plant = json.loads((ROOT / "evals/projects/hackathon/plants/HackathonPlant.json").read_text())
+    wrong = next(item for item in plant["connections"] if item["target"] == "degasser.fluid_in")
+    wrong["source"] = "grid.power_out"
+    result = await call(TOOLS.build_plant, {"plant": plant, "name": "wrong"}, StubSession())
+    error = result.output["error"]
+    assert result.is_error and error["code"] == "stream_mismatch"
+    assert "grid.power_out" in error["message"] and "degasser.fluid_in" in error["message"]
+    assert error["suggestions"] and len(json.dumps(error)) < 1500
+
+
+async def test_a_format_given_as_text_is_read_as_its_number(gm):
+    """#57: the design lead sent ``"format": "1"`` four times and was told the header was old."""
+    plant = {"format": "1", "kind": "plant", "name": "p", "type": "HeatingPlant"}
+    result = await call(TOOLS.build_plant, {"plant": plant, "name": "p0"}, StubSession())
+    assert not result.is_error and result.output["design"] == "design/p0"
+
+
+async def test_a_superstructure_goes_through_build_plant_as_gemini_stores_it(gm):
+    """``optional`` and ``choices`` are keys of the plant file; they are kept when stored."""
+    plant = json.loads((ROOT / "evals/projects/hackathon/plants/HackathonPlant.json").read_text())
+    plant["optional"] = ["boiler"]
+    session = StubSession()
+    result = await call(TOOLS.build_plant, {"plant": plant, "name": "super"}, session)
+    assert not result.is_error, result.output
+    assert session.artifacts["design/super"]["optional"] == ["boiler"]
+
+
+async def test_an_engineer_s_parameters_written_in_modules_are_patched(gm):
+    """The run's reservoir engineer wrote ``modules.d0``: it is ``params.d0``, stored by gemini."""
+    from geomind.context import ProblemState
+
+    class Reservoir:
+        discipline = "reservoir"
+
+    session = StubSession()
+    session.agent = Reservoir()
+    start = {
+        "name": "p0",
+        "plant": {"format": 1, "kind": "plant", "name": "p", "type": "HeatingPlant"},
+    }
+    await call(TOOLS.build_plant, start, session)
+    patch = {"modules": {"d0": {"drainage_radius": {"value": 500, "unit": "m"}}}}
+    step = {"design": "design/p0", "changes": patch, "name": "p1"}
+    result = await call(TOOLS.patch_plant, step, session, problem=ProblemState())
+    assert not result.is_error, result.output
+    assert session.artifacts["design/p1"]["params"]["d0"]["drainage_radius"]["value"] == 500
+
+
+STORAGE_MODULES = {"thermal_storage": {"type": "ThermalStorage"}}
+STORAGE_CONNECTIONS = [
+    {"source": "heat_pump.sink_out", "target": "thermal_storage.charge_in"},
+    {"source": "thermal_storage.charge_out", "target": "peak_boiler.fluid_in"},
+    {"source": "heating_return_pipe.fluid_out", "target": "thermal_storage.discharge_in"},
+    {"source": "thermal_storage.discharge_out", "target": "heat_exchanger.cold_in"},
+    {"source": "atmosphere.air_out", "target": "thermal_storage.air_in"},
+    {"source": "thermal_storage.loss_out", "target": "atmosphere.heat_in"},
+]
+"""What the process engineer's free plant that built (seq 3504, run 4ca94d6e) adds to its class."""
+STORAGE_OPTIONAL = ["heat_pump", "compression_chiller", "peak_boiler", "thermal_storage"]
+
+
+async def test_a_class_plant_with_a_module_its_class_lacks_names_from_class():
+    """#143: ``optional[3]: module = 'thermal_storage'; expected a module of the plant``."""
+    data = plant_dict("hackathon_2026", "HeatingHeatPumpCoolingPlant")
+    data = {**data, "optional": STORAGE_OPTIONAL}
+    built = await call(TOOLS.build_plant, {"plant": data, "name": "p"}, StubSession())
+    error = built.output["error"]
+    assert built.is_error and error["path"] == "from_class"
+    assert "expected a module of the plant" in error["message"]
+    assert "thermal_storage is no module of the class HeatingHeatPumpCoolingPlant" in (
+        error["message"]
+    )
+    assert "from_class='HeatingHeatPumpCoolingPlant'" in error["message"]
+
+
+async def test_from_class_adds_an_optional_module_with_its_connections(gm):
+    """The run's added module, connections and optional build on the class; nothing retyped."""
+    session = StubSession()
+    plant = {
+        "format": 1,
+        "kind": "plant",
+        "name": "geothermal_hc_2027",
+        "modules": STORAGE_MODULES,
+        "connections": STORAGE_CONNECTIONS,
+        "optional": STORAGE_OPTIONAL,
+    }
+    tool_input = {"plant": plant, "name": "p", "from_class": "HeatingHeatPumpCoolingPlant"}
+    built = await call(TOOLS.build_plant, tool_input, session)
+    assert built.output["design"] == "design/p", built.output
+    stored = session.artifacts["design/p"]
+    assert "type" not in stored and stored["optional"] == STORAGE_OPTIONAL
+    connections = stored["connections"]
+    assert all(item in connections for item in STORAGE_CONNECTIONS)
+    replaced = {"source": "heat_pump.sink_out", "target": "peak_boiler.fluid_in"}
+    assert replaced not in connections
+    kept = {"source": "atmosphere.air_out", "target": "compression_cooler.air_in"}
+    assert kept in connections
+
+
+COOLING_BRANCH = [
+    "compression_chiller",
+    "compression_cooler",
+    "cooling_consumer",
+    "cooling_supply_pipe",
+    "cooling_return_pipe",
+]
+"""The cooling branch of ``HeatingHeatPumpCoolingPlant``: a whole branch can be off in 0.6.2."""
+
+
+async def test_a_superstructure_turns_the_peak_boiler_and_the_cooling_branch_on_or_off(gm):
+    """The peak boiler and the cooling branch are choices on or off: four structures (0.6.2).
+
+    The peak boiler goes with its gas makeup and gas grid; a module's bypass is the plant's
+    ``bypass``.
+    """
+    session = StubSession()
+    plant = {
+        "format": 1,
+        "kind": "plant",
+        "name": "super",
+        "choices": {
+            "boiler": {"on": ["peak_boiler", "gas_makeup", "gas_grid"], "off": []},
+            "cooling": {"on": COOLING_BRANCH, "off": []},
+        },
+        "bypass": {"gas_makeup": {"gas_in": "excess_out"}},
+    }
+    tool_input = {"plant": plant, "name": "s", "from_class": "HeatingHeatPumpCoolingPlant"}
+    built = await call(TOOLS.build_plant, tool_input, session)
+    assert built.output["design"] == "design/s", built.output
+    stored = session.artifacts["design/s"]
+    assert stored["choices"] == plant["choices"] and stored["bypass"] == plant["bypass"]
+    structures = gm.Plant.from_dict(stored).structures()
+    assert {"boiler": "off", "cooling": "off"} in structures and len(structures) == 4
+
+
+async def test_from_class_with_an_unconnected_added_port_is_gemini_s_error():
+    """A port of the added module left out is named by gemini; an unknown class is refused."""
+    plant = {"format": 1, "kind": "plant", "name": "x", "modules": STORAGE_MODULES}
+    tool_input = {"plant": plant, "name": "p", "from_class": "HeatingHeatPumpCoolingPlant"}
+    built = await call(TOOLS.build_plant, tool_input, StubSession())
+    assert built.output["error"]["code"] == "unconnected_port"
+    assert built.output["error"]["path"].startswith("thermal_storage.")
+    unknown = await call(
+        TOOLS.build_plant, {**tool_input, "from_class": "HeatingPlnt"}, StubSession()
+    )
+    assert unknown.output["error"]["path"] == "from_class"
+    assert "did you mean 'HeatingPlant'" in unknown.output["error"]["message"]

@@ -161,10 +161,13 @@ def test_slot_takes_only_its_type():
         Wrong()
 
 
-def test_model_settings_and_default():
-    """The default model comes from the runtime."""
-    with runtime.settings(default_model="x/y"):
-        assert Model().resolved_name() == "x/y"
+def test_a_model_comes_from_its_role_setting_with_no_default():
+    """A role's setting names its model; with none set there is no model to fall back to."""
+    with runtime.settings(designlead_model="x/y"):
+        assert Model(setting="designlead_model").resolved_name() == "x/y"
+    with runtime.settings(designlead_model=None):
+        assert Model(setting="designlead_model").resolved_name() is None
+    assert Model().resolved_name() is None
     assert Model("a", max_tokens=5).settings() == {"temperature": 0, "max_tokens": 5}
 
 
@@ -221,12 +224,19 @@ async def test_rule_based_forward_needs_no_model():
 
 def test_a_shipped_agent_is_found_by_name():
     """Skeletons too, so each can be tried as soon as it is filled."""
-    assert type(agents.named("analyst")) is agents.Analyst
-    assert type(agents.named("code_assistant")) is agents.CodeAssistant
-    assert type(agents.named("verifier")) is agents.Verifier
+    assert type(agents.named("analysis_lead")) is agents.AnalysisLead
+    assert type(agents.named("case_lead")) is agents.CaseLead
+    assert type(agents.named("design_lead")) is agents.DesignLead
+    assert type(agents.named("reviewer")) is agents.Reviewer
 
 
 def test_an_unknown_agent_name_gets_a_close_match():
     """A typo in ``--agent`` says what was meant."""
-    with pytest.raises(UnknownNameError, match="did you mean 'analyst'"):
+    with pytest.raises(UnknownNameError, match="did you mean 'analysis_lead'"):
         agents.named("analist")
+
+
+def test_an_empty_text_is_no_answer():
+    """#46: the energy engineer ended with ''; the model is asked for its answer instead."""
+    with pytest.raises(OutputError, match="expected the answer as text"):
+        Output().validate("  ")

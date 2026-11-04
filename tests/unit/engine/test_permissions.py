@@ -159,7 +159,7 @@ async def test_hooks_come_first():
 async def test_restricted_modes_run_no_write_or_execute_tool(mode, tmp_path):
     """Both modes hold end to end, and the model reads why."""
     script = [
-        uses(call("save_note", "a", text="x"), call("run_python", "b", code="print(1)")),
+        uses(call("save_note", "a", text="x"), call("run_code", "b", code="print(1)")),
         says("understood"),
     ]
     result, _, events = await run(script, permissions=Permissions(mode=mode))

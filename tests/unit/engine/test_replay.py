@@ -25,6 +25,7 @@ from tests.fixtures.runs import (
     lookup,
     run,
     says,
+    stopped_at_limit,
     uses,
 )
 
@@ -708,6 +709,7 @@ async def test_a_step_limit_replays():
     """A run that hit its step limit ends there again, with the same partial answer."""
     script = [uses(call("lookup", "c1", key="k")), uses(call("lookup", "c2", key="j"))]
     result, engine, _ = await run(script, max_steps=1)
+    result = await stopped_at_limit(engine, result)
     assert result.stop_reason == "step_limit"
     replayed = await Engine.replay(engine.store, result.run_id)
     assert ended(replayed) == ended(result)
@@ -720,3 +722,127 @@ async def test_an_answered_question_replays():
     resumed = await engine.resume(result.run_id, result.request.id, {"text": "5 MW"})
     replayed = await Engine.replay(engine.store, result.run_id)
     assert replayed.answer == resumed.answer
+
+
+class Searcher(Agent):
+    """Searches the project's documents and asks the user."""
+
+    def __init__(self):
+        """Declare the tools."""
+        super().__init__()
+
+        # Tools
+        from geomind.tools import ask_user, finish, search_rag
+
+        self.search_rag = search_rag
+        self.ask_user = ask_user
+        self.finish = finish
+
+        # Model
+        self.model = Model("fake/model")
+
+
+async def test_a_resumed_run_with_a_search_made_again_replays():
+    """#131: a resumed run whose search_rag notes "already searched" replays, every time.
+
+    ``geomind replay`` of the resumed end-to-end run failed on that note; it now follows the run's
+    conversation, which a resume and a replay rebuild.
+    """
+    from geomind.stores import MemoryWorkspace
+
+    documents = {"p1": [{"id": "a", "title": "Air", "text": "the site air pressure"}]}
+    completions = [
+        uses(call("search_rag", query="site air pressure")),
+        uses(call("ask_user", question="Is there an air pressure?")),
+        uses(
+            call("search_rag", "c1", query="site.air.pressure atmospheric pressure site"),
+            call("search_rag", "c2", query="atmospheric pressure air pressure site"),
+            call("search_rag", "c3", query="pressure air site"),
+        ),
+        says("unknown"),
+    ]
+    engine = engine_for(completions, workspace=MemoryWorkspace(documents=documents))
+    start = context(project="p1")
+    paused = await engine.run(Searcher(), start)
+    resumed = await engine.resume(start.run_id, paused.request.id, {"text": "unknown"})
+    notes = [
+        item.output.get("note", "")
+        for item in engine.store.load_events(start.run_id)
+        if isinstance(item, ToolRecorded) and item.tool == "search_rag"
+    ]
+    assert ["already searched" in note for note in notes] == [False, False, True, True]
+    for _ in range(3):
+        replayed = await Engine.replay(
+            engine.store, start.run_id, workspace=MemoryWorkspace(documents=documents)
+        )
+        assert replayed.answer == resumed.answer == "unknown"
+
+
+def test_a_replay_reads_the_recorded_index_without_what_it_makes_again():
+    """The recorded ``results.index`` is the one of the end; a listing at a step is not.
+
+    NOTE: a replay of ``challenge2/colder_reservoir`` listed at step 7 a result the run made
+    later, so its ``unknown_name`` message differed from the recorded one.
+    """
+    from geomind.engine.replay import _ReplayStore
+
+    original = MemoryRunStore()
+    original.save_chat_artifact("chat", "results.index", {"references": ["result/a", "result/b"]})
+    original.save_chat_artifact("chat", "studies.index", {"studies": [{"study": "study/s"}]})
+    original.save_chat_artifact("chat", "result/b", {"kept": True})
+    store = _ReplayStore(original, "run", "chat", frozenset({"result/b", "study/s"}))
+    assert store.load_chat_artifact("chat", "results.index") == {"references": ["result/a"]}
+    assert store.load_chat_artifact("chat", "studies.index") == {"studies": []}
+    assert store.load_chat_artifact("chat", "result/b") == {"kept": True}
+    store.save_chat_artifact("chat", "results.index", {"references": ["result/a", "result/b"]})
+    assert store.load_chat_artifact("chat", "results.index")["references"][-1] == "result/b"
+
+
+def test_the_references_a_tool_output_holds_are_found_at_any_depth():
+    """A reference is a whole string ``<kind>/<name>``; other text is not one."""
+    from geomind.tools.gemini.references import references_in
+
+    output = {"result": "result/3f9a", "runs": [{"design": "design/d1"}], "note": "see result/x"}
+    assert references_in(output) == {"result/3f9a", "design/d1"}
+
+
+@pytest.mark.parametrize(
+    ("versions", "named"),
+    [
+        ({}, "an unrecorded version \\(0\\.3\\.0\\)"),
+        ({"geomind": "0.4.22.dev6"}, "0\\.4\\.22\\.dev6"),
+    ],
+)
+async def test_a_log_before_the_case_lead_that_differs_says_it_cannot_be_re_run(versions, named):
+    """A log older than the case lead is read, not re-run: the error says so and keeps the cause."""
+    result, engine, events = await run([uses(call("lookup", key="k")), says("end")])
+    engine.store.events[result.run_id] = [
+        (
+            e.model_copy(update={"versions": versions})
+            if isinstance(e, RunStarted)
+            else e.model_copy(update={"answer": "other"}) if isinstance(e, RunFinished) else e
+        )
+        for e in events
+    ]
+    message = (
+        rf"recorded by geomind {named} before the case lead \(0\.4\.22\.dev7\); it can be read, "
+        r"shown and exported, but not re-run \(first difference: replay: run .*'other'"
+    )
+    with pytest.raises(ReplayError, match=message):
+        await Engine.replay(engine.store, result.run_id)
+
+
+@pytest.mark.parametrize("version", ["0.4.22.dev7", "0.4.22.dev63", "0.4.22", "0.5.0"])
+async def test_a_log_since_the_case_lead_that_differs_keeps_its_own_message(version):
+    """From the case lead on, a difference is the plain mismatch."""
+    result, engine, events = await run([says("end")])
+    engine.store.events[result.run_id] = [
+        (
+            e.model_copy(update={"versions": {"geomind": version}})
+            if isinstance(e, RunStarted)
+            else e.model_copy(update={"answer": "other"}) if isinstance(e, RunFinished) else e
+        )
+        for e in events
+    ]
+    with pytest.raises(ReplayError, match=r"^replay: run .*recorded answer 'other'"):
+        await Engine.replay(engine.store, result.run_id)
