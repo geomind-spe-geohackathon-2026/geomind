@@ -10,7 +10,8 @@ from geomind.providers import FakeLLM
 from geomind.stores.run import FileRunStore, MemoryRunStore
 from tests.fixtures.runs import EXECUTED, Worker, call, context, of_type, says, uses
 
-VOLATILE = {"run", "duration"}
+VOLATILE = {"run", "duration", "session"}
+"""Fields that differ between two runs: ids (``session`` is the run id) and times."""
 
 
 class Killed(BaseException):
@@ -48,6 +49,11 @@ def public_view(events):
         if not event.is_public or event.type == "request":
             continue
         data = {key: value for key, value in event.data().items() if key not in VOLATILE}
+        if "sessions" in data:
+            data["sessions"] = [
+                {key: value for key, value in item.items() if key not in ("session", "parent")}
+                for item in data["sessions"]
+            ]
         view.append((event.type, data))
     return view
 

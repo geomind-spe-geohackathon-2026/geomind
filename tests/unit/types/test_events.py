@@ -28,11 +28,43 @@ from geomind.types.events import (
     event_from_dict,
     events_from_dicts,
 )
+from geomind.types.results import (
+    AgentUsage,
+    CallContext,
+    SessionContext,
+    SessionUsage,
+    TotalUsage,
+)
 from tests.fixtures import ROOT
 
 BASE = {"run_id": "r1", "sequence": 7, "time": "2026-10-30T00:00:00+00:00", "agent": "a.b"}
 USAGE = Usage(input_tokens=1, output_tokens=2, cost=0.5)
 USAGE_JSON = {"input_tokens": 1, "output_tokens": 2, "cost": 0.5}
+CALL_USAGE_JSON = {**USAGE_JSON, "cached_tokens": 0}
+CONTEXT = CallContext(used=9, window=100, remaining=91)
+SESSION = SessionUsage(
+    session="r1",
+    agent="a.b",
+    model="a/b",
+    steps=1,
+    tool_calls=2,
+    usage=USAGE,
+    context=SessionContext(peak_used=9, last_used=9, window=100),
+)
+SESSION_JSON = {
+    "session": "r1",
+    "agent": "a.b",
+    "parent": None,
+    "model": "a/b",
+    "steps": 1,
+    "tool_calls": 2,
+    "usage": CALL_USAGE_JSON,
+    "context": {"peak_used": 9, "last_used": 9, "window": 100},
+}
+AGENT_USAGE = AgentUsage(agent="a.b", sessions=1, steps=1, tool_calls=2, usage=USAGE)
+AGENT_JSON = {"agent": "a.b", "sessions": 1, "steps": 1, "tool_calls": 2, "usage": CALL_USAGE_JSON}
+TOTAL = TotalUsage(input_tokens=1, output_tokens=2, cost=0.5, steps=1, tool_calls=2)
+TOTAL_JSON = {**CALL_USAGE_JSON, "steps": 1, "tool_calls": 2}
 REQUEST = Request(id="q1", kind="approval", message="ok?", call_id="c1")
 OPTIONS = ({"value": "yes", "label": "Yes"},)
 QUESTION = Request(id="q1", kind="question", message="ok?", options=OPTIONS, call_id="c1")
@@ -53,6 +85,10 @@ ADD = {"op": "add", "path": "/requirements/-", "value": {"id": "R3", "text": "Co
 PUBLIC_EVENTS = [
     (RunStarted(**BASE, **STARTED), {"run": "r1", "loop": "tool"}),
     (StepStarted(**BASE, index=1, model="a/b"), {"index": 1, "model": "a/b"}),
+    (
+        StepStarted(**BASE, index=1, model="a/b", session="r1", context_window=100),
+        {"index": 1, "model": "a/b", "session": "r1", "context_window": 100},
+    ),
     (TextDelta(**BASE, index=1, text="hi"), {"index": 1, "text": "hi"}),
     (
         ToolStarted(**BASE, index=1, call_id="c1", tool="t", input={"x": 1}),
@@ -68,7 +104,16 @@ PUBLIC_EVENTS = [
     ),
     (
         StepFinished(**BASE, index=1, usage=USAGE, text="hi"),
-        {"index": 1, "usage": USAGE_JSON, "text": "hi"},
+        {"index": 1, "usage": CALL_USAGE_JSON, "text": "hi"},
+    ),
+    (
+        StepFinished(**BASE, index=1, usage=USAGE, text="", context=CONTEXT),
+        {
+            "index": 1,
+            "usage": CALL_USAGE_JSON,
+            "text": "",
+            "context": {"used": 9, "window": 100, "remaining": 91},
+        },
     ),
     (StateChanged(**BASE, version=4, changes=(ADD,)), {"version": 4, "changes": [ADD]}),
     (StudyRecorded(**BASE, **STUDY), STUDY_DATA),
@@ -102,6 +147,23 @@ PUBLIC_EVENTS = [
     (
         RunFinished(**BASE, status="failed", stop_reason="denied", message="m"),
         {"status": "failed", "stop_reason": "denied", "message": "m"},
+    ),
+    (
+        RunFinished(
+            **BASE,
+            status="done",
+            stop_reason="answer",
+            sessions=[SESSION],
+            agents=[AGENT_USAGE],
+            total=TOTAL,
+        ),
+        {
+            "status": "done",
+            "stop_reason": "answer",
+            "sessions": [SESSION_JSON],
+            "agents": [AGENT_JSON],
+            "total": TOTAL_JSON,
+        },
     ),
 ]
 INTERNAL_EVENTS = [
@@ -155,7 +217,11 @@ def test_public_types_are_the_ten_of_the_contract_and_the_study_event():
 
 
 SHARED_CONTRACT = ROOT / "tests" / "fixtures" / "contracts" / "shared.md"
-"""A copy of the shared contract, ``backend/docs/app-build/contracts.md`` version 52."""
+"""A copy of the shared contract, ``backend/docs/app-build/contracts.md`` version 52.
+
+NOTE: its rows of ``step.started``, ``step.finished`` and ``run.finished`` carry the optional
+per-agent usage fields of geomind 0.4.24, agreed with the backend before its next version.
+"""
 
 
 def test_contract_table_lists_the_same_types():

@@ -100,13 +100,18 @@ def test_a_routed_loop_that_is_not_built_counts_its_route(monkeypatch):
 
 
 def test_the_export_totals_equal_the_usage():
-    """``show --format md`` totals, by agent and by step, are ``RunResult.usage``."""
+    """``show --format md`` totals, by agent, session and step, are ``RunResult.usage``."""
     store = MemoryRunStore()
     result = gd.Run(message="hello", llm=FakeLLM([route(), says("answer")]), store=store).start()
     text = render_export(store.load_events(result.run_id))
     usage = result.usage
     counts = f"| 2 | {usage.input_tokens} | 0 | {usage.output_tokens} | {round(usage.cost, 6)} |"
-    assert text.count(f"| Total {counts}") == 2
+    assert text.count(f"| Total {counts}") == 3
+    assert (result.total.input_tokens, result.total.output_tokens) == (
+        usage.input_tokens,
+        usage.output_tokens,
+    )
+    assert [s.agent for s in result.sessions] == ["coordinator", "analysis_lead"]
     assert f"| coordinator | 1 | {ROUTING.input_tokens} |" in text
 
 

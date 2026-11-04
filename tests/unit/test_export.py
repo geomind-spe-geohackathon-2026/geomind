@@ -109,6 +109,26 @@ def test_prompts_come_once_in_the_appendix_and_tables_follow():
     assert text.rstrip().endswith("4 LLM calls, 220 in (120 cached), 50 out, cost 1.02.")
 
 
+def test_the_session_table_holds_each_run_of_an_agent_with_its_own_calls():
+    """Two delegations of one agent are two session rows; the lead's row holds its calls only."""
+    completions = [
+        uses(call("helper", "d1", task="find x"), usage=CACHED),
+        says("x is 4"),
+        uses(call("helper", "d2", task="find y")),
+        says("y is 5"),
+        says("The answer is 9.", usage=CACHED),
+    ]
+    engine = engine_for(completions)
+    start = context("What is x plus y?")
+    asyncio.run(engine.run(Lead(), start))
+    text = render_export(engine.store.load_events(start.run_id))
+    table = text.split("## Tokens by session")[1].split("## Tokens by step")[0]
+    assert "| 1 lead | 3 | 210 | 120 | 45 | 1.01 |" in table
+    assert "| 2 lead.helper_agent | 1 | 10 | 0 | 5 | 0.01 |" in table
+    assert "| 3 lead.helper_agent | 1 | 10 | 0 | 5 | 0.01 |" in table
+    assert "| Total | 5 | 230 | 120 | 55 | 1.03 |" in table
+
+
 def test_the_export_of_a_replayed_run_equals_the_original(monkeypatch):
     """A replay logs the same calls, so its export is the same text."""
     stores = []

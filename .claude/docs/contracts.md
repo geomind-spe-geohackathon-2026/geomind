@@ -15,6 +15,7 @@ path below exists.
 | `id: <sequence>`, one number per root run | `geomind/engine/log.py` | `tests/unit/engine/test_log.py` |
 | The internal events, `error` included | `geomind/types/events.py` | `tests/unit/types/test_events.py` |
 | `model` on `step.started` | `geomind/engine/step.py` | `tests/unit/engine/test_engine.py` |
+| Per-agent usage (0.4.24, additions): `step.started.session`, `context_window`; `step.finished.usage` per call with `cached_tokens`, `context {used, window, remaining}`; root `run.finished` and `RunResult` `sessions`, `agents`, `total` (each call once, = last `usage` event = `RunResult.usage`); see [events.md](events.md) | `geomind/engine/step.py`, `geomind/engine/engine.py`, `geomind/stores/usage.py`, `geomind/types/results.py` | `tests/unit/engine/test_usage_per_session.py`, `tests/unit/types/test_events.py` |
 | `options` as `[{value, label}]` | `geomind/types/decisions.py` | `tests/unit/types/test_decisions.py` |
 | `ask_user` normalises `options` | `geomind/tools/builtins.py` | `tests/unit/tools/test_builtins.py` |
 | Answers to options | `geomind/types/decisions.py` | `tests/unit/types/test_decisions.py` |

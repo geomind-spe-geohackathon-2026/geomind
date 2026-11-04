@@ -154,11 +154,16 @@ def _row(name, usages):
 
 
 def _tables(calls):
-    """Return the token tables by agent and by step, each with the total."""
-    by_agent, by_step = {}, {}
+    """Return the token tables by agent, by session and by step, each with the total.
+
+    A session is one run of one agent, its own calls only: an agent delegated to twice has two,
+    numbered in the order they first called, as the export names no run id.
+    """
+    by_agent, by_session, by_step = {}, {}, {}
     for call in calls:
         usage = call.completion.usage
         by_agent.setdefault(call.agent, []).append(usage)
+        by_session.setdefault((call.run_id, call.agent), []).append(usage)
         by_step.setdefault((call.run_id, call.index, call.agent), []).append(usage)
     every = [call.completion.usage for call in calls]
     separator = "|---|---|---|---|---|---|"
@@ -168,6 +173,16 @@ def _tables(calls):
         f"| Agent | {COUNTS} |",
         separator,
         *(_row(agent, usages) for agent, usages in by_agent.items()),
+        _row("Total", every),
+        "",
+        "## Tokens by session",
+        "",
+        f"| Session | {COUNTS} |",
+        separator,
+        *(
+            _row(f"{number} {agent}", usages)
+            for number, ((_, agent), usages) in enumerate(by_session.items(), 1)
+        ),
         _row("Total", every),
         "",
         "## Tokens by step",

@@ -197,6 +197,45 @@
     },
     "RunResult": {
       "$defs": {
+        "AgentUsage": {
+          "additionalProperties": false,
+          "description": "The sessions of one agent path added up: ``sessions`` counts them.",
+          "properties": {
+            "agent": {
+              "title": "Agent",
+              "type": "string"
+            },
+            "sessions": {
+              "title": "Sessions",
+              "type": "integer"
+            },
+            "steps": {
+              "default": 0,
+              "title": "Steps",
+              "type": "integer"
+            },
+            "tool_calls": {
+              "default": 0,
+              "title": "Tool Calls",
+              "type": "integer"
+            },
+            "usage": {
+              "$ref": "#/$defs/Usage",
+              "default": {
+                "cached_tokens": 0,
+                "cost": 0.0,
+                "input_tokens": 0,
+                "output_tokens": 0
+              }
+            }
+          },
+          "required": [
+            "agent",
+            "sessions"
+          ],
+          "title": "AgentUsage",
+          "type": "object"
+        },
         "Option": {
           "additionalProperties": false,
           "description": "One fixed choice of a question: ``value`` is the answer, ``label`` what the user reads.",
@@ -273,6 +312,150 @@
           "title": "Request",
           "type": "object"
         },
+        "SessionContext": {
+          "additionalProperties": false,
+          "description": "The context of one session: the largest and the last input of its own model calls.",
+          "properties": {
+            "last_used": {
+              "title": "Last Used",
+              "type": "integer"
+            },
+            "peak_used": {
+              "title": "Peak Used",
+              "type": "integer"
+            },
+            "window": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Window"
+            }
+          },
+          "required": [
+            "peak_used",
+            "last_used"
+          ],
+          "title": "SessionContext",
+          "type": "object"
+        },
+        "SessionUsage": {
+          "additionalProperties": false,
+          "description": "What one session (one run of one agent, ``session`` = its run id) spent on its own calls.\n\n``usage`` holds this session's model calls only, never those of its nested runs; ``steps``\nand ``tool_calls`` count its steps and its tools started. ``context`` is ``None`` for a\nsession that made no model call (an agent that decides by rule).",
+          "properties": {
+            "agent": {
+              "title": "Agent",
+              "type": "string"
+            },
+            "context": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SessionContext"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "model": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Model"
+            },
+            "parent": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Parent"
+            },
+            "session": {
+              "title": "Session",
+              "type": "string"
+            },
+            "steps": {
+              "default": 0,
+              "title": "Steps",
+              "type": "integer"
+            },
+            "tool_calls": {
+              "default": 0,
+              "title": "Tool Calls",
+              "type": "integer"
+            },
+            "usage": {
+              "$ref": "#/$defs/Usage",
+              "default": {
+                "cached_tokens": 0,
+                "cost": 0.0,
+                "input_tokens": 0,
+                "output_tokens": 0
+              }
+            }
+          },
+          "required": [
+            "session",
+            "agent"
+          ],
+          "title": "SessionUsage",
+          "type": "object"
+        },
+        "TotalUsage": {
+          "additionalProperties": false,
+          "description": "The sum of every session of a run tree, each model call counted once.",
+          "properties": {
+            "cached_tokens": {
+              "default": 0,
+              "title": "Cached Tokens",
+              "type": "integer"
+            },
+            "cost": {
+              "default": 0.0,
+              "title": "Cost",
+              "type": "number"
+            },
+            "input_tokens": {
+              "default": 0,
+              "title": "Input Tokens",
+              "type": "integer"
+            },
+            "output_tokens": {
+              "default": 0,
+              "title": "Output Tokens",
+              "type": "integer"
+            },
+            "steps": {
+              "default": 0,
+              "title": "Steps",
+              "type": "integer"
+            },
+            "tool_calls": {
+              "default": 0,
+              "title": "Tool Calls",
+              "type": "integer"
+            }
+          },
+          "title": "TotalUsage",
+          "type": "object"
+        },
         "Usage": {
           "additionalProperties": false,
           "description": "Tokens and cost; ``a + b`` adds them up.\n\n``cached_tokens`` are the input tokens read from the provider's prompt cache, part of\n``input_tokens``.",
@@ -303,8 +486,23 @@
         }
       },
       "additionalProperties": false,
-      "description": "How a run ended, or that it waits for an answer to ``request``.\n\n``message`` says why a run stopped without an answer; a crash keeps its text in the log only.\n``suggestions`` are the next steps, ``[{label, message}]``, the same list as the run's\n``run.finished`` event: a root run that ended ``done`` has one to three, any other run none.",
+      "description": "How a run ended, or that it waits for an answer to ``request``.\n\n``message`` says why a run stopped without an answer; a crash keeps its text in the log only.\n``suggestions`` are the next steps, ``[{label, message}]``, the same list as the run's\n``run.finished`` event: a root run that ended ``done`` has one to three, any other run none.\n``sessions``, ``agents`` and ``total`` are those of the root run's ``run.finished``, ``None``\nfor a nested run and a run that waits; ``usage`` stays and equals ``total``.",
       "properties": {
+        "agents": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/AgentUsage"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agents"
+        },
         "answer": {
           "default": null,
           "title": "Answer"
@@ -335,6 +533,21 @@
         "run_id": {
           "title": "Run Id",
           "type": "string"
+        },
+        "sessions": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/SessionUsage"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sessions"
         },
         "status": {
           "title": "Status",
@@ -374,6 +587,17 @@
           ],
           "default": null,
           "title": "Suggestions"
+        },
+        "total": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TotalUsage"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "usage": {
           "$ref": "#/$defs/Usage",
@@ -582,10 +806,13 @@
       "run.finished": {
         "class": "RunFinished",
         "data": [
+          "agents",
           "message",
+          "sessions",
           "status",
           "stop_reason",
-          "suggestions"
+          "suggestions",
+          "total"
         ],
         "is_public": true
       },
@@ -608,6 +835,7 @@
       "step.finished": {
         "class": "StepFinished",
         "data": [
+          "context",
           "index",
           "text",
           "usage"
@@ -617,8 +845,10 @@
       "step.started": {
         "class": "StepStarted",
         "data": [
+          "context_window",
           "index",
-          "model"
+          "model",
+          "session"
         ],
         "is_public": true
       },

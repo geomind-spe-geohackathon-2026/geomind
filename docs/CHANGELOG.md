@@ -18,6 +18,7 @@ geomind 0.4.24 (on gemini 0.6.4) uses more of gemini 0.6.2 and 0.6.3 (evolve's s
 - New error code `memory_unavailable` (a memory store that fails); with the memory off no memory tool or memory text reaches any agent.
 - `read_rag` takes `rows` (`{column: [prefix, ...]}`); a table still over 20,000 characters after `rows` and `columns` gives its outline and a note, never its text.
 - MCP servers may be plain dicts `{name, url, transport, headers}`, as `Workspace.mcp`'s contract names them, besides `gd.mcp.Server`.
+- Per-agent usage (additions only, below): `step.started` `session`, `context_window`; `step.finished` `usage` per call with `cached_tokens`, `context`; root `run.finished` and `RunResult` `sessions`, `agents`, `total`.
 
 ### Data
 
@@ -87,6 +88,40 @@ run tree before; the audit found none and tests now pin it.
   `--max-tokens` now say; no token cap acts as a context window.
 - Tests: `GEOMIND_CONTEXT_WINDOW` of the test settings is the test model's real window (1,048,576,
   was 128,000); the long-chat test sets its own window.
+
+### Per-agent usage (contract addition)
+
+**Contract changes for the backend** (`.tmp/handoff/usage-contract.md`; all fields optional,
+nothing removed or renamed; a log before 0.4.24 has none of them and still loads, exports and
+replays, and the frontend shows "n/a"). A session is one run of one agent (`session` = `run_id`):
+the root run, one nested run per delegation, the routing run.
+
+- `step.started` gains `session` (its run id) and `context_window` (the model's window for this
+  agent, `null` when unknown or for a rule agent).
+- `step.finished.usage` is this step's own model call (with a compaction summary made in the step),
+  never a nested run's or a running total; it was the step plus its nested runs before. Its JSON
+  now shows `cached_tokens` (part of `input_tokens`). New `context`: `{used, window, remaining}`,
+  `used` = this call's input tokens, `remaining` = `window - used` (`null` without a window);
+  absent for a step with no provider call.
+- The root run's `run.finished` gains `sessions` (`{session, agent, parent, model, steps,
+  tool_calls, usage, context: {peak_used, last_used, window}}`, own calls only), `agents` (the
+  sessions grouped by agent: `{agent, sessions, steps, tool_calls, usage}`) and `total`
+  (`{input_tokens, output_tokens, cached_tokens, cost, steps, tool_calls}`); nested runs have none.
+  Each model call counts once: the sum of `sessions` = `total` = the last `usage` event =
+  `RunResult.usage`. When a step ended the run before sending its `usage` (a crash, a cancel), one
+  more `usage` event comes before `run.finished`.
+- `RunResult` gains `sessions`, `agents` and `total`, the same as the root `run.finished`; `None`
+  for a nested run and a run that waits. `usage` stays.
+- The `usage` event and `runlog`'s usage are unchanged.
+- `geomind.stores.usage.usage_report(events)` makes the three from a stored log; the export has a
+  "Tokens by session" table. The test copy of the shared contract
+  (`tests/fixtures/contracts/shared.md`) has the new optional fields in its three rows, ahead of
+  the backend's next version.
+- Tests: `tests/unit/engine/test_usage_per_session.py` (a lead delegating one agent twice: own
+  calls per session, no double count, two sessions grouped, a second session starting from its own
+  messages, per-call `step.finished.usage`, a log without the fields and the 0.4.22 log replay),
+  `test_events.py`, `test_delegate.py` (the step's usage is its own call now), `test_export.py`,
+  `test_usage.py` (the routing run is a session; three export totals).
 
 ### More of gemini 0.6.2 and 0.6.3 (0.4.24.dev1)
 

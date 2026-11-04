@@ -11,7 +11,7 @@ from geomind.context.history import replace_older
 from geomind.engine.state import PendingAction, RunState, Succeeded
 from geomind.errors import RunError
 from geomind.tools.stored import is_stored_form, outline, stored_form
-from geomind.types import Action, Message, Usage
+from geomind.types import RULE_MODEL, Action, Message, Usage
 from geomind.types.events import LLM_EVENTS
 from geomind.utils.imports import import_class
 from geomind.utils.json import to_jsonable
@@ -42,6 +42,9 @@ def _step_started(state, event):
     state.in_step = True
     state.is_refused = False
     state.step_usage = Usage()
+    state.call_usage = Usage()
+    state.call_input_tokens = None
+    state.context_window = event.context_window
 
 
 def _llm_completed(state, event):
@@ -56,7 +59,10 @@ def _llm_completed(state, event):
     state.calls = list(completion.tool_calls)
     state.usage += completion.usage
     state.step_usage += completion.usage
+    state.call_usage += completion.usage
     state.last_input_tokens = completion.usage.input_tokens
+    if completion.model != RULE_MODEL:
+        state.call_input_tokens = completion.usage.input_tokens
     state.allowed = [name for name in state.allowed if name != "llm"]
 
 
@@ -66,6 +72,7 @@ def _compaction(state, event):
     state.messages = replace_older(state.messages, summary, event.turns)
     state.usage += event.completion.usage
     state.step_usage += event.completion.usage
+    state.call_usage += event.completion.usage
     state.last_input_tokens = 0
     earlier = state.problem.compaction.turns if state.problem.compaction else 0
     compaction = Compaction(summary=summary, turns=earlier + event.turns)
@@ -256,6 +263,13 @@ def _run_finished(state, event):
     state.answer = event.answer
 
 
+def _usage(state, event):
+    """Remember the running total the run last sent."""
+    state.reported_usage = Usage(
+        input_tokens=event.input_tokens, output_tokens=event.output_tokens, cost=event.cost
+    )
+
+
 _HANDLERS = {
     "run.started": _run_started,
     "step.started": _step_started,
@@ -267,6 +281,7 @@ _HANDLERS = {
     "request": _request,
     "state.changed": _state_changed,
     "step.finished": _step_finished,
+    "usage": _usage,
     "run.finished": _run_finished,
 }
 
