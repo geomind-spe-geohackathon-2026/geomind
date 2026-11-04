@@ -27,7 +27,11 @@
   `knowledge_dir` (`GEOMIND_KNOWLEDGE_DIR`) is the command line's knowledge base folder, required
   for a run with a project; a backend gives its knowledge through the workspace instead. The
   `evolve_*` settings (`GEOMIND_EVOLVE_EVALUATIONS`, `_POPULATION`, `_SEED`, `_POLISH`) are
-  `evolve_structure`'s, required for a live run. Unset is
+  `evolve_structure`'s, required for a live run. So are its two stops, gemini's
+  `evolve(stop=...)`: `evolve_stop_generations` (`GEOMIND_EVOLVE_STOP_GENERATIONS`, the
+  generations in a row with no new design on the feasible front) and `evolve_stop_seconds`
+  (`GEOMIND_EVOLVE_STOP_SECONDS`, a time limit); each is a number or `off`, and both `off` spend
+  the whole budget. Unset is
   `None`, with no fallback: there is no `GEOMIND_MODEL`, `GEOMIND_CHEAP_MODEL` or
   `default_model` since 0.4.22, and no model id is built in. `geomind run --model ID` sets every
   role's model.

@@ -18,7 +18,7 @@ Each tool's description says its arguments.
 - `read_plant`: a stored design and what is still missing.
 - `list_modules`: gemini's modules.
 - `describe_module`: one module's parameters; every module's ports are below.
-- `patch_plant`: change the connections, inlets, outlets, fluids and boundaries.
+- `patch_plant`: change the connections, inlets, outlets, fluids, boundaries and `bypass`.
 - `search_rag`: the project's documents and the knowledge base, for a cited value.
 - `finish`: hand the connected design to the design lead.
 

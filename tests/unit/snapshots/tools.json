@@ -1770,6 +1770,37 @@
       ],
       "name": "size_plant"
     },
+    "union_designs": {
+      "description": "Join alternative designs into one superstructure by gemini, stored as design/<name>.",
+      "effect": "write",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "designs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Designs",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "designs",
+          "name"
+        ],
+        "title": "union_designs_input",
+        "type": "object"
+      },
+      "late_schemas": [
+        "designs"
+      ],
+      "name": "union_designs"
+    },
     "update_state": {
       "description": "Change the problem state with JSON Patch operations (add, replace, remove).",
       "effect": "write",
@@ -1843,5 +1874,5 @@
       "name": "write_lesson"
     }
   },
-  "version": "0.4.23"
+  "version": "0.4.24.dev1"
 }

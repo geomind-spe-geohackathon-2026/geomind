@@ -11,6 +11,7 @@ TOOLS = [
     "energy_systems_engineer",
     "fill_parts",
     "merge_designs",
+    "union_designs",
     "read_case",
     "list_plants",
     "read_plant",
@@ -159,6 +160,13 @@ def test_a_superstructure_is_searched_with_the_case_s_objectives():
     text = DesignLead().prompt.content
     assert "`evolve_structure` on the merged design" in text
     assert "never ones you choose" in text
+
+
+def test_it_quotes_why_the_structure_search_stopped():
+    """The search's ``stopped``, ``why``, ``explanation`` and ``table`` are quoted, not computed."""
+    text = " ".join(DesignLead().prompt.content.split())
+    assert "quoting `stopped` and `why`" in text
+    assert "`explanation` and `table`, as gemini gives them, never computed" in text
 
 
 def test_a_handed_design_it_checks_is_recorded_as_the_final_design():

@@ -64,9 +64,10 @@ Do and don't (from earlier runs):
 - An equipment value no file gives (an efficiency, a fraction) is your assumption with a reason,
   named as one.
 - The case's economics may price a kind by another size: a heat exchanger per W of
-  nominal duty, a thermal or ice storage per MWh stored. gemini then asks for the module's
-  `nominal_duty` or `energy_capacity` (`missing_value`): give it from gemini's sizing or a
-  module evaluation, never by hand.
+  nominal duty, a thermal or ice storage per MWh stored (an ice storage per cubic metre by its
+  `volume`), a pipe per MW and metre. gemini then asks for the module's `nominal_duty`,
+  `energy_capacity`, `volume` or a pipe's `nominal_capacity` (`missing_value`): give it from
+  gemini's sizing or a module evaluation, never by hand.
 - Patch only the paths `design.owners` gives `energy`, all in one call; read gemini's issues
   after it.
 - A value that couples to the subsurface (the source temperature, the brine return) goes to the

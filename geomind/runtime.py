@@ -72,6 +72,8 @@ ADDED_SETTINGS = frozenset(
         "evolve_population",
         "evolve_seed",
         "evolve_polish",
+        "evolve_stop_generations",
+        "evolve_stop_seconds",
         "knowledge_dir",
         "mcp_servers",
         "mcp_timeout",
@@ -99,6 +101,8 @@ RETRY_SETTINGS = {
     "evolve_population": "GEOMIND_EVOLVE_POPULATION",
     "evolve_seed": "GEOMIND_EVOLVE_SEED",
     "evolve_polish": "GEOMIND_EVOLVE_POLISH",
+    "evolve_stop_generations": "GEOMIND_EVOLVE_STOP_GENERATIONS",
+    "evolve_stop_seconds": "GEOMIND_EVOLVE_STOP_SECONDS",
 }
 """The settings a live run needs beside its models, by the environment variable that sets each.
 
@@ -121,6 +125,18 @@ def _integer(name):
     """Return an environment variable as an integer, or ``None`` when unset."""
     text = os.environ.get(name)
     return int(text) if text else None
+
+
+OFF = "off"
+"""The value of a setting that turns its part off, where no number is wanted (an evolve stop)."""
+
+
+def _number_or_off(name, kind):
+    """Return an environment variable as ``kind``, ``"off"`` as itself, or ``None`` when unset."""
+    text = os.environ.get(name, "").strip()
+    if not text:
+        return None
+    return OFF if text.lower() == OFF else kind(text)
 
 
 def model_variable(role):
@@ -162,6 +178,8 @@ def _defaults():
         "evolve_population": _integer("GEOMIND_EVOLVE_POPULATION"),
         "evolve_seed": _integer("GEOMIND_EVOLVE_SEED"),
         "evolve_polish": _integer("GEOMIND_EVOLVE_POLISH"),
+        "evolve_stop_generations": _number_or_off("GEOMIND_EVOLVE_STOP_GENERATIONS", int),
+        "evolve_stop_seconds": _number_or_off("GEOMIND_EVOLVE_STOP_SECONDS", float),
         "knowledge_dir": os.environ.get("GEOMIND_KNOWLEDGE_DIR") or None,
         "mcp_servers": os.environ.get("GEOMIND_MCP_SERVERS") or None,
         "mcp_timeout": _number("GEOMIND_MCP_TIMEOUT"),

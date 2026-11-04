@@ -88,3 +88,29 @@ def test_the_pipe_rows_per_mw_and_metre_are_usable():
     rows = {row["id"]: row for row in csv.DictReader(catalogue)}
     row = rows["pipe-dea-2025-transmission-0-50mw"]
     assert (row["path"], row["unit_2015"]) == ("economics.capex.pipe", "EUR/MW/m")
+
+
+def test_the_rows_gemini_0_6_2_takes_as_their_source_states_them():
+    """The fixed O&M per MW and year, and the SDE++ full-load hours as ``subsidy.cap``.
+
+    gemini 0.6.2 takes ``opex.fixed.<kind>`` per MW and year for a kind sized by a power, so the
+    boiler, electric boiler and CHP rows give the source amount, not a share of an assumed capex,
+    and PBL's 6000 full-load hours are the subsidy's ``cap`` in h/yr.
+    """
+    import csv
+
+    catalogue = (ROOT / "data" / "knowledge" / "cost-sources.csv").open()
+    rows = {row["id"]: row for row in csv.DictReader(catalogue)}
+    for row, amount in (
+        ("opex-boiler-gas-dea-2018", "1950"),
+        ("opex-boiler-electric-dea-2017", "1070"),
+        ("opex-chp-gas-engine-dea-2018", "9750"),
+    ):
+        assert (rows[row]["value_2015"], rows[row]["unit_2015"]) == (amount, "EUR/MW/yr")
+    cap = rows["sde-full-load-hours-geothermal-pbl-2026-over-20mw"]
+    assert (cap["path"], cap["value_2015"], cap["unit_2015"]) == (
+        "economics.revenue.subsidy.cap",
+        "6000",
+        "h/yr",
+    )
+    assert "6.000" in cap["quote"] and cap["status"] == "verified"

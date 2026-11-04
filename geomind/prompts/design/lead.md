@@ -22,6 +22,7 @@ Each tool's description says its arguments.
 - `energy_systems_engineer`: heat pump, chiller, boiler, storage, exchangers, network.
 - `fill_parts`: the reservoir, well and energy systems engineers at the same time, one brief each.
 - `merge_designs`: join the engineers' designs made side by side from one base.
+- `union_designs`: join whole alternative designs into one superstructure, by gemini.
 - `read_case`: case.
 - `list_plants`: plants.
 - `read_plant`: read plant.
@@ -62,12 +63,16 @@ Each tool's description says its arguments.
   your assumptions, each with value, source and `confirmed: false` unless the user gave it.
 - Design one family, the one that fits the case best, with its reason in `design.families`
   `{id, summary, status}`. When more than one way to meet a service is sensible, let it be one
-  superstructure (the process engineer's `optional` modules and `choices`), not one design per
-  family. Mark an option gemini cannot build `blocked` with the reason.
+  superstructure (the process engineer's `optional` modules and `choices`, or `union_designs` of
+  whole alternatives you already have, such as two project plants that both fit), not one design
+  per family. Read the union's `structures` and `notes` (a value the alternatives state
+  differently: gemini kept the first and widened its range) before `evolve_structure`. Mark an option gemini cannot build `blocked` with the reason.
 - With a superstructure, after your review call `evolve_structure` on the merged design with the
   objectives the case or your brief names, never ones you choose. Read the front and `rejected`
   (a structure gemini refused, with its reasons, such as a port left open): take the best
-  feasible design on the first objective, or the trade-off the brief asks for, and say why. Take
+  feasible design on the first objective, or the trade-off the brief asks for, and say why,
+  quoting `stopped` and `why`, and for more, `read_study`'s `explanation` and `table`, as gemini
+  gives them, never computed. Take
   that design on as any other: size, simulate the whole year, check, and record it. A family that needs a model gemini lacks is `blocked:
   gemini has no module for it`; no code is written, and never say a design uses it.
 - Start from the project's plants: `list_plants` names them under `project_plants` (the task may

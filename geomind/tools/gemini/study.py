@@ -374,16 +374,54 @@ EVOLVE_SETTINGS = {
     "polish": "evolve_polish",
 }
 """The settings of ``evolve_structure`` by gemini's argument, each required, with no default."""
+STOP_SETTINGS = {
+    "generations": "evolve_stop_generations",
+    "seconds": "evolve_stop_seconds",
+}
+"""The settings of gemini's ``evolve(stop=...)`` by its key, each required: a number or ``off``."""
+STOPPED = {
+    "budget": "it ran the {evaluations} simulations of GEOMIND_EVOLVE_EVALUATIONS",
+    "stalled": "no new candidate was left to simulate for several generations in a row",
+    "converged": (
+        "the feasible front did not change for {generations} generations in a row "
+        "(GEOMIND_EVOLVE_STOP_GENERATIONS)"
+    ),
+    "seconds": "it reached the time limit of {seconds} s (GEOMIND_EVOLVE_STOP_SECONDS)",
+}
+"""Why gemini's search stopped, by its ``budget.stopped``, in words the model can quote."""
+
+
+def setting_name(setting):
+    """Return the environment variable of a runtime setting."""
+    return f"GEOMIND_{setting.upper()}"
 
 
 def evolve_settings():
-    """Return gemini's ``evolve`` settings from the runtime; an unset one is refused by name."""
-    found = {argument: runtime.get(setting) for argument, setting in EVOLVE_SETTINGS.items()}
-    missing = [EVOLVE_SETTINGS[argument] for argument, value in found.items() if value is None]
+    """Return gemini's ``evolve`` settings from the runtime; an unset one is refused by name.
+
+    ``stop`` is gemini's ``{"generations", "seconds"}`` without the keys set ``off``, ``None``
+    when both are: the search then spends its budget.
+    """
+    names = {**EVOLVE_SETTINGS, **STOP_SETTINGS}
+    found = {argument: runtime.get(setting) for argument, setting in names.items()}
+    missing = [names[argument] for argument, value in found.items() if value is None]
     if missing:
-        names = ", ".join(f"GEOMIND_{name.upper()}" for name in missing)
-        raise ToolError(f"evolve_structure: {names} not set; expected each", code="not_allowed")
-    return found
+        listed = ", ".join(setting_name(name) for name in missing)
+        raise ToolError(
+            f"evolve_structure: {listed} not set; expected each (a stop setting takes off)",
+            code="not_allowed",
+        )
+    stop = {key: found.pop(key) for key in STOP_SETTINGS}
+    stop = {key: value for key, value in stop.items() if value != runtime.OFF}
+    return {**found, "stop": stop or None}
+
+
+def stop_reason(stopped, settings):
+    """Return why the search stopped, from gemini's ``budget.stopped`` and the settings."""
+    text = STOPPED.get(stopped)
+    if text is None:
+        return f"gemini says {stopped}"
+    return text.format(evaluations=settings["evaluations"], **(settings["stop"] or {}))
 
 
 def evolve_design(plant, case, objectives, settings):
@@ -398,7 +436,19 @@ def evolve_design(plant, case, objectives, settings):
         settings["seed"],
         population=settings["population"],
         polish=settings["polish"],
+        stop=settings["stop"],
     )
+
+
+def front_table(frame):
+    """Return gemini's ``to_frame()`` of a front compactly: ``{columns, rows}``, NaN as null."""
+    import math
+
+    rows = [
+        [None if isinstance(value, float) and math.isnan(value) else value for value in row]
+        for row in frame.itertuples(index=False, name=None)
+    ]
+    return {"columns": [str(column) for column in frame.columns], "rows": to_plain(rows)}
 
 
 def front_entry(design, reference):
@@ -408,10 +458,17 @@ def front_entry(design, reference):
     return {"design": reference, **kept}
 
 
-def evolved(data):
-    """Return gemini's plain form of an evolution, as a study keeps it: no plants."""
+def evolved(found):
+    """Return gemini's plain form of an evolution, as a study keeps it: no plants.
+
+    It carries gemini's own words and table of the search, ``explanation`` (``explain()``) and
+    ``table`` (``to_frame()``, the front in display units), for the lead and the explainer to
+    quote.
+    """
+    data = found.to_dict()
     front = [without_plant(item) for item in data["front"]]
-    return {**data, "front": front, "best": without_plant(data["best"])}
+    kept = {**data, "front": front, "best": without_plant(data["best"])}
+    return kept | {"explanation": found.explain(), "table": front_table(found.to_frame())}
 
 
 def without_plant(item):
@@ -430,13 +487,16 @@ async def evolve_structure(context, design: str, objectives: list[str], name: st
 
     ``design`` holds optional modules (``optional``) and choice groups (``choices``) with their
     ranges; ``objectives`` are the metrics the case or the brief names to minimise (a leading
-    ``-`` maximises), never ones you choose. The evaluations, population, seed and polish are
-    settings, not yours. Each design of the front (none beats it on every objective) is stored
-    as ``design/<name>_<n>``; the answer lists each with its ``structure``, ``metrics``,
-    ``feasible`` and ``reason``, then ``best`` (on the first objective), the ``evaluations``
-    run, the ``invalid`` candidates refused, each structure gemini refused before any simulation
-    with its reasons (``rejected``: a port a bypass leaves open, say), why the search stopped
-    and the ``study`` key. Take the chosen design on as any other: size, simulate, check.
+    ``-`` maximises), never ones you choose. The evaluations, population, seed, polish and when
+    to stop early are settings, not yours. Each design of the front (none beats it on every
+    objective) is stored as ``design/<name>_<n>``; the answer lists each with its ``structure``,
+    ``metrics``, ``feasible`` and ``reason``, then ``best`` (on the first objective), the
+    ``evaluations`` run, the ``invalid`` candidates refused, each structure gemini refused before
+    any simulation with its reasons (``rejected``: a port a bypass leaves open, say), ``stopped``
+    (gemini's ``budget``, ``stalled``, ``converged`` or ``seconds``) with ``why`` in words, and
+    the ``study`` key. ``read_study`` of it gives gemini's ``explanation`` of the search and its
+    ``table`` of the front: quote them, never compute from them. Take the chosen design on as any
+    other: size, simulate, check.
     """
     settings = evolve_settings()
     study_settings = {"method": "evolve", "objectives": objectives, **settings}
@@ -456,8 +516,8 @@ async def evolve_structure(context, design: str, objectives: list[str], name: st
         None,
     )
     recommended = best if found["best"]["feasible"] else None
-    data = found.to_dict()
-    recorded = (study.to_dict(), evolved(data))
+    kept = await runtime.in_gemini_thread(evolved, found)
+    recorded = (study.to_dict(), kept)
     key = await save_study(
         context, name, "evolve_structure", recorded, ([design], wrote), recommended, case
     )
@@ -468,8 +528,9 @@ async def evolve_structure(context, design: str, objectives: list[str], name: st
         "invalid": found["invalid"],
         "rejected": [
             {"structure": item["structure"], "reasons": item["reasons"]}
-            for item in data["rejected"]
+            for item in kept["rejected"]
         ],
-        "stopped": data["budget"]["stopped"],
+        "stopped": kept["budget"]["stopped"],
+        "why": stop_reason(kept["budget"]["stopped"], settings),
         "study": key,
     }

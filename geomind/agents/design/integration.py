@@ -9,7 +9,7 @@ from geomind.prompts import Prompt
 class IntegrationEngineer(Agent):
     """Connect the chosen modules into one plant: ports, streams and boundaries, the flow diagram.
 
-    NOTE: it owns the connections, inlets, outlets, fluids and boundaries. ``patch_plant``
+    NOTE: it owns the connections, inlets, outlets, fluids, boundaries and bypass. ``patch_plant``
     refuses a change to a part another discipline owns (``design.owners``). It asks nobody: what
     it cannot settle goes back to the design lead.
     """

@@ -89,6 +89,17 @@ def test_an_owner_named_with_params_in_front_is_found():
     check_ownership(context_of("reservoir", owners), patch, "patch_plant")
 
 
+def test_the_bypass_is_the_integration_engineer_s():
+    """The plant's ``bypass`` (gemini 0.6.2) is wiring: the integration engineer sets it.
+
+    It belonged to no discipline, so the integration engineer's patch of it was refused.
+    """
+    changes = {"bypass": {"boiler": {"fluid_in": "fluid_out"}, "gas_grid": {}}}
+    assert foreign_changes(changes, "integration", OWNERS) == []
+    assert foreign_changes(changes, "energy", OWNERS) == [("bypass", "integration")]
+    check_ownership(context_of("integration"), changes, "patch_plant")
+
+
 def test_the_superstructure_is_the_process_engineer_s():
     """``optional`` and ``choices`` belong to the process engineer, like the modules."""
     changes = {"optional": ["boiler"], "choices": {"cold": {"a": [], "b": []}}}

@@ -64,3 +64,23 @@ is the case's `utilities.electricity.co2_intensity`. gemini 0.6.3 also prices `c
 MW and metre (request 16), so `pipe-dea-2025-transmission-0-50mw` (EUR/MW/m) is usable; its note
 says so. Still refused: `opex.fixed.pipe` per MW and year (`opex-pipe-dea-2025-distribution`,
 `opex-pipe-dea-2025-transmission`), as the key takes `%/yr` only.
+
+## Rows that gemini 0.6.2's bases fit (2026-11-04, 0.4.24)
+
+- `opex-boiler-gas-dea-2018`, `opex-boiler-electric-dea-2017`, `opex-chp-gas-engine-dea-2018`:
+  `value_2015` is now the source amount, 1950, 1070 and 9750 EUR/MW/yr (2015 prices, no
+  deflation), since `opex.fixed.<kind>` takes EUR/MW/yr for a kind sized by a power (the CHP by
+  its electric capacity). The share of an assumed capex they held before is kept in
+  `conversion`. `opex-thermal-storage-tank-dea-2025` keeps its share: a store is sized by its
+  energy or volume, not by a power.
+- New row `sde-full-load-hours-geothermal-pbl-2026-over-20mw`: `economics.revenue.subsidy.cap`
+  6000 h/yr, from the same PBL table and quote as the basisbedrag row. A cap in h/yr needs
+  `economics.revenue.subsidy.capacity`, the capacity the subsidy is granted for: the project
+  gives it, no row does.
+- `opex.per_energy.<kind>` has one row, `opex-variable-chp-gas-engine-dea-2018`. The notes of
+  the gas and electric boiler rows name a variable O&M (1.1 and 0.9 EUR/MWh) without a quote of
+  their own, so they are no rows yet; no heat pump or chiller row exists. gemini asks a price for
+  every producing kind a plant uses once the map is given, so the case lead sets the map only
+  when it is complete for the plant's kinds.
+- Rows: 134 (62 verified, 53 secondary, 19 placeholder).
+

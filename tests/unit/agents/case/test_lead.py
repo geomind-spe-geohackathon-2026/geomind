@@ -141,6 +141,23 @@ def test_it_chooses_among_the_catalogue_s_rows_by_their_status():
     assert "`EUR/W heat` is `EUR/W`" in text and "never goes in: list it as not usable" in text
 
 
+def test_the_economics_parts_of_gemini_0_6_2_have_their_rules():
+    """``opex.per_energy`` only as a whole map, a cap in hours with its capacity, ice storage.
+
+    gemini 0.6.2 asks a price for every producing kind once ``opex.per_energy`` is given, and a
+    ``subsidy.cap`` in h/yr without ``capacity`` is ``missing_assumption``.
+    """
+    text = " ".join(CaseLead().prompt.content.split())
+    assert "only when a row gives every kind the case's services may need, else all in `open`" in (
+        text
+    )
+    assert "a cap in hours needs `capacity`" in text and "never you" in text
+    assert (
+        "`capex.ice_storage` and `opex.fixed.ice_storage` price an ice store only when given"
+        in (text)
+    )
+
+
 def test_a_refused_full_call_is_sent_again_whole():
     """#69: files alone after a refused full call, the geoscientist after ``already_asked``."""
     text = " ".join(CaseLead().prompt.content.split())

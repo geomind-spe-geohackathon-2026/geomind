@@ -561,10 +561,26 @@ class FakeEvolution(dict):
             "history": [],
             "structures": [],
             "rejected": self.get("rejected", []),
-            "budget": {"stopped": "evaluations"},
+            "budget": {"stopped": self.get("stopped", "budget")},
             "evaluations": self["evaluations"],
             "invalid": self["invalid"],
         }
+
+    def explain(self):
+        """Return gemini's short text of the search."""
+        return "Objectives: lcts."
+
+    def to_frame(self):
+        """Return the front as gemini's table: a column per structure key and metric."""
+        import pandas as pd
+
+        return pd.DataFrame(
+            [
+                {**item["structure"], "lcts [EUR/MWh]": item["metrics"]["lcts"]}
+                | {"feasible": item["feasible"], "reason": item["reason"]}
+                for item in self["front"]
+            ]
+        )
 
 
 def front_of(context, reference):
@@ -611,7 +627,63 @@ async def test_evolve_structure_stores_each_design_of_the_front(monkeypatch):
         "reason": "unmet heat",
     }
     assert calls[0][2] == ["lcts"]
-    assert calls[0][3] == {"evaluations": 40, "population": 8, "seed": 0, "polish": 0}
+    assert calls[0][3] == {
+        "evaluations": 40,
+        "population": 8,
+        "seed": 0,
+        "polish": 0,
+        "stop": {"generations": 5},
+    }
+    assert output["stopped"] == "budget" and "40 simulations" in output["why"]
+
+
+async def test_evolve_structure_keeps_gemini_s_explanation_and_table(monkeypatch):
+    """The stored study carries ``explain()`` and ``to_frame()`` as gemini gives them."""
+    context, reference = await started(SHALLOW)
+    first, second = front_of(context, reference)
+    found = FakeEvolution(front=[first, second], best=first, evaluations=40, invalid=0)
+    monkeypatch.setattr("geomind.tools.gemini.study.evolve_design", lambda *arguments: found)
+    arguments = {"design": reference, "objectives": ["lcts"], "name": "evo"}
+    output = (await run(study.evolve_structure, context, arguments)).output
+    stored = (await run(studies.read_study, context, {"study": output["study"]})).output["result"]
+    assert stored["explanation"] == "Objectives: lcts."
+    assert stored["table"] == {
+        "columns": ["boiler", "lcts [EUR/MWh]", "feasible", "reason"],
+        "rows": [[True, 1.0, True, None], [False, 2.0, False, "unmet heat"]],
+    }
+    json.dumps(stored)
+
+
+@pytest.mark.parametrize(
+    ("generations", "seconds", "stop"),
+    [
+        ("off", "off", None),
+        (3, "off", {"generations": 3}),
+        ("off", 60.0, {"seconds": 60.0}),
+        (3, 60.0, {"generations": 3, "seconds": 60.0}),
+    ],
+)
+def test_the_stop_settings_give_gemini_s_stop(generations, seconds, stop):
+    """Each stop setting is a number or off; both off spend the whole budget (``stop=None``)."""
+    from geomind import runtime
+
+    with runtime.settings(evolve_stop_generations=generations, evolve_stop_seconds=seconds):
+        assert study.evolve_settings()["stop"] == stop
+
+
+@pytest.mark.parametrize(
+    ("stopped", "words"),
+    [
+        ("budget", "40 simulations of GEOMIND_EVOLVE_EVALUATIONS"),
+        ("stalled", "no new candidate"),
+        ("converged", "for 5 generations in a row (GEOMIND_EVOLVE_STOP_GENERATIONS)"),
+        ("seconds", "60.0 s (GEOMIND_EVOLVE_STOP_SECONDS)"),
+    ],
+)
+def test_why_the_search_stopped_is_said_in_words(stopped, words):
+    """``why`` names the setting that ended the search, with its value."""
+    settings = {"evaluations": 40, "stop": {"generations": 5, "seconds": 60.0}}
+    assert words in study.stop_reason(stopped, settings)
 
 
 async def test_evolve_structure_says_which_structures_gemini_refused(monkeypatch):
@@ -623,15 +695,15 @@ async def test_evolve_structure_says_which_structures_gemini_refused(monkeypatch
     monkeypatch.setattr("geomind.tools.gemini.study.evolve_design", lambda *arguments: found)
     arguments = {"design": reference, "objectives": ["lcts"], "name": "evo"}
     output = (await run(study.evolve_structure, context, arguments)).output
-    assert output["rejected"] == [refused] and output["stopped"] == "evaluations"
+    assert output["rejected"] == [refused] and output["stopped"] == "budget"
 
 
 async def test_evolve_structure_needs_its_settings():
-    """The evaluations, population, seed and polish have no default: unset, each is named."""
+    """The evaluations, population, seed, polish and stops have no default: unset, each is named."""
     from geomind import runtime
 
     context, reference = await started(SHALLOW)
-    with runtime.settings(evolve_population=None, evolve_polish=None):
+    with runtime.settings(evolve_population=None, evolve_polish=None, evolve_stop_seconds=None):
         result = await run(
             study.evolve_structure,
             context,
@@ -639,7 +711,7 @@ async def test_evolve_structure_needs_its_settings():
         )
     message = result.output["error"]["message"]
     assert result.is_error and "GEOMIND_EVOLVE_POPULATION" in message
-    assert "GEOMIND_EVOLVE_POLISH" in message
+    assert "GEOMIND_EVOLVE_POLISH" in message and "GEOMIND_EVOLVE_STOP_SECONDS" in message
 
 
 @pytest.mark.slow
@@ -662,3 +734,9 @@ async def test_evolve_structure_runs_gemini_s_search_on_a_superstructure():
         )
     assert not result.is_error, result.output
     assert result.output["front"] and result.output["evaluations"] >= 1
+    assert result.output["stopped"] and result.output["why"]
+    stored = (await run(studies.read_study, context, {"study": result.output["study"]})).output[
+        "result"
+    ]
+    assert stored["explanation"].startswith("Objectives: lcts")
+    assert stored["table"]["rows"] and json.dumps(stored)

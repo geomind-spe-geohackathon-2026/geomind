@@ -110,6 +110,7 @@ geomind has no built-in model: a run on a real provider stops at the start until
 | `GEOMIND_DESIGN_CONCURRENCY` | Required: how many engineers of the design team fill their parts side by side |
 | `GEOMIND_KNOWLEDGE_DIR` | Required for a run with a project: the folder of the knowledge base's documents, such as `data/knowledge` |
 | `GEOMIND_EVOLVE_EVALUATIONS`, `GEOMIND_EVOLVE_POPULATION`, `GEOMIND_EVOLVE_SEED`, `GEOMIND_EVOLVE_POLISH` | Required: the settings of gemini's structure search (`evolve_structure`) |
+| `GEOMIND_EVOLVE_STOP_GENERATIONS`, `GEOMIND_EVOLVE_STOP_SECONDS` | Required: when the structure search ends before its budget, gemini's `stop`: after that many generations with no new design on the feasible front, or after that many seconds; each a number or `off` |
 | `GEOMIND_ENGINEER_MAX_STEPS` | Required: the steps of one engineer's run, at which it hands back what it has instead of asking to go on |
 | `GEOMIND_PROVIDER` | The OpenRouter providers to try |
 | `GEOMIND_CONTEXT_WINDOW` | The context window in tokens; unset, it is read from the provider |

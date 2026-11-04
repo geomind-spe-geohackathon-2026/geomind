@@ -15,6 +15,7 @@ from geomind.tools.gemini.skeleton import trees
 
 GEMINI_TOOLS = (
     "merge_designs",
+    "union_designs",
     "read_case",
     "list_plants",
     "read_plant",

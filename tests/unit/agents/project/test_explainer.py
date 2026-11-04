@@ -29,3 +29,10 @@ def test_it_reads_knowledge_only_for_its_sources():
     tools = Explainer().tools()
     assert "search_rag" in tools
     assert not {"search_memory", "read_memory"} & set(tools)
+
+
+def test_it_quotes_gemini_s_explanation_of_a_structure_search():
+    """An ``evolve_structure`` study's ``explanation`` and ``table`` are quoted, never computed."""
+    text = " ".join(Explainer().prompt.content.split())
+    assert "`explanation`" in text and "`table`" in text
+    assert "Quote them as they are" in text and "never compute" in text
