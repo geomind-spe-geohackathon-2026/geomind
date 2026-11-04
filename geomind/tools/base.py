@@ -181,15 +181,27 @@ def decoded_strings(tool_input, schema):
         wanted = schema_types(properties.get(name, {}))
         if not isinstance(value, str) or not wanted & {"array", "object"}:
             continue
-        try:
-            parsed = json.loads(value)
-        except ValueError:
+        parsed = json_value(value)
+        if parsed is None:
             continue
         if ("array" in wanted and isinstance(parsed, list)) or (
             "object" in wanted and isinstance(parsed, dict)
         ):
             decoded[name] = parsed
     return decoded
+
+
+def json_value(text):
+    """Return the JSON value ``text`` starts with, or ``None``.
+
+    What follows the value may only be closing brackets and spaces: nemotron's JSON text of a
+    list ended with one ``}`` too many (#112). Anything else after it is no JSON value.
+    """
+    try:
+        value, end = json.JSONDecoder().raw_decode(text.strip())
+    except ValueError:
+        return None
+    return value if set(text.strip()[end:]) <= set("}] \n") else None
 
 
 def schema_types(schema):

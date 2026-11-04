@@ -18,7 +18,7 @@ Rounds E1 and E2: the coordinator, the reviewer, the explainer and the project l
 - Fix (#109): the project lead skips the case step when the state holds an accepted case, and stops briefing a team that gave the same unusable answer twice.
 - Fix (#110): the explainer converted plant values (`1500000.0 W/K` written as `1.5 MW/K`): capacities come from `compute_kpis`'s `capacities`, and `read_plant`'s values are quoted in their own units.
 - Fix (#111): the project lead asked the user for a case value with an example number of its own (`e.g. 70`): a case value is the case lead's to ask, and a question offers no value.
-- Fix (#112), behaviour: a tool input that the schema wants as an array or an object and that comes as JSON text of that type (`"[{...}]"`) is decoded before validation (`Tool.validate`, `decoded_strings`). nemotron sent `update_state`'s `changes` so twice, and the run stopped; any other string still fails.
+- Fix (#112), behaviour: a tool input that the schema wants as an array or an object and that comes as JSON text of that type (`"[{...}]"`) is decoded before validation (`Tool.validate`, `decoded_strings`). nemotron sent `update_state`'s `changes` so twice, and the run stopped; once with one `}` too many at the end, which is taken as the value when only closing brackets follow it. Any other string still fails.
 - Evals: an `answer` criterion (`pattern`, `present`) checks an answer's words, such as a route or a verdict.
 
 ### Shared rules for every agent, gemini's module reference, and set_case loads the files the case names (0.4.22.dev47)

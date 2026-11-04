@@ -134,6 +134,8 @@ def test_a_list_sent_as_json_text_is_the_list():
 
     changes = [{"op": "add", "path": "/goal", "value": "a plant"}]
     assert update_state.validate({"changes": json.dumps(changes)}) == {"changes": changes}
+    stray = json.dumps(changes) + "}"
+    assert update_state.validate({"changes": stray}) == {"changes": changes}
 
 
 def test_text_that_is_no_json_of_the_type_still_fails():
@@ -146,3 +148,5 @@ def test_text_that_is_no_json_of_the_type_still_fails():
         update_state.validate({"changes": '{"op": "add"}'})
     with pytest.raises(ValidationError):
         update_state.validate({"changes": "not json"})
+    with pytest.raises(ValidationError):
+        update_state.validate({"changes": '[{"op": "add"}] and more'})
