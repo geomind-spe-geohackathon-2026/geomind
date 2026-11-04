@@ -238,3 +238,12 @@ async def test_a_markup_slip_is_an_error_but_no_validation_failure():
     assert list(result.output["error"]["suggestions"]) == ["a.md"]
     answer = ToolCall(id="c2", name="finish", input={"answer": "Use </br> in HTML."})
     assert isinstance(await dispatch(finish, answer, Context(session=StubSession())), Finish)
+
+
+def test_an_object_sent_as_json_text_is_no_markup():
+    """The markup check of #70 and #75 lets the JSON text of an object through (#67)."""
+    from geomind.tools.dispatch import leaked_markup
+
+    changes = '{"format": 1, "site": {"name": "a"}, "time": {"end": "2025-01-01"}}'
+    assert leaked_markup({"changes": changes}) is None
+    assert leaked_markup({"changes": '{\n  "format": 1\n}'}) is None

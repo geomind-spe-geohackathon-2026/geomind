@@ -6,6 +6,10 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### Model-agnostic tool inputs, A2
+
+- Fix (#67): on `nvidia/nemotron-3.5-super-vl:free` the case lead sent `set_case`'s `changes` as its JSON text (`'{"format": 1, ...}'`), was refused twice and the run ended; `Tool.validate` now reads a string as JSON for a parameter whose schema takes an object or an array and no string, when the text gives that type. Any other string is refused as before; a string parameter keeps its string. Every tool, the hand-made ones too.
+
 ### The support team alone (0.4.22.dev50)
 
 Rounds D0 to D3: the support lead, the summarizer and the curator alone, nine tasks, live (DeepSeek, 0.04 USD; nemotron free); the curator on a scratch memory. Each bug is pinned by a test.
