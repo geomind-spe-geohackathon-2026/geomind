@@ -564,6 +564,18 @@ the list):
     the problem names the flow range from zero to `maximum_flow` where the head or power curve is
     below zero. geomind computes it from `ESP.head_function`/`power_function` meanwhile
     (`runs.curve_ranges` in `geomind/tools/gemini/runs.py`).
+36. (QA-040, open, not sent: for Sahand) `gm.check(plant, case)` does not name `params.backup`
+    (the plant option `none` or `peak`, no default) when a plant lacks it, but sizing and a study
+    stop on it at once: `study_failed: params.backup is missing; expected one of ('none',
+    'peak') (it has no default)`. Asked: `gm.check` lists `params.backup` as `missing` with its
+    path and options, as for any value a run needs. The backend lists it itself meanwhile
+    (backend 1.1.39, `GET /plant/parameters/plant`).
+37. (QA-039, open, not sent: for Sahand) A daily (or coarser) demand series with dates and no
+    offset, read in a zone with daylight saving time (`time_zone: Europe/Amsterdam`), is refused:
+    gemini checks the constant step on UTC instants, so the day of the clock change (23 or 25
+    hours) breaks it. Asked: for a step of one day or more, check the step on the local calendar
+    dates, so each row is one calendar day in the user's zone. geomind's case lead reads such
+    dates as UTC meanwhile and says so in its question.
 
 gemini 0.6.2 (2026-11-04) answers 13 (`Case.from_dict` lists every issue), 14 (`type: array`
 and the list form), 15 (`mol%`), 16 (bases per unit: ice and thermal storage per MWh, heat
@@ -593,6 +605,8 @@ or derived inputs for other packages, so a request of that kind is dropped.
 | 30 | closed, 0.6.3: `Plant.to_dict(units="display")`, used by `read_plant` |
 | 31 | closed, 0.6.3: `°C/km`, `degC/km`; geomind's gradient mapping is gone |
 | 32 | dropped (a derived input): geomind sets the ISA pressure from the site's elevation itself (`air.py`) |
+| 33-35 | open, not sent |
+| 36, 37 | open, not sent (QA-040, QA-039; 2026-11-04 20:50 UTC) |
 
 gemini 0.6.4 (2026-11-04) is a bug fix only: H2S in a gas composition (B3, row 147). None of
 the requests above changes status.
