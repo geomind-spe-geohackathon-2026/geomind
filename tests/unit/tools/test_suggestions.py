@@ -1,4 +1,4 @@
-"""Next-step suggestions: the stage by code, the user's language, the lead's own list checked."""
+"""Next-step suggestions: the stage by code, English only, the lead's own list checked."""
 
 from pathlib import Path
 
@@ -50,14 +50,18 @@ def test_each_stage_gives_its_steps_and_no_case_from_files_without_files():
     ]
 
 
-def test_a_user_who_writes_persian_gets_persian():
-    """Arabic script in the user's last message: the labels are Persian."""
-    items = next_steps(PLANT, [], "هزینه‌ها چقدر است؟")
-    assert items[0]["label"] == "بهینه‌سازی طرح"
-    assert all(len(item["label"]) <= MAX_LABEL for item in items)
+PERSIAN_QUESTION = (
+    "\u0647\u0632\u06cc\u0646\u0647 \u0686\u0642\u062f\u0631 \u0627\u0633\u062a\u061f"
+)
+"""A question in Persian, written escaped: no file holds Persian text (Sahand, 2026-11-04)."""
 
 
-def test_every_step_fits_the_limits_in_both_languages():
+def test_suggestions_are_english_whatever_the_user_writes():
+    """Arabic script in the user's last message: the labels stay English (Sahand, 2026-11-04)."""
+    assert next_steps(PLANT, [], PERSIAN_QUESTION) == next_steps(PLANT, [], "go")
+
+
+def test_every_step_fits_the_limits():
     """Each built-in label and message fits; each stage names known steps."""
     for texts in suggestions.STEPS.values():
         for label, message in texts.values():
@@ -85,12 +89,12 @@ def test_the_lead_may_reword_and_reorder():
         {"step": "optimise", "label": "x" * (MAX_LABEL + 1), "message": "Go."},
         {"step": "optimise", "label": "Go", "message": "x" * (MAX_MESSAGE + 1)},
         {"step": "optimise", "label": "", "message": "Go."},
-        {"step": "optimise", "label": "بهینه‌سازی", "message": "بهینه کن."},
+        {"step": "optimise", "label": "\u0628\u0647\u06cc\u0646\u0647", "message": "Go."},
         "optimise",
     ],
 )
 def test_a_suggestion_that_does_not_fit_falls_back_to_the_stage(item):
-    """An unknown step, a long or empty text, another language: the stage's own list."""
+    """An unknown step, a long or empty text, another script: the stage's own list."""
     assert next_steps(PLANT, [], "go", [item]) == next_steps(PLANT, [], "go")
 
 
@@ -314,8 +318,10 @@ def test_an_incomplete_item_is_finished_first_by_its_label():
     """An incomplete report: finish it, by the label the backend gives."""
     found = labels(project(report={"state": "incomplete", "label": "cost report"}))
     assert found[0] == "Finish the cost report"
-    persian = labels(project(report={"state": "incomplete", "label": "گزارش"}), text="سلام")
-    assert persian[0] == "تکمیل گزارش"
+    persian = labels(
+        project(report={"state": "incomplete", "label": "cost report"}), text=PERSIAN_QUESTION
+    )
+    assert persian[0] == "Finish the cost report"
 
 
 def test_all_done_offers_more_studies():

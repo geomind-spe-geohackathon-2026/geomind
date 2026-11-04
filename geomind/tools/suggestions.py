@@ -1,8 +1,8 @@
 """Next-step suggestions: what the user may do after an answer, chosen by code from the stage.
 
 The stage comes from the problem state: no case, a case without a plant, a plant without a
-result, or a result. Each stage has its steps, each a ``{label, message}`` in the user's
-language: ``label`` is what a button shows, ``message`` what the app sends as the user's next
+result, or a result. Each stage has its steps, each a ``{label, message}`` in English:
+``label`` is what a button shows, ``message`` what the app sends as the user's next
 message. The project lead may reword, reorder or replace one through its ``finish``; code keeps
 only what fits the limits and names a step the app can run, else the stage's own list.
 """
@@ -16,8 +16,9 @@ from geomind.types import Finish
 MAX_SUGGESTIONS = 3
 MAX_LABEL = 40
 MAX_MESSAGE = 200
-PERSIAN = re.compile(r"[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]")
-"""Arabic-script letters: a user who writes them is answered in Persian."""
+ARABIC_SCRIPT = re.compile("[\u0600-\u06ff\u0750-\u077f\ufb50-\ufdff\ufe70-\ufeff]")
+"""Arabic-script letters. Suggestions are English only (Sahand, 2026-11-04): a proposed one in
+another script is refused and the stage's own list is shown."""
 
 STEPS = {
     "case_from_files": {
@@ -25,97 +26,75 @@ STEPS = {
             "Build the case from my files",
             "Set the case of the design from the project's files.",
         ),
-        "fa": ("ساخت کیس از فایل‌ها", "کیس طراحی را از فایل‌های پروژه بساز."),
     },
     "case_by_questions": {
         "en": ("Build the case by questions", "Set the case by asking me for each value it needs."),
-        "fa": ("ساخت کیس با پرسش", "کیس را با پرسیدن هر مقداری که لازم است از من بساز."),
     },
     "files_needed": {
         "en": ("Which files do you need?", "Which files should I add so you can set the case?"),
-        "fa": ("چه فایل‌هایی لازم است؟", "چه فایل‌هایی اضافه کنم تا بتوانی کیس را بسازی؟"),
     },
     "design_plant": {
         "en": ("Design a plant", "Design a plant for this case and check it with gemini."),
-        "fa": ("طراحی نیروگاه", "برای این کیس یک نیروگاه طراحی کن و با gemini بررسی کن."),
     },
     "check_case": {
         "en": (
             "Check the case and its sources",
             "Check the case and list every value that has no source yet.",
         ),
-        "fa": ("بررسی کیس و منابع", "کیس را بررسی کن و هر مقداری که هنوز منبع ندارد را فهرست کن."),
     },
     "compare_options": {
         "en": ("Compare plant options", "Design and compare a few plant options for this case."),
-        "fa": ("مقایسه گزینه‌های نیروگاه", "چند گزینه نیروگاه برای این کیس طراحی و مقایسه کن."),
     },
     "optimise": {
         "en": ("Optimise the design", "Optimise the design and simulate the best one."),
-        "fa": ("بهینه‌سازی طرح", "طرح را بهینه کن و بهترین را شبیه‌سازی کن."),
     },
     "economics": {
         "en": ("Costs and economics", "Estimate the costs and the economics of the design."),
-        "fa": ("هزینه‌ها و اقتصاد", "هزینه‌ها و اقتصاد طرح را برآورد کن."),
     },
     "check_design": {
         "en": ("Check the design", "Check the design against the case's requirements."),
-        "fa": ("بررسی طرح", "طرح را در برابر الزامات کیس بررسی کن."),
     },
     "report": {
         "en": ("Write the report", "Write the report of the design and its results."),
-        "fa": ("نوشتن گزارش", "گزارش طرح و نتایج آن را بنویس."),
     },
     "sensitivity": {
         "en": ("Sensitivity analysis", "Run a sensitivity analysis on the design's main inputs."),
-        "fa": ("تحلیل حساسیت", "تحلیل حساسیت روی ورودی‌های اصلی طرح انجام بده."),
     },
     "explain": {
         "en": ("Explain the results", "Explain the results of the design in plain words."),
-        "fa": ("توضیح نتایج", "نتایج طرح را به زبان ساده توضیح بده."),
     },
     "rerun_study": {
         "en": ("Run the study again", "The case changed after the study: run the study again."),
-        "fa": ("اجرای دوباره مطالعه", "کیس بعد از مطالعه تغییر کرد: مطالعه را دوباره اجرا کن."),
     },
     "wait_study": {
         "en": ("Is the study done?", "Tell me when the running study is done, and what it found."),
-        "fa": ("مطالعه تمام شد؟", "وقتی مطالعه در حال اجرا تمام شد، بگو چه یافت."),
     },
     "uncertainty": {
         "en": (
             "Uncertainty of the results",
             "Run an uncertainty analysis of the design's results.",
         ),
-        "fa": ("عدم قطعیت نتایج", "تحلیل عدم قطعیت نتایج طرح را انجام بده."),
     },
     "structure_search": {
         "en": ("Search other plant layouts", "Search other plant layouts with a structure study."),
-        "fa": (
-            "جست‌وجوی چیدمان‌های دیگر",
-            "با مطالعه ساختار، چیدمان‌های دیگر نیروگاه را جست‌وجو کن.",
-        ),
     },
     "other_objective": {
         "en": (
             "Optimise for CO2 instead",
             "Optimise the design for CO2 instead of cost, and compare.",
         ),
-        "fa": ("بهینه‌سازی برای CO2", "طرح را به جای هزینه برای CO2 بهینه کن و مقایسه کن."),
     },
     "other_case": {
         "en": (
             "Test against another case",
             "Check the design against another case: a colder year or other prices.",
         ),
-        "fa": ("آزمون با کیس دیگر", "طرح را با کیس دیگری بررسی کن: سالی سردتر یا قیمت‌های دیگر."),
     },
     "finish_item": {
         "en": ("Finish the {label}", "Finish the {label}."),
-        "fa": ("تکمیل {label}", "{label} را تکمیل کن."),
     },
 }
-"""Every step the app can run, with its label and message in English and Persian.
+"""Every step the app can run, with its label and message in English.
 
 ``finish_item`` names an incomplete item of the project by its label.
 """
@@ -149,11 +128,6 @@ def stage_of(problem):
     if design.get("result") or _field(problem, "results"):
         return "result"
     return "plant"
-
-
-def language_of(text):
-    """Return ``fa`` for a text in Arabic script, else ``en``."""
-    return "fa" if PERSIAN.search(text or "") else "en"
 
 
 def stage_steps(problem, files):
@@ -209,15 +183,15 @@ def incomplete_label(project):
     return ""
 
 
-def shown(step, language, item=""):
-    """Return one step as ``{label, message}`` in ``language``; ``item`` fills ``{label}``."""
-    label, message = STEPS[step][language]
+def shown(step, item=""):
+    """Return one step as ``{label, message}``; ``item`` fills ``{label}``."""
+    label, message = STEPS[step]["en"]
     label = label.format(label=item)[:MAX_LABEL]
     return {"label": label, "message": message.format(label=item)[:MAX_MESSAGE]}
 
 
-def _fits(item, language):
-    """Tell whether a proposed suggestion has a known step, fits the limits and the language."""
+def _fits(item):
+    """Tell whether a proposed suggestion has a known step, fits the limits and is English."""
     if not isinstance(item, dict) or item.get("step") not in STEPS:
         return False
     label, message = item.get("label"), item.get("message")
@@ -225,17 +199,17 @@ def _fits(item, language):
         return False
     if not 0 < len(label.strip()) <= MAX_LABEL or not 0 < len(message.strip()) <= MAX_MESSAGE:
         return False
-    return (language_of(label + message) == "fa") == (language == "fa")
+    return not ARABIC_SCRIPT.search(label + message)
 
 
-def checked(proposed, steps, language):
+def checked(proposed, steps):
     """Return the proposed suggestions that fit, as ``[(step, item)]``.
 
     A step appears once; at most one step that is not the stage's own replaces one of them.
     """
     kept, seen, foreign = [], set(), 0
     for item in proposed or ():
-        if not _fits(item, language) or item["step"] in seen:
+        if not _fits(item) or item["step"] in seen:
             continue
         if item["step"] not in steps:
             if foreign:
@@ -252,15 +226,15 @@ def next_steps(problem, files, user_text, proposed=None, project=None):
     """Return the suggestions after an answer: the lead's that fit, else the stage's list.
 
     ``project`` is ``Workspace.project_state``'s dict: the stage follows the project then, and
-    the chat's problem state only without one.
+    the chat's problem state only without one. Suggestions are English whatever ``user_text``'s
+    language; the engine still passes it.
     """
-    language = language_of(user_text)
     steps = project_steps(project, files) if project else stage_steps(problem, files)
-    kept = checked(proposed, steps, language)
+    kept = checked(proposed, steps)
     if kept:
         return [item for _, item in kept]
     label = incomplete_label(project) if project else ""
-    return [shown(step, language, label) for step in steps[:MAX_SUGGESTIONS]]
+    return [shown(step, label) for step in steps[:MAX_SUGGESTIONS]]
 
 
 def suggest(problem, files, project=None):
@@ -268,7 +242,7 @@ def suggest(problem, files, project=None):
 
     ``problem`` is a ``ProblemState`` or its dict, ``files`` the names of the project's files,
     ``project`` the project's state (``Workspace.project_state``), which decides the stage when
-    given. The language is that of the chat's goal, when it has one, so English for an empty chat.
+    given.
     """
     goal = _field(problem, "goal") if problem is not None else ""
     state = problem if problem is not None else {"case": None}

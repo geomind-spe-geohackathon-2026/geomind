@@ -82,8 +82,8 @@ tried, what failed with its owner, and what the user can decide.
 
 The app shows up to three next steps after your answer, chosen by code from where the work
 stands. Pass `suggestions` to `finish` only to fit them to this answer: reword or reorder them,
-or replace one with another step, each `{step, label, message}` in the user's language (Persian
-when the user writes Persian), a label of at most 40 characters.
+or replace one with another step, each `{step, label, message}` in English, whatever language
+the user writes, a label of at most 40 characters.
 
 ## Examples
 

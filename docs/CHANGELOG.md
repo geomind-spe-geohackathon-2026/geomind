@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.26] - 2026-11-04
+
+### Contract changes for the backend
+
+- Next-step suggestions are always English. The Persian labels and the choice by the language of the user's last message are gone (Sahand: no file holds Persian text). A suggestion the project lead proposes in Arabic script is refused and the stage's own list is shown.
+
 ## [0.4.25] - 2026-11-04
 
 Fixes production run 86ddac2a: the case lead's `ask_economics` call ran past the 16,000-token output limit three times, arrived as `{}` (`values: Field required`) and the run stopped with a case and no economics.

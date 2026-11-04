@@ -61,9 +61,9 @@ A session starts from its own messages only; nothing is summed across sessions o
 `run.finished`'s `suggestions` are the next steps after an answer (`geomind/tools/suggestions.py`): code
 picks the stage from the project's state when the workspace has `project_state(project_id)`
 (contract v4; see below), else from the chat's problem state (no case; a case without
-`design.reference`; a plant without a result; a result), and its steps, in the language of the user's last message (Persian
-for Arabic script, else English). The project lead may pass its own `{step, label, message}`
-list to `finish`; each must name one of the app's steps, fit the limits and the language, and at
+`design.reference`; a plant without a result; a result), and its steps, always in English
+(since 0.4.26). The project lead may pass its own `{step, label, message}`
+list to `finish`; each must name one of the app's steps, fit the limits and be English, and at
 most one may come from outside the stage, else the stage's list is used. Only a root run that
 ended `done` has them; a nested run, a waiting run and a failed one have none, and so does a log
 before 0.4.22.dev48. `gd.suggest(problem, files, project=None)` gives the same list for an empty
