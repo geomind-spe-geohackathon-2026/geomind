@@ -638,6 +638,42 @@ async def test_from_class_adds_an_optional_module_with_its_connections(gm):
     assert kept in connections
 
 
+COOLING_BRANCH = [
+    "compression_chiller",
+    "compression_cooler",
+    "cooling_consumer",
+    "cooling_supply_pipe",
+    "cooling_return_pipe",
+]
+"""The cooling branch of ``HeatingHeatPumpCoolingPlant``: a whole branch can be off in 0.6.2."""
+
+
+async def test_a_superstructure_turns_the_peak_boiler_and_the_cooling_branch_on_or_off(gm):
+    """The peak boiler and the cooling branch are choices on or off: four structures (0.6.2).
+
+    The peak boiler goes with its gas makeup and gas grid; a module's bypass is the plant's
+    ``bypass``.
+    """
+    session = StubSession()
+    plant = {
+        "format": 1,
+        "kind": "plant",
+        "name": "super",
+        "choices": {
+            "boiler": {"on": ["peak_boiler", "gas_makeup", "gas_grid"], "off": []},
+            "cooling": {"on": COOLING_BRANCH, "off": []},
+        },
+        "bypass": {"gas_makeup": {"gas_in": "excess_out"}},
+    }
+    tool_input = {"plant": plant, "name": "s", "from_class": "HeatingHeatPumpCoolingPlant"}
+    built = await call(TOOLS.build_plant, tool_input, session)
+    assert built.output["design"] == "design/s", built.output
+    stored = session.artifacts["design/s"]
+    assert stored["choices"] == plant["choices"] and stored["bypass"] == plant["bypass"]
+    structures = gm.Plant.from_dict(stored).structures()
+    assert {"boiler": "off", "cooling": "off"} in structures and len(structures) == 4
+
+
 async def test_from_class_with_an_unconnected_added_port_is_gemini_s_error():
     """A port of the added module left out is named by gemini; an unknown class is refused."""
     plant = {"format": 1, "kind": "plant", "name": "x", "modules": STORAGE_MODULES}

@@ -35,7 +35,10 @@ Workflow (few calls, short answers):
 
 - Read the case, the plant and each module once: their results stay in the conversation for several turns. `read_profile`'s `summary` has the peak, the mean and the energy; a stored result is read by its `path` with `read_stored`, never whole again.
 - In a superstructure, wire every option as if it were on: each `optional` module and each group
-  of a `choices`; gemini bypasses an option that is off.
+  of a `choices`; gemini bypasses an option that is off by its class's bypass. Where that is
+  not the path a stream should take when the module is off (an optional splitter or mixer), give
+  it in the plant's `bypass` `{module: {inlet: outlet}}`; `{}` removes the module with its
+  connections. A structure that leaves a port open is refused (`evolve_structure`'s `rejected`).
 - Every module's ports are in the module ports below; a port is `<role>_in` or `<role>_out`,
   and no port is left open.
 - Connect each stream so it is physically sensible: brine from the production well through the

@@ -101,7 +101,9 @@ async def test_a_wrong_unit_gets_the_accepted_units_and_that_field_corrected():
     error = (await call(set_case, tool_input, session_with_files(), "p")).output["error"]
     assert error["code"] == "invalid_unit"
     assert "time.step = {'value': 1, 'unit': 'd'}" in error["suggestions"]
-    accepted = [item for item in error["suggestions"] if item.startswith("accepted units:")]
+    accepted = [
+        item for item in error["suggestions"] if item.startswith("time.step: accepted units:")
+    ]
     assert accepted and " d," in accepted[0]
 
 

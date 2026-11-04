@@ -611,8 +611,8 @@ async def set_case(
     missing is ``case_incomplete``, every missing path in ``suggestions``. The project's case, or
     the first case of a chat, is the case the user gave; a design is verified only on it, so any
     later change of it, economics included, waits for the user's approval. Write units as the
-    source gives them: a gradient in °C/km becomes K/km, a gas fraction in mol% or % becomes the
-    fraction, and a unit name as sources print it becomes gemini's name of it (``kg/m³`` is
+    source gives them: a gradient in °C/km becomes K/km, a gas fraction in % is mol% (gemini
+    converts mol%), and a unit name as sources print it becomes gemini's name of it (``kg/m³`` is
     ``kg/m3``, ``mPa·s`` is ``mPa.s``, ``MWth`` is ``MW``). Returns the case, the state version
     and ``converted``, each value set_case mapped or converted (``{path, from, to, reason}``), to
     list in the user's confirmation question.
@@ -646,13 +646,33 @@ async def set_case(
         version = await store_case(context, data, contents, origin)
     except gm.errors.ValidationError as error:
         retries = case_retries(error, data, supplied, files, columns, changes)
-        if not retries:
+        paths = problem_paths(error)
+        if not retries and len(paths) < 2:
             raise
         raise ToolError(
-            shown_message(error), code=error.code, path=error.path, suggestions=retries
+            every_problem(error, paths), code=error.code, path=error.path, suggestions=retries
         ) from error
     result = {"case": data, "version": version}
     return {**result, "converted": converted} if converted else result
+
+
+def problem_paths(error):
+    """Return the paths of every problem of a rejected case, in gemini's order, each once.
+
+    gemini 0.6.2 judges a whole case at once (request 13): one error holds every issue.
+    """
+    problems = getattr(error, "problems", None) or ()
+    return list(dict.fromkeys(item.get("path") for item in problems if isinstance(item, dict)))
+
+
+def every_problem(error, paths):
+    """Return gemini's message of a rejected case, led by how many paths it names."""
+    if len(paths) < 2:
+        return shown_message(error)
+    return (
+        f"set_case: the case has problems at {len(paths)} paths, all listed here; fix every one "
+        f"in the next call: {shown_message(error)}"
+    )
 
 
 def given_case(context, source, base, current):

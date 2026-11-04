@@ -559,16 +559,18 @@ class FakeEvolution(dict):
             "front": [item.to_dict() for item in self["front"]],
             "best": self["best"].to_dict(),
             "history": [],
+            "structures": [],
+            "rejected": self.get("rejected", []),
+            "budget": {"stopped": "evaluations"},
             "evaluations": self["evaluations"],
             "invalid": self["invalid"],
         }
 
 
-async def test_evolve_structure_stores_each_design_of_the_front(monkeypatch):
-    """The front comes back compact, every design stored, the study recorded; gemini computes."""
+def front_of(context, reference):
+    """Return two designs of a front on the stored plant: one feasible, one not."""
     from geomind.tools.gemini.stored import load_design
 
-    context, reference = await started(SHALLOW)
     plant = load_design(context, reference, "test")
     first = FakeDesign(
         structure={"boiler": True}, plant=plant, metrics={"lcts": 1.0}, feasible=True, reason=None
@@ -580,6 +582,13 @@ async def test_evolve_structure_stores_each_design_of_the_front(monkeypatch):
         feasible=False,
         reason="unmet heat",
     )
+    return first, second
+
+
+async def test_evolve_structure_stores_each_design_of_the_front(monkeypatch):
+    """The front comes back compact, every design stored, the study recorded; gemini computes."""
+    context, reference = await started(SHALLOW)
+    first, second = front_of(context, reference)
     found = FakeEvolution(front=[first, second], best=first, evaluations=40, invalid=1)
     calls = []
 
@@ -603,6 +612,18 @@ async def test_evolve_structure_stores_each_design_of_the_front(monkeypatch):
     }
     assert calls[0][2] == ["lcts"]
     assert calls[0][3] == {"evaluations": 40, "population": 8, "seed": 0, "polish": 0}
+
+
+async def test_evolve_structure_says_which_structures_gemini_refused(monkeypatch):
+    """The structures gemini 0.6.2 refused (``rejected``, a port left open) and why it stopped."""
+    context, reference = await started(SHALLOW)
+    first, _ = front_of(context, reference)
+    refused = {"structure": {"boiler": False, "cooling": "off"}, "reasons": ["port open"]}
+    found = FakeEvolution(front=[first], best=first, evaluations=4, invalid=0, rejected=[refused])
+    monkeypatch.setattr("geomind.tools.gemini.study.evolve_design", lambda *arguments: found)
+    arguments = {"design": reference, "objectives": ["lcts"], "name": "evo"}
+    output = (await run(study.evolve_structure, context, arguments)).output
+    assert output["rejected"] == [refused] and output["stopped"] == "evaluations"
 
 
 async def test_evolve_structure_needs_its_settings():

@@ -37,3 +37,53 @@ def test_the_folder_of_the_repository_holds_the_cost_catalogue():
     knowledge = FolderKnowledge(ROOT / "data" / "knowledge")
     assert "cost-sources.csv" in [item["name"] for item in knowledge.files()]
     assert knowledge.search("drilling")[0]["document"] == "cost-sources.csv"
+
+
+CATALOGUE_PREFIXES = ("assumptions.finance.", "assumptions.", "economics.")
+"""The prefixes of a catalogue ``path`` before the economics key, as the case lead drops them."""
+REFUSED_BY_GEMINI = {
+    "pipe-dea-2025-transmission-0-50mw",
+    "opex-pipe-dea-2025-distribution",
+    "opex-pipe-dea-2025-transmission",
+}
+"""Catalogue rows whose unit gemini 0.6.2's key still refuses (cost-sources.md, for Sahand)."""
+NO_ECONOMICS_KEY = {"emissions.CO2.electricity"}
+"""A catalogue path that is a case value, ``utilities.electricity.co2_intensity``."""
+
+
+def catalogue_key(path):
+    """Return the economics key of a catalogue ``path``, its prefix dropped."""
+    for prefix in CATALOGUE_PREFIXES:
+        if path.startswith(prefix):
+            return path.removeprefix(prefix)
+    return path
+
+
+def test_every_catalogue_row_names_a_key_and_a_unit_gemini_takes():
+    """Every catalogue row names an economics key and a unit it takes (gemini requests 16-18).
+
+    A basis word after the unit aside; a number with no unit (a share, a GWP) is not judged here.
+    """
+    import csv
+
+    import gemini as gm
+
+    from geomind.tools.gemini.unit_bridge import _accepted_units, _child_schema
+
+    schema = gm.case.Economics.schema()
+    rows = csv.DictReader((ROOT / "data" / "knowledge" / "cost-sources.csv").open())
+    unknown, refused = [], []
+    for row in rows:
+        key = catalogue_key(row["path"])
+        if not key or key in NO_ECONOMICS_KEY:
+            continue
+        node = schema
+        for part in key.split("."):
+            node = _child_schema(node, part)
+        if node is None:
+            unknown.append(row["id"])
+            continue
+        unit, accepted = row["unit_2015"].split(" ")[0], _accepted_units(node)
+        if unit and accepted and unit not in accepted:
+            refused.append(row["id"])
+    assert unknown == [] and set(refused) == REFUSED_BY_GEMINI

@@ -1,7 +1,7 @@
 """What each field of a case means, where its value comes from, and what each option says.
 
-gemini's ``Case.schema()`` and ``Economics.schema()`` give the keys, forms and units but no
-meaning; these texts are geomind's, taken from gemini's class docstrings where they say it
+gemini's ``Case.schema()`` gives the keys, forms and units but no meaning; these texts are
+geomind's, taken from gemini's class docstrings where they say it
 (``gemini.case.site``, ``demand``, ``time``, ``utilities``, ``requirement``, ``economics``). A
 field shown here with ``(gemini: none)`` has no description in gemini at all: it is on the list
 for Sahand. A field gemini's schema leaves undescribed but its code reads is described from that
@@ -118,28 +118,16 @@ ECONOMICS_FIELDS = {
     "format": "always 1",
     "kind": 'always "economics"',
     "name": "a short name of the economics",
-    "currency": "the label of every amount; nothing converts between currencies",
-    "price_year": "the year the prices are in",
-    "discount_rate": "real discount rate per year, 0-1",
-    "analysis_period": "years of the analysis",
-    "capex.": "cost of building one kind of equipment, per W, per metre, per W/K, per m3 or fixed",
-    "opex.fixed.": "yearly share of that kind's capex spent on operation and maintenance",
-    "opex.variable.": "price of a consumable per mass",
-    "energy.": "price of bought electricity or gas per energy, constant or series",
-    "carbon.price": "price of a mass of CO2-equivalent",
-    "revenue.heat": "what a unit of delivered heat earns",
-    "revenue.cold": "what a unit of delivered cold earns",
-    "revenue.subsidy.amount": "subsidy paid per year",
-    "revenue.subsidy.duration": "how long the subsidy is paid",
-    "accounting.allocation.heat_cost_share": "share of a joint plant's cost put on heat, 0-1",
-    "accounting.gwp.standard": "name of the global warming potential set",
-    "accounting.gwp.CH4": "global warming potential of methane",
     "about": (
         "free notes, an object gemini keeps and writes back as read; gemini does not use it "
         "(from gemini's code: case._utils.node.Node.to_dict)"
     ),
 }
-"""One meaning per economics field; a key ending in ``.`` covers every field below it."""
+"""The meanings of the economics fields gemini's ``Economics.schema()`` does not describe.
+
+gemini 0.6.2 describes every other economics field and section (requests 19 and 21): those
+meanings are read from its schema by ``economics_fields``, never copied here.
+"""
 
 OPTIONS = {
     "requirements.over": {
@@ -203,6 +191,31 @@ EXAMPLES = (
     "a number of doublets is `{on: doublet, quantity: count, min, max}`."
 )
 """How a rule of a brief is written, for the two that are mixed up."""
+
+
+def schema_descriptions(schema, path=""):
+    """Return gemini's own ``description`` of each field and section of a schema, by dotted path.
+
+    A list's fields are ``list.field``, as in ``CASE_FIELDS``.
+    """
+    found = {}
+    for key, sub in (schema.get("properties") or {}).items():
+        dotted = f"{path}{key}"
+        if sub.get("description"):
+            found[dotted] = sub["description"]
+        items = sub.get("items") if sub.get("type") == "array" else None
+        found.update(schema_descriptions(items if isinstance(items, dict) else sub, f"{dotted}."))
+    return found
+
+
+def economics_fields():
+    """Return the meaning of each economics field: gemini's description, else geomind's text.
+
+    A section's description covers every field below it that has none of its own.
+    """
+    import gemini as gm
+
+    return {**ECONOMICS_FIELDS, **schema_descriptions(gm.case.Economics.schema())}
 
 
 def meaning(path, fields):

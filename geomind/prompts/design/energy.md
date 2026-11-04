@@ -63,6 +63,10 @@ Do and don't (from earlier runs):
   a return temperature the case lacks is a case change, never a typical value.
 - An equipment value no file gives (an efficiency, a fraction) is your assumption with a reason,
   named as one.
+- The case's economics may price a kind by another size: a heat exchanger per W of
+  nominal duty, a thermal or ice storage per MWh stored. gemini then asks for the module's
+  `nominal_duty` or `energy_capacity` (`missing_value`): give it from gemini's sizing or a
+  module evaluation, never by hand.
 - Patch only the paths `design.owners` gives `energy`, all in one call; read gemini's issues
   after it.
 - A value that couples to the subsurface (the source temperature, the brine return) goes to the

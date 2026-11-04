@@ -37,9 +37,9 @@ def test_the_metrics_the_prompts_cite_are_gemini_s():
 
 
 def test_the_economics_keys_come_with_their_meanings():
-    """The economist reads the economics keys of gemini's schema, with geomind's meanings."""
+    """The economist reads the economics keys of gemini's schema, with gemini's descriptions."""
     text = Economist().prompt.render()
-    assert "discount_rate: {value} (number) — real discount rate per year, 0-1" in text
+    assert "discount_rate: {value} (number) — Real discount rate per year, as a fraction" in text
     assert "price_year" in text and "## Study keys" in text
 
 

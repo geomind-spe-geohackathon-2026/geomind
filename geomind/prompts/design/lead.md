@@ -65,7 +65,8 @@ Each tool's description says its arguments.
   superstructure (the process engineer's `optional` modules and `choices`), not one design per
   family. Mark an option gemini cannot build `blocked` with the reason.
 - With a superstructure, after your review call `evolve_structure` on the merged design with the
-  objectives the case or your brief names, never ones you choose. Read the front: take the best
+  objectives the case or your brief names, never ones you choose. Read the front and `rejected`
+  (a structure gemini refused, with its reasons, such as a port left open): take the best
   feasible design on the first objective, or the trade-off the brief asks for, and say why. Take
   that design on as any other: size, simulate the whole year, check, and record it. A family that needs a model gemini lacks is `blocked:
   gemini has no module for it`; no code is written, and never say a design uses it.

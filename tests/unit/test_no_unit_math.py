@@ -10,12 +10,7 @@ from tests.unit.test_gemini_names import geomind_files
 FACTORS = {0.001, 1e-6, 0.01, 100, 3.6, 60, 3600, 86400, 8760, 31536000, 31557600, 273.15, 1e5, 1e6}
 """Numbers that only a unit conversion uses: milli, micro, percent, minutes, hours, days, years,
 kelvin."""
-ALLOWED = {
-    (
-        "geomind/tools/gemini/unit_bridge.py",
-        "return value / 100",
-    ): "percent_fraction, until gemini request 15",
-}
+ALLOWED = {}
 """The one-line exceptions, ``(path, line) -> reason``; each goes when its gemini request lands."""
 UNIT_NAMES = {
     "ms",

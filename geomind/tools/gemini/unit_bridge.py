@@ -1,10 +1,10 @@
-"""Units gemini 0.6.1 refuses that the models write as the sources give them, mapped by set_case.
+"""Units gemini 0.6.2 refuses that the models write as the sources give them, mapped by set_case.
 
-A stopgap, reversible: gemini request 31 (``°C/km`` as a temperature gradient) and request 15
-(``mol%`` and ``%`` on a gas fraction) make it unneeded, and this module goes when they land.
-Unit names as sources spell them (``kg/m³``, ``mPa·s``, ``MWth``) become gemini's name of the same
-unit, ``kg/m3``, ``mPa.s``, ``MW``, only where the key's units hold that name: a name, no factor
-(#118).
+A stopgap, reversible: gemini request 31 (``°C/km`` as a temperature gradient) makes the gradient
+mapping unneeded. gemini 0.6.2 takes ``mol%`` on a gas fraction and converts it (request 15), so a
+gas fraction in ``%`` is only named ``mol%`` here, the same number. Unit names as sources spell
+them (``kg/m³``, ``mPa·s``, ``MWth``) become gemini's name of the same unit, ``kg/m3``,
+``mPa.s``, ``MW``, only where the key's units hold that name: a name, no factor (#118).
 ``set_case`` lists each mapping in its result (``converted``) so the case lead puts it in the
 confirmation question.
 """
@@ -22,24 +22,15 @@ GRADIENT_UNITS = {
 }
 """A temperature difference per length: the same number in kelvin, a unit name and no factor."""
 FRACTIONS = (("site", "fluid", "dissolved_gas"), ("utilities", "gas", "composition"))
-PERCENT_UNITS = ("%", "mol%", "mol %")
+PERCENT_UNITS = ("%", "mol %")
+"""Names of a gas fraction in percent that gemini's ``mol%`` is: the same unit, no factor."""
 GRADIENT_REASON = "a temperature gradient: °C/km is K/km, the same number (until gemini request 31)"
-PERCENT_REASON = "a gas fraction given in percent: value / 100 (until gemini request 15)"
+PERCENT_REASON = "a gas fraction in percent is gemini's mol%, the same number"
 SPELLINGS = {"³": "3", "²": "2", "·": "."}
 """Characters of a unit name as sources print it, and gemini's spelling of them."""
 UNIT_NAMES = {"MWth": "MW", "MWcool": "MW"}
 """Unit names that say what the power is for, and the unit they are in."""
 NAME_REASON = "unit name"
-
-
-def percent_fraction(value):
-    """Return the fraction of a percentage, ``value / 100``.
-
-    The one unit conversion geomind does: gemini 0.6.1 does not know ``%`` or ``mol%`` on a
-    fraction (gemini request 15). Remove it, and its line in ``test_no_unit_math``'s allowlist,
-    when that request lands.
-    """
-    return value / 100
 
 
 def bridged_units(changes):
@@ -60,8 +51,11 @@ def bridged_units(changes):
         gases = _node(changes, section)
         for gas, item in (gases or {}).items():
             unit = _unit(item)
-            if unit in PERCENT_UNITS and _is_number(item.get("value")):
-                converted.append(_fraction(item, (*section, gas), unit))
+            if unit in PERCENT_UNITS:
+                item["unit"] = "mol%"
+                value = item.get("value")
+                entry = _entry((*section, gas), value, unit, value, "mol%", PERCENT_REASON)
+                converted.append(entry)
     converted.extend(_renamed_units(changes, _case_schema(), ()))
     return changes, converted
 
@@ -121,25 +115,6 @@ def _renamed_units(changes, schema, path):
     return entries
 
 
-def _fraction(item, path, unit):
-    """Turn a gas given in percent into its fraction in place; return its ``converted`` entry."""
-    given = item["value"]
-    del item["unit"]
-    item["value"] = percent_fraction(given)
-    for key in ("range", "uncertainty"):
-        _scale_bounds(item.get(key))
-    return _entry(path, given, unit, item["value"], None, PERCENT_REASON)
-
-
-def _scale_bounds(bounds):
-    """Turn the ``min``, ``max`` and ``std`` of a range or an uncertainty into fractions."""
-    if not isinstance(bounds, dict):
-        return
-    for name in ("min", "max", "std"):
-        if _is_number(bounds.get(name)):
-            bounds[name] = percent_fraction(bounds[name])
-
-
 def _node(changes, path):
     """Return the dict at ``path`` of a merge patch, or ``None``."""
     node = changes
@@ -152,11 +127,6 @@ def _unit(item):
     """Return the stripped unit of a value object, or ``None``."""
     unit = item.get("unit") if isinstance(item, dict) else None
     return unit.strip() if isinstance(unit, str) else None
-
-
-def _is_number(value):
-    """Tell whether a value is a number, not a bool."""
-    return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
 def _entry(path, value, unit, new_value, new_unit, reason):
