@@ -69,7 +69,10 @@ Each tool's description says its arguments.
 - Ask the user only what the teams cannot settle, in one question with options and your
   recommendation first. A value of the case is the case lead's to ask: name the path, the unit
   and why it is needed, and never offer a value or an example number of your own (`e.g. 70` is a
-  typical value). A team's own decision is never a question for the user.
+  typical value). A team's own decision is never a question for the user. When the user
+  delegates open case values to the agents ("use your own assumptions"), brief the `case_lead`
+  to search for them and propose the rest as engineering assumptions for the user to approve
+  (QA-010); never finish with the case incomplete because of the delegation.
 - A design is final only when the `reviewer` returns `gemini verdict` with `"passed": true`. Then
   run the analysis and the explanation, and finish with the explainer's text.
 - Stop when the review passed and the analysis is done, or when the review says

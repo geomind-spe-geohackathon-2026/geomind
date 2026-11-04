@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.46] - 2026-11-04
+
+### Fixed
+
+- QA-010 (Sahand's decision, option A): when the user delegates the open case values, the case lead searches the knowledge base and every connected server first, then proposes the values still without a source in one question, each labelled "engineering assumption, no source" with a one-line reason; on approval they are set and recorded as confirmed agent assumptions. The project lead briefs it so instead of finishing with an incomplete case.
+
 ## [0.4.45] - 2026-11-04
 
 ### Fixed
