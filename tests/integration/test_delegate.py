@@ -239,3 +239,25 @@ async def test_step_usage_includes_the_nested_run():
     _, _, events = await nested([uses(HELP), says("found"), says("end")])
     parent_steps = [e for e in of_type(events, "step.finished") if e.parent is None]
     assert parent_steps[0].usage.input_tokens == 20
+
+
+async def test_a_nested_run_does_not_ask_what_another_nested_run_asked():
+    """The design lead asked ``site.air.pressure``, then the case lead asked it again (bug 7)."""
+    again = call("helper", "d2", task="find it again")
+    script = [
+        uses(HELP),
+        uses(call("ask_user", "q1", question="Give site.air.pressure.")),
+        says("asked"),
+        uses(again),
+        uses(call("ask_user", "q2", question="site.air.pressure is missing: give it.")),
+        says("reused"),
+        says("end"),
+    ]
+    result, engine, _ = await nested(script)
+    assert result.status == "waiting"
+    final = await engine.resume(result.run_id, result.request.id, {"text": "unknown"})
+    assert final.status == "done" and final.answer == "end"
+    events = engine.store.load_events(final.run_id)
+    assert [e.request.call_id for e in of_type(events, "request")] == ["q1"]
+    reused = next(e for e in of_type(events, "tool.result") if e.call_id == "q2")
+    assert "Not asked again" in reused.output and "'unknown'" in reused.output

@@ -15,7 +15,13 @@ from geomind.errors import (
     ToolError,
     UnknownNameError,
 )
-from geomind.tools.stored import STORE_CHARACTERS, reference_of, stored_form
+from geomind.tools.stored import (
+    STORE_CHARACTERS,
+    is_placeholder,
+    placeholder_error,
+    reference_of,
+    stored_form,
+)
 from geomind.types import Finish, Problem, Request, ToolResult
 from geomind.utils.json import to_jsonable
 from geomind.utils.strings import did_you_mean, join_names
@@ -196,6 +202,21 @@ def unknown_arguments_error(tool, unknown):
     )
 
 
+def refused_input(tool, tool_input):
+    """Return the error of an input refused before validation, or ``None``.
+
+    Leaked markup, the placeholder of an earlier call in the shortened history, and arguments
+    the tool does not have. NOTE: none is a validation failure, which ends the run in a row.
+    """
+    found = None if tool.name in PROSE_TOOLS else leaked_markup(tool_input)
+    if found is not None:
+        return markup_error(tool, found)
+    if is_placeholder(tool, tool_input):
+        return placeholder_error(tool)
+    unknown = tool.unknown_arguments(tool_input)
+    return unknown_arguments_error(tool, unknown) if unknown else None
+
+
 async def dispatch(tool, call, context):
     """Validate, run and time one call.
 
@@ -204,14 +225,9 @@ async def dispatch(tool, call, context):
     reported through the run and the model reads only that an internal error happened.
     """
     started = perf_counter()
-    found = None if tool.name in PROSE_TOOLS else leaked_markup(call.input)
-    if found is not None:
-        output = error_output(markup_error(tool, found))
-        return _result(tool, call, started, output, is_error=True)
-    unknown = tool.unknown_arguments(call.input)
-    if unknown:
-        output = error_output(unknown_arguments_error(tool, unknown))
-        return _result(tool, call, started, output, is_error=True)
+    refused = refused_input(tool, call.input)
+    if refused is not None:
+        return _result(tool, call, started, error_output(refused), is_error=True)
     try:
         arguments = tool.validate(call.input)
     except (pydantic.ValidationError, ToolError) as error:

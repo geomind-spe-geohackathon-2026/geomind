@@ -37,4 +37,4 @@ def test_ask_user_says_a_typed_answer_needs_no_options():
     from geomind.tools import ask_user
 
     text = ask_user.schema()["description"]
-    assert "exactly one option's value" in text and "ask without options" in text
+    assert "types an answer of their own" in text and "ask without options" in text

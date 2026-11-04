@@ -6,6 +6,19 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### The second end-to-end run (0.4.22.dev60)
+
+The end-to-end run again on dev59 (nemotron for every role, memory off, e2e-final3); each fix
+pinned by a test with the run's inputs where it had them. No version bump in this piece.
+
+- Fix (#132), behaviour: `patch_plant` takes a module's parameters written at the top (`d0`, `d0.well`, `degasser`), dotted (`modules.d0.well`) or inside `modules` as under `params`; a module's `type` stays in `modules`. An engineer's parameter path that `design.owners` names no prefix of belongs to the discipline of its module's gemini type (`OWNED_MODULES`, now in `tools/gemini/ownership.py`, then the type's category), so an engineer can always write its own modules; a named owner still decides. The run had 31 `not_allowed` with the owners recorded.
+- Fix (#133), contract: a question with options takes typed text: text that is no option's value is the user's own answer (`validate_answer` no longer raises), and the model reads it as "The user typed this answer instead of choosing an option: ...". The step limit's question still takes `continue` or `stop` only. The shared contract's "Answers to options" (backend `422`) needs the same change. The case lead's answer after `change some` with no later question is refused once (`changes not asked`).
+- Fix (#134), behaviour and new tool: `ask_economics(values, open, note)` on the case lead: each economics key with its value, catalogue row, source and the other rows; `currency`, `price_year` and `discount_rate` required in `values` or `open`. Code writes the one question; on `approve all` it sets every value with `set_case`, keeps each row in `economics.about.sources` and records a confirmed assumption `economics.<key>` with its citation. `Tool.on_answer(context, input, text)` makes the result of an answered question; a replay calls it again from the result's `answer`. The prompt: a multi-row key recommends the row of the latest year and lists the others.
+- Fix (#135), behaviour: the repeat guard compares the tool and the whole input, and a failure counts once per step for both the repeat and the validation count: parallel calls of one step are sent before the model saw an error. #49's rule (the same input the error names) is gone.
+- Fix (#136), behaviour: an older assistant message shows a long call input as `{}` and its outline as a line of its text; a call whose input is `{"shortened": ...}` is an error result naming the tool's arguments, no validation failure.
+- Fix (#137), behaviour: a tool's question naming exactly the case paths of an earlier answered question in the run tree is not asked; its result is the earlier answer ("Not asked again: ..."), read from the root's log (`engine/questions.py`).
+- Settings: `GEOMIND_MAX_OUTPUT_TOKENS=32000` for nemotron runs goes in the run's env (`.tmp/e2e-final4/env.sh`); no code default.
+
 ### What the end-to-end run showed (0.4.22.dev59)
 
 The end-to-end run on nemotron for every role (memory off, e2e-final), each bug pinned by a test

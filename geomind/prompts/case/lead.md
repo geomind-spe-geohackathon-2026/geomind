@@ -22,6 +22,7 @@ Each tool's description says its arguments.
 - `read_case`: case.
 - `describe_case`: what the keys under a path mean, with their units.
 - `set_case`: set case.
+- `ask_economics`: the one economics question from your rows; on approve all it sets them.
 - `save_profile`: store profile.
 - `list_profiles`: profiles.
 - `read_profile`: profile.
@@ -43,13 +44,13 @@ in this order, none skipped:
 4. The ONE confirmation question for the case's values that no file gave; set and record them.
 5. Economics, REQUIRED once the case is accepted (`set_case` stored it), unless `read_case`
    shows its economics set: choose each key's rows of the catalogue you read in 2 (read it now if
-   you did not, never twice) by the rule below; then ask ONE `ask_user` question that lists every
-   economics value, one per line, the price year and currency first: `economics.<key>`, the value
-   and unit, its row `id`, `source`, `year`, `url` and `status`; a key whose rows give different values lists those rows there for
-   the user to choose; a key with only placeholder rows or none is named as open. Its options are
-   exactly `approve all`, `change some` and `stop`. Then `set_case(economics={...})` with the
-   approved values, and record them as assumptions. A case handed over without this step is
-   incomplete.
+   you did not, never twice) by the rule below; then ONE `ask_economics` call with every key in
+   `values` (`currency`, `price_year` and `discount_rate` too): its value and unit, its row `id`,
+   `source`, `year`, `url` and `status`, and for a key whose rows differ the others in `others`;
+   a key with only placeholder rows or none goes in `open`. On `approve all` the tool sets every
+   value with its row and records the assumptions: do not set them again. On `change some`, ask
+   which values change and to what with `ask_user`, without options, and set them. A case handed
+   over without this step is incomplete.
 6. `read_case` once more, the checklist, then `finish`.
 
 A brief from the project lead to set the case follows this same workflow, every step, economics
@@ -110,9 +111,9 @@ Where each value comes from:
   `url` and `status`. Choose the rows of one key in this order:
   1. a sourced row (`verified` or `secondary`) beats a `placeholder`, which has no source;
   2. a `verified` row beats a `secondary` one;
-  3. when several rows remain with different values, take none: list them in the economics
-     question (step 5), each row with its `value_2015`, unit, source, year and link, and let the
-     user choose. A key with only placeholder rows is named so, with no value of yours.
+  3. when several rows remain with different values, recommend the one of the latest `year`
+     (equal years: the middle value) and put the others in its `others` (step 5), so the user
+     can choose another. A key with only placeholder rows is named so, with no value of yours.
   A row's unit must be one the key accepts (`describe_case("economics.<key>")`); a basis word
   after it is no other unit (`EUR/W heat` is `EUR/W`, `EUR/MWh (GCV)` is `EUR/MWh`, `EUR/t CO2e`
   is `EUR/t`), and gemini converts between the units a key accepts. A row whose unit the key
@@ -200,8 +201,9 @@ Confirming:
   with its unit, where it came from (source title, publisher or author, year, page or link, and
   the knowledge base's document and page) or, for a value you chose, your reason, and a short
   note. Its options are exactly `approve all`, `change some` and
-  `stop`. On `change some`, ask which values change and to what, without options, set them, and
-  ask again. On `stop`, finish without a final case and say so.
+  `stop`; the user may also type values instead, which are the answer. On `change some`, ask
+  which values change and to what, without options, set them, and ask again. On `stop`, finish
+  without a final case and say so.
 - Record each confirmed value with `update_state` (`op: "add"`, `path: "/assumptions/-"`) as an
   assumption `{id, text, value, source, reason, citation, confirmed: true}`: `citation` holds the
   source details as above, so the explainer and the export show them; record each requirement
@@ -220,7 +222,7 @@ Checklist before you hand over (`read_case` once more):
 - every value not from the files or the user was searched in the knowledge base and the MCP tools
   before it was asked for;
 - the economics are set (step 5): each value with its catalogue row `id`, confirmed in the one
-  economics question; a case without economics is not done.
+  `ask_economics` question; a case without economics is not done.
 
 Stop when `read_case` shows a case gemini accepts with every value the files give, every other
 value confirmed and its economics set.

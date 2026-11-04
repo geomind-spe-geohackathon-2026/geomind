@@ -3,9 +3,13 @@
 import pytest
 
 from geomind import runtime
-from geomind.engine import Permissions
+from geomind.agents.agent import Agent, Model
+from geomind.engine import Engine, Permissions
 from geomind.engine.hooks import Cancellation, Hook, RequireApproval
+from geomind.engine.recovery import recover
 from geomind.errors import RequestError, RunError
+from geomind.prompts import Prompt
+from geomind.tools import finish, tool
 from geomind.types import Request
 from tests.fixtures.runs import (
     EXECUTED,
@@ -70,6 +74,19 @@ async def test_answer_to_a_question_becomes_its_result():
     assert final.answer == "end"
     recorded = of_type(engine.store.load_events(final.run_id), "tool.result")[0]
     assert (recorded.output, recorded.source) == ("b", "answer")
+
+
+async def test_typed_text_to_a_question_with_options_is_its_result():
+    """The run: values typed to [approve all, change some, stop] were refused; now they count."""
+    options = ["approve all", "change some", "stop"]
+    engine, result = await paused(
+        [uses(call("ask_user", question="Missing values?", options=options)), says("end")]
+    )
+    typed = "demand.heating.return_temperature: 40 degC. Everything else: unknown."
+    final = await resume(engine, result, {"text": typed})
+    assert final.answer == "end"
+    recorded = of_type(engine.store.load_events(final.run_id), "tool.result")[0]
+    assert recorded.output.endswith(typed) and "typed" in recorded.output
 
 
 async def test_approval_applies_to_that_call_only():
@@ -219,3 +236,66 @@ async def test_cancellation_still_holds_for_an_approved_call():
     is_cancelled.append(True)
     final = await resume(engine, result, {"approved": True})
     assert final.stop_reason == "cancelled" and EXECUTED == []
+
+
+@tool(effect="read", runs_alone=True)
+def ask_note(context, note: str):
+    """Ask the user to approve a note."""
+    return Request(kind="question", message=f"Keep {note}?", options=["approve all", "stop"])
+
+
+async def kept(context, tool_input, text):
+    """Record a question in the problem state when the user approves it."""
+    if text == "approve all":
+        await context.session.change_state(
+            [{"op": "add", "path": "/questions/-", "value": {"id": "Q1", "text": "kept"}}]
+        )
+    return {"answer": text, "kept": text == "approve all"}
+
+
+ask_note.on_answer = kept
+
+
+class Asker(Agent):
+    """Asks one question with a tool that acts on its answer."""
+
+    def __init__(self):
+        """Declare the tool."""
+        super().__init__()
+        self.prompt = Prompt.text("Ask.")
+        self.ask_note = ask_note
+        self.finish = finish
+        self.model = Model("fake/model")
+
+
+async def test_a_tool_that_acts_on_its_answer_does_so_live_and_in_a_replay():
+    """``ask_economics`` sets what the user approved; the replay sets it again from the log."""
+    engine = engine_for([uses(call("ask_note", note="x")), says("end")])
+    result = await engine.run(Asker(), context())
+    final = await resume(engine, result, {"text": "approve all"})
+    events = engine.store.load_events(final.run_id)
+    recorded = of_type(events, "tool.result")[0]
+    assert recorded.output == {"answer": "approve all", "kept": True}
+    assert [item.id for item in recover(events).problem.questions] == ["Q1"]
+    again = []
+    replayed = await Engine.replay(engine.store, final.run_id, replayed=again)
+    assert replayed.answer == "end"
+    assert [item.id for item in recover(again).problem.questions] == ["Q1"]
+
+
+async def test_a_value_already_asked_in_the_run_is_not_asked_again():
+    """The run asked ``site.air.pressure`` twice; the second question takes the first answer."""
+    question = "Please provide site.air.pressure with its unit."
+    script = [
+        uses(call("ask_user", "q1", question=question)),
+        uses(call("ask_user", "q2", question="The case is missing site.air.pressure; give it.")),
+        says("end"),
+    ]
+    engine, result = await paused(script)
+    final = await resume(engine, result, {"text": "unknown"})
+    assert final.status == "done" and final.answer == "end"
+    events = engine.store.load_events(final.run_id)
+    assert len(of_type(events, "request")) == 1
+    second = of_type(events, "tool.result")[1]
+    assert second.call_id == "q2" and "Not asked again" in second.output
+    assert "unknown" in second.output

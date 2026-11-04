@@ -564,3 +564,24 @@ async def test_a_superstructure_goes_through_build_plant_as_gemini_stores_it(gm)
     result = await call(TOOLS.build_plant, {"plant": plant, "name": "super"}, session)
     assert not result.is_error, result.output
     assert session.artifacts["design/super"]["optional"] == ["boiler"]
+
+
+async def test_an_engineer_s_parameters_written_in_modules_are_patched(gm):
+    """The run's reservoir engineer wrote ``modules.d0``: it is ``params.d0``, stored by gemini."""
+    from geomind.context import ProblemState
+
+    class Reservoir:
+        discipline = "reservoir"
+
+    session = StubSession()
+    session.agent = Reservoir()
+    start = {
+        "name": "p0",
+        "plant": {"format": 1, "kind": "plant", "name": "p", "type": "HeatingPlant"},
+    }
+    await call(TOOLS.build_plant, start, session)
+    patch = {"modules": {"d0": {"drainage_radius": {"value": 500, "unit": "m"}}}}
+    step = {"design": "design/p0", "changes": patch, "name": "p1"}
+    result = await call(TOOLS.patch_plant, step, session, problem=ProblemState())
+    assert not result.is_error, result.output
+    assert session.artifacts["design/p1"]["params"]["d0"]["drainage_radius"]["value"] == 500

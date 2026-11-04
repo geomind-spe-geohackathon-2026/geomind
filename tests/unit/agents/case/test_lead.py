@@ -12,6 +12,7 @@ TOOLS = [
     "read_case",
     "describe_case",
     "set_case",
+    "ask_economics",
     "save_profile",
     "list_profiles",
     "read_profile",
@@ -49,7 +50,7 @@ def test_values_no_file_gives_are_confirmed_in_one_question():
     text = " ".join(CaseLead().prompt.render().split())
     assert "ONE confirmation question" in text
     assert "`approve all`, `change some` and `stop`" in text
-    assert "confirmed: true" in text and "price year" in text
+    assert "confirmed: true" in text and "`price_year`" in text
 
 
 def test_the_case_is_set_in_parts():
@@ -129,7 +130,7 @@ def test_it_chooses_among_the_catalogue_s_rows_by_their_status():
     A row whose unit the key does not accept never goes in (Sahand's catalogue of 133 rows).
     """
     text = " ".join(CaseLead().prompt.content.split())
-    order = ["beats a `placeholder`", "`verified` row beats a `secondary`", "economics question"]
+    order = ["beats a `placeholder`", "`verified` row beats a `secondary`", "the latest `year`"]
     assert [text.index(item) for item in order] == sorted(text.index(item) for item in order)
     assert "`EUR/W heat` is `EUR/W`" in text and "never goes in: list it as not usable" in text
 
@@ -167,10 +168,10 @@ def test_economics_are_a_required_step_after_the_case():
     steps += ["5. Economics, REQUIRED"]
     assert [text.index(step) for step in steps] == sorted(text.index(step) for step in steps)
     step = text[text.index("5. Economics") : text.index("6. `read_case`")]
-    assert "never twice" in step and "ONE `ask_user` question" in step
-    assert "`economics.<key>`" in step and "row `id`" in step
-    assert "lists those rows there for the user to choose" in step
-    assert "`set_case(economics={...})`" in step
+    assert "never twice" in step and "ONE `ask_economics` call" in step
+    assert "`currency`, `price_year` and `discount_rate` too" in step and "row `id`" in step
+    assert "the others in `others`" in step
+    assert "the tool sets every value with its row" in step
     assert "the economics are set (step 5)" in text and "and its economics set" in text
 
 
@@ -211,7 +212,7 @@ async def test_a_delegated_case_lead_without_economics_is_sent_back_once():
     events = engine.store.load_events(result.run_id)
     [refusal] = [item for item in events if getattr(item, "feedback", None) == "finish"]
     assert refusal.output.startswith("economics not done")
-    assert "ask_user" in refusal.output and "set_case(economics=" in refusal.output
+    assert "ask_economics" in refusal.output and "on approve all it sets them" in refusal.output
 
 
 def test_the_economics_check_passes_with_economics_an_economics_question_or_no_set_case():
@@ -233,3 +234,37 @@ def test_the_economics_check_passes_with_economics_an_economics_question_or_no_s
     assert checked({"name": "c"}, setting, asking) is None
     assert checked({"name": "c"}, ToolCall(id="c3", name="read_case", input={})) is None
     assert checked(None, setting) is None
+
+
+FOLLOW_UP = (
+    "Which values do you want to change, and to what? Name each path and its new value with unit."
+)
+"""The case lead's text answer after the user chose ``change some`` in the run, as recorded."""
+
+
+def test_change_some_without_a_follow_up_question_is_refused_once():
+    """The run: after ``change some`` the case lead asked for the values in text, never asked."""
+    from geomind.agents.case.lead import NO_CHANGES, changes_not_asked
+    from geomind.engine import Context
+    from geomind.types import Message, ToolCall
+
+    options = ["approve all", "change some", "stop"]
+    asked = ToolCall(id="q1", name="ask_user", input={"question": "Missing?", "options": options})
+    messages = [
+        Message(role="user", content=TASK),
+        Message(role="assistant", tool_calls=(asked,)),
+        Message(role="tool", content="change some", tool_call_id="q1"),
+    ]
+    refusal = changes_not_asked(Context(messages=messages))
+    assert refusal.startswith(NO_CHANGES) and "without options" in refusal
+    agent = CaseLead()
+    assert agent.answer_problem(Context(messages=messages)) == refusal
+    again = [*messages, Message(role="user", content=refusal)]
+    assert changes_not_asked(Context(messages=again)) is None
+    follow = ToolCall(id="q2", name="ask_user", input={"question": FOLLOW_UP})
+    answered = [
+        *messages,
+        Message(role="assistant", tool_calls=(follow,)),
+        Message(role="tool", content="site.air.pressure: 1.013 bar", tool_call_id="q2"),
+    ]
+    assert changes_not_asked(Context(messages=answered)) is None

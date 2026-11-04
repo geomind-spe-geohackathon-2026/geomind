@@ -90,20 +90,27 @@ def _feedback(state, event):
 
 
 def _count_failure(state, event):
-    """Count validation failures of one tool in a row, and the same failing call in a row."""
+    """Count validation failures of one tool in a row, and the same failing call in a row.
+
+    A tool counts once per step: the calls of one step are sent together, before the model has
+    seen any of their errors, so only a failure the model saw and repeated counts again.
+    """
     _count_repeat(state, event)
     if event.is_validation:
-        state.failures[event.tool] = state.failures.get(event.tool, 0) + 1
+        if state.failure_steps.get(event.tool) != state.step:
+            state.failures[event.tool] = state.failures.get(event.tool, 0) + 1
+        state.failure_steps[event.tool] = state.step
         return
     state.failures.pop(event.tool, None)
+    state.failure_steps.pop(event.tool, None)
 
 
 def _count_repeat(state, event):
-    """Count how often in a row the same call failed with the same output.
+    """Count how often in a row the same call failed, in steps after the model saw its error.
 
-    A call is the same when its tool, and the input the error names (its ``path``), are: a wrong
-    reference sent again with another ``path`` beside it is the same failure. An error that names
-    no input compares the whole input.
+    A call is the same when its tool and its whole input are: three calls of one tool with
+    another argument each are three calls, even when they fail with one error. The same call
+    sent again in the step that first failed counts once, since the model has not seen the error.
     """
     if not event.is_error or event.call_id is None:
         state.last_failure, state.repeated = None, 0
@@ -111,13 +118,12 @@ def _count_repeat(state, event):
     call = next((item for item in state.calls if item.id == event.call_id), None)
     if call is None:
         return
-    output = to_jsonable(event.output)
-    error = output.get("error") if isinstance(output, dict) else None
-    field = error.get("path") if isinstance(error, dict) else None
-    shown = {field: call.input[field]} if field in (call.input or {}) else call.input
-    key = json.dumps([call.name, shown, output], sort_keys=True, default=str)
-    state.repeated = state.repeated + 1 if key == state.last_failure else 1
-    state.last_failure = key
+    key = json.dumps([call.name, call.input], sort_keys=True, default=str)
+    if key != state.last_failure:
+        state.repeated = 1
+    elif state.last_failure_step != state.step:
+        state.repeated += 1
+    state.last_failure, state.last_failure_step = key, state.step
 
 
 def _remember_stored(state, event):

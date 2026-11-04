@@ -60,6 +60,7 @@ class RunState:
     step_grant: int = 0
     is_cut: bool = False
     last_failure: str | None = None
+    last_failure_step: int | None = None
     repeated: int = 0
     questions: int = 0
     settings: dict[str, Any] = field(default_factory=dict)
@@ -77,6 +78,7 @@ class RunState:
     step_usage: Usage = Usage()
     pending: PendingAction | None = None
     failures: dict[str, int] = field(default_factory=dict)
+    failure_steps: dict[str, int] = field(default_factory=dict)
     output_failures: int = 0
     is_refused: bool = False
     has_answer: bool = False

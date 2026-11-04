@@ -114,30 +114,82 @@ def test_every_renamed_class_path_imports():
     assert all(isinstance(import_class(path), type) for path in RENAMED_CLASSES.values())
 
 
-def test_the_same_bad_value_beside_other_input_is_the_same_failure():
-    """#49: a made-up reference sent six times, each with another ``path``, counts as repeated."""
-    from geomind.engine.recovery import _count_repeat
-    from geomind.engine.state import RunState
-    from geomind.types import ToolCall
+def _failed(state, calls, step, output):
+    """Apply one step whose ``calls`` all failed with ``output``, as recovery does."""
+    from geomind.engine.recovery import _count_failure
     from geomind.types.events import ToolRecorded
 
-    state = RunState()
-    error = {"error": {"path": "reference", "code": "unknown_name", "message": "no such result"}}
-    for index, path in enumerate(("lcoh", "lcoc", "lcts")):
-        call = ToolCall(
-            id=f"c{index}", name="read_result", input={"reference": "result/x", "path": path}
-        )
-        state.calls = [call]
+    state.step, state.calls = step, calls
+    for made in calls:
         event = ToolRecorded(
             run_id="r",
-            sequence=index,
+            sequence=step,
             time="t",
             agent="a",
-            index=1,
-            call_id=call.id,
-            tool="read_result",
-            output=error,
+            index=step,
+            call_id=made.id,
+            tool=made.name,
+            output=output,
             is_error=True,
+            is_validation=True,
         )
-        _count_repeat(state, event)
-    assert state.repeated == 3
+        _count_failure(state, event)
+
+
+UNKNOWN = {
+    "error": {
+        "path": "with_schema",
+        "code": "invalid_input",
+        "message": "read_plant: unknown argument(s) with_schema",
+    }
+}
+"""The error each of the design lead's three ``read_plant`` calls got in the run."""
+
+
+PLANT_CLASSES = ("HeatingCoolingPlant", "ATESPlant", "HeatingFullCoolingPlant")
+"""The classes of the design lead's three parallel ``read_plant`` calls in the run."""
+
+
+def test_calls_of_one_step_with_one_error_are_not_a_repeat():
+    """The run: three ``read_plant`` of other plant classes in one step ended the design lead."""
+    from geomind.engine.state import RunState
+    from geomind.types import ToolCall
+
+    state = RunState()
+    calls = [
+        ToolCall(
+            id=f"c{index}",
+            name="read_plant",
+            input={"plant_class": name, "with_schema": "true"},
+        )
+        for index, name in enumerate(PLANT_CLASSES)
+    ]
+    _failed(state, calls, 1, UNKNOWN)
+    assert state.repeated == 1 and state.failures["read_plant"] == 1
+
+
+def test_the_same_call_counts_again_only_once_the_model_saw_its_error():
+    """One input sent three times in one step is one; sent again in later steps it adds up."""
+    from geomind.engine.state import RunState
+    from geomind.types import ToolCall
+
+    state = RunState()
+    same = {"plant_class": "ATESPlant", "with_schema": "true"}
+    calls = [ToolCall(id=f"c{index}", name="read_plant", input=same) for index in range(3)]
+    _failed(state, calls, 1, UNKNOWN)
+    assert state.repeated == 1
+    for step in (2, 3):
+        _failed(state, [ToolCall(id=f"s{step}", name="read_plant", input=same)], step, UNKNOWN)
+    assert state.repeated == 3 and state.failures["read_plant"] == 3
+
+
+def test_another_input_with_the_same_error_starts_the_count_again():
+    """Same tool, same error, another argument: the call is not the same, so the count is 1."""
+    from geomind.engine.state import RunState
+    from geomind.types import ToolCall
+
+    state = RunState()
+    for step, name in enumerate(("lcoh", "lcoc", "lcts"), start=1):
+        call = ToolCall(id=f"c{step}", name="read_result", input={"reference": "x", "path": name})
+        _failed(state, [call], step, UNKNOWN)
+    assert state.repeated == 1

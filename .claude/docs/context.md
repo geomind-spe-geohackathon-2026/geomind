@@ -118,7 +118,10 @@ once and not on every message. That key is outside the patchable document: a pat
 [tools.md](tools.md#dispatch)) is whole in the step after its call; once a later assistant message
 exists, its message is `stored_form` (kept in `RunState.stored`, built by `apply` from the
 `tool.result` event, so a replay or a recovery gives the same text). A call input over 800
-characters in an older assistant message becomes `{"shortened": outline}`. A message changes once, so
+characters in an older assistant message becomes an empty input, and its outline a line of the
+message's text, `[<tool> was called with long arguments, left out of this history: <outline>. They
+are no input to send again.]`, so nothing call-shaped is left to copy (a copied
+`{"shortened": ...}` of older logs is refused, naming the real arguments). A message changes once, so
 the prefix before it stays the same for the provider's cache, and the dynamic part stays last. The
 log and the store keep everything; compaction sees the shortened text. An event without a reference
 (0.4.x, or a short result) is never shortened.

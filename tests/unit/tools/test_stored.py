@@ -121,4 +121,35 @@ def test_long_call_inputs_are_shortened_and_short_ones_kept():
     short = ToolCall(id="a", name="t", input={"x": 1})
     long = ToolCall(id="b", name="t", input={"x": "y" * (INPUT_CHARACTERS + 1)})
     assert not is_long(short.input) and shortened(short) is short
-    assert is_long(long.input) and "shortened" in shortened(long).input
+    assert is_long(long.input) and shortened(long).input == {}
+
+
+def test_an_old_long_call_is_outlined_in_text_not_in_its_input():
+    """The run: the model copied ``{"shortened": ...}`` as a call (well_engineer, update_state)."""
+    from geomind.tools.stored import shortened_message
+    from geomind.types import Message
+
+    long = ToolCall(id="b", name="update_state", input={"changes": "y" * (INPUT_CHARACTERS + 1)})
+    message = Message(role="assistant", content="Recording the modules.", tool_calls=(long,))
+    aged = shortened_message(message)
+    assert aged.tool_calls[0].input == {} and aged.tool_calls[0].id == "b"
+    assert aged.content.startswith("Recording the modules.\n[update_state was called with")
+    assert "changes" in aged.content and "no input to send again" in aged.content
+    small = ToolCall(id="a", name="t", input={})
+    short = Message(role="assistant", content="", tool_calls=(small,))
+    assert shortened_message(short) is short
+
+
+async def test_a_call_whose_input_is_the_placeholder_is_refused_with_the_real_arguments():
+    """The run's ``well_engineer {"shortened": ...}`` gets a note naming ``task``, no stop."""
+
+    @tool(effect="read")
+    def well_engineer(context, task: str):
+        """Ask the well engineer."""
+        return task
+
+    call = ToolCall(id="c", name="well_engineer", input={"shortened": "{task: str(1200)}"})
+    result = await dispatch(well_engineer, call, Context(session=StubSession()))
+    assert result.is_error and not result.is_validation
+    message = result.output["error"]["message"]
+    assert "shortened history" in message and "its arguments are task" in message

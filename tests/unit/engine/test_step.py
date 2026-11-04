@@ -144,6 +144,21 @@ async def test_validation_failures_in_a_row_stop_the_run():
     assert (result.stop_reason, result.status) == ("error", "failed")
 
 
+async def test_parallel_failing_calls_of_one_step_do_not_stop_the_run():
+    """The run: three failing calls in one step ended it before the model saw an error."""
+    result, _, _ = await run(
+        [
+            uses(
+                call("add", "a", left="x", right=1),
+                call("add", "b", left="y", right=1),
+                call("add", "c", left="x", right=1),
+            ),
+            says(),
+        ]
+    )
+    assert result.stop_reason == "answer"
+
+
 async def test_a_valid_call_resets_the_count():
     """Only failures in a row count."""
     result, _, _ = await run(
