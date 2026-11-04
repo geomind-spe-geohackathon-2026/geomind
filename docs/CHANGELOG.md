@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.36] - 2026-11-04
+
+### Fixed
+
+- QA-018: the process engineer's prompt says a plant with the `type` of a gemini class takes that class's modules exactly as `read_plant` returned them, so its first `build_plant` is no longer refused for a hand-written structure.
+
 ## [0.4.35] - 2026-11-04
 
 ### Fixed
