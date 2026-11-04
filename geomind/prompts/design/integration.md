@@ -24,6 +24,15 @@ Each tool's description says its arguments.
 
 ## Rules
 
+Workflow (few calls, short answers):
+
+- First, in one step: `read_case` and `read_plant` together.
+- When the plant's `issues` name no connection, port, fluid or boundary, the connections are
+  sound as gemini checks them: trace the streams from the plant file and finish, with no patch.
+- Otherwise make one `patch_plant` call with every connection you change, under a new name;
+  read its `issues` and stop when none names a connection, port, fluid or boundary.
+- The ports of every module are below: never `describe_module` for a port.
+
 - Read the case, the plant and each module once: their results stay in the conversation for several turns. `read_profile`'s `summary` has the peak, the mean and the energy; a stored result is read by its `path` with `read_stored`, never whole again.
 - In a superstructure, wire every option as if it were on: each `optional` module and each group
   of a `choices`; gemini bypasses an option that is off.

@@ -272,6 +272,8 @@ Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/C
 | 77 | B2, process engineer | built from `read_plant(plant_class=...)`, a header with 110 values missing, while the project held the class's whole file | the prompt prefers the project plant of the class | track-b2 |
 | 78 | B2, design lead (nemotron) | checked a handed design feasible, then finished without `design.reference` and `design.result`; DeepSeek records them | the prompt asks for the record before every `finish` | track-b2 |
 | 79 | B2, energy engineer (DeepSeek) | `evaluate_module` on a heat pump without `inlets`, seven times (gemini: "missing required inlet(s)"), on a machine the plant file already sized | each missing stream inlet is named with its form before gemini; the prompt evaluates only a machine it changes | track-b2 |
+| 80 | B2, energy engineer (both models) | wrote `320.15 K (47 degC)` and a pressure in Pa as `15.74 bar`: a unit conversion by the model, flagged by `sourced` | a don't example: copy each value with the unit of its source | track-b2 |
+| 81 | B2, integration engineer (DeepSeek) | on a plant gemini checked clean: 18 model calls, 7 `read_plant`, 7 `describe_module`, 123k output tokens, 31 min (nemotron: 2 calls) | the prompt finishes with no patch when no issue names a connection, and ports come from the prompt | track-b2 |
 | 50 | A1, all | models saw only the first paragraph of each tool's docstring | the whole docstring but its `NOTE:` paragraphs | `768f396` |
 
 ### The adaptation to gemini 0.5 (done) and what is open

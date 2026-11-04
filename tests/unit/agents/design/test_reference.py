@@ -30,6 +30,7 @@ def test_an_engineer_s_prompt_holds_its_modules_and_its_workflow(discipline):
     assert "one `patch_plant` call with all your changes" in text
     assert "Stop when no issue names a path you own" in text
     assert "give it in the case" in text and "at most twelve lines" in text
+    assert "Don't convert a value to show it" in text
 
 
 def test_the_well_engineer_sees_the_section_list_form():
@@ -64,3 +65,10 @@ def test_the_lead_records_the_design_before_it_finishes():
 
     text = " ".join(DesignLead().prompt.content.split())
     assert "Before `finish`, always one `update_state` with `design.reference` and" in text
+
+
+def test_the_integration_engineer_stops_when_gemini_names_no_connection():
+    """#81: DeepSeek read the plant 7 times and described 7 modules on a sound plant."""
+    text = " ".join(IntegrationEngineer().prompt.content.split())
+    assert "trace the streams from the plant file and finish, with no patch" in text
+    assert "never `describe_module` for a port" in text

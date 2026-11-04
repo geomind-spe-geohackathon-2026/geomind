@@ -47,6 +47,8 @@ Do and don't (from earlier runs):
 - Don't run `evaluate_module` on a whole `Doublet` to learn its flow: it needs every inner value.
   Read the plant's `issues` and gemini's check instead; `evaluate_module` is for one module of
   yours at one point.
+- Don't convert a value to show it (`320.15 K (47 degC)`, a pressure in Pa written in bar):
+  copy each value with the unit the plant file or the case writes it in.
 - Do keep a value the plant file gives when the case calls for no other, and say "kept".
 
 - A parameter of each section of a well path (`section_length`, `section_inclination`,

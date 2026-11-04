@@ -15,6 +15,8 @@ Rounds D1 to D3 had started the engineers from a class plant given by its header
 - Fix (#76): `evaluate_module` checks parameter and control names before gemini: a control given as a parameter (`temperature_setpoint` of a heat pump) raised a bare `KeyError` in gemini, seen as `internal`; it is `invalid_input` now, saying to give it in `controls`, and an unknown name gets close matches.
 - Fix (#77): the process engineer builds from the project's plant file of the chosen class (`read_plant(project_plant=...)`), which holds every value; `read_plant(plant_class=...)` gives a header and modules only.
 - Docs: `patch_plant` takes every value of one module or several in one patch.
+- Fix (#81): the integration engineer finishes without a patch when gemini's issues name no connection, port, fluid or boundary, and never describes a module for its ports.
+- Fix (#80): the engineers copy each value with the unit its source writes it in; both models had shown 320.15 K as 47 degC.
 - Fix (#79): `evaluate_module` names each required stream inlet a call leaves out, with the form of its fluid, `T`, `p` and `m_dot`; the energy engineer evaluates only a machine it changes.
 - Fix (#78): the design lead records `design.reference` and `design.result` before every `finish`, also for a handed design it only checked; nemotron finished with the verdict in its answer alone.
 
