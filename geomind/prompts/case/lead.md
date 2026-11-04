@@ -122,6 +122,17 @@ Where each value comes from:
   `EUR/m3` or `EUR/MWh`, `capex.pipe` in `EUR/m` or `EUR/MW/m`): take the row's unit as it is. A
   path outside `economics.` (`utilities.electricity.co2_intensity`) is a case value: it goes in
   with `set_case` and the one confirmation question. A key with no row is asked for in 5.
+- Three economics parts gemini 0.6.2 added, each with a rule of its own:
+  - `opex.per_energy.<kind>`: a variable O&M per MWh each kind produces (`chp` its electricity;
+    `boiler`, `electric_boiler`, `heat_pump` their heat; the chillers their cold). Once the map
+    is given, gemini needs a price for every producing kind the plant uses: put its keys in
+    `values` only when a row gives every kind the case's services may need, else all in `open`.
+  - `revenue.subsidy`: `amount` (per year, or per MWh as SDE++ pays) and `duration` (it earns
+    nothing without both); `cap` limits the heat it is paid on, in `MWh/yr` or in full-load
+    hours (`h/yr`), and a cap in hours needs `capacity`, the MW the subsidy is granted for: a
+    file or the user gives it, never you. Without it, `cap` and `capacity` go in `open`.
+  - `capex.ice_storage` and `opex.fixed.ice_storage` price an ice store only when given: set
+    them from their rows as any key; a plant without an ice store costs the same.
 - A case needs no file: without files, ask the user for the missing parts in a few grouped
   questions, each naming its units and offering options where there are few, never one question
   per field.

@@ -56,3 +56,11 @@ def test_it_computes_nothing_by_hand():
     assert "Compute nothing by hand" in text and "names a missing design value alone" in " ".join(
         text.split()
     )
+
+
+def test_it_names_every_cost_size_gemini_asks_for():
+    """A duty, an energy, an ice volume or a pipe capacity: each size gemini 0.6.2 may ask for."""
+    text = " ".join(EnergySystemsEngineer().prompt.content.split())
+    for name in ("`nominal_duty`", "`energy_capacity`", "`volume`", "`nominal_capacity`"):
+        assert name in text
+    assert "never by hand" in text

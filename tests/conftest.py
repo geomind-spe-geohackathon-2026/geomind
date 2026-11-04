@@ -172,6 +172,8 @@ def deployment_settings(monkeypatch):
     monkeypatch.setenv("GEOMIND_EVOLVE_POPULATION", "8")
     monkeypatch.setenv("GEOMIND_EVOLVE_SEED", "0")
     monkeypatch.setenv("GEOMIND_EVOLVE_POLISH", "0")
+    monkeypatch.setenv("GEOMIND_EVOLVE_STOP_GENERATIONS", "5")
+    monkeypatch.setenv("GEOMIND_EVOLVE_STOP_SECONDS", "off")
     monkeypatch.setenv("GEOMIND_KNOWLEDGE_DIR", str(ROOT / "data" / "knowledge"))
     monkeypatch.setenv("GEOMIND_MCP_SERVERS", "[]")
     monkeypatch.setenv("GEOMIND_MCP_TIMEOUT", "10")

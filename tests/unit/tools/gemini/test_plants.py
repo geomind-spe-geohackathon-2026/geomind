@@ -549,6 +549,39 @@ async def test_two_designs_setting_one_value_differently_are_a_conflict(gm):
     assert "design/a" in result.output["error"]["message"]
 
 
+async def union_of(session, kinds):
+    """Build one design per plant class and join them with ``union_designs``."""
+    for name, kind in kinds.items():
+        plant = {"format": 1, "kind": "plant", "name": name, "type": kind}
+        await call(TOOLS.build_plant, {"name": name, "plant": plant}, session)
+    designs = [f"design/{name}" for name in kinds]
+    return await call(TOOLS.union_designs, {"designs": designs, "name": "u"}, session)
+
+
+async def test_whole_alternatives_are_joined_by_gemini_s_union(gm):
+    """By ``gm.plants.union`` (gemini 0.6.2): a superstructure whose structures give each design."""
+    session = StubSession()
+    kinds = {"heat": "HeatingPlant", "both": "HeatingHeatPumpCoolingPlant"}
+    result = await union_of(session, kinds)
+    output = result.output
+    assert not result.is_error, output
+    assert output["design"] == "design/u" and "design/u" in session.artifacts
+    assert set(output["structures"]) == {"design/heat", "design/both"}
+    assert output["structures"]["design/both"]["heat_pump"] is True
+    assert output["structures"]["design/heat"]["heat_pump"] is False
+    assert "heat_pump" in session.artifacts["design/u"]["optional"]
+    assert output["missing"] == len(output["issues"])
+    json.dumps(output)
+
+
+async def test_designs_gemini_cannot_join_are_its_error_and_nothing_is_stored(gm):
+    """A module the union would make optional with no bypass is gemini's ``invalid_design``."""
+    session = StubSession()
+    result = await union_of(session, {"heat": "HeatingPlant", "cool": "HeatingCoolingPlant"})
+    assert result.is_error and result.output["error"]["code"] == "invalid_design"
+    assert "design/u" not in session.artifacts
+
+
 def test_a_merge_patch_of_two_plant_files_holds_only_what_differs():
     """Changed leaves, added keys and removed keys; a list is one value."""
     from geomind.tools.gemini.plants import leaf_changes, plant_difference

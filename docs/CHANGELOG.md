@@ -6,6 +6,42 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### More of gemini 0.6.2 and 0.6.3 (0.4.24.dev1)
+
+**Contract changes for the backend:** two new required settings, no default,
+`GEOMIND_EVOLVE_STOP_GENERATIONS` and `GEOMIND_EVOLVE_STOP_SECONDS` (each a number or `off`; a
+live run lacking one is refused, like the other `GEOMIND_EVOLVE_*`); `evolve_structure` answers
+`why` beside `stopped`, and its stored study result gains `explanation` and `table`; a new
+design-lead tool `union_designs`. `merge_designs` is unchanged.
+
+- `evolve_structure` passes gemini's `evolve(stop=...)` from the settings `evolve_stop_generations`
+  (generations in a row with no new design on the feasible front) and `evolve_stop_seconds` (a time
+  limit); `off` leaves a key out and both `off` spend the budget. The study file records `stop`.
+  An unset one is named in the error. `why` says in words why the search stopped, naming the
+  setting (`budget`, `stalled`, `converged`, `seconds`).
+- The stored result of `evolve_structure` (`read_study`) keeps gemini's `Evolution.explain()` as
+  `explanation` and `to_frame()` as `table` (`{columns, rows}`, the front in display units). The
+  explainer quotes them with the study key under `Decisions`, never computing from them; the
+  design lead quotes `stopped`, `why`, `explanation` and `table`.
+- `union_designs(designs, name)`: gemini's `gm.plants.union` of whole alternative designs as one
+  superstructure (`optional`, `choices`), with `structures` (the structure of each design, by
+  design reference) and `notes` (values the designs state differently), then what is missing as
+  `patch_plant` gives it. A union gemini refuses is its `invalid_design`; nothing is stored.
+  `merge_designs` keeps its own patch merge: its designs share one topology, and a union would keep
+  the first design's value where the engineers' patches must both apply.
+- Case lead: rules for `opex.per_energy` (only as a map complete for the plant's producing kinds,
+  since gemini then asks a price for each), the subsidy's `cap` (in `h/yr` it needs `capacity`,
+  from a file or the user) and the ice storage keys (priced only when given).
+- Catalogue (`data/knowledge/cost-sources.csv`): the gas boiler, electric boiler and CHP fixed O&M
+  rows now give the source amount in EUR/MW/yr (1950, 1070, 9750), which `opex.fixed.<kind>` takes
+  since gemini 0.6.2, instead of a share of an assumed capex; new row
+  `sde-full-load-hours-geothermal-pbl-2026-over-20mw` (`revenue.subsidy.cap`, 6000 h/yr, PBL).
+  134 rows. `cost-sources.md` lists what still has no row (`opex.per_energy` but for the CHP).
+- Fix: the plant's `bypass` belonged to no discipline, so the integration engineer, whom its prompt
+  tells to set it, was refused; it is the integration engineer's now.
+- Energy systems engineer: the cost sizes gemini may ask for also name an ice storage's `volume` and
+  a pipe's `nominal_capacity`.
+
 ## [0.4.23] - 2026-11-04
 
 geomind 0.4.23 runs on gemini 0.6.3. It removes the workarounds gemini now covers (the doublet values engineers copied by hand, the control check, the °C/km mapping, its own field meanings where gemini describes a key, private study metric names), reads plant values in display units, takes its memory from the workspace (`Workspace.memory`, None turns it off), and takes `site.air.pressure` as the site's elevation, from which code computes the ISA pressure (ISO 2533:1975) for the user to confirm.

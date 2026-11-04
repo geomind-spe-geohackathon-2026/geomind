@@ -1,8 +1,9 @@
 """Which part of a plant file each engineer of the design team may change.
 
 The process engineer owns the header, the type, the size and the modules; the integration
-engineer owns the connections and the plant's boundaries; the parameters belong to the
-discipline ``design.owners`` names for their path prefix, as the process engineer recorded it.
+engineer owns the connections, the plant's boundaries and its ``bypass`` (how a module that is
+off is bridged, gemini 0.6.2); the parameters belong to the discipline ``design.owners`` names
+for their path prefix, as the process engineer recorded it.
 A parameter path ``design.owners`` names no prefix of belongs to the discipline of its module's
 gemini type (``OWNED_MODULES``, then the type's category), so an engineer can always write its
 own part, owners recorded or not. The design lead, and any agent of no discipline, may change
@@ -18,7 +19,7 @@ SECTIONS = {
     "process": frozenset(
         {"format", "kind", "name", "about", "type", "size", "modules", "optional", "choices"}
     ),
-    "integration": frozenset({"connections", "inlets", "outlets", "boundary", "fluids"}),
+    "integration": frozenset({"connections", "inlets", "outlets", "boundary", "fluids", "bypass"}),
 }
 """The top-level keys of a plant file each discipline owns besides parameters."""
 LEAF_KEYS = frozenset({"value", "unit", "min", "max", "options"})

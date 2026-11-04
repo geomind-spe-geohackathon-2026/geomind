@@ -20,6 +20,7 @@ from geomind.tools.gemini.plants import (
     patch_plant,
     read_plant,
     set_ranges,
+    union_designs,
 )
 from geomind.tools.gemini.results import read_result, search_rag
 from geomind.tools.gemini.runs import list_profiles, read_profile, simulate
@@ -68,4 +69,5 @@ __all__ = [
     "set_ranges",
     "simulate",
     "size_plant",
+    "union_designs",
 ]

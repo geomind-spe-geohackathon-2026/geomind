@@ -522,6 +522,55 @@ async def merge_designs(context, base: str, designs: list[str], name: str):
     return {"design": stored, **issues, "missing": len(issues["issues"])}
 
 
+def plant_union(plants, name):
+    """Return gemini's superstructure of ``plants`` (``gm.plants.union``) and its ``union``."""
+    import gemini as gm
+
+    joined = gm.plants.union(plants, name=name)
+    return joined, joined.union
+
+
+@tool(effect="write", late_schemas={"designs": reference_schema("design", many=True)})
+async def union_designs(context, designs: list[str], name: str):
+    """Join alternative designs into one superstructure by gemini, stored as design/<name>.
+
+    Each of ``designs`` is a whole alternative (a heating plant, the same with a heat pump and
+    cooling). gemini's ``gm.plants.union`` keeps a module of every design fixed and makes one of
+    some designs ``optional`` or a group of ``choices``; a value the designs state differently
+    keeps the first design's, its range widened to cover every design's. Designs it cannot join
+    (one module name with two types, a module with no bypass) are gemini's ``invalid_design``,
+    and nothing is stored. Returns the ``design``, ``structures`` (``{design: structure}``, the
+    structure that gives back each design), ``notes`` (each value stated differently, ``{path,
+    kept, values}`` with ``values`` by design) and what is still missing, as ``patch_plant``
+    does. ``evolve_structure`` then searches it. This is not ``merge_designs``, which joins the
+    patches engineers made side by side on one design.
+    """
+    from geomind.tools.gemini.study import to_plain
+
+    plants = [load_design(context, design, "union_designs") for design in designs]
+    by_plant = {plant.name: design for plant, design in zip(plants, designs)}
+    built, union = await runtime.in_gemini_thread(plant_union, plants, name)
+    stored = await save_design(context, name, built)
+    structures = {by_plant.get(plant, plant): item for plant, item in union["structures"].items()}
+    notes = [
+        {
+            **note,
+            "values": {
+                by_plant.get(plant, plant): value for plant, value in note["values"].items()
+            },
+        }
+        for note in to_plain(union["notes"])
+    ]
+    issues = plant_issues(context, built)
+    return {
+        "design": stored,
+        "structures": structures,
+        "notes": notes,
+        **issues,
+        "missing": len(issues["issues"]),
+    }
+
+
 @tool(effect="write", sets_input=True, late_schemas={"design": reference_schema("design")})
 async def set_ranges(
     context,

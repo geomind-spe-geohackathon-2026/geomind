@@ -188,3 +188,57 @@ async def test_null_optional_fields_are_left_out_and_a_null_value_is_open():
     unsourced = [{**VALUES[2], "source": None}, *VALUES[3:]]
     result = await call(ask_economics, {"values": unsourced})
     assert result.is_error and "no row or source" in result.output["error"]["message"]
+
+
+PBL = {"source": "PBL 5698", "status": "verified", "year": 2026}
+ADDED = [
+    {
+        "key": "opex.per_energy.chp",
+        "value": 5.4,
+        "unit": "EUR/MWh",
+        "row": "opex-variable-chp-gas-engine-dea-2018",
+    },
+    {
+        "key": "revenue.subsidy.amount",
+        "value": 48.699029126213595,
+        "unit": "EUR/MWh",
+        "row": "sde-basisbedrag-geothermal-pbl-2026-over-20mw",
+        **PBL,
+    },
+    {
+        "key": "revenue.subsidy.duration",
+        "value": 15,
+        "unit": "yr",
+        "row": "sde-duration-geothermal-stcrt-2025",
+    },
+    {
+        "key": "revenue.subsidy.cap",
+        "value": 6000,
+        "unit": "h/yr",
+        "row": "sde-full-load-hours-geothermal-pbl-2026-over-20mw",
+        **PBL,
+    },
+    {"key": "revenue.subsidy.capacity", "value": 20, "unit": "MW", "source": "the user"},
+    {
+        "key": "capex.ice_storage",
+        "value": 23249.8663132687,
+        "unit": "EUR/MWh",
+        "row": "ice-storage-mlakar-2022-low",
+    },
+]
+"""Rows of the economics parts gemini 0.6.2 added: per energy, the subsidy cap, ice storage."""
+
+
+async def test_approve_all_sets_the_economics_parts_of_gemini_0_6_2():
+    """``opex.per_energy``, the subsidy's ``cap`` in h/yr with its ``capacity``, ice storage.
+
+    Their rows go in as any key's; gemini reads each with its unit (its schema since 0.6.2).
+    """
+    context = await case_context("hackathon_2026")
+    output = await economics_answered(context, {"values": VALUES + ADDED}, "approve all")
+    assert output["economics"] == "set", output
+    stored = json.loads(context.session.artifacts["case/economics.json"])
+    assert stored["opex"]["per_energy"]["chp"] == {"value": 5.4, "unit": "EUR/MWh"}
+    assert stored["revenue"]["subsidy"]["cap"] == {"value": 6000, "unit": "h/yr"}
+    assert stored["revenue"]["subsidy"]["capacity"] == {"value": 20, "unit": "MW"}
+    assert stored["capex"]["ice_storage"]["unit"] == "EUR/MWh"
