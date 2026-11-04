@@ -74,9 +74,10 @@ def test_the_explainer_keeps_what_it_read_for_the_whole_run():
 
 
 def test_the_explainer_quotes_plant_values_in_their_own_units():
-    """#110: ``1500000.0 W/K`` became ``1.5 MW/K``, a conversion of the explainer's own."""
+    """#110: ``1500000.0 W/K`` became ``1.5 MW/K``; ``read_plant`` gives display units (30)."""
     text = " ".join(Explainer().prompt.content.split())
-    assert "never as MW or bar" in text and "`compute_kpis`'s `capacities`" in text
+    assert "values in gemini's display units too" in text and "never in another unit" in text
+    assert "`compute_kpis`'s `capacities`" in text
 
 
 def test_the_lead_offers_no_example_value_in_a_question():

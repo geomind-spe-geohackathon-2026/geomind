@@ -6,6 +6,41 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### gemini 0.6.3 (0.4.23.dev2)
+
+- gemini 0.6.3 (wheel sha256 `2fe06435…4444f023`), range still `>=0.6,<0.7`; its examples are
+  unchanged.
+- `read_plant` (and `build_plant`'s view) gives the plant file in gemini's display units
+  (`Plant.to_dict(units="display")`, request 30); the ranges are read from it. The explainer
+  quotes them as given.
+- `set_case`: a gradient in `°C/km`/`degC/km` goes to gemini as given (request 31), so the
+  gradient mapping of `unit_bridge` is gone and nothing is listed in `converted` for it; the
+  unit-name mapping (`m³`, `·`, `MWth`) stays.
+- `set_case` takes `site.air.pressure` as `{"elevation": {"value", "unit"}}` and sets the ISA
+  pressure in Pa (ISO 2533:1975, `geomind/tools/gemini/air.py`), the elevation converted by
+  gemini, its source in `site.air.about` and an entry in `converted`; no elevation and no
+  pressure leave it unset. The case lead searches the files and the knowledge base, else asks
+  for the pressure or the elevation in its one question, and shows the value for confirmation.
+  `test_no_unit_math` counts 101325 as a factor and allows that one line, with its reason.
+- `evaluate_module`: a control given as a parameter is gemini's `invalid_call` (request 27);
+  geomind still names an unknown parameter and a parameter given in `controls`.
+- `fields.py`: a case field's meaning is gemini's description (request 22), followed by geomind's
+  note of where its value comes from; `CASE_FIELDS` and `ECONOMICS_FIELDS` are replaced by
+  `CASE_NOTES` and `case_fields()`; `undescribed()` reads the schemas and is empty. gemini's
+  "The entry of this map for <key>." is skipped, so a map's description covers its entries.
+- The analysis prompts name what a study reads from `gm.study.metrics()` (request 26);
+  `STUDY_KPIS` is gone.
+- `data/knowledge/cost-sources.csv`: every `path` is a case key (`economics.<key>`,
+  `utilities.electricity.co2_intensity`), as gemini's catalogue now (request 17); the DEA pipe
+  transmission row (EUR/MW/m) is usable for `capex.pipe` (request 16). `opex.fixed.pipe` per MW
+  and year is still refused (two rows).
+- Prompts: the design engineers fill a doublet's design values and set an inner value only while
+  gemini lists it (requests 11, 28); the reservoir engineer leaves the reservoir values to gemini;
+  the case lead's `time.end` text is shorter (request 12); the units skill lists `°C/km`, `kW/K`,
+  `MW/K` and `EUR/MW/m` (requests 29, 31, 16).
+- docs/rules.md: gemini requests are only real bugs, unit problems and unclear errors; gemini never
+  provides data, defaults or derived inputs for other packages. plan.md: each request's status.
+
 ### Memory from the workspace (0.4.23.dev1)
 
 - Contract: the optional `Workspace.memory(project_id)` gives a project's memory; `None` turns the

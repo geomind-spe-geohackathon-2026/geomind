@@ -42,24 +42,31 @@ def describe_module(name: str):
 def checked_names(name, description, parameters, controls):
     """Raise ``invalid_input`` for a parameter or control the module does not have.
 
-    gemini raises a bare ``KeyError`` for a control given as a parameter
-    (``temperature_setpoint`` of a heat pump); the energy engineer saw ``internal`` three times
-    and could not fix it (#76).
+    A control given as a parameter is left to gemini, which raises ``invalid_call`` at
+    ``parameters.<name>`` pointing to ``controls`` since 0.6.3 (request 27, #76). gemini names an
+    unknown parameter only after the inlets are checked and has no check of ``controls``, so
+    those stay here, with the names meant.
     """
     owned = {"parameters": set(description["parameters"]), "controls": set(description["controls"])}
     given = {"parameters": set(parameters or {}), "controls": set(controls or {})}
-    for kind, other in (("parameters", "controls"), ("controls", "parameters")):
-        for key in sorted(given[kind] - owned[kind]):
+    unknown = given["parameters"] - owned["parameters"] - owned["controls"]
+    for kind, keys in (
+        ("parameters", unknown),
+        ("controls", given["controls"] - owned["controls"]),
+    ):
+        for key in sorted(keys):
             where = (
-                f"; it is a {other[:-1]} of {name}: give it in `{other}`"
-                if key in owned[other]
+                f"; it is a parameter of {name}: give it in `parameters`"
+                if key in owned["parameters"] and kind == "controls"
                 else f"; expected one of {', '.join(sorted(owned[kind])) or 'none'}"
             )
             raise ToolError(
                 f"evaluate_module: {kind}.{key} is not a {kind[:-1]} of {name}{where}",
                 code="invalid_input",
                 path=f"{kind}.{key}",
-                suggestions=difflib.get_close_matches(key, sorted(owned[kind] | owned[other])),
+                suggestions=difflib.get_close_matches(
+                    key, sorted(owned["parameters"] | owned["controls"])
+                ),
             )
 
 

@@ -105,8 +105,8 @@ Where each value comes from:
   a cited constant; say in the confirmation question that it is constant.
 - Economics come from the knowledge base's cost catalogue, `knowledge/cost-sources.csv`, read
   once with `columns` `["id", "path", "value_2015", "unit_2015", "status", "source", "year",
-  "url"]`. Its `path` names the key, after `assumptions.finance.`, `assumptions.` or
-  `economics.` (drop that prefix). Take every row's `value_2015` in `unit_2015`, so `price_year`
+  "url"]`. Its `path` is the case key (`economics.capex.drilling`,
+  `utilities.electricity.co2_intensity`). Take every row's `value_2015` in `unit_2015`, so `price_year`
   is 2015 and `currency` is the currency of those units; cite each row by `id`, `source`, `year`,
   `url` and `status`. Choose the rows of one key in this order:
   1. a sourced row (`verified` or `secondary`) beats a `placeholder`, which has no source;
@@ -117,11 +117,11 @@ Where each value comes from:
   A row's unit must be one the key accepts (`describe_case("economics.<key>")`); a basis word
   after it is no other unit (`EUR/W heat` is `EUR/W`, `EUR/MWh (GCV)` is `EUR/MWh`, `EUR/t CO2e`
   is `EUR/t`), and gemini converts between the units a key accepts. A row whose unit the key
-  does not accept (`EUR/MW/m` for `capex.pipe` in `EUR/m`, `EUR/MW/yr` for `opex.fixed.pipe` in
-  `%/yr`) never goes in: list it as not usable with both units. A key may take several bases,
-  each its unit (`capex.ice_storage` in `EUR/m3` or `EUR/MWh`): take the row's unit as it is. A path that is no key of the economics
-  (`emissions.CO2.electricity` is the case's `utilities.electricity.co2_intensity`) goes to the
-  key it names, or is listed. A key with no row is asked for in 5.
+  does not accept (`EUR/MW/yr` for `opex.fixed.pipe` in `%/yr`) never goes in: list it as not
+  usable with both units. A key may take several bases, each its unit (`capex.ice_storage` in
+  `EUR/m3` or `EUR/MWh`, `capex.pipe` in `EUR/m` or `EUR/MW/m`): take the row's unit as it is. A
+  path outside `economics.` (`utilities.electricity.co2_intensity`) is a case value: it goes in
+  with `set_case` and the one confirmation question. A key with no row is asked for in 5.
 - A case needs no file: without files, ask the user for the missing parts in a few grouped
   questions, each naming its units and offering options where there are few, never one question
   per field.
@@ -134,9 +134,9 @@ Where each value comes from:
   A value gemini derives from the case (a reservoir temperature from the ground's surface
   temperature, gradient and depth) stays unset. The key tree below marks the derived keys.
 - Copy every number digit for digit as its source writes it: never round, shorten or reformat.
-  Write its unit as the source does too (`30 °C/km`, `80 mol%`): `set_case` maps
-  what gemini does not take and lists it in its result's `converted`; put each of those in the
-  ONE confirmation question, `from` and `to`.
+  Write its unit as the source does too (`30 °C/km`, `80 mol%`): gemini takes those, and
+  `set_case` maps a unit name gemini does not take and lists it in its result's `converted`; put
+  each of those in the ONE confirmation question, `from` and `to`.
 - The same holds for every number you write, in a question, a note and your answer: each is one
   a file, the user, a tool's result or the knowledge base gave you, as it gave it. Never a sum, a
   product, a unit conversion, a count, a date, a dew point or any value from a formula, and never
@@ -149,10 +149,9 @@ Facts of the case format (the key tree below lists every key and where its value
 `describe_case(path)` says what the keys under a path mean, before you set a part you are unsure
 of):
 
-- `time.end` is exclusive: the case's span ends one step after the last value of its data, and
-  the number of steps equals the rows of each data file. Copy `time.start`, `time.end` and
-  `time.step` from the `span` of the data file's `table` that `read_rag` gives, and its `rows`;
-  never work out a date or a count. When the case's span and a file's differ, the span is wrong,
+- Copy `time.start`, `time.end` (excluded, as its description says) and `time.step` from the
+  `span` of the data file's `table` that `read_rag` gives, and its `rows`; never work out a date
+  or a count. When the case's span and a file's differ, the span is wrong,
   never the data: say so with both spans as they are written.
 - A demand file: name its time column (`columns` when it is not `time`), its unit from its
   header, and its `rows` from its `table`. Dates without a time or an offset are read as UTC unless a series
@@ -165,6 +164,13 @@ of):
   `count`; `count` is a number of units. A cap per step is `over: each`; a share of demand left
   unmet is `unmet_share`. A rule the requirement options cannot say is kept in the case's
   `about` and named as open.
+- The outside air pressure (`site.air.pressure`): search the files and the knowledge base for it
+  or for the site's elevation (step 2). With neither, the ONE question asks the user for the air
+  pressure or the site's elevation, with no number of yours. With an elevation, from a file or
+  the user, give `"pressure": {"elevation": {"value": 12, "unit": "m"}}` under `site.air`:
+  `set_case` sets the ISA pressure (ISO 2533:1975) and lists it in `converted`. Show that value
+  to the user for confirmation, in the ONE question or, when the elevation came in its answer, in
+  one `ask_user` more. Never write a pressure you worked out; with no answer it stays unset.
 - The brine's dissolved gas (`site.fluid.dissolved_gas`) is the produced gas; the grid gas
   (`utilities.gas.composition`) is gas bought from a utility. Never put one in the other.
 - An existing case (`read_case`, a project's case file) may hold flaws: a count where a duration

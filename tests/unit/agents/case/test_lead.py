@@ -87,9 +87,15 @@ def test_a_missing_value_is_searched_before_it_is_asked_for():
 
 
 def test_time_end_is_exclusive_and_the_data_decides_the_span():
-    """#58: the case lead read a year ending on 31 Dec as 364 steps and proposed to drop a day."""
-    text = CaseLead().prompt.content
-    assert "`time.end` is exclusive" in text and "never the data" in text
+    """#58: the case lead read a year ending on 31 Dec as 364 steps and proposed to drop a day.
+
+    gemini 0.6.3's schema says ``time.end`` is excluded (request 12): the prompt only points to it.
+    """
+    from geomind.tools.gemini.fields import case_fields
+
+    text = " ".join(CaseLead().prompt.content.split())
+    assert "`time.end` (excluded, as its description says)" in text and "never the data" in text
+    assert "365 steps" in case_fields()["time.end"]
 
 
 def test_it_knows_the_case_format_s_traps():
@@ -268,3 +274,11 @@ def test_change_some_without_a_follow_up_question_is_refused_once():
         Message(role="tool", content="site.air.pressure: 1.013 bar", tool_call_id="q2"),
     ]
     assert changes_not_asked(Context(messages=answered)) is None
+
+
+def test_the_air_pressure_comes_from_a_source_or_an_elevation_by_code():
+    """Request 32 dropped: geomind asks for the pressure or the elevation; set_case computes ISA."""
+    text = " ".join(CaseLead().prompt.content.split())
+    assert "asks the user for the air pressure or the site's elevation" in text
+    assert '"pressure": {"elevation": {"value": 12, "unit": "m"}}' in text
+    assert "Never write a pressure you worked out" in text

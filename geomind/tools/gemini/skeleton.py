@@ -229,13 +229,13 @@ def compact(lines):
 
 def described_tree(name):
     """Return ``[(label, lines)]`` of a tree, each case and economics line with its meaning."""
-    from geomind.tools.gemini.fields import CASE_FIELDS, economics_fields
+    from geomind.tools.gemini.fields import case_fields, economics_fields
 
     found = []
     for label, schema in schemas_of(name):
         tree = key_tree(schema)
         if name in ("case", "case_compact"):
-            tree = described(tree, economics_fields() if label else CASE_FIELDS)
+            tree = described(tree, economics_fields() if label else case_fields())
         found.append((label, tree))
     return found
 
@@ -243,10 +243,10 @@ def described_tree(name):
 def tree_text(name):
     """Return one key tree as prompt text: its heading and the lines of each of its schemas.
 
-    The case's tree says what each field means and where its value comes from, and what each
-    option of the requirements means (``geomind/tools/gemini/fields.py``; an economics field by
-    gemini's own description). ``case_compact`` says
-    only where each value comes from; ``describe_case`` gives the meanings of one part.
+    The case's tree says what each field means (gemini's description) and where its value comes
+    from, and what each option of the requirements means (``geomind/tools/gemini/fields.py``).
+    ``case_compact`` says only where each value comes from; ``describe_case`` gives the meanings
+    of one part.
     """
     from geomind.tools.gemini.fields import options_text
 

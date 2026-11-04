@@ -1,10 +1,11 @@
-"""What each case field means, and the fields gemini describes nowhere."""
+"""What each case field means: gemini's descriptions, with geomind's notes on the sources."""
 
 from geomind.tools.gemini.fields import (
-    CASE_FIELDS,
-    ECONOMICS_FIELDS,
+    CASE_NOTES,
+    case_fields,
     economics_fields,
     meaning,
+    schema_descriptions,
     undescribed,
 )
 from geomind.tools.gemini.skeleton import key_tree
@@ -22,7 +23,8 @@ def test_every_case_field_has_its_meaning():
     """Each key of gemini's case schema reads with a meaning; a new key fails here at once."""
     import gemini as gm
 
-    assert [path for path in paths_of(gm.Case.schema()) if meaning(path, CASE_FIELDS) is None] == []
+    fields = case_fields()
+    assert [path for path in paths_of(gm.Case.schema()) if meaning(path, fields) is None] == []
 
 
 def test_every_economics_field_has_its_meaning():
@@ -34,25 +36,36 @@ def test_every_economics_field_has_its_meaning():
     assert [path for path in paths_of(schema) if meaning(path, fields) is None] == []
 
 
-def test_an_economics_field_reads_with_gemini_s_own_description():
-    """The economics read with gemini 0.6.2's own descriptions (requests 19, 21) over geomind's."""
+def test_a_case_field_reads_with_gemini_s_description_then_geomind_s_note():
+    """Every case key has gemini 0.6.3's description (request 22): geomind adds only the source."""
     import gemini as gm
 
-    capex = gm.case.Economics.schema()["properties"]["capex"]["properties"]
+    given = schema_descriptions(gm.Case.schema())
+    fields = case_fields()
+    assert fields["site.ground.gradient"] == f"{given['site.ground.gradient']}; brief/report"
+    assert fields["initial_state"] == given["initial_state"]
+    assert "excluded" in fields["time.end"]
+
+
+def test_geomind_keeps_no_meaning_gemini_gives():
+    """A note is a source, or guidance gemini's description lacks; never its meaning again."""
+    import gemini as gm
+
+    given = schema_descriptions(gm.Case.schema())
+    assert set(CASE_NOTES) <= set(given)
+    assert [path for path, note in CASE_NOTES.items() if note in given[path]] == []
+
+
+def test_an_economics_field_reads_with_gemini_s_own_description():
+    """The economics read with gemini's own descriptions, the header and ``about`` too."""
+    import gemini as gm
+
+    schema = gm.case.Economics.schema()
     fields = economics_fields()
+    capex = schema["properties"]["capex"]["properties"]
     assert meaning("capex.heat_exchanger", fields) == capex["heat_exchanger"]["description"]
     assert "EUR/MW/yr" in meaning("opex.fixed.boiler", fields)
-    assert meaning("format", fields) == ECONOMICS_FIELDS["format"]
-
-
-def test_geomind_keeps_no_economics_text_gemini_gives():
-    """``ECONOMICS_FIELDS`` holds only what gemini's schema leaves undescribed."""
-    import gemini as gm
-
-    from geomind.tools.gemini.fields import schema_descriptions
-
-    given = schema_descriptions(gm.case.Economics.schema())
-    assert set(ECONOMICS_FIELDS) & set(given) == set()
+    assert meaning("format", fields) == schema["properties"]["format"]["description"]
 
 
 def test_describe_case_gives_gemini_s_economics_description():
@@ -62,31 +75,13 @@ def test_describe_case_gives_gemini_s_economics_description():
     assert any("SDE++" in line for line in keys_under("economics.revenue.subsidy"))
 
 
-UNDESCRIBED_IN_SCHEMA = (
-    "about",
-    "initial_state",
-    "demand.heating.minimum_return_temperature",
-    "demand.heating.maximum_return_temperature",
-    "demand.cooling.minimum_return_temperature",
-    "demand.cooling.maximum_return_temperature",
-)
-"""The case fields gemini's schema gives no description for (plan.md, gemini request 22)."""
+def test_gemini_describes_every_field():
+    """``undescribed``, the list for Sahand, is empty since gemini 0.6.3 (request 22)."""
+    assert undescribed() == []
 
 
-def test_the_fields_gemini_describes_nowhere_are_listed_for_sahand():
-    """``undescribed`` lists exactly the fields still marked ``(gemini: none)``."""
-    marked = [path for path, text in CASE_FIELDS.items() if "(gemini: none)" in text]
-    marked += [f"economics.{p}" for p, text in ECONOMICS_FIELDS.items() if "(gemini: none)" in text]
-    assert undescribed() == marked
-
-
-def test_the_fields_described_from_gemini_s_code_are_not_listed():
-    """The seven fields taken from gemini's code are no longer on ``undescribed``'s list."""
-    assert set(undescribed()).isdisjoint({*UNDESCRIBED_IN_SCHEMA, "economics.about"})
-
-
-def test_each_field_without_a_schema_description_says_where_it_comes_from():
-    """Each of the seven reads from gemini's code or says gemini does not use it."""
-    texts = [CASE_FIELDS[path] for path in UNDESCRIBED_IN_SCHEMA] + [ECONOMICS_FIELDS["about"]]
-    sources = ("from gemini's code", "gemini does not use it")
-    assert [text for text in texts if not any(source in text for source in sources)] == []
+def test_a_map_entry_reads_with_its_map_s_description():
+    """The text ``The entry of this map for boiler.`` says nothing: the map's text covers it."""
+    fields = economics_fields()
+    assert "opex.fixed.boiler" not in fields and "entry of this map" not in str(fields)
+    assert "entry of this map" not in str(case_fields())

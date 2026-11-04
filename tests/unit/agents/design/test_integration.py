@@ -57,4 +57,6 @@ def test_it_owns_the_connections_only():
 def test_it_computes_nothing_by_hand():
     """#45: no formula or conversion; numbers from the case, gemini, or a named assumption."""
     text = IntegrationEngineer().prompt.content
-    assert "Compute nothing by hand" in text and "top-level values first" in text
+    assert "Compute nothing by hand" in text and "names a missing design value alone" in " ".join(
+        text.split()
+    )

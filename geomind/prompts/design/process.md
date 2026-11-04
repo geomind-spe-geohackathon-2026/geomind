@@ -86,9 +86,9 @@ Do and don't (from earlier runs):
   your answer. A number you need comes from the case, a gemini tool (`evaluate_module`,
   `read_plant`) or is an equipment value no file gives, chosen with its reason and named as an
   assumption.
-- Fill a module's own top-level values first (a doublet's depth, flow and diameter), then read the
-  issues again: gemini derives inner values from them and from the case; set an inner value only
-  while it is still listed.
+- Fill a doublet's design values first (depth, flow, well diameter, roughness, pump efficiency,
+  wellhead pressure): gemini derives its inner values from them and from the case, and names a
+  missing design value alone (`d0.well_diameter`); set an inner value only while gemini lists it.
 - Use experience from the memory as a starting point only, never as the answer; a value from
   knowledge keeps its source.
 - No number of your own: sizes and values come from the case, a file, knowledge with its source,

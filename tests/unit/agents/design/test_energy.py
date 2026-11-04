@@ -53,4 +53,6 @@ def test_its_model_is_its_own_required_setting(monkeypatch):
 def test_it_computes_nothing_by_hand():
     """#45: no formula or conversion; numbers from the case, gemini, or a named assumption."""
     text = EnergySystemsEngineer().prompt.content
-    assert "Compute nothing by hand" in text and "top-level values first" in text
+    assert "Compute nothing by hand" in text and "names a missing design value alone" in " ".join(
+        text.split()
+    )

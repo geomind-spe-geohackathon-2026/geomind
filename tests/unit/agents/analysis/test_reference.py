@@ -65,11 +65,14 @@ def test_compute_kpis_is_called_without_names():
 def test_a_study_s_metrics_are_gemini_s():
     """A study refuses ``capex`` (nemotron sampled it): the prompt names what a study reads.
 
-    gemini keeps the list in a private module (request C-1): this pin fails when it changes.
+    The names come from ``gm.study.metrics()`` (gemini 0.6.3, request 26), none pinned here.
     """
-    from gemini.study._utils.trial import ECONOMICS, KPI_NAMES
+    import gemini as gm
 
-    from geomind.agents.analysis.reference import STUDY_KPIS
+    from geomind.agents.analysis.reference import study_metrics
 
-    assert tuple(KPI_NAMES) == STUDY_KPIS and set(ECONOMICS) == OBJECTIVES
+    names = study_metrics()
+    assert names == [item["name"] for item in gm.study.metrics()]
+    assert {"heating_coverage", "cop"} | OBJECTIVES <= set(names) and "capex" not in names
+    assert f"reads only {', '.join(f'`{name}`' for name in names)}" in Economist().prompt.render()
     assert "never `capex` or `opex`" in Economist().prompt.render()

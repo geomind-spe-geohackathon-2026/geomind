@@ -1,4 +1,4 @@
-"""The units gemini 0.6.2 refuses that set_case maps until gemini request 31 (#115)."""
+"""The unit names gemini refuses that set_case maps (#115, #118); gradients are gemini's (31)."""
 
 from geomind.tools.gemini.unit_bridge import bridged_units, gemini_unit_name
 
@@ -22,11 +22,11 @@ def test_a_gas_in_percent_is_named_mol_percent_and_left_to_gemini():
     assert bridged_units(given) == (given, [])
 
 
-def test_a_gas_without_a_unit_and_a_gradient_in_k_per_km_stay_as_given():
-    """Only the named units are touched: a bare value is no percentage."""
+def test_a_gas_without_a_unit_and_a_gradient_in_degrees_per_km_stay_as_given():
+    """Only the named units are touched: a bare value is no percentage, °C/km is gemini's (31)."""
     changes = {
         "site": {
-            "ground": {"gradient": {"value": 30, "unit": "K/km"}},
+            "ground": {"gradient": {"value": 30, "unit": "°C/km"}},
             "fluid": {"dissolved_gas": {"CH4": {"value": 80}}},
         }
     }

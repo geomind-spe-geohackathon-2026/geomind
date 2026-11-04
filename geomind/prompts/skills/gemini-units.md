@@ -7,9 +7,10 @@ unit (MW, MWh, degC, Pa, m3/h, kg/s, EUR/MWh), and a value you give is a quantit
   Never a bare number where the parameter has a unit, and never a text such as `"150 m3/h"`. gemini converts the
   quantity; never convert a value yourself.
 - gemini knows a fixed list of units. These work: `m3/h`, `m3/s`, `l/s`, `t/h`, `kg/s`, `bar`,
-  `barg`, `bar(g)`, `Pa`, `kPa`, `MPa`, `degC`, `C`, `K`, `K/km`, `W`, `kW`, `MW`, `GW`, `J`, `kWh`,
-  `MWh`, `GWh`, `m`, `km`, `mm`, `ft`, `in`, `Hz`, `rpm`, `mD`, `mPa*s`, `kg/m3`, `Nm3/m3`, `mg/l`,
-  `ppm`, `EUR`, `MEUR`, `EUR/MWh`, `EUR/kWh`, `d`, `h`, `min`, `s`. These do not: `L/s`, `psi`, `degF`.
+  `barg`, `bar(g)`, `Pa`, `kPa`, `MPa`, `degC`, `C`, `K`, `K/km`, `degC/km`, `°C/km`, `W`, `kW`,
+  `MW`, `GW`, `W/K`, `kW/K`, `MW/K`, `J`, `kWh`, `MWh`, `GWh`, `m`, `km`, `mm`, `ft`, `in`, `Hz`,
+  `rpm`, `mD`, `mPa*s`, `kg/m3`, `Nm3/m3`, `mg/l`, `ppm`, `EUR`, `MEUR`, `EUR/MWh`, `EUR/kWh`,
+  `EUR/MW/m`, `d`, `h`, `min`, `s`. These do not: `L/s`, `psi`, `degF`.
 - `degC` (or `C`) is a temperature, `K` a temperature or a temperature difference: a brine cooling
   of 40 degrees is `{"value": 40, "unit": "K"}`.
 - An unknown or wrong unit is an error result that names the nearest unit. Read it and give the value

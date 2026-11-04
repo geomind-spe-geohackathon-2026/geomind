@@ -39,30 +39,18 @@ def test_the_folder_of_the_repository_holds_the_cost_catalogue():
     assert knowledge.search("drilling")[0]["document"] == "cost-sources.csv"
 
 
-CATALOGUE_PREFIXES = ("assumptions.finance.", "assumptions.", "economics.")
-"""The prefixes of a catalogue ``path`` before the economics key, as the case lead drops them."""
-REFUSED_BY_GEMINI = {
-    "pipe-dea-2025-transmission-0-50mw",
-    "opex-pipe-dea-2025-distribution",
-    "opex-pipe-dea-2025-transmission",
-}
-"""Catalogue rows whose unit gemini 0.6.2's key still refuses (cost-sources.md, for Sahand)."""
-NO_ECONOMICS_KEY = {"emissions.CO2.electricity"}
-"""A catalogue path that is a case value, ``utilities.electricity.co2_intensity``."""
+REFUSED_BY_GEMINI = {"opex-pipe-dea-2025-distribution", "opex-pipe-dea-2025-transmission"}
+"""Catalogue rows whose unit gemini 0.6.3's key still refuses: ``opex.fixed.pipe`` per MW and
+year (it takes %/yr only; cost-sources.md)."""
 
 
-def catalogue_key(path):
-    """Return the economics key of a catalogue ``path``, its prefix dropped."""
-    for prefix in CATALOGUE_PREFIXES:
-        if path.startswith(prefix):
-            return path.removeprefix(prefix)
-    return path
+def test_every_catalogue_row_names_a_case_key_and_a_unit_gemini_takes():
+    """Every catalogue ``path`` is a key of the case and its unit one the key takes (16, 17).
 
-
-def test_every_catalogue_row_names_a_key_and_a_unit_gemini_takes():
-    """Every catalogue row names an economics key and a unit it takes (gemini requests 16-18).
-
-    A basis word after the unit aside; a number with no unit (a share, a GWP) is not judged here.
+    gemini 0.6.3's catalogue names the case keys (``economics.capex.drilling``,
+    ``utilities.electricity.co2_intensity``), and ``capex.pipe`` takes EUR/MW/m. A basis word
+    after the unit aside; a number with no unit (a share, a GWP) is not judged here, nor a row
+    with no 2015 value (USD), except a case value outside the economics (the grid's CO2, g/kWh).
     """
     import csv
 
@@ -70,20 +58,33 @@ def test_every_catalogue_row_names_a_key_and_a_unit_gemini_takes():
 
     from geomind.tools.gemini.unit_bridge import _accepted_units, _child_schema
 
-    schema = gm.case.Economics.schema()
+    schemas = {"economics": gm.case.Economics.schema()}
     rows = csv.DictReader((ROOT / "data" / "knowledge" / "cost-sources.csv").open())
     unknown, refused = [], []
     for row in rows:
-        key = catalogue_key(row["path"])
-        if not key or key in NO_ECONOMICS_KEY:
+        if not row["path"]:
             continue
-        node = schema
-        for part in key.split("."):
+        first, _, rest = row["path"].partition(".")
+        node, parts = (
+            (schemas[first], rest) if first in schemas else (gm.Case.schema(), row["path"])
+        )
+        for part in parts.split("."):
             node = _child_schema(node, part)
         if node is None:
             unknown.append(row["id"])
             continue
-        unit, accepted = row["unit_2015"].split(" ")[0], _accepted_units(node)
+        unit = row["unit_2015"].split(" ")[0] or (row["unit"] if first == "utilities" else "")
+        accepted = _accepted_units(node)
         if unit and accepted and unit not in accepted:
             refused.append(row["id"])
     assert unknown == [] and set(refused) == REFUSED_BY_GEMINI
+
+
+def test_the_pipe_rows_per_mw_and_metre_are_usable():
+    """Request 16: gemini 0.6.3 prices ``capex.pipe`` per MW and m (DEA's transmission row)."""
+    import csv
+
+    catalogue = (ROOT / "data" / "knowledge" / "cost-sources.csv").open()
+    rows = {row["id"]: row for row in csv.DictReader(catalogue)}
+    row = rows["pipe-dea-2025-transmission-0-50mw"]
+    assert (row["path"], row["unit_2015"]) == ("economics.capex.pipe", "EUR/MW/m")

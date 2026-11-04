@@ -26,6 +26,7 @@ from geomind.errors import ToolError
 from geomind.stores.casefiles import case_files, is_safe_name, named_files
 from geomind.tools.base import tool
 from geomind.tools.files import file_names_schema, project_file
+from geomind.tools.gemini.air import pressure_from_elevation
 from geomind.tools.gemini.explain import MISSING_CODES, shown_message, unit_error, unit_retry
 from geomind.tools.gemini.skeleton import case_skeleton, requirement_shape
 from geomind.tools.gemini.unit_bridge import bridged_requirements, bridged_units
@@ -611,9 +612,11 @@ async def set_case(
     missing is ``case_incomplete``, every missing path in ``suggestions``. The project's case, or
     the first case of a chat, is the case the user gave; a design is verified only on it, so any
     later change of it, economics included, waits for the user's approval. Write units as the
-    source gives them: a gradient in °C/km becomes K/km, a gas fraction in % is mol% (gemini
-    converts mol%), and a unit name as sources print it becomes gemini's name of it (``kg/m³`` is
-    ``kg/m3``, ``mPa·s`` is ``mPa.s``, ``MWth`` is ``MW``). Returns the case, the state version
+    source gives them (gemini takes °C/km): a gas fraction in % is mol% (gemini converts
+    mol%), and a unit name as sources print it becomes gemini's name of it (``kg/m³`` is
+    ``kg/m3``, ``mPa·s`` is ``mPa.s``, ``MWth`` is ``MW``). With only the site's elevation, give
+    ``site.air.pressure`` as ``{"elevation": {"value", "unit"}}``: set_case sets the ISA pressure
+    in Pa (ISO 2533:1975), never a value of yours. Returns the case, the state version
     and ``converted``, each value set_case mapped or converted (``{path, from, to, reason}``), to
     list in the user's confirmation question.
     """
@@ -635,6 +638,8 @@ async def set_case(
         given = await runtime.in_gemini_thread(project_files_of, context, files, columns)
         supplied = {**supplied, **given}
     changes, converted = bridged_units(changes or {})
+    changes, derived = pressure_from_elevation(changes)
+    converted += derived
     data = merge_patch(base, checked_changes(changes, files))
     if requirements:
         requirements, renamed = bridged_requirements(requirements)
