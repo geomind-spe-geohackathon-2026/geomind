@@ -101,7 +101,9 @@ Where each value comes from:
   ask once for all of
   them. Never a typical value, a rule of thumb or a number you recall, at any step.
 - The user's answer is final: a value the answer does not give, or answers `unknown` or `leave
-  open`, stays unset. Never ask for it again; list it as open in your handover.
+  open`, stays unset. Never ask for it again; list it as open in your handover. An answer that
+  names a source ("use the town's weather data") gives no value: fetch it there and confirm the
+  value with its source; a value you found or changed may always be confirmed.
 - Values from 3 and 4 go into the ONE confirmation question, each with its source, as below.
 - A key that takes a constant or a series (the outside air's temperature and humidity) may take
   a cited constant; say in the confirmation question that it is constant.
