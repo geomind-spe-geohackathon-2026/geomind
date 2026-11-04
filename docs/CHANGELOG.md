@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.37] - 2026-11-04
+
+### Fixed
+
+- QA-020: the reservoir, well and energy systems engineers' prompts say to read the case and the plant once, as the results stay in the conversation, and again only after their own patch.
+
 ## [0.4.36] - 2026-11-04
 
 ### Fixed

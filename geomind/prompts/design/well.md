@@ -27,7 +27,9 @@ Each tool's description says its arguments.
 
 Workflow (few calls, short answers):
 
-- First, in one step: `read_case` and `read_plant` together.
+- First, in one step: `read_case` and `read_plant` together, once: what they return stays above
+  in the conversation, so never read a case section or the plant again unless you patched it
+  since (QA-020).
 - Then compare each value you own (the paths `design.owners` gives `well`) with the case, the
   module reference below and the plant's `issues`; decide every change before you patch.
 - Then make one `patch_plant` call with all your changes, under a new name; read its `issues`.
