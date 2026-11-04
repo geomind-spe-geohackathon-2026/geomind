@@ -6,6 +6,9 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### Case fields from gemini's code, F
+
+- The seven case fields gemini's schema leaves undescribed (`about`, `initial_state`, `economics.about`, `demand.{heating,cooling}.{minimum,maximum}_return_temperature`) read with a meaning taken from gemini 0.6.1's code, each naming its source; `heating.maximum_return_temperature` and `cooling.minimum_return_temperature` say gemini does not use them. `undescribed()` no longer lists them (plan.md, gemini request 22).
 ### Model-agnostic tool inputs, A2
 
 - Fix (#67): on `nvidia/nemotron-3.5-super-vl:free` the case lead sent `set_case`'s `changes` as its JSON text (`'{"format": 1, ...}'`), was refused twice and the run ended; `Tool.validate` now reads a string as JSON for a parameter whose schema takes an object or an array and no string, when the text gives that type. Any other string is refused as before; a string parameter keeps its string. Every tool, the hand-made ones too.

@@ -354,6 +354,12 @@ Open requests to gemini (full text in the adaptation notes):
 15. `site.fluid.dissolved_gas.*` take a bare `{value}` (a mole fraction) with no unit, while
     briefs give `mol%`: the agents must turn 20 mol% into 0.2 by hand, which their rules forbid.
     A `unit` (`mol%`, `-`) on those fields, converted by gemini (Track A).
+22. Case schema descriptions: `Case.schema()` gives no description for `about`,
+    `initial_state`, `economics.about` and `demand.{heating,cooling}.{minimum,maximum}_return_temperature`;
+    geomind took their meaning from gemini's code (`geomind/tools/gemini/fields.py`, each text
+    naming its module and function: `heating.maximum_return_temperature` and
+    `cooling.minimum_return_temperature` are read but never used). Asked: a description of each
+    in the schema (Track F).
 
 ### S2b: gemini tools (the first job; the text below is the original plan)
 
