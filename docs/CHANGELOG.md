@@ -13,6 +13,8 @@ Round C1 (Track C): the analysis lead and the economist alone, two tasks each, o
 - Prompts: the analysis lead and the economist carry a gemini reference made when the prompt renders (`geomind/agents/analysis/reference.py`): every metric of `gm.evaluate.metrics()` with its title, display unit and whether a study may minimise it, and the economics keys with units and meanings. A test pins gemini's objectives (`annualised_cost`, `lcts`, `lcoh`, `lcoc`, `co2`) and checks that every metric the prompts cite is gemini's.
 - Prompts: the economist has `read_case` (its prompt sent it to the case's economics without the tool), names metrics as gemini does, reports a breakdown and a comparison as gemini gives them (ranks and both values, never a difference, a share or a sum it worked out), and reports a missing price with its economics path. The analysis lead no longer chooses a time zone alone, and gives gemini's values side by side instead of a share.
 - Fix (#85): the economist runs uncertainty and sensitivity only when the task asks for them.
+- Fix (#87): `Tool.validate` reads a list or an object sent as its JSON text, as nemotron sends `update_state`'s `changes`; any other string stays for the schema to judge.
+- Fix (#88): the analysis reference says `compute_kpis` has names of its own (gemini's totals and one result's report): call it without `names`; costs come from `estimate_costs`.
 - Fix (#86), evals: the `sourced` criterion reads the problem state's `Case:` line. Evals: the `number` criterion reads a thousands separator (`111,667.68 MWh`).
 
 ### Shared rules for every agent, gemini's module reference, and set_case loads the files the case names (0.4.22.dev47)

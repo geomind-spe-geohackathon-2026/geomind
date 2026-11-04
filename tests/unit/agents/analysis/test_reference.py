@@ -54,3 +54,9 @@ def test_a_cost_task_is_costs_only():
     """#85: told to cost a design, the economist sampled 200 draws with a seed it chose."""
     text = " ".join(Economist().prompt.content.split())
     assert "only when the task asks for an uncertainty" in text
+
+
+def test_compute_kpis_is_called_without_names():
+    """#88: the analysis lead asked compute_kpis for annualised_cost, a cost metric it lacks."""
+    text = AnalysisLead().prompt.render()
+    assert "`compute_kpis` has names of its own" in text and "call it without `names`" in text

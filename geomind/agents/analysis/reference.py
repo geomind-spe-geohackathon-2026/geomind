@@ -22,7 +22,13 @@ def metrics():
 
 def metrics_text():
     """Return one line per metric: its name, title, display unit, and whether it is an objective."""
-    lines = ["### Metrics (`compute_kpis`, `estimate_costs`, `compare` `by`, study `metrics`)", ""]
+    lines = [
+        "### Metrics (`estimate_costs`, `compare` `by`, a study's `metrics`)",
+        "",
+        "`compute_kpis` has names of its own, gemini's totals and the report of one result: call "
+        "it without `names` and use the names it returns; costs come from `estimate_costs`.",
+        "",
+    ]
     for item in metrics():
         aim = "; an objective a study may minimise" if item["objective"] else ""
         lines.append(f"- `{item['name']}`: {item['title']}, in {item['unit']}{aim}")

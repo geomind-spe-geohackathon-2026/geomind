@@ -2,6 +2,7 @@
 
 import copy
 import inspect
+import json
 import typing
 
 from pydantic import ConfigDict, create_model
@@ -147,7 +148,12 @@ class Tool:
         return renamed
 
     def validate(self, tool_input):
-        """Return the keyword arguments of a call, or raise for an input that does not fit."""
+        """Return the keyword arguments of a call, or raise for an input that does not fit.
+
+        A list or an object sent as its JSON text, as some models send one, is read as that list
+        or object (#87); any other string stays as it came, for the schema to judge.
+        """
+        tool_input = decoded_containers(tool_input, self.input_schema)
         if self.input_model is not None:
             model = self.input_model.model_validate(tool_input)
             return {name: getattr(model, name) for name in type(model).model_fields}
@@ -160,6 +166,33 @@ class Tool:
                 f"expected the names {join_names(properties)}"
             )
         return dict(tool_input)
+
+
+def _container_types(schema):
+    """Return the JSON types among ``array`` and ``object`` a property's schema accepts."""
+    options = schema.get("anyOf") or [schema]
+    return {item.get("type") for item in options if isinstance(item, dict)} & {"array", "object"}
+
+
+def decoded_containers(tool_input, schema):
+    """Return ``tool_input`` with each list or object given as JSON text read as one (#87)."""
+    properties = (schema or {}).get("properties") or {}
+    if not isinstance(tool_input, dict) or not properties:
+        return tool_input
+    found = dict(tool_input)
+    for name, value in tool_input.items():
+        wanted = _container_types(properties.get(name) or {})
+        if not wanted or not isinstance(value, str) or not value.strip()[:1] in ("[", "{"):
+            continue
+        try:
+            parsed = json.loads(value)
+        except ValueError:
+            continue
+        if ("array" in wanted and isinstance(parsed, list)) or (
+            "object" in wanted and isinstance(parsed, dict)
+        ):
+            found[name] = parsed
+    return found
 
 
 def _first_line(definition):

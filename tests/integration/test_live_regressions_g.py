@@ -52,15 +52,14 @@ async def test_a_run_waiting_in_a_nested_run_reports_the_nested_usage():
     assert round(result.usage.cost, 6) == 0.02 and result.usage.input_tokens == 20
 
 
-async def test_an_object_sent_as_a_json_string_says_to_send_the_object():
-    """Segment 8 sent ``changes`` and ``plant`` as JSON text three times; the error now says so."""
+async def test_an_object_sent_as_a_json_string_is_read_as_the_object():
+    """Segment 8 sent ``plant`` as JSON text three times despite the error; it is read now (#87)."""
     from geomind.tools.gemini.plants import build_plant
     from tests.fixtures.calls import call as dispatched
 
     plant = '{"format": 1, "kind": "plant", "name": "hc", "type": "HeatingCoolingPlant"}'
-    error = (await dispatched(build_plant, {"name": "hc", "plant": plant})).output["error"]
-    assert error["path"] == "plant"
-    assert error["suggestions"] == ["plant is JSON text: send the object itself, not a string"]
+    output = (await dispatched(build_plant, {"name": "hc", "plant": plant})).output
+    assert "JSON text" not in str(output)
 
 
 def test_a_pdf_table_drawn_word_by_word_reads_as_rows():
