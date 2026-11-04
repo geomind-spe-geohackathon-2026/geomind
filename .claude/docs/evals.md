@@ -62,6 +62,8 @@ task, whatever the criteria say.
 tracked), per task and in total: passed, steps, tool calls, tokens, cost and time, then every
 failure with its reason.
 
+The `design_lead` tasks start from the project's case, set by their `setup` (`set_case(source='project')`), as the design loop sets it before a design lead runs; the case lead owns `set_case`.
+
 `design lead/project_plant` (project `hackathon`, recorded by script, no live call) lists the plants,
 reads the project plant, stores it with `build_plant` and sizes `design/start`.
 
@@ -113,11 +115,11 @@ A folder of `SUITES` in `evals/run.py` runs its tasks through a loop instead of 
 |---|---|---|
 | `hackathon` | `hackathon` | the case as it is: an unmet requirement (`verified`), the LCTS of the design (`number`) |
 | `more_cooling` | `more_cooling` | a 15 MW cooling peak: the unsized plant fails `cold_delivered` and `cooling_supply_temperature` (`verified`) |
-| `colder_reservoir` | `hackathon` | `set_case` changes `site.ground.gradient` to 25 K/km: the case state (`/case/site/ground/gradient/value`) and the LCTS of the 25 K/km design (`number`), not the 30 K/km one |
-| `user_profile` | `hackathon` | 30 January days of the user's demand: `set_case` cuts `time` and drops `running_time_limit`, `save_profile` twice (heating, cooling), the `/case` paths are the user's and the requirements hold |
+| `colder_reservoir` | `hackathon` | the design lead names the change (`case change needed:`) and the case lead's `set_case` changes `site.ground.gradient` to 25 K/km, which the user approves: the case state (`/case/site/ground/gradient/value`) and the LCTS of the 25 K/km design (`number`), not the 30 K/km one |
+| `user_profile` | `hackathon` | 30 January days of the user's demand, by the case lead as in `colder_reservoir`: `set_case` cuts `time` and drops `running_time_limit`, `save_profile` twice (heating, cooling), the `/case` paths are the user's and the requirements hold |
 | `reviewer` | `shallow_district` | the Reviewer's part on a second example: `check_results` is called, `/verification/result` is set, the design is verified |
 | `economist` | `higher_gas` | the Economist's part: `estimate_costs` and `sample_uncertainty` are called, the LCTS in the answer is the one on the higher gas price (`number`), `/results/costs` is recorded |
-| `tight_budget` | `hackathon` | `max_steps: 7`: the DesignLead cannot reach `optimize`, so the loop ends without a design and says so; `optimize` and `estimate_costs` are not called |
+| `tight_budget` | `hackathon` | `max_steps: 7`: the DesignLead cannot reach `optimize`; a round without a design is no repeated failure, so the loop's own 7 steps end it (answered `stop`, the partial answer) without a design; `optimize` and `estimate_costs` are not called. A run that ends at a task's own `max_steps` does not fail the task |
 
 ### The alternatives task
 

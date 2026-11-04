@@ -13,6 +13,7 @@ from geomind.engine.session import current_versions
 from geomind.errors import ReplayError
 from geomind.providers import FakeLLM, with_retries
 from geomind.stores.run import MemoryRunStore
+from geomind.tools.gemini.references import is_index, references_in, without_references
 from geomind.types import Allow, Cancel, Deny
 
 END_OF_RECORDING = "end of the recording"
@@ -115,25 +116,46 @@ class _ReplayStore(MemoryRunStore):
 
     NOTE: a replayed nested run saves what its tools write, but an artifact it did not write
     itself, such as one a reused nested run stored, is read from the original store; what the
-    replay saves itself comes first.
+    replay saves itself comes first. A reference index (``results.index``, ...) grows as the run
+    goes, and the recorded one is the one of the end: until the replay writes its own, it reads
+    the recorded index without ``remade``, the references the replayed runs make again, so a
+    listing at a step is the one the run had there.
     """
 
-    def __init__(self, original, run_id, chat_id):
-        """Keep the store, the root run id and the chat id of the recording."""
+    def __init__(self, original, run_id, chat_id, remade=frozenset()):
+        """Keep the store, the root run id, the chat id and the references made again."""
         super().__init__()
         self.original = original
         self.run_id = run_id
         self.chat_id = chat_id
+        self.remade = remade
+
+    def _recorded(self, key, found):
+        """Return a recorded artifact, an index without what the replay makes again."""
+        if found is None or not is_index(key):
+            return found
+        return without_references(key, found, self.remade)
 
     def load_artifact(self, run_id, key):
         """Return the replay's own artifact, else the recorded run's."""
         found = super().load_artifact(run_id, key)
-        return found if found is not None else self.original.load_artifact(self.run_id, key)
+        if found is not None:
+            return found
+        return self._recorded(key, self.original.load_artifact(self.run_id, key))
 
     def load_chat_artifact(self, chat_id, key):
         """Return the replay's own chat artifact, else the recorded chat's."""
         found = super().load_chat_artifact(chat_id, key)
-        return found if found is not None else self.original.load_chat_artifact(self.chat_id, key)
+        if found is not None:
+            return found
+        return self._recorded(key, self.original.load_chat_artifact(self.chat_id, key))
+
+
+def _remade(tree, plan):
+    """Return the references the tool results of the runs of ``plan`` hold: made again."""
+    return frozenset().union(
+        *(references_in(e.output) for e in _results(tree) if e.run_id in plan and not e.is_error)
+    )
 
 
 class _RecordedLoop:
@@ -381,7 +403,7 @@ async def replay_run(engine_class, store, run_id, *, replayed=None, workspace=No
         permissions=Permissions(mode="auto"),
         llm=scripts[run_id].llm,
         workspace=workspace,
-        store=_ReplayStore(store, run_id, started.chat or started.root),
+        store=_ReplayStore(store, run_id, started.chat or started.root, _remade(tree, scripts)),
     )
     _arm(engine, tree, scripts)
     engine.reuses_tools = reuses_tool_results(started)

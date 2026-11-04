@@ -309,9 +309,23 @@ def run_task(name, task, agent_name, llm, loop=None, hooks=()):
         outcome.verdict = verdict(store, CHAT, outcome.state)
     problems = [criterion.problem(outcome) for criterion in task.criteria]
     outcome.problems = [problem for problem in problems if problem is not None]
-    if result.status == "failed":
-        outcome.problems.append(f"run: {result.stop_reason}")
+    problem = run_problem(task, result)
+    if problem is not None:
+        outcome.problems.append(problem)
     return outcome
+
+
+def run_problem(task, result):
+    """Return why the run itself fails its task, or ``None``.
+
+    A task's ``max_steps`` is a limit the task means to reach: its run ends ``step_limit`` when
+    the question at the limit is answered ``stop``, and that end is the one the task checks.
+    """
+    if result.status != "failed":
+        return None
+    if task.max_steps is not None and result.stop_reason == "step_limit":
+        return None
+    return f"run: {result.stop_reason}"
 
 
 def _provider(recording, is_live):

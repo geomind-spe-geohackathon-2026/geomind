@@ -26,13 +26,12 @@ from geomind.tools.gemini.case import (
     kept_files,
     state_case,
 )
-from geomind.tools.gemini.references import index_reference, unknown_reference
+from geomind.tools.gemini.references import STUDY_INDEX, index_reference, unknown_reference
 from geomind.types.events import StudyRecorded
 
 DESIGN = "design/"
 RESULT = "result/"
 STUDY = "study/"
-STUDY_INDEX = "studies.index"
 DESIGN_NAME = re.compile(r"[A-Za-z0-9._-]+")
 RUN_PARTS = ("plant", "case", "files", "results")
 

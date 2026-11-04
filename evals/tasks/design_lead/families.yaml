@@ -1,8 +1,9 @@
 message: Design a deep-geothermal plant for the project's case, within its constraints.
 plant: evals/projects/hackathon
+# The design loop sets the case before a design lead runs; the case lead owns set_case.
+setup:
+- {tool: set_case, input: {source: project}}
 criteria:
-- kind: tool
-  tool: set_case
 - kind: tool
   tool: read_skill
 - kind: state

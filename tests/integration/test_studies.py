@@ -4,6 +4,7 @@ import json
 
 import pytest
 
+from geomind import runtime
 from geomind.agents import Agent
 from geomind.engine import Engine, Permissions
 from geomind.export import render_export
@@ -17,7 +18,7 @@ from geomind.tools.gemini.studies import list_studies, read_study
 from geomind.tools.gemini.study import size_plant
 from geomind.types import ToolCall
 from tests.fixtures.cases import example_case, example_plant_files
-from tests.fixtures.runs import of_type, says, uses
+from tests.fixtures.runs import STEPS, of_type, says, uses
 
 PLANT_FILE = "plants/HeatingHeatPumpCoolingPlant.json"
 
@@ -74,7 +75,8 @@ def recorded():
         permissions=Permissions("auto"),
         agent=Sizer(),
     )
-    run.start()
+    with runtime.settings(max_steps=STEPS):
+        run.start()
     return store, run.id
 
 
