@@ -485,7 +485,7 @@
         },
         "Reply": {
           "additionalProperties": false,
-          "description": "The answer to a question: free text, or the value of one option.",
+          "description": "The answer to a question: free text, or the value of one option.\n\nA question with options takes typed text too: text that is no option's value is the user's\nown answer, which the model reads as typed (``typed_answer``).",
           "properties": {
             "text": {
               "title": "Text",

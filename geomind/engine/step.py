@@ -8,11 +8,12 @@ import asyncio
 
 from geomind import runtime
 from geomind.engine.compaction import compact_history
+from geomind.engine.questions import earlier_answer, reused_answer
 from geomind.engine.state import Stop, is_cancel
 from geomind.errors import OutputError, ToolError, UnknownNameError
 from geomind.tools import dispatch
 from geomind.tools.base import with_old_names
-from geomind.tools.dispatch import error_output
+from geomind.tools.dispatch import error_output, is_reported_error
 from geomind.tools.mcp import server_of
 from geomind.types import RULE_MODEL, Completion, Deny, Finish, Request, ToolResult
 from geomind.types.events import (
@@ -24,6 +25,7 @@ from geomind.types.events import (
     ToolStarted,
     UsageUpdated,
 )
+from geomind.utils.json import to_jsonable
 from geomind.utils.strings import did_you_mean
 
 SUMMARY_CHARACTERS = 200
@@ -61,6 +63,22 @@ async def record_result(session, call, result, **fields):
 def text_result(call, text, **fields):
     """Return a result holding text."""
     return ToolResult(call_id=call.id, tool=call.name, output=text, **fields)
+
+
+async def answered_result(session, tool, call, text):
+    """Return the result of a question a tool asked, made by the tool's ``on_answer``.
+
+    A tool that acts on its answer (``ask_economics`` sets what the user approved) gives what the
+    model reads; an error the model can act on is the result, as in ``dispatch``.
+    """
+    context = session.context().for_call(call.id)
+    try:
+        output = await tool.on_answer(context, call.input, text)
+    except Exception as error:
+        if not is_reported_error(error):
+            raise
+        return text_result(call, error_output(error), is_error=True)
+    return text_result(call, to_jsonable(output))
 
 
 async def _think(session, agent):
@@ -117,11 +135,15 @@ def _over_retries(session, tool):
     return Stop("error", f"{tool.name}: {failures} invalid calls in a row")
 
 
-async def _reuse(session, call, recorded):
+async def _reuse(session, tool, call, recorded):
     """Record the stored result of a replay, after the state changes its reused nested runs made."""
     key = (session.state.step, call.id)
     for changes in session.engine.recorded_changes.get(session.state.run_id, {}).get(key, ()):
         await session.change_state(list(changes))
+    answered = getattr(tool, "on_answer", None)
+    output = recorded.output if isinstance(recorded.output, dict) else {}
+    if recorded.source == "answer" and answered is not None and "answer" in output:
+        await answered_result(session, tool, call, output["answer"])
     result = ToolResult(
         call_id=call.id,
         tool=call.name,
@@ -160,7 +182,7 @@ async def _execute(session, agent, tool, call):
     results = session.engine.recorded.get(session.state.run_id, {})
     recorded = results.get((session.state.step, call.id))
     if recorded is not None and not _runs_again(session, tool, recorded):
-        await _reuse(session, call, recorded)
+        await _reuse(session, tool, call, recorded)
         return _over_retries(session, tool)
     outcome = await dispatch(tool, call, session.context())
     if isinstance(outcome, Finish):
@@ -169,6 +191,10 @@ async def _execute(session, agent, tool, call):
     if isinstance(outcome, Request) and session.waiting_child is not None:
         return await session.wait_for_child(outcome, call)
     if isinstance(outcome, Request):
+        earlier = earlier_answer(session.engine.store.load_events(session.state.root), outcome)
+        if earlier is not None:
+            await record_result(session, call, text_result(call, reused_answer(*earlier)))
+            return _over_retries(session, tool)
         return await session.pause(outcome, "tool", call)
     await record_result(session, call, outcome)
     return _over_retries(session, tool)

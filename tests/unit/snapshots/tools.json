@@ -35,6 +35,197 @@
       "late_schemas": [],
       "name": "accept_case"
     },
+    "ask_economics": {
+      "description": "Ask the user the ONE economics question from the rows you chose, and set what they approve.",
+      "effect": "read",
+      "idempotent": true,
+      "input_schema": {
+        "$defs": {
+          "EconomicsValue": {
+            "additionalProperties": false,
+            "description": "One economics key with the value the case lead recommends and where it comes from.\n\n``key`` is the path under ``economics`` (``capex.heat_pump``, ``currency``); ``row`` the cost\ncatalogue's row ``id``, none for a value no row gives; ``others`` the key's other rows.",
+            "properties": {
+              "key": {
+                "title": "Key",
+                "type": "string"
+              },
+              "others": {
+                "default": [],
+                "items": {
+                  "$ref": "#/$defs/OtherRow"
+                },
+                "title": "Others",
+                "type": "array"
+              },
+              "row": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Row"
+              },
+              "source": {
+                "title": "Source",
+                "type": "string"
+              },
+              "status": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Status"
+              },
+              "unit": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Unit"
+              },
+              "url": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Url"
+              },
+              "value": {
+                "title": "Value"
+              },
+              "year": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Year"
+              }
+            },
+            "required": [
+              "key",
+              "value",
+              "source"
+            ],
+            "title": "EconomicsValue",
+            "type": "object"
+          },
+          "OtherRow": {
+            "additionalProperties": false,
+            "description": "Another catalogue row of a key, shown beside the recommended one.",
+            "properties": {
+              "row": {
+                "title": "Row",
+                "type": "string"
+              },
+              "source": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Source"
+              },
+              "unit": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Unit"
+              },
+              "value": {
+                "title": "Value"
+              }
+            },
+            "required": [
+              "row",
+              "value"
+            ],
+            "title": "OtherRow",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Note"
+          },
+          "open": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Open"
+          },
+          "values": {
+            "items": {
+              "$ref": "#/$defs/EconomicsValue"
+            },
+            "title": "Values",
+            "type": "array"
+          }
+        },
+        "required": [
+          "values"
+        ],
+        "title": "ask_economics_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "ask_economics"
+    },
     "ask_user": {
       "description": "Ask the user a question and wait for the answer, with fixed options if there are any.",
       "effect": "read",

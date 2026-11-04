@@ -1,5 +1,7 @@
 """The agent that sets the case: demand, site, requirements and time, from the files."""
 
+import ast
+
 from geomind import tools
 from geomind.agents.agent import Agent, Model
 from geomind.agents.case.geoscientist import Geoscientist
@@ -41,14 +43,68 @@ def economics_missing(context):
         return None
     if any(NO_ECONOMICS in (message.content or "") for message in messages):
         return None
+    if calls_of(messages, "ask_economics"):
+        return None
     if any("economics" in str(item).lower() for item in calls_of(messages, "ask_user")):
         return None
     return (
         f"{NO_ECONOMICS}: the case is set and has no economics. Do step 5 of your workflow now: "
         "choose each key's rows of the cost catalogue (read knowledge/cost-sources.csv now if you "
-        "did not), ask the ONE economics question with ask_user (options approve all, change "
-        "some, stop), then set_case(economics={...}) with the approved values. Ask with "
-        "ask_user, never in your answer's text; then finish"
+        "did not), then ask the ONE economics question with ask_economics, every key with its "
+        "row (currency, price_year and discount_rate included); on approve all it sets them. "
+        "Ask with the tool, never in your answer's text; then finish"
+    )
+
+
+QUESTION_TOOLS = ("ask_user", "ask_economics")
+"""The tools of the case lead that ask the user."""
+CHANGE_SOME = "change some"
+"""The option of the case lead's questions after which the user must be asked for the values."""
+NO_CHANGES = "changes not asked"
+"""The start of the case lead's one refusal of an answer after ``change some`` with no follow-up."""
+
+
+def last_reply(messages):
+    """Return the text of the user's last answer to a question of this run, or ``None``.
+
+    ``ask_economics`` gives back ``{"answer": text, ...}``; its ``answer`` is the text.
+    """
+    asked = {
+        call.id
+        for message in messages
+        if message.role == "assistant"
+        for call in message.tool_calls
+        if call.name in QUESTION_TOOLS
+    }
+    replies = [m.content for m in messages if m.role == "tool" and m.tool_call_id in asked]
+    if not replies:
+        return None
+    reply = replies[-1] or ""
+    if reply.startswith("{"):
+        try:
+            parsed = ast.literal_eval(reply)
+        except (ValueError, SyntaxError):
+            return reply
+        return parsed.get("answer", reply) if isinstance(parsed, dict) else reply
+    return reply
+
+
+def changes_not_asked(context):
+    """Return the refusal of an answer after the user chose ``change some``, or ``None``.
+
+    The run: the user answered ``change some`` and the case lead wrote its follow-up question as
+    the text of an answer, so the user never gave the values. Once refused, it ends as it is.
+    """
+    messages = context.messages
+    reply = last_reply(messages)
+    if reply is None or reply.strip().lower() != CHANGE_SOME:
+        return None
+    if any(NO_CHANGES in (message.content or "") for message in messages):
+        return None
+    return (
+        f"{NO_CHANGES}: the user chose 'change some'. Ask now with ask_user, without options, "
+        "which values change and to what (each path with its new value and unit), never in your "
+        "answer's text; set what they give, then go on"
     )
 
 
@@ -77,6 +133,7 @@ class CaseLead(Agent):
         self.read_case = tools.gemini.read_case
         self.describe_case = tools.gemini.describe_case
         self.set_case = tools.gemini.set_case
+        self.ask_economics = tools.gemini.ask_economics
         self.save_profile = tools.gemini.save_profile
         self.list_profiles = tools.gemini.list_profiles
         self.read_profile = tools.gemini.read_profile
@@ -92,5 +149,5 @@ class CaseLead(Agent):
         self.model = Model(setting="caselead_model", temperature=0)
 
     def answer_problem(self, context):
-        """Refuse once an answer of a run that set the case without its economics (#124)."""
-        return economics_missing(context)
+        """Refuse once an answer that skipped the values after ``change some``, or the economics."""
+        return changes_not_asked(context) or economics_missing(context)

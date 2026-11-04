@@ -7,9 +7,11 @@ from geomind.engine import Context
 from geomind.errors import ToolError
 from geomind.tools.gemini.ownership import (
     check_ownership,
+    default_owners,
     foreign_changes,
     owner_of,
     parameter_paths,
+    placed_parameters,
 )
 from tests.fixtures.sessions import StubSession
 
@@ -95,3 +97,88 @@ def test_the_superstructure_is_the_process_engineer_s():
         "optional",
         "choices",
     ]
+
+
+RUN_OWNERS = {
+    "d0.reservoir": "reservoir",
+    "d0.well": "well",
+    "degasser": "reservoir",
+    "heat_pump": "energy",
+    "injection_pump": "well",
+}
+"""The owners the process engineer recorded in the second end-to-end run, in part."""
+
+
+@pytest.fixture(scope="module")
+def plant():
+    """Return the example HeatingHeatPumpCoolingPlant as its plant file dict."""
+    from tests.fixtures.cases import example_plant
+
+    return example_plant("hackathon_2026", "HeatingHeatPumpCoolingPlant").to_dict(structure=True)
+
+
+RUN_PATCHES = [
+    ("reservoir", {"modules": {"d0": {"reservoir": {"drainage_radius": {"value": 500}}}}}),
+    ("reservoir", {"d0.reservoir": {"permeability": {"value": 200, "unit": "mD"}}}),
+    ("reservoir", {"degasser": {"outlet_pressure": {"value": 5, "unit": "bar(g)"}}}),
+    (
+        "reservoir",
+        {"params": {"d0": {"reservoir": {"drainage_radius": {"value": 500}}}}, "modules": {}},
+    ),
+    ("reservoir", {"params": {"d0": {"nominal_flow": {"value": 250, "unit": "m3/h"}}}}),
+    ("well", {"modules.d0.well": {"section_length": {"value": [2500], "unit": "m"}}}),
+    ("well", {"d0": {"well": {"esp_depth": {"value": 300, "unit": "m"}}}}),
+    ("well", {"injection_pump": {"efficiency": {"value": 0.7}}}),
+    ("well", {"modules": {"d0": {"well_diameter": {"value": 0.2, "unit": "m"}}}}),
+    ("well", {"params": {"d0": {"esp": {"stage_count": {"value": 20}}}}}),
+    ("energy", {"modules.heat_pump": {"carnot_fraction": {"value": 0.5}}}),
+    ("energy", {"modules": {"peak_boiler": {"efficiency": {"value": 0.9}}}}),
+]
+"""Patches the run refused (31 ``not_allowed``), each of the engineer's own part."""
+
+
+@pytest.mark.parametrize(("discipline", "changes"), RUN_PATCHES)
+def test_an_engineer_s_patch_of_its_own_part_is_never_refused(plant, discipline, changes):
+    """The run's shapes go under ``params``; a path owners do not name goes by its module type."""
+    placed = placed_parameters(changes, plant)
+    assert set(placed) <= {"params", "modules"} and not placed.get("modules")
+    check_ownership(context_of(discipline, RUN_OWNERS), placed, "patch_plant", plant)
+
+
+def test_parameters_written_in_modules_or_dotted_move_under_params(plant):
+    """``modules.d0.well`` and ``d0`` at the top are ``params.d0``; a module's type stays put."""
+    changes = {
+        "modules.d0.well": {"section_length": {"value": [1], "unit": "m"}},
+        "degasser": {"outlet_pressure": {"value": 5}},
+        "modules": {"heat_pump": {"type": "HeatPump", "capacity": {"value": 1, "unit": "MW"}}},
+        "size": {"doublets": {"value": 2}},
+    }
+    assert placed_parameters(changes, plant) == {
+        "modules": {"heat_pump": {"type": "HeatPump"}},
+        "size": {"doublets": {"value": 2}},
+        "params": {
+            "d0": {"well": {"section_length": {"value": [1], "unit": "m"}}},
+            "degasser": {"outlet_pressure": {"value": 5}},
+            "heat_pump": {"capacity": {"value": 1, "unit": "MW"}},
+        },
+    }
+
+
+def test_a_path_owners_do_not_name_goes_by_its_module_type(plant):
+    """With no owners at all, each engineer still writes its own modules, and not another's."""
+    assert default_owners("d0.reservoir.skin", plant) == {"reservoir"}
+    assert default_owners("d0.esp.stage_count", plant) == {"well"}
+    assert default_owners("d0.nominal_flow", plant) == {"reservoir", "well"}
+    assert default_owners("filters.hot.mesh", plant) == {"reservoir"}
+    assert default_owners("backup", plant) == frozenset()
+    heat_pump = {"params": {"heat_pump": {"capacity": {"value": 1, "unit": "MW"}}}}
+    check_ownership(context_of("energy", {}), heat_pump, "patch_plant", plant)
+    with pytest.raises(ToolError, match="the energy engineer's"):
+        check_ownership(context_of("well", {}), heat_pump, "patch_plant", plant)
+
+
+def test_a_named_owner_decides_over_the_module_type(plant):
+    """The process engineer gave the injection pump to ``well``: the energy engineer is refused."""
+    patch = {"params": {"injection_pump": {"efficiency": {"value": 0.7}}}}
+    with pytest.raises(ToolError, match="the well engineer's"):
+        check_ownership(context_of("energy", RUN_OWNERS), patch, "patch_plant", plant)

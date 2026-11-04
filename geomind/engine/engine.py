@@ -14,12 +14,19 @@ from geomind.engine.recovery import agent_class, recover
 from geomind.engine.replay import replay_run
 from geomind.engine.session import RunSession
 from geomind.engine.state import RunState, Stop
-from geomind.engine.step import record_result, run_step, settle_interrupted, text_result
+from geomind.engine.step import (
+    answered_result,
+    record_result,
+    run_step,
+    settle_interrupted,
+    text_result,
+)
 from geomind.errors import NotImplementedYet, ProviderError, RequestError, RunError
 from geomind.providers import with_retries
 from geomind.stores.run import MemoryRunStore
 from geomind.tools.suggestions import next_steps
 from geomind.types import Request, RunResult, Usage, status_of, validate_answer
+from geomind.types.decisions import typed_answer
 from geomind.types.events import PermissionDecided, RunFinished, ToolRecorded
 from geomind.utils.hooks import RemovableHandle
 
@@ -276,6 +283,8 @@ class Engine:
             raise RequestError(f"resume: request = {request_id!r}; expected {pending.request.id!r}")
         answer = validate_answer(pending.request, answer)
         if pending.point == STEPS_POINT:
+            if answer["text"] not in STEP_OPTIONS:
+                raise RequestError(f"answer = {answer!r}; expected one of {list(STEP_OPTIONS)}")
             return await self._take_steps(session, pending, answer["text"])
         fields = dict(
             index=session.state.step,
@@ -318,7 +327,11 @@ class Engine:
         decision = "answer" if pending.point == "tool" else "allow"
         await session.emit(PermissionDecided, decision=decision, **fields)
         if pending.point == "tool":
-            result = text_result(pending.call, text)
+            tool = session.agent.tools().get(pending.call.name)
+            if getattr(tool, "on_answer", None) is not None:
+                result = await answered_result(session, tool, pending.call, text)
+            else:
+                result = text_result(pending.call, typed_answer(pending.request, text))
             await record_result(session, pending.call, result, source="answer")
             return None
         await session.emit(ToolRecorded, index=session.state.step, output=text, source="answer")

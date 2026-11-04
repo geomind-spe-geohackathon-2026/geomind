@@ -52,24 +52,13 @@ def run(tmp_path, *arguments):
     return cli.main(["run", "Design it", "--recording", question_run(tmp_path), *arguments])
 
 
-def test_a_free_text_answer_to_options_is_asked_again(tmp_path, monkeypatch, capsys):
-    """Test 4 ended with exit 1 on the piped text; now the options are shown and asked again."""
+def test_a_free_text_answer_to_options_is_taken_as_typed(tmp_path, monkeypatch, capsys):
+    """Test 4 ended with exit 1 on the piped text; it is now the user's typed answer, asked once."""
     monkeypatch.chdir(tmp_path)
-    typed(monkeypatch, PIPED, "use_proposed")
-    assert run(tmp_path, "--answer-retries", "1") == 0
+    typed(monkeypatch, PIPED)
+    assert run(tmp_path) == 0
     output = capsys.readouterr().out
-    assert "answer with one of: use_proposed, give_values" in output
-    assert ": done (" in output
-
-
-def test_retries_spent_stop_the_run_as_waiting(tmp_path, monkeypatch, capsys):
-    """Without ``--answer-retries`` nothing is asked again: the run waits, to be resumed."""
-    monkeypatch.chdir(tmp_path)
-    typed(monkeypatch, PIPED, PIPED)
-    assert run(tmp_path) == cli.WAITING
-    captured = capsys.readouterr()
-    assert ": waiting (" in captured.out and "q1" not in captured.err
-    assert "geomind: answer" not in captured.err
+    assert "answer with one of" not in output and ": done (" in output
 
 
 def test_end_of_input_stops_the_run_as_waiting(tmp_path, monkeypatch, capsys):

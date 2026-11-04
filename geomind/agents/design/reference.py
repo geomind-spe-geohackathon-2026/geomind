@@ -7,37 +7,8 @@ engineer every module's ports. A module gemini renames or drops is an error here
 line in a prompt.
 """
 
+from geomind.tools.gemini.ownership import OWNED_MODULES
 from geomind.tools.gemini.skeleton import module_reference, module_tree, trees
-
-OWNED_MODULES = {
-    "reservoir": (
-        "Doublet",
-        "ProductionReservoir",
-        "InjectionReservoir",
-        "Formation",
-        "ThermalDecline",
-        "Degasser",
-        "Filter",
-        "Flare",
-        "Desander",
-    ),
-    "well": ("Doublet", "ProductionWell", "InjectionWell", "ESP", "LineShaftPump"),
-    "energy": (
-        "HeatExchanger",
-        "HeatPump",
-        "Boiler",
-        "ElectricBoiler",
-        "CHP",
-        "AbsorptionUnit",
-        "AdsorptionChiller",
-        "Cooler",
-        "InjectionPump",
-        "CirculationPump",
-        "Pipe",
-        "ThermalStorage",
-    ),
-}
-"""The gemini module types whose parameters each discipline fills (``design.owners``)."""
 
 
 def engineer_appendix(discipline):

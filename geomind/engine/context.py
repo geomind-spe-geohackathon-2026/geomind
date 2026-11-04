@@ -8,7 +8,7 @@ from geomind.context.skills import skill_listing
 from geomind.errors import RunError
 from geomind.prompts.prompt import KNOWLEDGE, MCP, MEMORY, STORED_RESULTS
 from geomind.tools.base import with_old_names
-from geomind.tools.stored import is_long, shortened
+from geomind.tools.stored import shortened_message
 from geomind.types import Message
 
 
@@ -129,10 +129,8 @@ class Context:
         """Return an older message, its stored result or its long call inputs in short form."""
         if message.role == "tool" and message.tool_call_id in self.stored:
             return message.model_copy(update={"content": self.stored[message.tool_call_id]})
-        if message.role == "assistant" and any(is_long(call.input) for call in message.tool_calls):
-            return message.model_copy(
-                update={"tool_calls": tuple(map(shortened, message.tool_calls))}
-            )
+        if message.role == "assistant":
+            return shortened_message(message)
         return message
 
     def messages_for(self, agent):

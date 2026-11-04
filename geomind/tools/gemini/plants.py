@@ -332,15 +332,18 @@ async def patch_plant(context, design: str, changes: dict[str, Any], name: str):
     result: a patch it refuses is its error, and nothing is stored. Returns the new design, its
     ``issues`` (what is still missing, checked as in ``read_plant``) and their count,
     ``missing``. An engineer of the design team
-    patches only its own part (``design.owners``); another part is ``not_allowed``.
+    patches only its own part (``design.owners``, else its module's type); another part is
+    ``not_allowed``. A module's parameters written at the top or inside ``modules`` are taken as
+    under ``params``.
     """
     import gemini as gm
 
     from geomind.tools.gemini.case import merge_patch
-    from geomind.tools.gemini.ownership import check_ownership
+    from geomind.tools.gemini.ownership import check_ownership, placed_parameters
 
-    check_ownership(context, changes, "patch_plant")
     plant = load_design(context, design, "patch_plant").to_dict(structure=True)
+    changes = placed_parameters(changes, plant)
+    check_ownership(context, changes, "patch_plant", plant)
     patched = merge_patch(plant, changes)
     built = await runtime.in_gemini_thread(gm.Plant.from_dict, patched)
     stored = await save_design(context, name, built)

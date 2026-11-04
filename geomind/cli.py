@@ -73,8 +73,8 @@ def _ask(request):
 def _answer(request, retries):
     """Return a valid answer typed in the terminal, or ``None`` when there is none.
 
-    An answer the request does not accept, such as free text where options are fixed, is asked
-    again with the options shown, at most ``retries`` times (``--answer-retries``; unset, never).
+    An answer the request does not accept, such as text to an approval, is asked again with the
+    options shown, at most ``retries`` times (``--answer-retries``; unset, never).
     The end of the input is no answer either, so the run waits and ``geomind resume`` continues it.
     """
     for attempt in range((retries or 0) + 1):

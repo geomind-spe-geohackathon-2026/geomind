@@ -19,11 +19,12 @@ the problem state as `update_state` does.
 | `list_plants` | `plants.py` | `read` | `plant_class` (optional), `with_schema` (optional) | `{project_plants, plants: [{name, summary}]}`; `project_plants` are the sorted file names of the run's project (`Workspace.plants`), `[]` without a project. With `plant_class`: also `plant_class`, `capabilities` (`gm.plants.capabilities()[class]`: roles, schedulable and `ranges`, the leaves that may state a search range) and `roles` (`gm.plants.roles()` of the class's roles); an unknown class is an `unknown_name` error with the close match. With `with_schema`: also `schema`, `gm.plants.schema()`. Before this change it returned every class's `capabilities` and all `roles`, over the result limit | built |
 | `read_plant` | `plants.py` | `read` | `design=None, plant_class=None, project_plant=None`: none is the project's plant when `Workspace.plants` holds exactly one file (several: a `ToolError` `unknown_name`, path `project_plant`, naming the files and the other two ways); `project_plant` a plant file of the project by name (its file stem); `design/<name>` a stored design, `plant_class` a class name (`gm.plants.get`); two of them is refused | `{plant, ranges, options, issues, checked_against}`: `plant.to_dict(structure=True)`, `ranges` as `{path: {min, max}}` with `{value, unit}` in display units (plain numbers for a count), `options`, and `issues` (`path, code, message, suggestions, kind, quantity, accepted`) from `gm.check(plant, case)` when the state has a case (`checked_against` `case`) else from `plant.check()` (`plant`), which lists as missing what the case fills (`d0.gradient`); a class lists everything it needs as missing | built |
 | `build_plant` | `plants.py` | `write` | `plant` (offered as a short object schema with gemini's two shapes; the full `gm.plants.schema()` is `list_plants` `with_schema`; validation is gemini's, so every earlier input is still valid), `name` | `{design, checked_against, issues}` as `read_plant`; `gm.Plant.from_dict` is stored by `stored.save_design`; a file gemini cannot read raises gemini's `ValidationError` (path, code, message, suggestions) and stores nothing, a file with missing values is stored with its issues | built |
-| `patch_plant` | `plants.py` | `write` | `design, changes, name` | `{design, checked_against, issues, missing}`: a JSON merge patch on a stored design, built by gemini and stored as `design/<name>`, with what is still missing; a refused patch stores nothing; an engineer of the design team (an agent with a `discipline`) may patch only the part `design.owners` gives it, else `not_allowed` (`ownership.py`) | built |
+| `patch_plant` | `plants.py` | `write` | `design, changes, name` | `{design, checked_against, issues, missing}`: a JSON merge patch on a stored design, built by gemini and stored as `design/<name>`, with what is still missing; a refused patch stores nothing; an engineer of the design team (an agent with a `discipline`) may patch only the part `design.owners` gives it, and a path it names no prefix of by its module's gemini type (`OWNED_MODULES`, then the category), else `not_allowed` (`ownership.py`); a module's parameters written at the top (`d0`, `d0.well`) or inside `modules` are taken as under `params` | built |
 | `merge_designs` | `plants.py` | `write` | `base, designs, name` | `{design, checked_against, issues, missing}`: what each design changed from `base`, applied in order and built by gemini as `design/<name>`; two designs setting one value differently are an `invalid_input` conflict naming the path and both designs, and nothing is stored | built |
 | `set_ranges` | `plants.py` | `write` | `design, ranges, name, options=None`: `ranges` is `{path: {min, max}}` with `{value, unit}` bounds (plain numbers for a count such as `size.doublets`); a path is the plant-file leaf without `params.` (`depth`, `heat_pump.capacity`, `d0.nominal_flow`) | `{design, plant, ranges, options}` as `read_plant`; `plant.set_range` and `plant.set_options` on a copy of the design, stored as `design/<name>`; an unknown path or a refused bound is gemini's error with its path | built (to be registered) |
 | `set_case` | `case.py` | `write` | `source=None, changes=None, requirements=None, economics=None`: `source` is `project`, `origin` (the case the user gave, with its files) or none (the state's case); `changes` an RFC 7386 merge patch on the case, without `requirements` and `economics`; `requirements` `{name: requirement or null}` (add, replace or remove by name); `economics` a merge patch on the content of the economics file | `{case, version}`; the state's `case` replaced and its files kept as `case/<file name>`; the project's case or the first case of a chat also becomes `case_origin`; a case `gm.Case.from_dict` or `Case.check` rejects is an error with gemini's `path`, `code` and message and nothing is stored | built |
 | `case_changes` | `origin.py` | `read` | none | `[{path, change, given, now}]`: every difference of the state's case from `case_origin` (`changed`, `removed`, `added`; a section key, `requirements.<name>`, `file <name>` for a file's content, the economics file included); `[]` when it is the case the user gave | built |
+| `ask_economics` | `economics.py` | `read` | `values`: each economics key with `value`, `unit`, its catalogue `row`, `source`, `year`, `url`, `status` and `others` (the rows not recommended), `currency`, `price_year` and `discount_rate` among them or in `open`; `open`, `note` | a `Request` with the one economics question and options approve all, change some, stop; on approve all (`on_answer`) every value is set with `set_case`, each row kept in `economics.about.sources` and recorded as a confirmed assumption `economics.<key>` with its citation; the result is `{answer, economics, keys, open, assumptions, version}` | built |
 | `accept_case` | `origin.py` | `write` | none | `{version}`; `case_origin` becomes the state's case. Only the design loop's driver holds it, after the user approved the change | built |
 | `read_case` | `case.py` | `read` | `section=None`: a key of the case, `economics` or `schema` | the case, the section, the parsed economics file, or `gm.Case.schema()` with `economics_schema`; no case is `invalid_input` | built |
 | `describe_case` | `case.py` | `read` | `path`: a dotted key or a part of one (`site.air`, `requirements`, `economics.capex`) | `keys`: each key under it with its units, meaning and source, and for `requirements` what each option means; an unknown path is `unknown_name` | built |
@@ -256,6 +257,9 @@ other sources (MCP later) fit: without `input_model`, only the required and know
 `input_schema` are checked. An agent names a tool by its attribute, on its own copy.
 `late_schemas` maps an input to a function that returns its schema when the tool is offered:
 `build_plant` gets a short schema that way (the full one is `list_plants` `with_schema`), so `import geomind` stays free of gemini.
+A tool that asks may set `on_answer(context, input, text)`: the engine calls it with the user's
+answer and its return is the call's result (`ask_economics` sets what the user approved). It keeps
+the text under `answer`, and a replay calls it again from there, so the state it writes follows.
 
 ## Dispatch
 
@@ -271,9 +275,15 @@ functions.
   [error result](#error-results) with `is_error`, so the model can fix its call. gemini errors are
   recognised by module path, so `import geomind` need not import gemini.
 - After `max_retries` validation failures of one tool in a row, the engine stops the run with
-  `stop_reason="error"`. An argument the tool does not have is an error result that names the
+  `stop_reason="error"`; one tool counts once per step, since the calls of a step are sent before
+  the model saw any of their errors. The same call (tool and whole input) failing again in more
+  than `max_retries` later steps stops it too; calls with other arguments and one error are
+  others. An argument the tool does not have is an error result that names the
   tool's arguments and is no validation failure (#126); a tool the run does not offer (a memory
   tool or the curator with the memory off) is answered `not_allowed` without running (#127).
+- A call whose input is `{"shortened": ...}`, the outline an old history showed of an earlier call,
+  is an error result naming the tool's arguments; the history now shows an old long call with an
+  empty input and its outline in the message's text (`shortened_message`).
 - Any other exception is a bug: it is reported through `on_error`, and the model reads only
   `internal error`, with `code: "internal"`.
 - A result over 2000 characters is saved as the chat artifact `result-<hash of the call id>` and its
@@ -325,7 +335,12 @@ A permission denial is no error class: its result is the reason as text, with `i
 
 - `ask_user(question, options=None)` returns a `Request` of kind `question`; the engine pauses.
   `options` is a list of strings or of `{value, label}`, normalised to the latter. An answer to a
-  question with options is `{"text": <value>}`, and any other text raises `RequestError`.
+  question with options is `{"text": <value>}` or typed text: text that is no option's value is
+  the user's own answer, and the model reads it marked as typed (`typed_answer`). Only the step
+  limit's question (`continue`, `stop`) takes its options alone.
+- A question whose case paths (`site.air.pressure`) an earlier answered question of the same run
+  tree named exactly is not asked: its result is the earlier answer (`engine/questions.py`, from
+  the root's log, so across resumes too; the run's bug 7).
 - `finish(answer)` ends the run, after `before_finish` hooks, the agent's own
   `answer_problem(context)` (a required step code checks, refused once per run, such as the case
   lead's economics, #124) and output validation.

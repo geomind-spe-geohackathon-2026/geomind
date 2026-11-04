@@ -10,8 +10,9 @@ from geomind.types import Finish, Option, Request
 async def ask_user(question: str, options: list[str | Option] | None = None):
     """Ask the user a question and wait for the answer, with fixed options if there are any.
 
-    With ``options`` the answer is exactly one option's value: the user cannot type anything
-    else. To get something typed (a path, a number with its unit, a name), ask without options.
+    With ``options`` the user picks one option's value or types an answer of their own, which
+    comes back marked as typed. To ask for something typed (a path, a number with its unit, a
+    name), ask without options.
     """
     return Request(kind="question", message=question, options=options)
 

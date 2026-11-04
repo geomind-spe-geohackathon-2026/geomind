@@ -52,7 +52,11 @@ class Approval(Record):
 
 
 class Reply(Record):
-    """The answer to a question: free text, or the value of one option."""
+    """The answer to a question: free text, or the value of one option.
+
+    A question with options takes typed text too: text that is no option's value is the user's
+    own answer, which the model reads as typed (``typed_answer``).
+    """
 
     text: str
 
@@ -100,7 +104,11 @@ def _check_approval(answer):
 
 
 def validate_answer(request, answer):
-    """Check that ``answer`` has the contract shape for ``request``; return it."""
+    """Check that ``answer`` has the contract shape for ``request``; return it.
+
+    The text of a question with options may be any text: an option's value, or the user's own
+    words when no option fits (a value, a correction).
+    """
     if not isinstance(answer, dict):
         raise RequestError(f"answer = {answer!r}; expected a dictionary")
     if request.kind == "approval":
@@ -108,7 +116,17 @@ def validate_answer(request, answer):
         return answer
     if set(answer) != {"text"} or not isinstance(answer["text"], str):
         raise RequestError(f"answer = {answer!r}; expected {{'text': '...'}}")
-    values = [option.value for option in request.options or ()]
-    if values and answer["text"] not in values:
-        raise RequestError(f"answer = {answer!r}; expected the value of one option: {values}")
     return answer
+
+
+def is_typed(request, text):
+    """Tell whether ``text`` answers a question with options by none of them."""
+    values = [option.value for option in request.options or ()]
+    return bool(values) and text not in values
+
+
+def typed_answer(request, text):
+    """Return what the model reads of a reply: an option's value as is, typed text marked so."""
+    if not is_typed(request, text):
+        return text
+    return f"The user typed this answer instead of choosing an option: {text}"

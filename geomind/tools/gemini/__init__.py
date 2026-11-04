@@ -11,6 +11,7 @@ from geomind.tools.gemini.assessment import (
 )
 from geomind.tools.gemini.case import describe_case, read_case, save_profile, set_case
 from geomind.tools.gemini.catalogue import describe_module, evaluate_module, list_modules
+from geomind.tools.gemini.economics import ask_economics
 from geomind.tools.gemini.origin import accept_case, case_changes
 from geomind.tools.gemini.plants import (
     build_plant,
@@ -35,6 +36,7 @@ from geomind.tools.gemini.study import (
 
 __all__ = [
     "accept_case",
+    "ask_economics",
     "build_plant",
     "patch_plant",
     "case_changes",
