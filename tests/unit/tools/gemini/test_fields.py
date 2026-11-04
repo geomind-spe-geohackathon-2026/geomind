@@ -27,6 +27,31 @@ def test_every_economics_field_has_its_meaning():
     assert [path for path in paths_of(schema) if meaning(path, ECONOMICS_FIELDS) is None] == []
 
 
+UNDESCRIBED_IN_SCHEMA = (
+    "about",
+    "initial_state",
+    "demand.heating.minimum_return_temperature",
+    "demand.heating.maximum_return_temperature",
+    "demand.cooling.minimum_return_temperature",
+    "demand.cooling.maximum_return_temperature",
+)
+"""The case fields gemini's schema gives no description for (plan.md, gemini request 22)."""
+
+
 def test_the_fields_gemini_describes_nowhere_are_listed_for_sahand():
-    """``undescribed`` lists every field marked as having no description in gemini."""
-    assert {"initial_state", "demand.heating.minimum_return_temperature"} <= set(undescribed())
+    """``undescribed`` lists exactly the fields still marked ``(gemini: none)``."""
+    marked = [path for path, text in CASE_FIELDS.items() if "(gemini: none)" in text]
+    marked += [f"economics.{p}" for p, text in ECONOMICS_FIELDS.items() if "(gemini: none)" in text]
+    assert undescribed() == marked
+
+
+def test_the_fields_described_from_gemini_s_code_are_not_listed():
+    """The seven fields taken from gemini's code are no longer on ``undescribed``'s list."""
+    assert set(undescribed()).isdisjoint({*UNDESCRIBED_IN_SCHEMA, "economics.about"})
+
+
+def test_each_field_without_a_schema_description_says_where_it_comes_from():
+    """Each of the seven reads from gemini's code or says gemini does not use it."""
+    texts = [CASE_FIELDS[path] for path in UNDESCRIBED_IN_SCHEMA] + [ECONOMICS_FIELDS["about"]]
+    sources = ("from gemini's code", "gemini does not use it")
+    assert [text for text in texts if not any(source in text for source in sources)] == []

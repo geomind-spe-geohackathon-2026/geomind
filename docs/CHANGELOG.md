@@ -6,6 +6,10 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### Case fields from gemini's code, F
+
+- The seven case fields gemini's schema leaves undescribed (`about`, `initial_state`, `economics.about`, `demand.{heating,cooling}.{minimum,maximum}_return_temperature`) read with a meaning taken from gemini 0.6.1's code, each naming its source; `heating.maximum_return_temperature` and `cooling.minimum_return_temperature` say gemini does not use them. `undescribed()` no longer lists them (plan.md, gemini request 22).
+
 ### The support team alone (0.4.22.dev50)
 
 Rounds D0 to D3: the support lead, the summarizer and the curator alone, nine tasks, live (DeepSeek, 0.04 USD; nemotron free); the curator on a scratch memory. Each bug is pinned by a test.

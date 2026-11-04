@@ -4,17 +4,22 @@ gemini's ``Case.schema()`` and ``Economics.schema()`` give the keys, forms and u
 meaning; these texts are geomind's, taken from gemini's class docstrings where they say it
 (``gemini.case.site``, ``demand``, ``time``, ``utilities``, ``requirement``, ``economics``). A
 field shown here with ``(gemini: none)`` has no description in gemini at all: it is on the list
-for Sahand. Where a value comes from: ``brief`` (the organiser's or client's brief), ``data``
-(a data file), ``report`` (a geological or well report, read by the geoscientist), ``user`` (ask),
-``economics`` (an economics file or the knowledge base with its source). ``derived`` means gemini
-computes it: leave it unset.
+for Sahand. A field gemini's schema leaves undescribed but its code reads is described from that
+code, ending ``(from gemini's code: <module>.<function>)``, or says ``gemini does not use it``
+(plan.md, gemini request 22). Where a value comes from: ``brief`` (the organiser's or client's
+brief), ``data`` (a data file), ``report`` (a geological or well report, read by the
+geoscientist), ``user`` (ask), ``economics`` (an economics file or the knowledge base with its
+source). ``derived`` means gemini computes it: leave it unset.
 """
 
 CASE_FIELDS = {
     "format": "always 1",
     "kind": 'always "case"',
     "name": "a short name of the case",
-    "about": "free notes: where the case comes from, what it is for (gemini: none)",
+    "about": (
+        "free notes, an object gemini keeps and writes back as read; gemini does not use it "
+        "(from gemini's code: case.case.Case.to_dict)"
+    ),
     "site.ground.surface_temperature": (
         "undisturbed ground temperature at the surface; brief/report"
     ),
@@ -45,9 +50,15 @@ CASE_FIELDS = {
     "demand.heating.return_temperature": (
         "temperature the heating water comes back at, colder than the supply; brief/user"
     ),
-    "demand.heating.minimum_return_temperature": "lowest return the consumers allow (gemini: none)",
+    "demand.heating.minimum_return_temperature": (
+        "lowest temperature [K] the consumer can cool the heating water to; without a "
+        "return_temperature the heating grid needs it, floors its return there and delivers at "
+        "most m_dot cp (T_supply - it), nothing from a colder supply (from gemini's code: "
+        "modules.grids.heatinggrid.HeatingGrid._delivered_heat, _cooled_temperature)"
+    ),
     "demand.heating.maximum_return_temperature": (
-        "highest return the consumers allow (gemini: none)"
+        "a temperature [K] above 0, read and bounds-checked; gemini does not use it "
+        "(from gemini's code: case.demand.Service.fields)"
     ),
     "demand.heating.return_pressure": "pressure the heating water comes back at; brief/user",
     "demand.cooling.power": "cold the consumers ask for, a series on the case's steps; data",
@@ -55,9 +66,15 @@ CASE_FIELDS = {
     "demand.cooling.return_temperature": (
         "temperature the chilled water comes back at, warmer than the supply; brief/user"
     ),
-    "demand.cooling.minimum_return_temperature": "lowest return the consumers allow (gemini: none)",
+    "demand.cooling.minimum_return_temperature": (
+        "a temperature [K] above 0, read and bounds-checked; gemini does not use it "
+        "(from gemini's code: case.demand.Service.fields)"
+    ),
     "demand.cooling.maximum_return_temperature": (
-        "highest return the consumers allow (gemini: none)"
+        "highest temperature [K] the consumer can warm the chilled water to; without a "
+        "return_temperature the cooling grid's return limit is the lower of it and "
+        "indoor_temperature, and it absorbs at most m_dot cp (limit - T_supply) (from gemini's "
+        "code: modules.grids.coolinggrid.CoolingGrid._return_limit)"
     ),
     "demand.cooling.return_pressure": "pressure the chilled water comes back at; brief/user",
     "demand.cooling.indoor_temperature": "room temperature of the cooled building; brief/user",
@@ -77,7 +94,13 @@ CASE_FIELDS = {
         "end of the period, excluded: a year of daily values ends on the next year's first day"
     ),
     "time.step": "length of one step: the data's interval, such as 1 d",
-    "initial_state": "stored state of modules at the start, by module (gemini: none)",
+    "initial_state": (
+        "the state each stateful module starts the run from, {module path: {state: {value, unit}}}"
+        "; a state has no default: check lists a state the case lacks as missing and a module or "
+        "state the plant lacks as unknown, and the run starts from the values in SI (from "
+        "gemini's code: case.case._state, engine.check._states, engine.apply._states, "
+        "engine.apply.started)"
+    ),
     "economics": "the economics file's name or its object",
     "requirements": "the rules the outcome must meet, each on one role of the plant; brief",
     "requirements.name": "unique snake_case name of the rule",
@@ -111,7 +134,10 @@ ECONOMICS_FIELDS = {
     "accounting.allocation.heat_cost_share": "share of a joint plant's cost put on heat, 0-1",
     "accounting.gwp.standard": "name of the global warming potential set",
     "accounting.gwp.CH4": "global warming potential of methane",
-    "about": "free notes (gemini: none)",
+    "about": (
+        "free notes, an object gemini keeps and writes back as read; gemini does not use it "
+        "(from gemini's code: case._utils.node.Node.to_dict)"
+    ),
 }
 """One meaning per economics field; a key ending in ``.`` covers every field below it."""
 
