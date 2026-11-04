@@ -303,7 +303,7 @@
         }
       },
       "additionalProperties": false,
-      "description": "How a run ended, or that it waits for an answer to ``request``.\n\n``message`` says why a run stopped without an answer; a crash keeps its text in the log only.",
+      "description": "How a run ended, or that it waits for an answer to ``request``.\n\n``message`` says why a run stopped without an answer; a crash keeps its text in the log only.\n``suggestions`` are the next steps, ``[{label, message}]``, the same list as the run's\n``run.finished`` event: a root run that ended ``done`` has one to three, any other run none.",
       "properties": {
         "answer": {
           "default": null,
@@ -356,6 +356,24 @@
           ],
           "default": null,
           "title": "Stop Reason"
+        },
+        "suggestions": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Suggestions"
         },
         "usage": {
           "$ref": "#/$defs/Usage",
@@ -430,6 +448,7 @@
       "runlog",
       "runtime",
       "stores",
+      "suggest",
       "testing",
       "tool",
       "tools",
@@ -565,7 +584,8 @@
         "data": [
           "message",
           "status",
-          "stop_reason"
+          "stop_reason",
+          "suggestions"
         ],
         "is_public": true
       },
@@ -734,6 +754,7 @@
         "knowledge_search": "(self, query)",
         "mcp": "(self, project_id)",
         "plants": "(self, project_id)",
+        "project_state": "(self, project_id)",
         "rag": "(self, project_id, query)"
       }
     },

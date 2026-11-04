@@ -231,6 +231,24 @@
         "stop_reason": {
           "title": "Stop Reason",
           "type": "string"
+        },
+        "suggestions": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Suggestions"
         }
       },
       "required": [

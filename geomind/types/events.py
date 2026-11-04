@@ -256,16 +256,21 @@ class UsageUpdated(Event):
 
 
 class RunFinished(Event):
-    """A run ended; ``message`` says why when it did not end with an answer."""
+    """A run ended; ``message`` says why when it did not end with an answer.
+
+    ``suggestions`` are the next steps, ``[{label, message}]``: a root run that ended ``done``
+    has one to three, any other run none, and a log before 0.4.22.dev48 none.
+    """
 
     type: ClassVar[str] = "run.finished"
     is_public: ClassVar[bool] = True
-    public_fields: ClassVar[tuple[str, ...]] = ("status", "stop_reason", "message")
+    public_fields: ClassVar[tuple[str, ...]] = ("status", "stop_reason", "message", "suggestions")
 
     status: str
     stop_reason: str
     message: str | None = None
     answer: Any = None
+    suggestions: list[dict[str, str]] | None = None
 
 
 class LLMCompleted(Event):

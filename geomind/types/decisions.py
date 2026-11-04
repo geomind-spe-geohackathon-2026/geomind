@@ -78,9 +78,14 @@ class Cancel(Deny):
 
 
 class Finish(Record):
-    """What the ``finish`` tool returns: the proposed final answer."""
+    """What the ``finish`` tool returns: the proposed final answer.
+
+    ``suggestions`` are the next steps the project lead proposes, checked by code
+    (``geomind.tools.suggestions``).
+    """
 
     answer: Any
+    suggestions: list[dict[str, Any]] | None = None
 
 
 def _check_approval(answer):

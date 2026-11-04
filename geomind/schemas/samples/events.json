@@ -26,16 +26,26 @@
     "type": "request"
   },
   "run.finished": {
-    "agent": "analyst",
-    "answer": null,
-    "message": "DesignLoop comes in S3",
+    "agent": "project_lead",
+    "answer": "The case is set from the brief.",
+    "message": null,
     "parent": null,
     "run_id": "run-1",
     "sequence": 1,
-    "status": "failed",
-    "stop_reason": "not_implemented",
+    "status": "done",
+    "stop_reason": "finish",
     "time": "2026-10-31T12:00:00+00:00",
-    "type": "run.finished"
+    "type": "run.finished",
+    "suggestions": [
+      {
+        "label": "Design a plant",
+        "message": "Design a plant for this case and check it with gemini."
+      },
+      {
+        "label": "Check the case and its sources",
+        "message": "Check the case and list every value that has no source yet."
+      }
+    ]
   },
   "run.started": {
     "agent": "analyst",

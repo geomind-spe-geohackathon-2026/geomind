@@ -29,7 +29,30 @@ the whole tree. `event.to_dict()` holds every field and `event_from_dict` rebuil
 | `study.recorded` | `StudyRecorded` | `{run, index, call_id, study, tool, method, designs, best?}` |
 | `request` | `RequestMade` | `{request, call_id?, kind, message, options?}` |
 | `usage` | `UsageUpdated` | `{input_tokens, output_tokens, cost}`, running totals |
-| `run.finished` | `RunFinished` | `{status, stop_reason, message?}` |
+| `run.finished` | `RunFinished` | `{status, stop_reason, message?, suggestions?}` |
+
+`run.finished`'s `suggestions` are the next steps after an answer (`geomind/tools/suggestions.py`): code
+picks the stage from the project's state when the workspace has `project_state(project_id)`
+(contract v4; see below), else from the chat's problem state (no case; a case without
+`design.reference`; a plant without a result; a result), and its steps, in the language of the user's last message (Persian
+for Arabic script, else English). The project lead may pass its own `{step, label, message}`
+list to `finish`; each must name one of the app's steps, fit the limits and the language, and at
+most one may come from outside the stage, else the stage's list is used. Only a root run that
+ended `done` has them; a nested run, a waiting run and a failed one have none, and so does a log
+before 0.4.22.dev48. `gd.suggest(problem, files, project=None)` gives the same list for an empty
+chat, before the first message, with no model call.
+
+The project's state (`{case, plant, study, results, report: {state, label}, case_version,
+plant_version, study_case_version, case_changed_after_study}`, each state `empty`, `incomplete`,
+`ready`, `running` or `done`) decides the stage: the case not done → build it; the plant neither
+done nor ready → design it; the study or the results not done → optimise, economics, check (while
+a study runs: wait for it or explain, never a new study); the report not done → report, explain,
+sensitivity; all done → more studies (uncertainty, a structure search over other plant layouts,
+another objective, the design against another case). A case changed after the study puts "run the
+study again" first, and an incomplete item "finish the <label>". A new chat in a project that has
+its case never suggests building one. `FileWorkspace.project_state` reads it from the project
+folder: a part is done when `case.json`, `plants/`, `studies/`, `results/` or `report/` holds a
+file, and the study is stale when `case.json` is newer than the newest study.
 
 `study.recorded` is sent once by a study tool, after its artifact `study/<name>` and `studies.index`
 are saved (see [Stored studies](tools.md#stored-studies)); it is public but not one of the ten

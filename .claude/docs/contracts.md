@@ -18,6 +18,7 @@ path below exists.
 | `options` as `[{value, label}]` | `geomind/types/decisions.py` | `tests/unit/types/test_decisions.py` |
 | `ask_user` normalises `options` | `geomind/tools/builtins.py` | `tests/unit/tools/test_builtins.py` |
 | Answers to options | `geomind/types/decisions.py` | `tests/unit/types/test_decisions.py` |
+| `run.finished`'s `suggestions?` `[{label, message}]`, `gd.suggest(problem, files, project=None)` the optional `Workspace.project_state(project_id)` (contract v4, 0.4.22.dev48) and `RunResult.suggestions?`, the same list (contract v5) | `geomind/tools/suggestions.py`, `geomind/engine/engine.py` | `tests/unit/tools/test_suggestions.py` |
 | `study.recorded` as `{run, index, call_id, study, tool, method, designs, best?}` (beyond the shared contract) | `geomind/types/events.py` | `tests/unit/types/test_events.py` |
 | `state.changed` as `{version, changes}` | `geomind/types/events.py` | `tests/unit/types/test_events.py` |
 | The JSON Patch subset | `geomind/types/patch.py` | `tests/unit/types/test_patch.py` |

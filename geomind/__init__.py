@@ -17,6 +17,7 @@ from geomind.engine import Context, Engine, Permissions, callbacks, hooks
 from geomind.prompts import Prompt
 from geomind.run import Run
 from geomind.tools import Tool, tool
+from geomind.tools.suggestions import suggest
 from geomind.types import Action, Allow, Deny, Message, Request, RunResult
 from geomind.types.events import event_from_dict
 from geomind.types.runlog import runlog
@@ -42,6 +43,7 @@ __all__ = [
     "Deny",
     "RunResult",
     "runlog",
+    "suggest",
     "event_from_dict",
     "agents",
     "loops",
