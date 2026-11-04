@@ -82,6 +82,7 @@ class RunState:
     max_steps: int = 0
     step_grant: int = 0
     is_cut: bool = False
+    cut_tokens: int = 0
     last_failure: str | None = None
     last_failure_step: int | None = None
     repeated: int = 0

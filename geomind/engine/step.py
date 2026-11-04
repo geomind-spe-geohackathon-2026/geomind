@@ -450,11 +450,20 @@ CUT_NOTE = (
 )
 """What a model reads after a completion the output limit cut."""
 
+EARLY_CUT_NOTE = (
+    "The provider ended your last answer early: it reported the output limit after {tokens} of "
+    "{limit} tokens, so nothing of it ran. Your answer was not too long: send the same step "
+    "again, one tool call."
+)
+"""What a model reads after a completion the provider ended far below the limit (QA-012)."""
+
 
 async def _retry_cut(session, agent):
     """Tell the model its cut completion did not run; each cut call gets the note as its result."""
     limit = runtime.get("max_output_tokens")
-    note = CUT_NOTE.format(limit=limit)
+    tokens = session.state.cut_tokens
+    early = isinstance(limit, int) and tokens < limit // 2
+    note = EARLY_CUT_NOTE.format(tokens=tokens, limit=limit) if early else CUT_NOTE.format(limit=limit)
     calls = session.state.calls
     if not calls:
         await session.emit(

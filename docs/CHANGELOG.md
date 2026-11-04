@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.34] - 2026-11-04
+
+### Fixed
+
+- QA-012: when the provider reports the output limit (`finish_reason: length`) far below it (1 of 16,000 tokens), the model reads that the provider ended its answer early and to send the same step again, instead of being told its answer was too long and to think less.
+
 ## [0.4.33] - 2026-11-04
 
 ### Fixed
