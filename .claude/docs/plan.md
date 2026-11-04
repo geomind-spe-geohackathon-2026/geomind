@@ -401,6 +401,7 @@ Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/C
 | 144 | prod c8bf2381 (B4), memory off | `search_memory` answered `internal`; prompts still spoke of the memory | cause: 0.4.22 used the bound `Workspace.memory` as the memory (0.4.23 calls it); pinned for every agent, nested runs and both off paths; memory-only prompt parts marked and left out; a failing store is `memory_unavailable` | prod-bugs |
 | 145 | prod c8bf2381 (B6), case lead | read the whole cost catalogue: about 21 steps at 55-80k input tokens | `read_rag` `rows` filter; a table over `LARGE_TABLE_CHARACTERS` after `rows`/`columns` gives its outline and a note only; the prompt reads the missing keys' rows | prod-bugs |
 | 146 | prod (B10), `gd.mcp.list_tools` | failed on the dict `{name, url, transport, headers}`; `failure()` read `server.name` and hid the real error | a dict is taken everywhere a server comes in; `failure()` names the server when it can and keeps the real error | prod-bugs |
+| 147 | prod c8bf2381 (B3), case with `site.fluid.dissolved_gas.H2S` | `set_case` and `gm.check` took it, then `build_plant`/`simulate` failed with `gas composition: species = 'H2S'` | gemini's bug, fixed in gemini 0.6.4 (H2S burns, no CO2); geomind needed no change and had no workaround; pinned by `test_h2s_in_the_dissolved_gas_is_accepted_and_reaches_gemini_as_given` and `test_a_brine_gas_with_h2s_simulates_and_its_h2s_forms_no_co2` | gemini-064 |
 | 85 | C1 (Track C), economist | told to cost a design, it sampled 200 draws and a sensitivity with a seed it chose (192 s) | uncertainty and sensitivity only when the task asks for them | track-c |
 | 86 | C1 (Track C), evals | the `sourced` criterion left out the problem state's `Case:` line, so the case's own years counted as made up | the state's `Case:` line is read; the agent's notes and questions stay out | track-c |
 | 87 | C2 (Track C), economist and analysis lead on nemotron | sent `update_state`'s `changes` as a JSON string; two refusals in a row stopped the economist's nested run, and the lead finished without it | `Tool.validate` reads a list or an object given as its JSON text (model-agnostic) | track-c |
@@ -573,6 +574,9 @@ or derived inputs for other packages, so a request of that kind is dropped.
 | 30 | closed, 0.6.3: `Plant.to_dict(units="display")`, used by `read_plant` |
 | 31 | closed, 0.6.3: `°C/km`, `degC/km`; geomind's gradient mapping is gone |
 | 32 | dropped (a derived input): geomind sets the ISA pressure from the site's elevation itself (`air.py`) |
+
+gemini 0.6.4 (2026-11-04) is a bug fix only: H2S in a gas composition (B3, row 147). None of
+the requests above changes status.
 
 A candidate for Sahand, not sent: gemini 0.6.3 describes each entry of a map as "The entry of
 this map for <key>." (`opex.fixed.boiler`, `site.fluid.dissolved_gas.CO2`), which says nothing;
