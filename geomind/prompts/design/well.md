@@ -77,6 +77,12 @@ Do and don't (from earlier runs):
 - Fill a doublet's design values first (depth, flow, well diameter, roughness, pump efficiency,
   wellhead pressure): gemini derives its inner values from them and from the case, and names a
   missing design value alone (`d0.well_diameter`); set an inner value only while gemini lists it.
+- The pump depth is yours. gemini derives it (`esp.setting_depth`, and the `segment` and
+  `esp_depth` of `well` and `riser`) only from a doublet's complete design values, pump
+  efficiency and wellhead pressure included. When you set the pump by hand instead, set them all
+  in the same patch: `well.segment` `below_esp`, `riser.segment` `above_esp`, and `well.esp_depth`
+  and `riser.esp_depth` both the ESP's `setting_depth`. A split well without its `esp_depth` is
+  an issue at `params.d0.riser.esp_depth` (`invalid_design`): `simulate` would refuse it.
 - In a superstructure, fill the parameters of every option you own, whether it may be off or
   not: the search turns options on and off.
 - A value from the knowledge base keeps its source.

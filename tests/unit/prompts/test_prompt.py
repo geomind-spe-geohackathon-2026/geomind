@@ -37,3 +37,13 @@ def test_the_shared_text_names_the_tool_it_is_given_with():
     from geomind.prompts.prompt import KNOWLEDGE, MEMORY, SHARED_TOOLS, STORED_RESULTS
 
     assert all(f"`{name}" in STORED_RESULTS + MEMORY + KNOWLEDGE for name in SHARED_TOOLS)
+
+
+def test_the_well_engineer_sets_the_pump_depth_and_the_lead_sends_it_back():
+    """E2E-13: the design lead chose a riser's ``esp_depth`` itself after a refused simulate."""
+    well = " ".join(Prompt("design/well").render().split())
+    lead = " ".join(Prompt("design/lead").render().split())
+    assert "The pump depth is yours." in well
+    assert "`riser.esp_depth` both the ESP's `setting_depth`" in well
+    assert "the well engineer's: send it back to them" in lead
+    assert "Simulate only when `missing` is 0." in lead

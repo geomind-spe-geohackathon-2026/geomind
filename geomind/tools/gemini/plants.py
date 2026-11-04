@@ -1,6 +1,7 @@
 """The tools that read and store plants."""
 
 import json
+import re
 from typing import Any
 
 from geomind import runtime
@@ -194,18 +195,107 @@ def issue_dict(issue):
     return routed_issue(item)
 
 
+SCHEDULE_RULES = ("dispatch", "outages")
+"""The rules of ``params.control`` gemini's schedule needs: ``simulate`` always runs on its plan.
+
+gemini 0.6.4 refuses a plant without one only when it schedules (``_stated_rules`` in
+``gemini/engine/schedule/schedule.py``); ``gm.check`` passes it, so geomind names them.
+"""
+MODULE_VALUE = re.compile(r"(?P<module>[\w.]+): (?P<name>\w+) = ")
+"""A run-time message of gemini about one value: ``d0.riser: esp_depth = None is not ...``."""
+MISSING_CODES = ("missing_value", "missing_assumption")
+
+
+def rule_issues(plant):
+    """Return a ``missing`` issue for each rule of ``SCHEDULE_RULES`` the plant does not state.
+
+    ``suggestions`` are the values the parameter accepts, the rules gemini's schedule implements.
+    """
+    stated = plant.to_dict(structure=True)["params"].get("control") or {}
+    parameters = plant.describe()["parameters"]
+    issues = []
+    for name in SCHEDULE_RULES:
+        value = stated.get(name)
+        if (value.get("value") if isinstance(value, dict) else value) is not None:
+            continue
+        parameter = parameters[name]
+        issues.append(
+            {
+                "path": f"params.control.{name}",
+                "code": "missing_value",
+                "kind": "missing",
+                "message": f"no value: {parameter['description']}; simulate's schedule needs it",
+                "suggestions": list(parameter["enum"]),
+            }
+        )
+    return issues
+
+
+def located(plant, message):
+    """Return ``params.<module>.<name>`` of a message on one value of a module, else ``None``.
+
+    gemini 0.6.4 gives some run-time refusals without a path (``d0.riser: esp_depth = None ...``);
+    the path is taken only when the plant has that module with that parameter.
+    """
+    found = MODULE_VALUE.match(message)
+    if found is None:
+        return None
+    module = dict(plant.named_modules()).get(found["module"])
+    if module is None or found["name"] not in module.describe()["parameters"]:
+        return None
+    return f"params.{found['module']}.{found['name']}"
+
+
+def run_issues(plant, case):
+    """Return what gemini refuses only when it runs the plant: a one-step run on its schedule.
+
+    gemini 0.6.4 finds some values only in a run, such as the ``esp_depth`` of a well split at its
+    pump (``invalid_design``). The run is the first step of ``gm.schedule``'s plan, as
+    ``simulate`` runs it; a step that fails is a failed row there, not an issue.
+    """
+    import gemini as gm
+
+    try:
+        gm.simulate(plant, case, plan=gm.schedule(plant, case).iloc[:1])
+    except gm.errors.ValidationError as error:
+        problems = error.problems
+    else:
+        return []
+    issues = []
+    for problem in problems:
+        item = {
+            "path": problem["path"] or located(plant, problem["message"]) or "",
+            "code": problem["code"],
+            "kind": "missing" if problem["code"] in MISSING_CODES else "incompatible",
+            "message": problem["message"],
+        }
+        if problem.get("suggestions"):
+            item["suggestions"] = list(problem["suggestions"])
+        issues.append(routed_issue(item))
+    return issues
+
+
 def plant_issues(context, plant):
     """Return ``{checked_against, issues}`` of a plant: against the state's case when it has one.
 
     ``gm.check(plant, case)`` is the check that knows what the case fills (``d0.gradient`` empty
-    takes it from the case); ``plant.check()`` alone lists such a value as missing.
+    takes it from the case); ``plant.check()`` alone lists such a value as missing. Every value
+    ``simulate`` needs is named: the schedule rules gemini's check passes (``rule_issues``), and,
+    once nothing else is missing, what only a run finds (``run_issues``). It runs a step of the
+    plant, so the tools call it off the event loop.
     """
     import gemini as gm
 
+    rules = rule_issues(plant)
     if context.problem.case is None:
-        return {"checked_against": "plant", "issues": [issue_dict(i) for i in plant.check()]}
-    issues = gm.check(plant, case_of(context))
-    return {"checked_against": "case", "issues": [issue_dict(i) for i in issues]}
+        found = [issue_dict(i) for i in plant.check()]
+        return {"checked_against": "plant", "issues": found + rules}
+    case = case_of(context)
+    checked = gm.check(plant, case)
+    issues = [issue_dict(i) for i in checked] + rules
+    if not rules and all(issue.is_warning for issue in checked):
+        issues += run_issues(plant, case)
+    return {"checked_against": "case", "issues": issues}
 
 
 def shown_ranges(plant):
@@ -247,7 +337,7 @@ def plant_view(plant):
     late_schemas={"design": reference_schema("design", optional=True)},
     keeps_result=True,
 )
-def read_plant(
+async def read_plant(
     context,
     design: str | None = None,
     plant_class: str | None = None,
@@ -277,7 +367,8 @@ def read_plant(
         plant = gm.plants.get(plant_class)
     else:
         plant = load_plant(context, design, "read_plant", project_plant)
-    return {**plant_view(plant), **plant_issues(context, plant)}
+    issues = await runtime.in_gemini_thread(plant_issues, context, plant)
+    return {**plant_view(plant), **issues}
 
 
 @tool(effect="write", late_schemas={"plant": plant_schema})
@@ -327,7 +418,7 @@ async def build_plant(context, plant: dict[str, Any], name: str, from_class: str
             suggestions=[*error.suggestions, json.dumps(plant_skeleton())],
         ) from error
     design = await save_design(context, name, built)
-    return {"design": design, **plant_issues(context, built)}
+    return {"design": design, **await runtime.in_gemini_thread(plant_issues, context, built)}
 
 
 def foreign_modules(gm, plant):
@@ -459,7 +550,7 @@ async def patch_plant(context, design: str, changes: dict[str, Any], name: str):
     patched = merge_patch(plant, changes)
     built = await runtime.in_gemini_thread(gm.Plant.from_dict, patched)
     stored = await save_design(context, name, built)
-    issues = plant_issues(context, built)
+    issues = await runtime.in_gemini_thread(plant_issues, context, built)
     return {"design": stored, **issues, "missing": len(issues["issues"])}
 
 
@@ -518,7 +609,7 @@ async def merge_designs(context, base: str, designs: list[str], name: str):
         merged = merge_patch(merged, patch)
     built = await runtime.in_gemini_thread(gm.Plant.from_dict, merged)
     stored = await save_design(context, name, built)
-    issues = plant_issues(context, built)
+    issues = await runtime.in_gemini_thread(plant_issues, context, built)
     return {"design": stored, **issues, "missing": len(issues["issues"])}
 
 
@@ -561,7 +652,7 @@ async def union_designs(context, designs: list[str], name: str):
         }
         for note in to_plain(union["notes"])
     ]
-    issues = plant_issues(context, built)
+    issues = await runtime.in_gemini_thread(plant_issues, context, built)
     return {
         "design": stored,
         "structures": structures,
