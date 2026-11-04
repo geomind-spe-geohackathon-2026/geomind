@@ -141,6 +141,25 @@ async def test_a_gas_fraction_in_mol_percent_is_gemini_s_to_convert():
     assert gas["CO2"] == {"value": 8, "unit": "%"}
 
 
+@pytest.mark.parametrize("h2s", [5, 0], ids=["sour", "zero"])
+async def test_h2s_in_the_dissolved_gas_is_accepted_and_reaches_gemini_as_given(h2s):
+    """B3: ``site.fluid.dissolved_gas.H2S``, even at 0 mol%, is set and read by gemini as given."""
+    session, problem = await loaded("hackathon_2026")
+    gas = {
+        "CH4": {"value": 75 + 5 - h2s, "unit": "mol%"},
+        "CO2": {"value": 20, "unit": "mol%"},
+        "H2S": {"value": h2s, "unit": "mol%"},
+    }
+    changes = {"site": {"fluid": {"dissolved_gas": gas}}}
+    result = await edited(session, problem, {"changes": changes})
+    assert result.is_error is False, result.output
+    after = state_after(session, problem)
+    assert after.case["site"]["fluid"]["dissolved_gas"] == gas
+    read = case_of(Context(session=session, problem=after)).to_dict()
+    assert read["site"]["fluid"]["dissolved_gas"]["H2S"] == {"value": h2s, "unit": "mol%"}
+    assert "converted" not in result.output
+
+
 async def test_every_problem_of_a_case_comes_back_in_one_call():
     """Three wrong values come back in one answer (gemini 0.6.2 judges the whole case, 13).
 

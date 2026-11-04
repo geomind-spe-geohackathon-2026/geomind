@@ -8,6 +8,7 @@ import pytest
 
 import geomind as gd
 from geomind.context import ProblemState
+from geomind.context.state import apply_changes
 from geomind.tools.gemini.case import save_profile, set_case
 from geomind.tools.gemini.stored import save_design
 from tests.fixtures.calls import call
@@ -33,6 +34,10 @@ CHANGES = {
     "shallow_district": {"heat_pump": {"capacity": {"value": 1.0, "unit": "MW"}}},
 }
 ALLOWED_UNITS = {"MWh", "MEUR", "MEUR/yr", "EUR/MWh", "kt", "-", None}
+GASES = {
+    "sour": {"CH4": {"value": 0.75}, "CO2": {"value": 0.2}, "H2S": {"value": 0.05}},
+    "sweet": {"CH4": {"value": 0.8}, "CO2": {"value": 0.2}},
+}
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -42,6 +47,8 @@ def warmed():
         year_run(name)
         windowed(name)
     peak_run("hackathon_2026")
+    for gas in GASES:
+        gas_run(gas)
 
 
 @functools.cache
@@ -327,6 +334,35 @@ def test_an_unmet_requirement_is_listed_by_name():
         item["name"] for item in summary["unmet"]
     }
     assert all(item["passed"] is False for item in summary["unmet"])
+
+
+@functools.cache
+def gas_run(gas):
+    """Return ``simulate`` over one day of the hackathon plant, its brine's gas set by set_case."""
+
+    async def run():
+        session, problem = await designed("hackathon_2026")
+        changes = {"site": {"fluid": {"dissolved_gas": GASES[gas]}}}
+        result = await call(set_case, {"changes": changes}, session, problem=problem)
+        assert result.is_error is False, result.output
+        problem = apply_changes(problem, session.changes[-1])
+        start = WINDOWS["hackathon_2026"][0]
+        arguments = {"design": "design/p", "start": start, "end": start}
+        return await call(TOOLS.simulate, arguments, session, problem=problem)
+
+    return asyncio.run(run())
+
+
+def test_a_brine_gas_with_h2s_simulates_and_its_h2s_forms_no_co2():
+    """B3 (gemini 0.6.4): H2S in the dissolved gas failed the plant's build; it runs now.
+
+    With 5 mol% H2S in place of as much CH4, the gas burnt (boiler, flare) emits less CO2.
+    """
+    sour, sweet = gas_run("sour"), gas_run("sweet")
+    assert sour.is_error is False, sour.output
+    summary = sour.output["summary"]
+    assert summary["failed_steps"] == 0 and summary["failures"] == []
+    assert summary["report"]["co2"]["value"] < sweet.output["summary"]["report"]["co2"]["value"]
 
 
 @example_names

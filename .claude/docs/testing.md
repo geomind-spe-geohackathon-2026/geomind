@@ -13,7 +13,7 @@ Every test belongs to one automatically marked folder tier:
 - `tests/fixtures/contracts/shared.md` is a copy of the shared contract, `backend/docs/app-build/contracts.md`
   version 52 (backend commit `7f0bc92`): `tests/unit/types/test_events.py` checks the event table,
   `study.recorded` included, against it. Copy it again when the contract changes.
-- `tests/fixtures/gemini_examples/` is a copy of gemini's two example projects from tag v0.5.5 (the same in v0.5.13 and v0.6.2): the
+- `tests/fixtures/gemini_examples/` is a copy of gemini's two example projects from tag v0.5.5 (the same in v0.5.13, v0.6.2, v0.6.3 and v0.6.4): the
   published wheel ships no examples, and tests never read a sibling gemini folder. Refresh the copy
   when the gemini pin moves and the examples change.
 
