@@ -66,6 +66,8 @@ class Outcome:
     verdict: dict = field(default_factory=dict)
     unanswered: list = field(default_factory=list)
     read: str = ""
+    partial: bool = False
+    """The answer is the one the engine wrote from the record because a limit stopped the run."""
 
     @property
     def met(self):
@@ -122,6 +124,9 @@ def is_step_limit(request):
     options = [option.value for option in request.options or ()]
     return options == list(STEP_OPTIONS)
 
+
+LIMIT_STOPS = ("step_limit", "denied")
+"""The stop reasons whose answer, when there is one, the engine wrote from the run's record."""
 
 UNKNOWN = "unknown"
 """A rule-answered task's reply to a question no rule covers: the user does not know."""
@@ -298,6 +303,7 @@ def run_task(name, task, agent_name, llm, loop=None, hooks=()):
         time=perf_counter() - started,
         unanswered=unanswered,
         read=_read(events),
+        partial=result.stop_reason in LIMIT_STOPS and bool(result.answer),
     )
     if any(isinstance(criterion, VerifiedCriterion) for criterion in task.criteria):
         outcome.verdict = verdict(store, CHAT, outcome.state)

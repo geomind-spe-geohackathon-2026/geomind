@@ -341,6 +341,10 @@ Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/C
 | 64 | C2, case lead | worked out a room dew point (14.6 degC) inside a question; with the new `sourced` criterion also a temperature from the gradient, a GWP from memory, an end date and a step count | prompt forbids any number it worked out or knows from memory; `read_rag`'s table gives the case span; eval criterion `sourced` | de37595 |
 | 65 | Track A, case lead | told `changes=<the same changes>` after a missing file, sent the files alone three times and the run stopped | the retry names everything to send again; files alone on no case say they go with the changes | dev45 |
 | 66 | Track A, case lead | a gradient in `degC/km` got `{'unit': 'degC'}` and the units of temperature as its fix | the quantity of a two-word unit message (`temperature gradient`) is read whole | dev45 |
+| 68 | Track A rerun (dev51), case lead on nemotron | `read_case`'s `no_case` read as "the project has no case file": it asked for every site value and raised none of the flaws of the project's case | `no_case` in a project with a case file says "the project has a case file: set_case(source='project') loads it" | track-a3 |
+| 69 | Track A rerun (dev51), case lead on DeepSeek | after a refused full `set_case` it sent the files-only call `case_incomplete` had refused, three times, until the repeat guard stopped the run; called the geoscientist 4 times after `already_asked`; lower-cased file names in `read_rag` | prompt: after a refused full call fix the named keys and send the SAME full call, never files alone; never call the geoscientist after `already_asked`; file names as `list_files` gives them | track-a3 |
+| 115 | Track A rerun (dev51), case lead on both models | wrote the gradient as `degC/km`/`°C/km` and the gas fractions in `mol%` (`CH4 80`), as the brief does; gemini 0.6.1 refuses both. nemotron never searched the knowledge base before asking, so the case got no economics (`before` failed) | `set_case` maps `°C/km`, `degC/km`, `C/km` to `K/km` (same number) and turns `%`/`mol%` on a gas fraction into the fraction, listing each in `converted` for the confirmation question (removed when gemini requests 15 and 31 land; the one unit-math line allowlisted); prompt: `search_rag` for each missing value and the cost catalogue, always, before the one question | track-a3 |
+| 116 | Track A rerun (dev51), evals | `sourced` flagged the numbers of the engine's answer at a limit (cost used, the cap, tokens needed) as made up | `Outcome.partial`, set from the run's stop reason, leaves that answer out of `sourced`; questions are still checked | track-a3 |
 | 85 | C1 (Track C), economist | told to cost a design, it sampled 200 draws and a sensitivity with a seed it chose (192 s) | uncertainty and sensitivity only when the task asks for them | track-c |
 | 86 | C1 (Track C), evals | the `sourced` criterion left out the problem state's `Case:` line, so the case's own years counted as made up | the state's `Case:` line is read; the agent's notes and questions stay out | track-c |
 | 87 | C2 (Track C), economist and analysis lead on nemotron | sent `update_state`'s `changes` as a JSON string; two refusals in a row stopped the economist's nested run, and the lead finished without it | `Tool.validate` reads a list or an object given as its JSON text (model-agnostic) | track-c |
@@ -456,6 +460,10 @@ Open requests to gemini (full text in the adaptation notes):
     a test to tell the agents (`heating_coverage`, `cooling_coverage`, `cop`, `peak_heat`,
     `peak_cold` and the five objectives); `gm.evaluate.metrics()` does not say which a study reads
     (Track C, bug #90).
+31. `site.ground.gradient` refuses `°C/km` and `degC/km`, the unit briefs write (only `K/km`,
+    `K/m`); a temperature gradient is a temperature difference per length, so `°C/km` is `K/km`
+    with the same number. Asked: accept `°C/km` and `degC/km` (and `/m`) as a temperature
+    gradient; geomind's `set_case` maps them until then (Track A3, bug #115).
 16. Economics units the cited cost data needs but the keys refuse: `capex.ice_storage` per MWh of
     cold (only EUR/m3), `capex.heat_exchanger` in EUR/W (only EUR/(W/K)), `capex.pipe` in EUR/MW/m
     (only EUR/m), `opex.fixed.*` as an amount per W or MW per year (only %/yr), and

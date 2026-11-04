@@ -120,3 +120,13 @@ def test_a_read_shortened_to_up_to_eight_decimals_is_sourced():
     """Track B2: 0.999993 and 0.0833333 were gemini's values copied shorter."""
     read = "ratio 0.99999312 and share 0.08333333333"
     assert CRITERION.problem(outcome("ratio 0.999993, share 0.0833333", read)) is None
+
+
+def test_a_partial_answer_of_a_limit_stop_is_not_checked():
+    """The engine's answer at a limit holds the cap's numbers, not the agent's (#116)."""
+    answer = "Why it stopped: cost budget: used 0.0226 of 0.03; the next call needs about 55995"
+    stopped = Outcome(name="t", answer=answer, read="", partial=True)
+    assert CRITERION.problem(stopped) is None
+    stopped.questions = ["is the doublet count 7.5?"]
+    assert CRITERION.problem(stopped) == "sourced: numbers no message holds [7.5]"
+    assert CRITERION.problem(outcome(answer, "")) is not None

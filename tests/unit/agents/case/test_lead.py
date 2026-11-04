@@ -56,7 +56,8 @@ def test_the_case_is_set_in_parts():
     """The test run sent the whole case five times; the prompt and set_case say to send parts."""
     from geomind.tools.gemini.case import set_case
 
-    assert "never the whole case again" in " ".join(CaseLead().prompt.render().split())
+    text = " ".join(CaseLead().prompt.render().split())
+    assert "Once a case is stored, send only the keys that change" in text
     assert "send only" in set_case.description or "send only" in set_case.function.__doc__
 
 
@@ -79,7 +80,8 @@ def test_a_missing_value_is_searched_before_it_is_asked_for():
     text = " ".join(CaseLead().prompt.content.split())
     order = ["the project's files", "the knowledge base:", "`read_mcp`", "only when none"]
     assert [text.index(item) for item in order] == sorted(text.index(item) for item in order)
-    assert "Search 3 and 4 for every value the files lack before you ask" in text
+    assert "ALWAYS, also when the files seem complete" in text
+    assert '`read_rag("knowledge/cost-sources.csv", columns=[...])`' in text
     assert "knowledge/cost-sources.csv" in text and "`placeholder`" in text
 
 
@@ -130,3 +132,17 @@ def test_it_chooses_among_the_catalogue_s_rows_by_their_status():
     order = ["beats a `placeholder`", "`verified` row beats a `secondary`", "ONE question for all"]
     assert [text.index(item) for item in order] == sorted(text.index(item) for item in order)
     assert "`EUR/W heat` is `EUR/W`" in text and "never goes in: list it as not usable" in text
+
+
+def test_a_refused_full_call_is_sent_again_whole():
+    """#69: files alone after a refused full call, the geoscientist after ``already_asked``."""
+    text = " ".join(CaseLead().prompt.content.split())
+    assert "send the SAME full call again" in text and "never a files-only call" in text
+    assert "after `already_asked`, never call it again" in text
+    assert "File names are case-sensitive" in text
+
+
+def test_units_are_written_as_the_source_gives_them():
+    """#115: set_case maps °C/km and mol%; the lead lists what it converted in the one question."""
+    text = " ".join(CaseLead().prompt.content.split())
+    assert "`30 °C/km`, `80 mol%`" in text and "`converted`" in text

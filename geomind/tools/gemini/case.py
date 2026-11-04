@@ -28,6 +28,7 @@ from geomind.tools.base import tool
 from geomind.tools.files import file_names_schema, project_file
 from geomind.tools.gemini.explain import MISSING_CODES, shown_message, unit_error, unit_retry
 from geomind.tools.gemini.skeleton import case_skeleton, requirement_shape
+from geomind.tools.gemini.unit_bridge import bridged_units
 from geomind.utils.strings import did_you_mean, join_names
 
 CASE_FILE = "case/"
@@ -72,12 +73,29 @@ def state_case(context):
     """Return a copy of the state's case dict, or raise what the model must do."""
     data = context.problem.case
     if data is None:
+        if project_has_case(context):
+            raise ToolError(
+                "case: the problem state has no case yet, but the project has a case file: "
+                "set_case(source='project') loads it",
+                code="no_case",
+            )
         raise ToolError(
             "case: the problem state has no case; expected one. Call set_case (source='project' "
             "for the project's case, or changes with the values) or ask_user for them",
             code="no_case",
         )
     return copy.deepcopy(data)
+
+
+def project_has_case(context):
+    """Return whether the run's project has a case file, so ``no_case`` can say to load it."""
+    workspace = context.session.workspace
+    if workspace is None or context.project is None:
+        return False
+    try:
+        return workspace.case(context.project) is not None
+    except (OSError, ValueError):
+        return False
 
 
 def file_contents(context, data, supplied):
@@ -546,8 +564,10 @@ async def set_case(
     case comes back with the path and message to fix, and nothing is stored; a case with values
     missing is ``case_incomplete``, every missing path in ``suggestions``. The project's case, or
     the first case of a chat, is the case the user gave; a design is verified only on it, so any
-    later change of it, economics included, waits for the user's approval. Returns the case and
-    the state version.
+    later change of it, economics included, waits for the user's approval. Write units as the
+    source gives them: a gradient in °C/km becomes K/km, a gas fraction in mol% or % becomes the
+    fraction. Returns the case, the state version and ``converted``, each value set_case mapped or
+    converted (``{path, from, to, reason}``), to list in the user's confirmation question.
     """
     import gemini as gm
 
@@ -566,7 +586,8 @@ async def set_case(
     if files:
         given = await runtime.in_gemini_thread(project_files_of, context, files, columns)
         supplied = {**supplied, **given}
-    data = merge_patch(base, checked_changes(changes or {}, files))
+    changes, converted = bridged_units(changes or {})
+    data = merge_patch(base, checked_changes(changes, files))
     if requirements:
         data["requirements"] = edited_requirements(data.get("requirements"), requirements)
     contents = edited_economics(context, data, supplied, economics) if economics else supplied
@@ -580,7 +601,8 @@ async def set_case(
         raise ToolError(
             shown_message(error), code=error.code, path=error.path, suggestions=retries
         ) from error
-    return {"case": data, "version": version}
+    result = {"case": data, "version": version}
+    return {**result, "converted": converted} if converted else result
 
 
 def given_case(context, source, base, current):

@@ -6,6 +6,15 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### The case team again, A3
+
+The Track A rerun on dev51 on both models; each bug pinned by a test.
+
+- Fix (#68): `read_case` and the other case tools without a case in a project that has a `case.json` say so in their `no_case` error: "the project has a case file: set_case(source='project') loads it". nemotron had read `no_case` as "the project has no case" and raised none of its flaws.
+- Fix (#69), prompt: the case lead sends the SAME full `set_case` again after `case_incomplete` or a refused full call, fixed where it names, never files alone; never calls the geoscientist after `already_asked`; writes file names as `list_files` gives them (case-sensitive).
+- Fix (#115), behaviour, reversible: `set_case` maps a `site.ground.gradient` in `degC/km`, `°C/km` or `C/km` to `K/km` (`/m` to `K/m`), the same number, and turns a value in `%` or `mol%` on `site.fluid.dissolved_gas.*` or `utilities.gas.composition.*` into the fraction (value, range and uncertainty / 100) (`geomind/tools/gemini/unit_bridge.py`). Contract: `set_case`'s result gains `converted`, `[{path, from: {value, unit}, to: {value, unit}, reason}]`, when it mapped or converted a value. To be removed when gemini requests 15 and 31 land; `test_no_unit_math` now knows the percent factor and allowlists that one line. Prompt: units as the source writes them, each `converted` entry in the one confirmation question; `search_rag` for each missing value and the cost catalogue, always, before that question.
+- Evals (#116): `Outcome.partial` marks the answer the engine wrote from the record at a limit (stop reason `step_limit` or `denied`); `sourced` leaves it out, so the cap's numbers are no longer flagged.
+
 ### The project team on both models (0.4.22.dev55)
 
 Rounds E1 and E2: the coordinator, the reviewer, the explainer and the project lead, each alone (the lead's teams scripted), live on DeepSeek. Each bug is pinned by a test.
