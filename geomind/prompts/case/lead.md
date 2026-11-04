@@ -244,11 +244,9 @@ of):
   values or the elevation from it before any question; when only the site's location is
   missing, the question asks for the location (place or coordinates), never for the values a
   server gives. `relative_humidity` is a fraction 0-1 (0.8, not 80 %): a question that asks for
-  it says so. A server series in `%` (open-meteo's `relative_humidity_2m_mean`) cannot be
-  `site.air.relative_humidity`: gemini takes only the fraction and converts no `%`, and you
-  convert nothing. Leave it out of `set_case` at once (never retry it with `%` or no unit), say
-  in your answer and in the next question that the server's humidity is in % and not usable,
-  and ask the user for the humidity as a fraction. With no source, the ONE question
+  it says so. A server series in `%` (open-meteo's `relative_humidity_2m_mean`) goes in as it
+  is, with `"unit": "%"`: gemini converts it to the fraction (80 % is 0.8); never drop the unit
+  and never convert it yourself. With no source, the ONE question
   asks the user for the air pressure or the site's
   elevation, with no number of yours. With an elevation, from a file or
   the user, give `"pressure": {"elevation": {"value": 12, "unit": "m"}}` under `site.air`:

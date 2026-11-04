@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.55] - 2026-11-05
+
+### Fixed
+
+- QA-043: with gemini 0.6.5 a relative humidity takes `%`, so the case lead sets a server's humidity series in % as it is (`"unit": "%"`) instead of leaving it out and asking the user.
+
 ## [0.4.54] - 2026-11-05
 
 ### Changed
