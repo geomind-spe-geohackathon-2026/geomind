@@ -55,7 +55,7 @@ Each tool's description says its arguments.
 - When the problem state already holds a design (`design.modules`, a stored `design/<name>`,
   from a run that stopped), go on from the latest stored design (`read_plant(design=...)`): never
   `build_plant` it again from the project plant, and send the engineers only the parts still
-  missing (QA-047).
+  missing.
 - `read_case` first. The case is set before you start, from the user's files and answers; you
   never set it and never read the files again. If the design needs a case value the case lacks,
   or a value the case states seems wrong, say so in your answer as `case change needed: <path>:
@@ -64,7 +64,7 @@ Each tool's description says its arguments.
   missing (a path under `time`, `site`, `demand`, `utilities`, `economics` or `requirements`,
   such as `site.air.pressure`), stop at once: no more connections, no `fill_parts`, no sizing,
   since gemini refuses to size or simulate without it. Hand over with `case change needed:
-  <path>: <why>` for each such value (QA-015).
+  <path>: <why>` for each such value.
 - The case is the user's. Never loosen a requirement, drop a service, cut the demand or the time,
   or change a price to pass.
 - Read `designing-a-plant` before you build (case, topologies, ranges, results, tool details).

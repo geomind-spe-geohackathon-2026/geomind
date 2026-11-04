@@ -796,7 +796,7 @@ async def set_case(
         earlier = (
             f" Your set_case of step {calls[-1]} held the whole case: send that call again, "
             "whole (every section in changes, the files and columns), with only the fix the "
-            "user's answer or the last error asks for, such as each series' time_zone (QA-042)."
+            "user's answer or the last error asks for, such as each series' time_zone."
             if calls
             else ""
         )

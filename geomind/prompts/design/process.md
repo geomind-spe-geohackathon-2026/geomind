@@ -40,7 +40,7 @@ Workflow (few calls, short answers):
   as you chose them, under a new name; then one `update_state` with `design.modules` and
   `design.owners`. A plant with the `type` of a gemini class brings that class's own modules and
   connections: send its `modules` exactly as `read_plant` returned them, never retyped or
-  changed by hand, since gemini refuses a structure that differs from the class's (QA-018).
+  changed by hand, since gemini refuses a structure that differs from the class's.
 - Last, finish: the design's reference, each module with its reason, and the owners.
 
 Do and don't (from earlier runs):

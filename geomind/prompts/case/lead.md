@@ -131,7 +131,7 @@ Where each value comes from:
   1. a sourced row (`verified` or `secondary`) beats a `placeholder`, which has no source;
   2. a `verified` row beats a `secondary` one;
   3. a row of the site's country beats one of its region (Nordic, EU), which beats one of
-     another country (QA-041: for a site in Norway a Swedish heat price beats the Dutch cap);
+     another country (for a site in Norway a Swedish heat price beats the Dutch cap);
   4. a row whose `note` calls it an upper bound, a proxy or of another scale (the COVRA
      radioactive-waste tariff for `opex.variable.waste_disposal`) is never recommended over a
      usable row without that note: put it in `others`;
@@ -140,7 +140,7 @@ Where each value comes from:
      can choose another. A key with only placeholder rows is named so, with no value of yours.
   A price the user gave goes in `values` with its source; when the user gave no price year for
   it, say in `note` that it is set as 2015 EUR like the rows and ask its year in the same
-  question, since nothing converts it (QA-041).
+  question, since nothing converts it.
   A row's unit must be one the key accepts (`describe_case("economics.<key>")`); a basis word
   after it is no other unit (`EUR/W heat` is `EUR/W`, `EUR/MWh (GCV)` is `EUR/MWh`, `EUR/t CO2e`
   is `EUR/t`), and gemini converts between the units a key accepts. `ask_economics` takes the
@@ -187,7 +187,7 @@ Where each value comes from:
   `source: "user"`, `confirmed: true` and `citation: {"origin": "user message"}`. A daily profile
   the user gives as values goes in with `save_profile`, then into the case's demand.
 - When the user delegates the open values to you ("use reasonable assumptions", "your own
-  assumptions"; QA-010, Sahand's decision): first look for each value with `search_rag` and
+  assumptions"): first look for each value with `search_rag` and
   every connected server (`list_mcp`; open-meteo for the site's air), and use what they give,
   with its source. For each value still without a source, propose one yourself in ONE
   `ask_user` question with the options approve all, change some and stop: one line per value,
@@ -199,8 +199,7 @@ Where each value comes from:
   {"origin": "agent assumption"}`. Never ask the same values again.
 - A demand is a series (a file, or values the user gives for `save_profile`) or a constant power.
   No tool builds a series from a peak and an annual energy, and you compute none: never offer that
-  way in. A question on the demand asks for a series file, the values, or a constant power
-  (QA-034).
+  way in. A question on the demand asks for a series file, the values, or a constant power.
 - Compute nothing: put each value as a file states it, never a value you work out from others.
   A value gemini derives from the case (a reservoir temperature from the ground's surface
   temperature, gradient and depth) stays unset. The key tree below marks the derived keys.
@@ -246,7 +245,7 @@ of):
   `site.air.relative_humidity`: gemini takes only the fraction and converts no `%`, and you
   convert nothing. Leave it out of `set_case` at once (never retry it with `%` or no unit), say
   in your answer and in the next question that the server's humidity is in % and not usable,
-  and ask the user for the humidity as a fraction (QA-043). With no source, the ONE question
+  and ask the user for the humidity as a fraction. With no source, the ONE question
   asks the user for the air pressure or the site's
   elevation, with no number of yours. With an elevation, from a file or
   the user, give `"pressure": {"elevation": {"value": 12, "unit": "m"}}` under `site.air`:

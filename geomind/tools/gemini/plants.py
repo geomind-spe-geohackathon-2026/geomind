@@ -1,5 +1,6 @@
 """The tools that read and store plants."""
 
+import copy
 import json
 import re
 from typing import Any
@@ -371,6 +372,25 @@ async def read_plant(
     return {**plant_view(plant), **issues}
 
 
+CHOICE_PARAMS = (("backup",), ("control", "outages"), ("control", "dispatch"))
+"""Plant options a model often sends as a bare string (QA-052): ``"none"`` for ``{"value": "none"}``."""
+
+
+def wrapped_choices(plant):
+    """Return ``plant`` with each plant option given as a bare string written ``{"value": ...}``."""
+    params = plant.get("params") if isinstance(plant, dict) else None
+    if not isinstance(params, dict):
+        return plant
+    params = copy.deepcopy(params)
+    for path in CHOICE_PARAMS:
+        node = params
+        for part in path[:-1]:
+            node = node.get(part) if isinstance(node, dict) else None
+        if isinstance(node, dict) and isinstance(node.get(path[-1]), str):
+            node[path[-1]] = {"value": node[path[-1]]}
+    return {**plant, "params": params}
+
+
 @tool(effect="write", late_schemas={"plant": plant_schema})
 async def build_plant(context, plant: dict[str, Any], name: str, from_class: str | None = None):
     """Build a plant from a plant file and store it as design/<name>; return its issues.
@@ -401,6 +421,7 @@ async def build_plant(context, plant: dict[str, Any], name: str, from_class: str
         )
     if isinstance(plant.get("format"), str) and plant["format"].strip().isdigit():
         plant = {**plant, "format": int(plant["format"])}
+    plant = wrapped_choices(plant)
     if from_class is not None:
         plant = await runtime.in_gemini_thread(extended_plant, plant, from_class)
     try:
@@ -545,7 +566,7 @@ async def patch_plant(context, design: str, changes: dict[str, Any], name: str):
     from geomind.tools.gemini.ownership import check_ownership, placed_parameters
 
     plant = load_design(context, design, "patch_plant").to_dict(structure=True)
-    changes = placed_parameters(changes, plant)
+    changes = placed_parameters(wrapped_choices(changes), plant)
     check_ownership(context, changes, "patch_plant", plant)
     patched = merge_patch(plant, changes)
     built = await runtime.in_gemini_thread(gm.Plant.from_dict, patched)

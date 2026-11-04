@@ -38,14 +38,13 @@ Each tool's description says its arguments.
 - A design the problem state already holds (`design.modules`, `design.owners`, a stored
   `design/<name>`) is work to go on with: a brief to the design team after a stopped,
   cancelled or interrupted run ("continue", or the same message again) names that design and
-  asks the team to go on from it, never to build the plant again (QA-047).
+  asks the team to go on from it, never to build the plant again.
 - A case the problem state already holds, which gemini accepted, needs no case step: start with
   the design. Give the `case_lead` a brief only for a case that is missing, or for a `case change
   needed` line a team reported.
 - Never send the design team on while a case value is missing (a `case change needed` line, or
   a case value gemini names as missing): first brief the `case_lead` to ask the user for exactly
-  those values, with each path, unit and reason, and send the design team on after it set them
-  (QA-015).
+  those values, with each path, unit and reason, and send the design team on after it set them.
 - A team that gave the same unusable answer twice gets no third brief of the same kind: finish
   with what was done and what is open, naming that team.
 - Plan in this order and skip only a step the request does not need: case (`case_lead`), design
@@ -71,8 +70,7 @@ Each tool's description says its arguments.
   and why it is needed, and never offer a value or an example number of your own (`e.g. 70` is a
   typical value). A team's own decision is never a question for the user. When the user
   delegates open case values to the agents ("use your own assumptions"), brief the `case_lead`
-  to search for them and propose the rest as engineering assumptions for the user to approve
-  (QA-010); never finish with the case incomplete because of the delegation.
+  to search for them and propose the rest as engineering assumptions for the user to approve; never finish with the case incomplete because of the delegation.
 - A design is final only when the `reviewer` returns `gemini verdict` with `"passed": true`. Then
   run the analysis and the explanation, and finish with the explainer's text.
 - Stop when the review passed and the analysis is done, or when the review says

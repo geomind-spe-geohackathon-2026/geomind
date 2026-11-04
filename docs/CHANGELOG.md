@@ -6,6 +6,13 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.48] - 2026-11-05
+
+### Fixed
+
+- QA-052: `build_plant` and `patch_plant` take the plant options `params.backup`, `params.control.outages` and `params.control.dispatch` given as a bare string (`"none"`) as `{"value": "none"}`, instead of refusing the plant after the user's approval.
+- QA-054: no prompt, and no tool message the model reads, names an internal bug id any more, so agents no longer tell the user "Per QA-015 I stop here".
+
 ## [0.4.47] - 2026-11-05
 
 ### Fixed
