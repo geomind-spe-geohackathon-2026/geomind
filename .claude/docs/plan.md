@@ -545,6 +545,15 @@ the list):
     naming its module and function: `heating.maximum_return_temperature` and
     `cooling.minimum_return_temperature` are read but never used). Asked: a description of each
     in the schema (Track F).
+33. (E2E-13, number to settle at merge) `gm.check` says "an empty list means ready", but two
+    values it passes stop the run: `params.control.dispatch` and `params.control.outages`
+    (optional `Parameter`s, `None` by default; `gm.schedule` raises `missing_value` only in
+    `_stated_rules`) and a `ProductionWell` split at its pump (`segment` `below_esp` or
+    `above_esp`) without `esp_depth` (optional, `None`; `_esp_depth` raises `invalid_design` in
+    the run, with `path` None). Asked: `gm.check(plant, case)` lists both as `missing` with their
+    paths (`params.control.outages`, `params.d0.riser.esp_depth`), and the run's `invalid_design`
+    carries its path. geomind names them itself until then (`rule_issues`, and `run_issues`, a
+    one-step run, in `geomind/tools/gemini/plants.py`).
 
 gemini 0.6.2 (2026-11-04) answers 13 (`Case.from_dict` lists every issue), 14 (`type: array`
 and the list form), 15 (`mol%`), 16 (bases per unit: ice and thermal storage per MWh, heat

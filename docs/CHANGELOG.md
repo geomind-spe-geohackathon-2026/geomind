@@ -32,6 +32,25 @@ geomind 0.4.24 (on gemini 0.6.4) uses more of gemini 0.6.2 and 0.6.3 (evolve's s
 - An end-to-end run needs a pressure or the site's elevation, from a file, the knowledge base, an MCP server or the user: no default.
 - The shortened-history note can invite a `{}` call; `run_manifest.json` `models` lists only the roles that started; `read_case` of a missing section is an error.
 
+### E2E fixes: design
+
+- E2E-13, `missing: 0` but `simulate` refused the plant (`params.control.outages is missing`,
+  then `d0.riser: esp_depth = None`): the `issues` of `read_plant`, `build_plant`, `patch_plant`,
+  `merge_designs` and `union_designs` now name every value `simulate` needs. Besides gemini's
+  check: `params.control.dispatch` and `params.control.outages` when the plant does not state
+  them (`missing_value`, `suggestions` the values gemini's schedule implements), and, once
+  nothing else is missing and the state has a case, what a one-step run on gemini's schedule
+  refuses, such as `params.d0.riser.esp_depth` (`invalid_design`; the path is taken from
+  gemini's message only when the plant has that parameter). **Contract**: no new field or code;
+  `issues` and `missing` may hold these entries, and a class plant read without its rules lists
+  both. The run check adds about 0.1 s to a call on a ready plant, off the event loop.
+- Prompts: the well engineer sets the pump depth (`well.esp_depth` and `riser.esp_depth` equal
+  to the ESP's `setting_depth`, both segments) when it sets the pump by hand; the design lead
+  sets the two control rules itself, sends an `esp_depth` issue back to the well engineer and
+  simulates only at `missing` 0.
+- gemini request 33 (`.claude/docs/plan.md`): `gm.check` should list both, and the run's
+  `invalid_design` carry its path.
+
 ### Bugs from a production run (0.4.24.dev2)
 
 Run c8bf2381 (chat b96805e4) on 0.4.22.

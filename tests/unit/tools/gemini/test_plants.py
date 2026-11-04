@@ -760,3 +760,65 @@ def test_a_doublet_without_one_design_value_names_it_alone():
     del plant["params"]["d0"]["well_diameter"]
     issues = [issue.problem()["path"] for issue in gm.check(gm.Plant.from_dict(plant), case)]
     assert issues == ["params.d0.well_diameter"]
+
+
+def hand_set_pump(plant):
+    """Return a HackathonPlant file whose pump the well engineer sets by hand (E2E-13).
+
+    Without the doublet's pump design values gemini derives no pump; the engineer gives the ESP,
+    the well below it and the riser above it, but no ``riser.esp_depth``.
+    """
+    plant = copy.deepcopy(plant)
+    d0 = plant["params"]["d0"]
+    for name in ("pump_efficiency", "nominal_wellhead_pressure"):
+        del d0[name]
+    d0["esp"] |= {
+        "stage_count": {"value": 1},
+        "head_coefficients": {"value": [300.0, 0, 0, 0, 0, 0]},
+        "power_coefficients": {"value": [200000.0, 0, 0, 0, 0, 0]},
+        "setting_depth": {"value": 1000, "unit": "m"},
+    }
+    d0["well"] |= {"segment": {"value": "below_esp"}, "esp_depth": {"value": 1000, "unit": "m"}}
+    d0["riser"] |= {"segment": {"value": "above_esp"}}
+    return plant
+
+
+async def patched_issues(plant, changes):
+    """Return ``patch_plant``'s output for ``changes`` on a stored ``plant`` with its case."""
+    session = StubSession()
+    session.artifacts["design/x"] = plant
+    context = await case_context("hackathon_2026", session)
+    step = {"design": "design/x", "changes": changes, "name": "y"}
+    return (await call(TOOLS.patch_plant, step, session, problem=context.problem)).output
+
+
+async def test_patch_plant_names_the_schedule_rules_simulate_needs(gm):
+    """E2E-13: gemini's check passes a plant without ``control``; its schedule then refuses it.
+
+    Both rules are named at once, each with the values gemini's schedule implements.
+    """
+    plant = plant_dict("hackathon_2026", "HackathonPlant")
+    output = await patched_issues(plant, {"params": {"control": None}})
+    issues = {issue["path"]: issue for issue in output["issues"]}
+    assert set(issues) == {"params.control.dispatch", "params.control.outages"}
+    assert output["missing"] == 2
+    assert issues["params.control.outages"]["code"] == "missing_value"
+    assert issues["params.control.outages"]["suggestions"] == ["lowest_demand"]
+    assert issues["params.control.dispatch"]["suggestions"] == ["least_cost"]
+
+
+async def test_patch_plant_names_a_split_riser_without_its_pump_depth(gm):
+    """E2E-13: the riser above a hand-set pump needs ``esp_depth``; only a run found it before."""
+    plant = hand_set_pump(plant_dict("hackathon_2026", "HackathonPlant"))
+    output = await patched_issues(plant, {})
+    assert [issue["path"] for issue in output["issues"]] == ["params.d0.riser.esp_depth"]
+    assert output["issues"][0]["code"] == "invalid_design"
+    assert output["missing"] == 1
+    depth = {"params": {"d0": {"riser": {"esp_depth": {"value": 1000, "unit": "m"}}}}}
+    assert (await patched_issues(plant, depth))["missing"] == 0
+
+
+async def test_a_plant_ready_for_its_case_still_has_no_issues_after_the_run_check(reads):
+    """The run check finds nothing on the example's own plant: a ready plant stays ready."""
+    output = await patched_issues(plant_dict("hackathon_2026", "HackathonPlant"), {})
+    assert output["issues"] == [] and output["missing"] == 0

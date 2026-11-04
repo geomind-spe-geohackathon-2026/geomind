@@ -104,6 +104,12 @@ Each tool's description says its arguments.
 - Per family: complete the plant file (`{value, unit}`, a fluid on every inlet, `params.backup`),
   `build_plant`, fix its `issues`, `size_plant`, `simulate` the whole year, `check_results`.
   Record the first sized family's year as `design.start_result`.
+- The `issues` of `build_plant` and `patch_plant` name every value `simulate` needs, also the
+  ones only gemini's schedule or a run asks for: `params.control.dispatch` and
+  `params.control.outages` are plant rules, yours, each set to the one value its `suggestions`
+  give; `params.d0.riser.esp_depth` (and a well's `esp_depth`) is the pump depth, the well
+  engineer's: send it back to them, never choose a pump depth yourself. Simulate only when
+  `missing` is 0.
 - Decisions that are yours are assumptions, never questions: the backup policy, the objective, the
   number of evaluations and the seed. Record each with `update_state` as `{id, text, value,
   source: "agent", confirmed: false}` with a one-line reason.
