@@ -272,3 +272,36 @@ def test_a_stray_bracket_before_the_next_key_and_the_limits_of_the_repair():
     assert parsed_json('{"a": "x}, y"}}, "b": 1}') == {"a": "x}, y", "b": 1}
     assert parsed_json('{"a": [1}') is None
     assert parsed_json('{"a": 1}, "b": 2}, "c": 3}, "d": 4}, "e": 5}') is None
+
+
+EARLY_CLOSE = Path(__file__).parents[2] / "fixtures" / "live" / "h_update_state_early_close.json"
+"""nemotron's ``update_state changes`` as JSON text in the end-to-end run, as recorded (#129)."""
+
+
+def test_a_list_whose_object_closed_before_its_last_key_is_read():
+    """#129: ``"reason": "x"}, "citation": null}]`` was refused "Input should be a valid list"."""
+    from geomind.tools import update_state
+    from geomind.tools.base import parsed_json
+
+    recorded = json.loads(EARLY_CLOSE.read_text())["design_update_state_changes"]
+    [change] = update_state.validate({"changes": recorded})["changes"]
+    assert change["path"] == "/assumptions/-" and change["value"]["id"] == "A7"
+    assert change["citation"] is None and change["reason"].startswith("No project plant")
+    assert parsed_json('["a": 1]') is None
+
+
+def test_a_list_of_model_refs_or_null_sent_as_json_text_is_the_list():
+    """A list whose items are ``$ref`` definitions, in an ``anyOf`` with null, is read too."""
+    from geomind.tools.base import parsed_inputs
+
+    schema = {
+        "properties": {
+            "items": {
+                "anyOf": [{"type": "array", "items": {"$ref": "#/$defs/Item"}}, {"type": "null"}]
+            }
+        },
+        "$defs": {"Item": {"type": "object", "properties": {"a": {"type": "integer"}}}},
+    }
+    assert parsed_inputs(schema, {"items": '[{"a": 1}, {"a": 2}]'}) == {
+        "items": [{"a": 1}, {"a": 2}]
+    }

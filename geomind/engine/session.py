@@ -92,7 +92,6 @@ class RunSession:
         self.limit_reached = None
         self.time_left = None
         self.documents_read = {}
-        self.searches = set()
 
     def limit_output(self, tokens):
         """Lower the output limit of the next provider call to ``tokens``, never raise it."""
@@ -282,9 +281,23 @@ class RunSession:
 
         The tools of the run's MCP servers come last, for every agent that has tools.
         """
-        hidden = set() if self.memory is not None else set(MEMORY_TOOLS)
+        hidden = self.hidden_tools(agent)
         own = [item for item in agent.tool_schemas() if item["name"] not in hidden]
         return own + [tool.schema() for tool in self.mcp_of(agent).values()]
+
+    def hidden_tools(self, agent):
+        """Return the names of an agent's tools a run with the memory off does not offer (#127).
+
+        They are the memory tools and a member whose whole work is the memory (``needs_memory``,
+        the curator).
+        """
+        if self.memory is not None:
+            return set()
+        return {
+            name
+            for name, item in agent.tools().items()
+            if name in MEMORY_TOOLS or getattr(getattr(item, "agent", None), "needs_memory", False)
+        }
 
     def mcp_of(self, agent):
         """Return the MCP tools an agent is offered: ``list_mcp``, ``read_mcp`` and ``call_mcp``.

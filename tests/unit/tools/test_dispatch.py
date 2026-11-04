@@ -247,3 +247,25 @@ def test_an_object_sent_as_json_text_is_no_markup():
     changes = '{"format": 1, "site": {"name": "a"}, "time": {"end": "2025-01-01"}}'
     assert leaked_markup({"changes": changes}) is None
     assert leaked_markup({"changes": '{\n  "format": 1\n}'}) is None
+
+
+async def test_an_unknown_argument_names_the_real_ones_and_is_no_validation_failure():
+    """#126: the design lead sent ``read_plant with_schema`` 17 times; two in a row ended a run."""
+    from geomind.tools.gemini import read_plant
+
+    recorded = {"plant_class": "HeatingHeatPumpCoolingPlant", "with_schema": "True"}
+    result = await dispatch(
+        read_plant, ToolCall(id="c1", name="read_plant", input=recorded), Context()
+    )
+    assert result.is_error and not result.is_validation
+    problem = result.output["error"]
+    assert problem["path"] == "with_schema"
+    assert "plant_class" in problem["message"] and "with_schema" in problem["message"]
+    assert "plant_class" in problem["suggestions"]
+
+
+async def test_an_argument_of_a_tool_without_arguments_is_unknown(session, context):
+    """A tool that takes nothing says so."""
+    result = await dispatch(session_id, call("session_id", extra=1), context)
+    assert result.is_error and not result.is_validation
+    assert "takes no arguments" in result.output["error"]["message"]

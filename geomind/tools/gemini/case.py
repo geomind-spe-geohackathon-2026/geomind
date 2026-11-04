@@ -255,7 +255,41 @@ def checked_case(data, files):
             suggestions=first["suggestions"],
             problems=[issue.problem() for issue in issues],
         )
+    fraction_bounds(case)
     return case
+
+
+FRACTION_WORDS = ("efficiency", "fraction", "share")
+"""Words of a requirement quantity whose bounds are a fraction 0-1 when it has no unit (#130)."""
+
+
+def fraction_bounds(case):
+    """Raise for a requirement on an efficiency or fraction with a bound outside 0-1 (#130).
+
+    gemini reads such a bound with no unit as a fraction, so ``70`` meant as 70 % passes its
+    check and fails every design; nemotron wrote ``pump_efficiency`` ``min 70, max 70``.
+    """
+    import gemini as gm
+
+    roles = gm.plants.roles()
+    for index, item in enumerate(case.requirements or ()):
+        read = roles.get(item.on, {}).get(item.quantity, {})
+        if read.get("dimension") is not None or item.over == "duration":
+            continue
+        if not any(word in item.quantity for word in FRACTION_WORDS):
+            continue
+        bounds = [value for value in (item.min, item.max) if value is not None]
+        wrong = [value for value in bounds if not 0 <= value <= 1]
+        if not wrong:
+            continue
+        given = item.to_dict()
+        raise gm.errors.ValidationError(
+            f"requirements[{index}] ({given.get('name')}): {item.quantity} min = "
+            f"{given.get('min')}, max = {given.get('max')}; an efficiency is a fraction 0-1: "
+            "0.7, not 70",
+            path=f"requirements[{index}]",
+            code="out_of_bounds",
+        )
 
 
 def case_of(context):

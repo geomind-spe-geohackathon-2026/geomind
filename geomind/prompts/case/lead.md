@@ -52,6 +52,10 @@ in this order, none skipped:
    incomplete.
 6. `read_case` once more, the checklist, then `finish`.
 
+A brief from the project lead to set the case follows this same workflow, every step, economics
+included, whatever the brief lists: ask the user yourself with `ask_user`, never write a question
+in your answer, and never hand back "missing values" instead of asking.
+
 Working:
 
 - Call tools that do not depend on each other in one step: `list_files` with `read_case`, every

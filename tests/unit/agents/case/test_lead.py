@@ -172,3 +172,64 @@ def test_economics_are_a_required_step_after_the_case():
     assert "lists those rows there for the user to choose" in step
     assert "`set_case(economics={...})`" in step
     assert "the economics are set (step 5)" in text and "and its economics set" in text
+
+
+TASK = (
+    "Set up the case from the organiser's brief and the two demand files. The user wants a "
+    "geothermal heating and cooling plant designed and verified. Read the organiser's brief and "
+    "the demand files, and build the case (time, site, demand, utilities, requirements, "
+    "initial_state). Report any missing values as case change needed lines with paths and reasons."
+)
+"""The project lead's brief to the case lead in the end-to-end run, as recorded (#124)."""
+ANSWER = (
+    "The case is set (version 1) with all values from the brief and demand files. Now I need to "
+    "ask you for all values that no file or source provides, in one question."
+)
+"""The delegated case lead's text answer that ended its run with no economics, as recorded."""
+
+
+async def test_a_delegated_case_lead_without_economics_is_sent_back_once():
+    """#124: a run that set the case with no economics and asked nothing is refused once.
+
+    The refusal names step 5, also on a text answer; an answer after the refusal ends the run.
+    """
+    from geomind.context import ProblemState
+    from geomind.engine import Context
+    from geomind.types import Message
+    from tests.fixtures.runs import call, engine_for, says, uses
+
+    case = {"name": "GEMINI Hackathon 2027", "time": {"start": "2027-01-01"}}
+    completions = [
+        uses(call("set_case", "c1", changes={"name": "GEMINI Hackathon 2027"})),
+        says(ANSWER),
+        says("Economics open: the user was not asked."),
+    ]
+    engine = engine_for(completions)
+    start = Context(messages=[Message(role="user", content=TASK)], problem=ProblemState(case=case))
+    result = await engine.run(CaseLead(), start)
+    assert result.status == "done" and result.answer.startswith("Economics open")
+    events = engine.store.load_events(result.run_id)
+    [refusal] = [item for item in events if getattr(item, "feedback", None) == "finish"]
+    assert refusal.output.startswith("economics not done")
+    assert "ask_user" in refusal.output and "set_case(economics=" in refusal.output
+
+
+def test_the_economics_check_passes_with_economics_an_economics_question_or_no_set_case():
+    """No refusal for a case with economics, a run that asked about them, or one that set none."""
+    from geomind.agents.case.lead import economics_missing
+    from geomind.context import ProblemState
+    from geomind.engine import Context
+    from geomind.types import Message, ToolCall
+
+    def checked(case, *calls):
+        made = Message(role="assistant", tool_calls=calls)
+        messages = [Message(role="user", content=TASK), made]
+        return economics_missing(Context(messages=messages, problem=ProblemState(case=case)))
+
+    setting = ToolCall(id="c1", name="set_case", input={})
+    asking = ToolCall(id="c2", name="ask_user", input={"question": "economics.capex.drilling ..."})
+    assert checked({"name": "c"}, setting) is not None
+    assert checked({"name": "c", "economics": "economics.json"}, setting) is None
+    assert checked({"name": "c"}, setting, asking) is None
+    assert checked({"name": "c"}, ToolCall(id="c3", name="read_case", input={})) is None
+    assert checked(None, setting) is None

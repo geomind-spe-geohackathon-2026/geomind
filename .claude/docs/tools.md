@@ -271,7 +271,9 @@ functions.
   [error result](#error-results) with `is_error`, so the model can fix its call. gemini errors are
   recognised by module path, so `import geomind` need not import gemini.
 - After `max_retries` validation failures of one tool in a row, the engine stops the run with
-  `stop_reason="error"`.
+  `stop_reason="error"`. An argument the tool does not have is an error result that names the
+  tool's arguments and is no validation failure (#126); a tool the run does not offer (a memory
+  tool or the curator with the memory off) is answered `not_allowed` without running (#127).
 - Any other exception is a bug: it is reported through `on_error`, and the model reads only
   `internal error`, with `code: "internal"`.
 - A result over 2000 characters is saved as the chat artifact `result-<hash of the call id>` and its
@@ -324,7 +326,9 @@ A permission denial is no error class: its result is the reason as text, with `i
 - `ask_user(question, options=None)` returns a `Request` of kind `question`; the engine pauses.
   `options` is a list of strings or of `{value, label}`, normalised to the latter. An answer to a
   question with options is `{"text": <value>}`, and any other text raises `RequestError`.
-- `finish(answer)` ends the run, after `before_finish` hooks and output validation.
+- `finish(answer)` ends the run, after `before_finish` hooks, the agent's own
+  `answer_problem(context)` (a required step code checks, refused once per run, such as the case
+  lead's economics, #124) and output validation.
 
 Both have effect `read`, so `ask` mode lets them through; `plan` mode runs neither.
 
@@ -424,7 +428,8 @@ From the fifth live run (`tests/integration/test_live_regressions_e.py`, recordi
 
 - The run searched 147 times, mostly for values the brief does not hold. `search_rag` now
   returns `{matches, note}`: no match says the project does not state it (choose an assumption
-  with its reason, or `ask_user`), and the same words again in the run tree are noted. A file's
+  with its reason, or `ask_user`), and the same words again in the run's conversation, in call
+  order, are noted (so a resume and a replay give the same note, #131). A file's
   name alone matches nothing.
 - A series naming a column by the name `columns` renamed gets the new name in `suggestions`.
 

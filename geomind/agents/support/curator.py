@@ -29,6 +29,9 @@ class Curator(Agent):
     after the reviewer passed it; the curator never writes one.
     """
 
+    needs_memory = True
+    """Its whole work is the memory: a run with the memory off does not offer it (#127)."""
+
     def __init__(self):
         """Declare the prompt, the memory tools and the role's model."""
         super().__init__()

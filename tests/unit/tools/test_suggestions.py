@@ -107,6 +107,34 @@ def test_at_most_three_and_one_step_from_outside_the_stage():
     assert labels == ["Report", "Optimise", "Costs"]
 
 
+def test_the_end_to_end_finish_keeps_one_step_from_outside_the_case_stage():
+    """#128: the lead's finish had three items, run.finished two, by the stage's rule.
+
+    The stage was ``case``: ``case_by_questions`` is its one step from outside, ``other_case`` (a
+    "more" step) a second one, dropped; the event holds ``{label, message}`` only, as the contract.
+    """
+    recorded = [
+        {
+            "step": "case_by_questions",
+            "label": "Provide site air pressure",
+            "message": "site.air.pressure: <value> <unit>",
+        },
+        {
+            "step": "design_plant",
+            "label": "Retry design after pressure set",
+            "message": "Once site.air.pressure is set, run the design again.",
+        },
+        {
+            "step": "other_case",
+            "label": "Change the case",
+            "message": "I want to change something else in the case.",
+        },
+    ]
+    found = next_steps(ProblemState(case=CASE), [], "Design a plant", recorded)
+    assert found == [{key: item[key] for key in ("label", "message")} for item in recorded[:2]]
+    assert "other_case" not in suggestions.STAGES["case"]
+
+
 def test_gd_suggest_serves_an_empty_chat_without_a_model():
     """The backend calls it before the first message; English for an empty chat."""
     assert gd.suggest(ProblemState(), ["brief.pdf"])[0]["label"] == "Build the case from my files"

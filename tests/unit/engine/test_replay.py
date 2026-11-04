@@ -722,3 +722,57 @@ async def test_an_answered_question_replays():
     resumed = await engine.resume(result.run_id, result.request.id, {"text": "5 MW"})
     replayed = await Engine.replay(engine.store, result.run_id)
     assert replayed.answer == resumed.answer
+
+
+class Searcher(Agent):
+    """Searches the project's documents and asks the user."""
+
+    def __init__(self):
+        """Declare the tools."""
+        super().__init__()
+
+        # Tools
+        from geomind.tools import ask_user, finish, search_rag
+
+        self.search_rag = search_rag
+        self.ask_user = ask_user
+        self.finish = finish
+
+        # Model
+        self.model = Model("fake/model")
+
+
+async def test_a_resumed_run_with_a_search_made_again_replays():
+    """#131: a resumed run whose search_rag notes "already searched" replays, every time.
+
+    ``geomind replay`` of the resumed end-to-end run failed on that note; it now follows the run's
+    conversation, which a resume and a replay rebuild.
+    """
+    from geomind.stores import MemoryWorkspace
+
+    documents = {"p1": [{"id": "a", "title": "Air", "text": "the site air pressure"}]}
+    completions = [
+        uses(call("search_rag", query="site air pressure")),
+        uses(call("ask_user", question="Is there an air pressure?")),
+        uses(
+            call("search_rag", "c1", query="site.air.pressure atmospheric pressure site"),
+            call("search_rag", "c2", query="atmospheric pressure air pressure site"),
+            call("search_rag", "c3", query="pressure air site"),
+        ),
+        says("unknown"),
+    ]
+    engine = engine_for(completions, workspace=MemoryWorkspace(documents=documents))
+    start = context(project="p1")
+    paused = await engine.run(Searcher(), start)
+    resumed = await engine.resume(start.run_id, paused.request.id, {"text": "unknown"})
+    notes = [
+        item.output.get("note", "")
+        for item in engine.store.load_events(start.run_id)
+        if isinstance(item, ToolRecorded) and item.tool == "search_rag"
+    ]
+    assert ["already searched" in note for note in notes] == [False, False, True, True]
+    for _ in range(3):
+        replayed = await Engine.replay(
+            engine.store, start.run_id, workspace=MemoryWorkspace(documents=documents)
+        )
+        assert replayed.answer == resumed.answer == "unknown"

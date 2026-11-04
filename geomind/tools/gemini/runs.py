@@ -90,9 +90,14 @@ def service_demand(case, service, where):
 
 
 def temperature(kelvin):
-    """Return a temperature in K as ``{value, unit}`` in degrees Celsius."""
+    """Return a temperature in K as ``{value, unit}`` in degrees Celsius; ``None`` when unset.
+
+    A case may leave a return temperature open (the designers' choice); the listing says so.
+    """
     import gemini as gm
 
+    if kelvin is None:
+        return None
     return gm.units.Quantity(kelvin, "K").to(TEMPERATURE_UNIT).to_dict()
 
 

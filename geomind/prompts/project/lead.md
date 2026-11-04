@@ -44,6 +44,9 @@ Each tool's description says its arguments.
   design; a request without a case needs the case first.
 - Write each brief with: the goal; the references to read (case paths, design and result
   references, never copies of their content); what to hand back; and what not to change.
+- A brief to set the case asks for the whole case, its economics included, and leaves the
+  questions on its values to the `case_lead`, which asks the user itself: never "report the
+  missing values" instead.
 - Route each problem to its owner, with the reason: a case value missing or wrong to the
   `case_lead` (a line `case change needed: <path>: <why>` from any team goes there); a design
   failure to the `design_lead` with gemini's failures. The review's verdict lists each failure

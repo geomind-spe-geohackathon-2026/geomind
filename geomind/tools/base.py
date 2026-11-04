@@ -3,6 +3,7 @@
 import copy
 import inspect
 import json
+import re
 import typing
 
 from pydantic import ConfigDict, create_model
@@ -147,6 +148,21 @@ class Tool:
         renamed.name = name
         return renamed
 
+    def unknown_arguments(self, tool_input):
+        """Return the names of a call's input that are no argument of this tool, sorted.
+
+        A tool that takes any input (no declared properties and no input model, or
+        ``additionalProperties`` allowed) has none.
+        """
+        if not isinstance(tool_input, dict):
+            return []
+        properties = self.input_schema.get("properties") or {}
+        if self.input_schema.get("additionalProperties") is True:
+            return []
+        if not properties and self.input_model is None:
+            return []
+        return sorted(set(tool_input) - set(properties))
+
     def validate(self, tool_input):
         """Return the keyword arguments of a call, or raise for an input that does not fit.
 
@@ -273,7 +289,18 @@ def _stray_closer(text, error):
         before = text[:position].rstrip()
         if before.endswith(("}", "]")):
             return len(before) - 1
+    if char == ":" and missing_closers(text[:position])[:1] == "]":
+        early = EARLY_CLOSE.search(text[:position])
+        if early is not None:
+            return early.start()
     return None
+
+
+EARLY_CLOSE = re.compile(r'\}\s*,\s*"(?:[^"\\]|\\.)*"\s*$')
+"""An object closed before its last key: ``{..., "reason": "x"}, "citation": null}]`` (#129).
+
+``json`` stops at the ``:`` of a key inside a list; the ``}`` before that key is the stray one.
+"""
 
 
 JSON_TYPES = {dict: "object", list: "array"}
