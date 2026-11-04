@@ -26,10 +26,15 @@ PROTOCOL = "2025-03-26"
 CLIENT = {"name": "geomind", "version": "0.4"}
 NAME = re.compile(r"^[a-z0-9_-]{1,32}$")
 ACCEPT = "application/json, text/event-stream"
+INVALID_PARAMS = -32602
+"""The JSON-RPC code of a request whose params the server refuses: a tool's arguments."""
 
 
 class McpError(GeomindError):
-    """An MCP server failed: ``code`` is ``unreachable``, ``auth_refused`` or ``bad_response``."""
+    """An MCP server failed: ``code`` is ``unreachable``, ``auth_refused`` or ``bad_response``.
+
+    ``invalid_arguments`` is a call whose arguments the server refused (JSON-RPC -32602).
+    """
 
     def __init__(self, message, *, code):
         """Keep the message, which names no header value, and the code."""
@@ -157,7 +162,8 @@ def answer_of(server, message, number):
         raise McpError(f"{server.name}: no answer to request {number}", code="bad_response")
     if "error" in message:
         error = message["error"] or {}
-        raise McpError(f"{server.name}: {error.get('message', 'error')}", code="bad_response")
+        code = "invalid_arguments" if error.get("code") == INVALID_PARAMS else "bad_response"
+        raise McpError(f"{server.name}: {error.get('message', 'error')}", code=code)
     return message.get("result") or {}
 
 

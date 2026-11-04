@@ -325,7 +325,7 @@ class RunSession:
         }
 
     def mcp_of(self, agent):
-        """Return the MCP tools an agent is offered: ``list_mcp``, ``read_mcp`` and ``call_mcp``.
+        """Return the MCP tools an agent is offered, ``MCP_TOOLS``: list, read, call, save a table.
 
         None for a run without a server that answered, a rule, or an agent with no tools.
         """

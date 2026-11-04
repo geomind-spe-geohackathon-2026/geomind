@@ -115,6 +115,51 @@ run tree before; the audit found none and tests now pin it.
   H2S in place of as much CH4 runs with no failed step and less CO2 (test_runs; it fails on 0.6.3).
 - No geomind workaround existed for H2S, so nothing was removed.
 
+### E2E fixes: MCP
+
+**Contract changes for the backend** (all additive except the `list_mcp` rows):
+
+- `list_mcp` rows are now an outline `{server, name, read_only, summary, arguments}` (`arguments`
+  is `{name: type}`, `required` marked) plus `note`; the whole row `{server, name, description,
+  read_only, input_schema}` comes from the new optional input `tool`: `list_mcp(server, tool)`.
+- `read_mcp` and `call_mcp` answer `{origin, answer, tables, structured, text}`: `origin` adds
+  `arguments`, `tool_description` and `future`; `answer` is the artifact key `mcp-<16 hex>` of
+  the whole answer (a new chat artifact); `tables` is `[{path, rows, columns, units, time_zone,
+  first, last}]`. An answer over 2000 characters comes back short (`structured` without its long
+  values, the head of `text`, `note`).
+- New tool `save_mcp_table(answer, table, file, time_zone?)`, offered with the MCP tools. It
+  writes the case files `case/<file>` (CSV, `time` in UTC) and `case/<stem>.origin.json` (the
+  origin), both served by `GET /assistant/chat/{id}/files/{name}`.
+- `McpError` has the new code `invalid_arguments` (JSON-RPC -32602); the tools answer it as
+  `invalid_input`, no longer `mcp_unavailable`.
+
+- E2E-4: the listing of all tools with their schemas (54 KB for open-meteo) was stored behind a
+  reference (`geomind/tools/mcp.py` `list_mcp`, over `tool_result_limit`), and the MCP tools'
+  `keeps_result` was never seen because `kept_calls` (`geomind/engine/context.py`) looked up
+  only the agent's own tools. Now the outline (6 KB) is kept for the run, `kept_calls` counts
+  the MCP tools, and arguments missing a `required` one or not in a strict schema are refused
+  before the call, `path` `arguments.<name>`, close names in `suggestions`; that refusal, the
+  server's and -32602 end with the tool's whole `input_schema`. Tests: test_mcp_answers
+  (`test_list_mcp_shows_server_tool_and_argument_names_in_the_history` and five more).
+- E2E-5: an answer leads with `origin`, `answer` and `tables` (path, columns, units, time zone),
+  so `structured.daily` and its units are read before the text; the answer is kept for the run.
+- E2E-6: `origin.future` is true when a date of the arguments or of a table lies after the day
+  of the call, and `origin.tool_description` is the server's own first sentence ("Long-range
+  climate projections ..."); `save_mcp_table` converts the times of the answer's `timezone` to
+  UTC (Europe/Oslo 2026-01-12T00:00 is 2026-01-11T23:00:00Z); an answer without a zone needs
+  `time_zone`, never one of geomind's. Prompts: the `MCP` section, the shared rules and the
+  case lead say to cite a `future` answer as a forecast or projection, with the dates, and that
+  the case's times are UTC.
+- E2E-12: `save_mcp_table` saves a table of an answer as a case file with its origin (server,
+  tool, time, arguments); the file name is made safe (`open-meteo Trondheim climate 2027` is
+  `open-meteo_Trondheim_climate_2027.csv`); `set_case` names it as a series' `file` and
+  `column` (test: gemini reads the saved 2027 climate table as `site.air.temperature` of the
+  hackathon case). The case lead's prompt says how.
+- Fixtures: the open-meteo listing and two answers recorded in the e2e runs
+  (`tests/fixtures/mcp_open_meteo/`); the fake server answers JSON-RPC -32602 for a call without
+  `market`.
+- Left open: `read_stored`'s error for a wrong path still outlines a value with a long text
+  (`geomind/tools/stored.py` `_step`), outside this part.
 ### Context per agent
 
 Context is each agent's own, steps each run's own, budgets the run tree's (Sahand 2026-11-04;

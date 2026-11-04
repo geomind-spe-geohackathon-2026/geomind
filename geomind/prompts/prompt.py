@@ -27,11 +27,16 @@ MEMORY = (
 )
 MCP = (
     "## Connected servers\n\n"
-    "`list_mcp` lists the servers the user connected and their tools, each with `read_only`. "
-    "`read_mcp(server, tool, arguments)` calls a read-only tool; `call_mcp` calls any tool, and "
-    "one that is not read-only asks the user's approval before it runs. A value from a server "
-    "comes with its origin (server, tool, time): cite it so, and it enters the case or the plant "
-    "only after the user confirms it, with that origin, as any value no project file gives."
+    "`list_mcp` lists the servers the user connected and their tools, each with `read_only` and "
+    "its arguments; `list_mcp(server, tool)` gives one tool's whole `input_schema`. Call with the "
+    "server's name and the argument names as listed. `read_mcp(server, tool, arguments)` calls a "
+    "read-only tool; `call_mcp` calls any tool, and one that is not read-only asks the user's "
+    "approval before it runs. A value from a server comes with its origin (server, tool, time, "
+    "arguments): cite it so, and it enters the case or the plant only after the user confirms it, "
+    "with that origin, as any value no project file gives. An origin with `future` true is a "
+    "forecast or a projection, never a measurement: say which, as the tool's description does. "
+    "An answer's `tables` give each table's path, units and time zone; `save_mcp_table` saves "
+    "one as a case file in UTC, for a series."
 )
 KNOWLEDGE = (
     "## Knowledge\n\n"
