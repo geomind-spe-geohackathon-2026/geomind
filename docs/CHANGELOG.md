@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.29] - 2026-11-04
+
+### Fixed
+
+- QA-009: every `ask_user` answer is kept in the problem state as a confirmed user assumption (`answer.<id>`, the question and the answer), so a later agent or a new case-lead run reads it instead of asking the same question again; the same question asked again replaces its answer.
+
 ## [0.4.28] - 2026-11-04
 
 ### Fixed
