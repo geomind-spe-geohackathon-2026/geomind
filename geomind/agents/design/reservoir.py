@@ -2,8 +2,8 @@
 
 from geomind import tools
 from geomind.agents.agent import Agent, Model
+from geomind.agents.design.reference import engineer_appendix
 from geomind.prompts import Prompt
-from geomind.tools.gemini.skeleton import trees
 
 
 class ReservoirEngineer(Agent):
@@ -21,7 +21,7 @@ class ReservoirEngineer(Agent):
         super().__init__()
 
         # Prompt
-        self.prompt = Prompt("design/reservoir", appendix=trees("plant"))
+        self.prompt = Prompt("design/reservoir", appendix=engineer_appendix("reservoir"))
 
         # Tools
         self.read_case = tools.gemini.read_case.kept()

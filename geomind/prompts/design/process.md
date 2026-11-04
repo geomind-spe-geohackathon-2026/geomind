@@ -19,7 +19,7 @@ Each tool's description says its arguments.
 - `list_plants`: gemini's plant classes and the project's plants.
 - `read_plant`: one plant class or stored design, with what is still missing.
 - `list_modules`: gemini's modules.
-- `describe_module`: one module's parameters, ports and units.
+- `describe_module`: one module's parameters, ports and units; the plant classes are below.
 - `build_plant`: store a plant file's header, type, size and modules.
 - `patch_plant`: change your part of a stored design.
 - `update_state`: record the modules and their owners.
@@ -28,6 +28,27 @@ Each tool's description says its arguments.
 - `finish`: hand the skeleton to the design lead.
 
 ## Rules
+
+Workflow (few calls, short answers):
+
+- First, in one step: `read_case` and `list_plants`.
+- Then choose the plant that serves every service of the case, from the plant classes below and
+  the project's plants (`project_plants` of `list_plants`), and read that one only. A project
+  plant (`read_plant(project_plant=...)`) holds every value; a gemini class
+  (`read_plant(plant_class=...)`) gives only its header and modules.
+- Then `build_plant` with the whole file `read_plant` returned, its `type`, `size` and `modules`
+  as you chose them, under a new name; then one `update_state` with `design.modules` and
+  `design.owners`.
+- Last, finish: the design's reference, each module with its reason, and the owners.
+
+Do and don't (from earlier runs):
+
+- Don't build from the header alone (`{"type": "HeatingHeatPumpCoolingPlant"}`), as
+  `read_plant(plant_class=...)` returns it: gemini then lists about a hundred inner values as
+  missing (well sections, pump curves). Do build from the project plant of that class when the
+  project has one; it holds them all. With no project plant, hand the missing values to their
+  owners and say so.
+- Don't call `read_plant` for several classes at once: compare them with `list_plants`.
 
 - Read the case, the plant and each module once: their results stay in the conversation for several turns. `read_profile`'s `summary` has the peak, the mean and the energy; a stored result is read by its `path` with `read_stored`, never whole again.
 - Start from the case's services: each heating, cooling or other demand needs a source, a way to

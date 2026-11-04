@@ -259,10 +259,24 @@ Each per-agent task on both models, the same fixtures, prompts and commit, no pr
 | curator | D | nemotron-3.5-super (free) | 3/3 | memory and summaries checked by code | 6 | 10 | 0 | 16203/0/1895 | 25 | 0.0000 |
 | summarizer | D | nemotron-3.5-super (free) | 3/3 | memory and summaries checked by code | 3 | 0 | 0 | 4493/0/8445 | 40 | 0.0000 |
 | support_lead | D | nemotron-3.5-super (free) | 3/3 | memory and summaries checked by code | 9 | 9 | 0 | 21878/0/11345 | 64 | 0.0000 |
+| design lead | B2 | deepseek | yes* | feasible verdict recorded; *`sourced` flags 0.999993 (a gemini ratio shortened to 6 decimals) | 7 | 8 | 0 | 129680/31744/2799 | 69 | 0.0047 |
+| design lead | B2 | nemotron | yes | feasible verdict recorded (after #78) | 6 | 12 | 1 | 118096/69376/1525 | 26 | 0 |
+| process | B2 | deepseek | yes | design 0 issues (after #77) | 5 | 7 | 0 | 64518/0/13508 | 238 | 0.0074 |
+| process | B2 | nemotron | yes | design 0 issues | 6 | 8 | 1 | 86456/43360/12691 | 62 | 0 |
+| integration | B2 | deepseek | yes | sound plant, streams traced (after #81) | 2 | 3 | 0 | 18451/0/5473 | 65 | 0.0032 |
+| integration | B2 | nemotron | yes | sound plant, streams traced | 3 | 4 | 1 | 30605/8672/2607 | 18 | 0 |
+| reservoir | B2 | deepseek | yes | design 0 issues | 6 | 9 | 0 | 120071/30206/25120 | 451 | 0.0146 |
+| reservoir | B2 | nemotron | yes | design 0 issues | 4 | 5 | 0 | 77176/13008/9134 | 47 | 0 |
+| well | B2 | deepseek | yes | design 0 issues | 4 | 5 | 1 | 49607/13312/16118 | 333 | 0.0086 |
+| well | B2 | nemotron | yes* | design 0 issues; *`sourced` flags 0.0833333 (a plant value shortened to 7 decimals) | 4 | 4 | 0 | 50068/13008/23189 | 136 | 0 |
+| energy | B2 | deepseek | yes | design 0 issues (after #76, #79, #80) | 11 | 19 | 0 | 359592/153160/39004 | 580 | 0.0261 |
+| energy | B2 | nemotron | yes | design 0 issues | 5 | 8 | 1 | 102241/0/17315 | 112 | 0 |
 
 Track C, round C4 at 39c4003: 5 of 5 on each model, no 429, no markup check firing. nemotron took fewer calls and a third to a half the time on the lead's two longer tasks; its failed calls are `update_state` slips (JSON text, a stray bracket), each corrected on the next call. Both models failed the same way only where the prompt was wrong (#85, #88, #90).
 
 Track D notes: no 429 on nemotron (nine tasks two at a time). Nemotron called memory tools it was not offered when the memory was off (#99, fixed in the prompt; it passes now); it caches nothing, so its input is all uncached, but it is free and 2 to 3 times faster here.
+
+Track B2 notes: Big differences: DeepSeek pinned to its own provider takes 30 to 90 s a call (reservoir 451 s for 6 calls), nemotron 4 to 20 s; that is the model and the provider, not the prompt. Before the prompt fixes DeepSeek also looped where nemotron did not (integration 18 calls, energy 18 calls); after #79 to #81 the counts are close, so that part was the prompt. Both models converted units in their answers (#80), a prompt matter. The markup check of #70/#75 never fired on nemotron.
 
 Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/CHANGELOG.md)):
 
@@ -304,6 +318,12 @@ Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/C
 | 73 | D2, process engineer | parallel `read_plant` calls came back with every argument null until the run stopped on repeated failures | it compares plants with `list_plants` and reads only the one it chooses, in one call | track-b |
 | 74 | D2, well engineer | 8 failed `evaluate_module` calls on a well path's section lists: gemini's `describe()` gives them as `number`, and its error asks for a Quantity for a list and for a list for a Quantity | the well engineer's prompt gives the form `{"value": [..], "unit": "m"}`; gemini request 14 | track-b |
 | 75 | D3, process engineer | two garbled calls in a row (`">site</</parameter_name...`) counted as invalid calls and ended the run as failed; `">HackathonPlant</` was not caught | a markup slip is an error but no validation failure; a lone `</` or a leading `">` counts as markup; prose tools (`finish`, `ask_user`, `update_state`, `write_lesson`) are not checked | track-b |
+| 76 | B2, energy engineer | `evaluate_module` with a control as a parameter (`temperature_setpoint`) gave `internal` (gemini's bare `KeyError`), then misleading "missing inlets", five times until the run stopped | names checked before gemini: `invalid_input` with where it goes | track-b2 |
+| 77 | B2, process engineer | built from `read_plant(plant_class=...)`, a header with 110 values missing, while the project held the class's whole file | the prompt prefers the project plant of the class | track-b2 |
+| 78 | B2, design lead (nemotron) | checked a handed design feasible, then finished without `design.reference` and `design.result`; DeepSeek records them | the prompt asks for the record before every `finish` | track-b2 |
+| 79 | B2, energy engineer (DeepSeek) | `evaluate_module` on a heat pump without `inlets`, seven times (gemini: "missing required inlet(s)"), on a machine the plant file already sized | each missing stream inlet is named with its form before gemini; the prompt evaluates only a machine it changes | track-b2 |
+| 80 | B2, energy engineer (both models) | wrote `320.15 K (47 degC)` and a pressure in Pa as `15.74 bar`: a unit conversion by the model, flagged by `sourced` | a don't example: copy each value with the unit of its source | track-b2 |
+| 81 | B2, integration engineer (DeepSeek) | on a plant gemini checked clean: 18 model calls, 7 `read_plant`, 7 `describe_module`, 123k output tokens, 31 min (nemotron: 2 calls) | the prompt finishes with no patch when no issue names a connection, and ports come from the prompt | track-b2 |
 | 95 | D0, curator | wrote a case lead's lesson the memory already held: `search_memory` gave it only the curator's own lessons | the curator reads every role's lessons; `write_lesson` refuses an unknown role | track-d |
 | 96 | D0, curator | a lesson named the project's brief ("the GEMINI brief") | the prompt says every field of an entry, lists the roles, and gives do and don't examples | track-d |
 | 97 | review, support lead | told to give the summarizer references, which it cannot read | hands the material itself, whole | track-d |
@@ -373,6 +393,17 @@ Open requests to gemini (full text in the adaptation notes):
 15. `site.fluid.dissolved_gas.*` take a bare `{value}` (a mole fraction) with no unit, while
     briefs give `mol%`: the agents must turn 20 mol% into 0.2 by hand, which their rules forbid.
     A `unit` (`mol%`, `-`) on those fields, converted by gemini (Track A).
+27. `gm.call` (`evaluate_module`) raises a bare `KeyError: 'temperature_setpoint'` for a
+    control given in `parameters`; a `ValidationError` naming the control and `controls` would
+    let a caller fix it (geomind checks the names itself now, #76).
+28. `read_plant`-style class files: `gm.modules.get(<plant class>)` gives a header and modules
+    only, and a plant built from it lists every inner value as missing (`d0.well.section_length`,
+    `d0.esp.head_coefficients`, ...), while the hackathon project file of the same class holds
+    them; a class default file with every value, or the values derived from the doublet's
+    top-level ones (request 11).
+29. `gm.units` refuses `MW/K` for a thermal conductance (`heat_exchanger.thermal_conductance`
+    takes `W/K` only), while it accepts `MW` for power; the energy engineer wrote `1.5 MW/K` and
+    was refused. The prefixed units (`kW/K`, `MW/K`) for conductance.
 26. A public list of the metrics a study reads: `gm.study` checks them against
     `gemini.study._utils.trial.KPI_NAMES` and `ECONOMICS`, private names, so geomind pins them in
     a test to tell the agents (`heating_coverage`, `cooling_coverage`, `cop`, `peak_heat`,

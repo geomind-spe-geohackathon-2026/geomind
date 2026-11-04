@@ -132,6 +132,10 @@ Each tool's description says its arguments.
 
 ## Output
 
+Before `finish`, always one `update_state` with `design.reference` and `design.result`, also
+for a design handed to you that you only simulated and checked: a verdict that is only in your
+answer is lost to the next agent.
+
 `finish(answer)`: the design reference and family, the full-year result reference, whether
 `check_results` said `feasible` and `optimize` was feasible, the study ranking when one ran, and
 the reasons with their domains if not.

@@ -6,9 +6,23 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### The design team on both models (0.4.22.dev54)
+
+Rounds D1 to D3 had started the engineers from a class plant given by its header alone, so gemini listed about a hundred inner values as missing and every engineer ran out of budget inventing them. The class's whole project file checks clean against the case.
+
+- Prompts: each design agent's appendix is made from gemini when its prompt renders (`geomind/agents/design/reference.py`): the plant file's keys and gemini's `describe()` of the modules the engineer owns (`OWNED_MODULES`, with parameters, units, list forms and ports); the plant classes with their summary and children for the process engineer; every module's ports for the integration engineer. A test fails when gemini drops or renames a module.
+- Prompts: the reservoir, well and energy engineers work in four steps (read the case and the plant together, decide, one `patch_plant` with every change, stop when no issue names their own path), answer in at most twelve lines, and carry do/don't examples from D1 to D3 (a case value is no plant value; a stored name is not reused; `evaluate_module` is not run on a whole `Doublet`).
+- Fix (#76): `evaluate_module` checks parameter and control names before gemini: a control given as a parameter (`temperature_setpoint` of a heat pump) raised a bare `KeyError` in gemini, seen as `internal`; it is `invalid_input` now, saying to give it in `controls`, and an unknown name gets close matches.
+- Fix (#77): the process engineer builds from the project's plant file of the chosen class (`read_plant(project_plant=...)`), which holds every value; `read_plant(plant_class=...)` gives a header and modules only.
+- Docs: `patch_plant` takes every value of one module or several in one patch.
+- Fix (#81): the integration engineer finishes without a patch when gemini's issues name no connection, port, fluid or boundary, and never describes a module for its ports.
+- Fix (#80): the engineers copy each value with the unit its source writes it in; both models had shown 320.15 K as 47 degC.
+- Fix (#79): `evaluate_module` names each required stream inlet a call leaves out, with the form of its fluid, `T`, `p` and `m_dot`; the energy engineer evaluates only a machine it changes.
+- Fix (#78): the design lead records `design.reference` and `design.result` before every `finish`, also for a handed design it only checked; nemotron finished with the verdict in its answer alone.
 ### Evals: a delegate that failed (0.4.22.dev53)
 
 - Evals: the `tool` criterion has `succeeded` (default false, the behaviour before): with `succeeded: true` at least one call of the tool must return no error, so a lead's task no longer passes when its delegate's nested run failed (Track C, nemotron). `Outcome.succeeded` lists the tools whose result was not an error, in order, old names mapped as in `Outcome.tools`. Schema `eval_task.json` (and the agents snapshot) gain the field.
+- Evals: the `sourced` criterion takes a read number written with up to 8 decimals (0.0833333 for 0.08333333333); it took 4.
 
 ### The analysis team alone (0.4.22.dev52)
 

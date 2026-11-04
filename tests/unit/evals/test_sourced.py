@@ -101,3 +101,9 @@ def test_the_case_line_of_the_problem_state_is_read():
     state = "Problem state, version 3\nCase: time 2027-01-01 to 2028-01-01\nQ1: 14.6"
     text = _read([Completed(Message(role="system", content=state))])
     assert "2028-01-01" in text and "14.6" not in text
+
+
+def test_a_read_shortened_to_up_to_eight_decimals_is_sourced():
+    """Track B2: 0.999993 and 0.0833333 were gemini's values copied shorter."""
+    read = "ratio 0.99999312 and share 0.08333333333"
+    assert CRITERION.problem(outcome("ratio 0.999993, share 0.0833333", read)) is None

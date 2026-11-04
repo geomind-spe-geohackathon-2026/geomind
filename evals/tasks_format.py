@@ -12,8 +12,8 @@ from geomind.types import Record
 NUMBER = r"-?\d+(?:\.\d+)?"
 UNSIGNED = r"(?<![\w.])\d+(?:\.\d+)?"
 LIST_MARKER = r"(?m)^\s*\d+[.)]\s"
-PLACES = range(1, 5)
-"""A read number may be written with 1 to 4 decimals, ``34.64`` for ``34.6364``: shortened."""
+PLACES = range(1, 9)
+"""A read number may be written with 1 to 8 decimals, ``0.0833333`` for ``0.08333333333``."""
 ESCAPES = r"\\[nrt]"
 """A line break or tab of a tool's JSON result, ``\\n``: no letter before the number after it."""
 THOUSANDS = r"(?<=\d)[, \u00a0\u202f](?=\d{3}(?!\d))"
