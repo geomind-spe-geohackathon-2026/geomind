@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.44] - 2026-11-04
+
+### Fixed
+
+- QA-045: `ask_economics` leaves out a catalogue row with no 2015 value (`injection-pump-geophires-500kw`, `esp-geophires-500kw`, `corrosion-inhibitor-ouzounian-1989-dogger`) with a note, instead of refusing the whole question: a recommended row gives way to the key's first usable other row, or the key is open.
+
 ## [0.4.43] - 2026-11-04
 
 ### Fixed

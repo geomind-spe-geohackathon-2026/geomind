@@ -185,7 +185,40 @@ def _row_fields(rows, key, row_id):
     return {name: value for name, value in fields.items() if value is not None}
 
 
-def from_catalogue(context, values):
+def has_value(rows, row_id):
+    """Tell whether catalogue row ``row_id`` exists and has a 2015 value (QA-045)."""
+    row = rows.get(row_id)
+    return row is None or bool((row.get("value_2015") or "").strip())
+
+
+def usable_rows(rows, item, skipped):
+    """Return ``item`` without its rows that have no 2015 value, each named in ``skipped``.
+
+    A recommended row with no value gives way to the first usable one of its ``others``; with
+    none left, the key is open (value null). An unknown row is left for ``_row_fields`` to refuse.
+    """
+    others = list(item.others or ())
+    dropped = [other.row for other in others if not has_value(rows, other.row)]
+    others = [other for other in others if has_value(rows, other.row)]
+    update = {"others": others} if item.others is not None else {}
+    if item.row and not has_value(rows, item.row):
+        dropped.insert(0, item.row)
+        if others:
+            update.update(row=others[0].row, others=others[1:])
+        else:
+            update.update(row=None, value=None, others=None)
+    skipped += [f"{short(item.key)}: row {row} (no 2015 value)" for row in dropped]
+    return item.model_copy(update=update) if update else item
+
+
+def skipped_note(skipped):
+    """Return the line that names the catalogue rows left out for having no 2015 value, or None."""
+    if not skipped:
+        return None
+    return "Left out, catalogue rows with no 2015 value: " + "; ".join(skipped)
+
+
+def from_catalogue(context, values, skipped=None):
     """Return ``values`` with every named row's value, unit and citation read from the catalogue.
 
     The case lead names a key and its row ids; the numbers come from the knowledge base, never
@@ -196,12 +229,14 @@ def from_catalogue(context, values):
     rows = catalogue_rows(context)
     if rows is None:
         return values
+    skipped = [] if skipped is None else skipped
     read = []
     for item in values:
         key = short(item.key)
         if not is_economics(key):
             read.append(item)
             continue
+        item = usable_rows(rows, item, skipped)
         update = _row_fields(rows, key, item.row) if item.row else {}
         others = [
             other.model_copy(update=_row_fields(rows, key, other.row))
@@ -451,13 +486,15 @@ def ask_economics(
     ``about.sources``, and each becomes a confirmed assumption with its citation; the result says
     what was set. On change some, ask which values change and to what, without options.
     """
-    dropped = []
+    dropped, skipped = [], []
     values, open_keys, notes = prepared(
-        from_catalogue(context, values), list(open or []), dropped
+        from_catalogue(context, values, skipped), list(open or []), dropped
     )
     message = question_text(values, open_keys, note, notes)
     if dropped:
         message += "\n\n" + dropped_note(dropped)
+    if skipped:
+        message += "\n\n" + skipped_note(skipped)
     return Request(kind="question", message=message, options=list(OPTIONS))
 
 
