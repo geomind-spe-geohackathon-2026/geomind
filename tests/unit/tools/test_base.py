@@ -1,5 +1,7 @@
 """Tools and the decorator."""
 
+import json
+
 import pydantic
 import pytest
 
@@ -124,3 +126,23 @@ def test_the_rag_tools_of_dev41_logs_find_their_new_names():
     tools = with_old_names({"read_rag": read_rag, "search_rag": search_rag})
     assert tools["rag_read"] is read_rag and tools["rag_search"] is search_rag
     assert tools["search_knowledge"] is search_rag
+
+
+def test_a_list_sent_as_json_text_is_the_list():
+    """#112: nemotron sent ``changes`` as ``"[{...}]"``, twice; it means the list."""
+    from geomind.tools.state import update_state
+
+    changes = [{"op": "add", "path": "/goal", "value": "a plant"}]
+    assert update_state.validate({"changes": json.dumps(changes)}) == {"changes": changes}
+
+
+def test_text_that_is_no_json_of_the_type_still_fails():
+    """A string that is not JSON of the type, or a field that wants text, is left as it is."""
+    from pydantic import ValidationError
+
+    from geomind.tools.state import update_state
+
+    with pytest.raises(ValidationError):
+        update_state.validate({"changes": '{"op": "add"}'})
+    with pytest.raises(ValidationError):
+        update_state.validate({"changes": "not json"})

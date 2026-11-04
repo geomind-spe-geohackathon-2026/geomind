@@ -2,9 +2,10 @@
 
 import copy
 import inspect
+import json
 import typing
 
-from pydantic import ConfigDict, create_model
+from pydantic import ConfigDict, ValidationError, create_model
 
 from geomind.errors import DeclarationError, ToolError, UnknownNameError
 from geomind.utils.strings import did_you_mean, join_names
@@ -149,7 +150,13 @@ class Tool:
     def validate(self, tool_input):
         """Return the keyword arguments of a call, or raise for an input that does not fit."""
         if self.input_model is not None:
-            model = self.input_model.model_validate(tool_input)
+            try:
+                model = self.input_model.model_validate(tool_input)
+            except ValidationError:
+                decoded = decoded_strings(tool_input, self.input_schema)
+                if decoded == tool_input:
+                    raise
+                model = self.input_model.model_validate(decoded)
             return {name: getattr(model, name) for name in type(model).model_fields}
         properties = self.input_schema.get("properties", {})
         missing = set(self.input_schema.get("required", ())) - set(tool_input)
@@ -160,6 +167,37 @@ class Tool:
                 f"expected the names {join_names(properties)}"
             )
         return dict(tool_input)
+
+
+def decoded_strings(tool_input, schema):
+    """Return ``tool_input`` with each string that the schema wants as a list or an object decoded.
+
+    A model may send ``"[{...}]"`` for an array (nemotron did, twice, the same way, #112): JSON
+    text of the type the schema asks for is that value, so the call means what it says.
+    """
+    properties = schema.get("properties", {})
+    decoded = dict(tool_input)
+    for name, value in tool_input.items():
+        wanted = schema_types(properties.get(name, {}))
+        if not isinstance(value, str) or not wanted & {"array", "object"}:
+            continue
+        try:
+            parsed = json.loads(value)
+        except ValueError:
+            continue
+        if ("array" in wanted and isinstance(parsed, list)) or (
+            "object" in wanted and isinstance(parsed, dict)
+        ):
+            decoded[name] = parsed
+    return decoded
+
+
+def schema_types(schema):
+    """Return the JSON types a property schema allows, through ``anyOf``."""
+    found = {schema["type"]} if isinstance(schema.get("type"), str) else set()
+    for item in schema.get("anyOf", ()):
+        found |= schema_types(item)
+    return found
 
 
 def _first_line(definition):

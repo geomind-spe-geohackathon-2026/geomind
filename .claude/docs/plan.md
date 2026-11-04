@@ -274,6 +274,7 @@ Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/C
 | 108 | E1, reviewer | tried `read_stored("state")` to read the problem state | the prompt says the state is a message of the conversation | track-e |
 | 109 | E1, project lead | briefed the case lead on a case already set, and a team 14 times on one answer | no case step for an accepted case; no third brief after two same answers | track-e |
 | 110 | E2, explainer | wrote `1500000.0 W/K` as `1.5 MW/K` and `30000000.0 W` as `30 MW`, conversions of its own | capacities from `compute_kpis`, plant values in their own units; gemini request E-1 | track-e |
+| 112 | N1 (nemotron), reviewer | sent `update_state`'s `changes` as JSON text, twice, and the run stopped | JSON text of the array or object a schema wants is decoded before validation | track-e |
 | 111 | E2, project lead | asked the user for the air humidity "in %, e.g. 70": a typical value | a case value is the case lead's to ask; a question offers no value | track-e |
 | 50 | A1, all | models saw only the first paragraph of each tool's docstring | the whole docstring but its `NOTE:` paragraphs | `768f396` |
 
