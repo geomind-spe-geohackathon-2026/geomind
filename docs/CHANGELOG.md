@@ -6,6 +6,21 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### Memory from the workspace
+
+- Contract: the optional `Workspace.memory(project_id)` gives a project's memory; `None` turns the
+  memory off for that project, with no fallback to `GEOMIND_MEMORY_DIR` or the folder store (no
+  memory tools, no curator, nothing written). It is asked once per project and engine. Before, a
+  `memory` attribute of the workspace was read and `None` fell back to the folder store.
+- `GEOMIND_MEMORY_DIR` is required only with `GEOMIND_MEMORY` on and a workspace without a
+  `memory` method (the command line); a run that needs it and lacks it raises `RunError` naming
+  it. A memory the engine or the workspace gives needs only `GEOMIND_MEMORY_SIMILARITY`.
+- `runtime.model_problems(memory_source)` and `runtime.memory_problems(memory_source)` take where
+  the memory comes from (`settings`, `store`, `off`); new `runtime.memory_settings(source)`,
+  `RunSession.memory_source()`.
+- `.claude/docs/releasing.md`: gemini range `>=0.6,<0.7`; `main` takes `dev` with
+  `git merge --ff-only`.
+
 ## [0.4.22] - 2026-11-04
 
 geomind 0.4.22 on gemini 0.6.2 (`>=0.6,<0.7`, the 0.6.2 wheel pinned). Its agents run on

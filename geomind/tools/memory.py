@@ -24,8 +24,8 @@ def memory_of(context, tool_name):
     memory = getattr(context.session, "memory", None)
     if memory is None:
         raise ToolError(
-            f"{tool_name}: the memory is off for this run (GEOMIND_MEMORY); work from the case, "
-            "the files and the user",
+            f"{tool_name}: the memory is off for this run (GEOMIND_MEMORY, or the workspace for "
+            "this project); work from the case, the files and the user",
             code="not_allowed",
         )
     return memory

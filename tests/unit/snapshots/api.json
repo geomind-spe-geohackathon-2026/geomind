@@ -753,6 +753,7 @@
         "knowledge_files": "(self)",
         "knowledge_search": "(self, query)",
         "mcp": "(self, project_id)",
+        "memory": "(self, project_id)",
         "plants": "(self, project_id)",
         "project_state": "(self, project_id)",
         "rag": "(self, project_id, query)"

@@ -15,7 +15,7 @@ from geomind.engine.recovery import apply
 from geomind.engine.state import Stop
 from geomind.errors import RunError, TimeLimitReached, ToolError
 from geomind.providers import needs_models
-from geomind.stores.memory import FileMemory
+from geomind.stores.memory import FileMemory, has_memory
 from geomind.tools.base import with_old_names
 from geomind.tools.knowledge import has_knowledge
 from geomind.tools.mcp import MCP_TOOLS, RecordedMcpTool, load_servers, server_of
@@ -111,18 +111,42 @@ class RunSession:
 
     @property
     def memory(self):
-        """Return the agents' memory: the engine's or the workspace's, else the settings' folder.
+        """Return the agents' memory: the engine's, else the workspace's, else the folder store.
 
-        ``None`` when ``memory`` is ``off`` or unset; a memory tool then says it is off.
+        A workspace with a ``memory`` method decides alone, once per project: ``None`` from it is
+        the memory off for the project, with no fallback. Without the method, ``GEOMIND_MEMORY``
+        on uses the folder store at ``GEOMIND_MEMORY_DIR``, and ``None`` is the memory off or
+        unset.
         """
         held = getattr(self.engine, "memory", None)
-        if held is None:
-            held = getattr(self.engine.workspace, "memory", None)
         if held is not None:
             return held
+        workspace = self.engine.workspace
+        if has_memory(workspace):
+            project = self.state.project
+            known = self.engine.workspace_memories
+            if project not in known:
+                known[project] = workspace.memory(project)
+            return known[project]
         if runtime.get("memory") != "on":
             return None
-        return FileMemory(runtime.get("memory_dir"))
+        folder = runtime.get("memory_dir")
+        if folder is None:
+            raise RunError(
+                "memory: GEOMIND_MEMORY_DIR = unset; expected the memory's folder, since "
+                "GEOMIND_MEMORY is on and the workspace has no memory method"
+            )
+        return FileMemory(folder)
+
+    def memory_source(self):
+        """Return where this run's memory comes from, for the settings it needs.
+
+        ``store`` is a memory the engine or the workspace gives, ``off`` a workspace that gives
+        none for the project, ``settings`` the folder store of ``GEOMIND_MEMORY``.
+        """
+        if getattr(self.engine, "memory", None) is None and not has_memory(self.engine.workspace):
+            return "settings"
+        return "off" if self.memory is None else "store"
 
     @property
     def store(self):
@@ -184,7 +208,7 @@ class RunSession:
         """Refuse a run on a real provider that lacks a model, and read the context windows."""
         if not needs_models(self.engine.llm):
             return
-        problems = runtime.model_problems()
+        problems = runtime.model_problems(self.memory_source())
         if problems:
             raise RunError("run: models = unset; expected one per role: " + "; ".join(problems))
         await load_windows(set(runtime.role_models().values()))

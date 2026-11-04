@@ -140,6 +140,6 @@ def test_retries_are_required_settings_of_a_live_run(monkeypatch):
     assert runtime.get("retry_count") is None and runtime.get("retry_delay") is None
     missing = runtime.missing_model_settings()
     assert "GEOMIND_RETRY_COUNT" in missing and "GEOMIND_RETRY_DELAY" in missing
-    assert "retries: set GEOMIND_RETRY_COUNT or retry_count" in runtime.model_problems()
+    assert "retries: set GEOMIND_RETRY_COUNT or retry_count" in runtime.model_problems("settings")
     lines = live.missing(max_cost=1.0, fetcher=lambda: set())
     assert "setting not set: GEOMIND_RETRY_DELAY" in lines

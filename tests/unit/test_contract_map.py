@@ -82,7 +82,7 @@ def test_section_three_protocols_are_frozen(frozen):
     0.3.0 added the chat artifacts of ``RunStore`` and ``Workspace.plants``, and the files of
     ``Workspace.case``; 0.4.4 the optional ``Workspace.files`` and ``Workspace.file``; 0.4.22 the
     optional ``knowledge_search``, ``knowledge_files`` and ``knowledge_file``; 0.4.22.dev48 the
-    optional ``project_state`` (contract v4).
+    optional ``project_state`` (contract v4); 0.4.23 the optional ``memory``.
     """
     protocols = frozen["protocols"]
     assert set(protocols["RunStore"]) == set(RUN_STORE_METHODS)
@@ -97,6 +97,7 @@ def test_section_three_protocols_are_frozen(frozen):
         "knowledge_files",
         "knowledge_file",
         "mcp",
+        "memory",
     }
     assert (
         protocols["LLM"]["complete"] == "(self, messages, tools, *, model, settings, on_text=None)"

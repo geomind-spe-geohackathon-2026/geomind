@@ -121,6 +121,11 @@ def search_experience(memory, features, threshold):
     return sorted(found, key=lambda item: item["similarity"], reverse=True)
 
 
+def has_memory(workspace):
+    """Return whether a workspace gives the memory itself (``Workspace.memory``, optional)."""
+    return callable(getattr(workspace, "memory", None))
+
+
 class MemoryMemory:
     """Hold the sections in memory, for tests and for a run that keeps nothing."""
 

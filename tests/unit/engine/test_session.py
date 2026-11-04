@@ -145,3 +145,91 @@ async def test_with_the_memory_off_the_curator_is_not_offered_and_a_call_runs_no
     [answer] = [item for item in of_type(events, "tool.result") if item.tool == "curator"]
     assert answer.is_error and answer.output["error"]["code"] == "not_allowed"
     assert not of_type(events, "run.started")[1:]
+
+
+class MemoryOfProject(MemoryWorkspace):
+    """A workspace that gives the memory of each project, ``None`` where it is off."""
+
+    def __init__(self, memories):
+        """Keep ``{project: memory or None}`` and count the calls."""
+        super().__init__()
+        self.memories = memories
+        self.asked = []
+
+    def memory(self, project_id):
+        """Return the memory of a project, or ``None`` for the memory off."""
+        self.asked.append(project_id)
+        return self.memories.get(project_id)
+
+
+def session_of(workspace, project="p1"):
+    """Return a session of a run of ``project`` over ``workspace``."""
+    engine = engine_for([says()], workspace=workspace)
+    return RunSession(engine, None, RunState(project=project), None)
+
+
+async def test_the_workspace_memory_is_used_and_needs_no_memory_dir(tmp_path):
+    """A workspace that gives the memory is asked once per project; no GEOMIND_MEMORY_DIR."""
+    from geomind.stores.memory import MemoryMemory
+
+    given = MemoryMemory()
+    workspace = MemoryOfProject({"p1": given})
+    session = session_of(workspace)
+    with runtime.settings(memory="on", memory_dir=None, memory_similarity=0.8):
+        assert session.memory is given and session.memory is given
+        assert session.memory_source() == "store"
+        assert runtime.memory_problems(session.memory_source()) == []
+    assert workspace.asked == ["p1"]
+    with runtime.settings(memory="on", memory_dir=None, memory_similarity=None):
+        [problem] = runtime.memory_problems("store")
+    assert "GEOMIND_MEMORY_SIMILARITY" in problem and "MEMORY_DIR" not in problem
+
+
+async def test_a_workspace_memory_of_none_turns_the_memory_off_with_no_fallback(tmp_path):
+    """``None`` from ``Workspace.memory``: no memory tools, nothing written, no folder store."""
+    from geomind.agents import DesignLead
+    from geomind.engine import Context
+    from geomind.tools import dispatch, write_lesson
+    from geomind.types import ToolCall
+
+    session = session_of(MemoryOfProject({}))
+    lesson = {"id": "l1", "kind": "lesson", "role": "all", "text": "t", "source": "user"}
+    with runtime.settings(memory="on", memory_dir=str(tmp_path), memory_similarity=None):
+        assert session.memory is None and session.memory_source() == "off"
+        assert runtime.memory_problems("off") == []
+        names = [item["name"] for item in session.offered_schemas(DesignLead())]
+        asked = ToolCall(id="c1", name="write_lesson", input=lesson)
+        result = await dispatch(write_lesson, asked, Context(project="p1", session=session))
+        error = result.output["error"]
+    assert "search_memory" not in names and "simulate" in names
+    assert error["code"] == "not_allowed"
+    assert list(tmp_path.iterdir()) == []
+
+
+async def test_without_a_workspace_memory_the_folder_store_needs_the_memory_dir(tmp_path):
+    """A workspace without ``memory`` (the command line) uses GEOMIND_MEMORY_DIR, else names it."""
+    from geomind.stores.memory import FileMemory
+
+    session = session_of(MemoryWorkspace())
+    with runtime.settings(memory="on", memory_dir=str(tmp_path), memory_similarity=0.8):
+        assert isinstance(session.memory, FileMemory) and session.memory.root == tmp_path
+        assert session.memory_source() == "settings"
+        assert runtime.memory_problems("settings") == []
+    with runtime.settings(memory="on", memory_dir=None, memory_similarity=0.8):
+        assert runtime.memory_problems("settings") == [
+            "memory: set GEOMIND_MEMORY_DIR or memory_dir"
+        ]
+        assert "GEOMIND_MEMORY_DIR" in runtime.missing_model_settings()
+        with pytest.raises(RunError, match="GEOMIND_MEMORY_DIR"):
+            session.memory
+
+
+async def test_a_live_run_with_a_workspace_memory_is_not_refused_for_the_memory_dir():
+    """The settings check of a real provider does not ask for GEOMIND_MEMORY_DIR then."""
+    from geomind.stores.memory import MemoryMemory
+
+    session = session_of(MemoryOfProject({"p1": MemoryMemory()}))
+    with runtime.settings(memory="on", memory_dir=None, memory_similarity=None):
+        problems = runtime.model_problems(session.memory_source())
+    assert "memory: set GEOMIND_MEMORY_SIMILARITY or memory_similarity" in problems
+    assert not [line for line in problems if "MEMORY_DIR" in line]
