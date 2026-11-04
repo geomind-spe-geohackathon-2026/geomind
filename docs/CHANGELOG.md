@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.28] - 2026-11-04
+
+### Fixed
+
+- QA-004: `ask_economics` checks a key that takes no unit before the user is asked. A row's ratio of one unit to itself (`kg CO2e/kg CH4` on `accounting.gwp.CH4`) is set with no unit and a note; any other unit there (`%`) is refused at once, so approve all is no longer lost on gemini's `invalid_unit`.
+
 ## [0.4.27] - 2026-11-04
 
 ### Fixed

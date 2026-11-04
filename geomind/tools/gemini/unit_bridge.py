@@ -161,6 +161,27 @@ def economics_schema(key):
     return node
 
 
+def _ratio(unit):
+    """Tell whether ``unit`` is a ratio of one unit to itself (``kg CO2e/kg CH4``): no dimension."""
+    top, slash, bottom = unit.partition("/")
+    top, bottom = top.split(), bottom.split()
+    return bool(slash and top and bottom and top[0] == bottom[0])
+
+
+def _unitless(given):
+    """Return ``(unit, note, accepted)`` of a row's unit on a key that takes no unit (QA-004).
+
+    gemini refuses any unit there, after the user's approve all; so a ratio of one unit to
+    itself (``kg CO2e/kg CH4``) is dropped with a note, and any other unit is refused before the
+    user is asked, ``accepted`` then ``["no unit"]`` (a percent is a fraction there: 0.05).
+    """
+    if given in NO_UNIT:
+        return None, None, []
+    if _ratio(given):
+        return None, f"the row's unit is {given}; set with no unit, as the key takes", []
+    return None, None, ["no unit (a fraction or a ratio, such as 0.05 for 5 %)"]
+
+
 def economics_unit(key, unit):
     """Return ``(unit, note, accepted)`` of an economics value's ``unit`` as its key takes it.
 
@@ -174,6 +195,8 @@ def economics_unit(key, unit):
     given = unit.strip() if isinstance(unit, str) else unit
     if given is None or given in accepted:
         return given, None, accepted
+    if not accepted and "unit" not in (schema or {}).get("properties", {}):
+        return _unitless(given)
     if not accepted:
         return (None, None, accepted) if given in NO_UNIT else (given, None, accepted)
     head, _, words = given.partition(" ")
