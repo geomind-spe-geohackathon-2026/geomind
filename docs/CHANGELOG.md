@@ -19,6 +19,10 @@ geomind 0.4.24 (on gemini 0.6.3) uses more of gemini 0.6.2 and 0.6.3 (evolve's s
 - `read_rag` takes `rows` (`{column: [prefix, ...]}`); a table still over 20,000 characters after `rows` and `columns` gives its outline and a note, never its text.
 - MCP servers may be plain dicts `{name, url, transport, headers}`, as `Workspace.mcp`'s contract names them, besides `gd.mcp.Server`.
 
+### Data
+
+- The two discount-rate rows of the cost catalogue (EU financial 0.04, social 0.03) get their `value_2015` (a rate has no price year), so the case lead can offer them; they were never used.
+
 ### Known issues
 
 - gemini still refuses `opex.fixed.pipe` per MW per year (two catalogue rows unused); no per-energy catalogue rows yet for the boilers and the heat pump.

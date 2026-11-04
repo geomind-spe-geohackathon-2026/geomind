@@ -110,3 +110,16 @@ async def test_rows_names_a_column_of_the_table():
     assert error["code"] == "unknown_name" and error["suggestions"] == ["path"]
     asked = {"name": "knowledge/report.md", "rows": {"path": ["economics"]}}
     assert (await call(read_rag, asked, session)).output["error"]["path"] == "rows"
+
+
+def test_a_rate_in_the_catalogue_has_its_2015_value():
+    """A rate has no price year: its value_2015 is its value, so the case lead can take it.
+
+    The two discount-rate rows had an empty value_2015 and were never used.
+    """
+    import csv
+    import io
+
+    rows = list(csv.DictReader(io.StringIO(CATALOGUE.decode())))
+    rates = [row for row in rows if row["path"] == "economics.discount_rate"]
+    assert rates and all(row["value_2015"] == row["value"] for row in rates if row["value"])
