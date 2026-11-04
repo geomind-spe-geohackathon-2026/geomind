@@ -64,8 +64,9 @@ names and the files of the demand series.
   it raises `ToolError` telling the model to call `set_case` or `ask_user`: there is no fallback
   case anywhere.
 - **Who sets it.** `set_case(source=None, changes=None, requirements=None, economics=None)`:
-  `source="project"` loads the project's case through `Workspace.case(project)` and copies its
-  files into the run; `changes` is an RFC 7386 JSON merge patch on the case, except
+  `source="project"` loads the project's case through `Workspace.case(project)`, else from one
+  `case.json` among the project's files (`Workspace.files`) with the files it names beside it,
+  and copies its files into the run; `changes` is an RFC 7386 JSON merge patch on the case, except
   `requirements` and `economics`, which `changes` refuses; `requirements` is
   `{name: requirement | null}` (add or replace by name, remove with null, the others stay);
   `economics` is a merge patch on the content of the economics file, stored as a new content file.

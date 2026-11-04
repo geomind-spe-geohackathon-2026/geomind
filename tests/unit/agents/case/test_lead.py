@@ -155,9 +155,8 @@ def test_the_economics_parts_of_gemini_0_6_2_have_their_rules():
     ``subsidy.cap`` in h/yr without ``capacity`` is ``missing_assumption``.
     """
     text = " ".join(CaseLead().prompt.content.split())
-    assert "only when a row gives every kind the case's services may need, else all in `open`" in (
-        text
-    )
+    assert "rows for `boiler`, `electric_boiler`, `heat_pump` and `chp`: put all four in" in text
+    assert "`absorption_chiller` and `adsorption_chiller` in `open`" in text
     assert "a cap in hours needs `capacity`" in text and "never you" in text
     assert (
         "`capex.ice_storage` and `opex.fixed.ice_storage` price an ice store only when given"
@@ -199,7 +198,8 @@ def test_economics_are_a_required_step_after_the_case():
     assert [text.index(step) for step in steps] == sorted(text.index(step) for step in steps)
     step = text[text.index("5. Economics") : text.index("6. `read_case`")]
     assert "never twice" in step and "ONE `ask_economics` call" in step
-    assert "`currency`, `price_year` and `discount_rate` too" in step and "row `id`" in step
+    assert "`discount_rate` too" in step and "row `id`" in step
+    assert "`currency` and `price_year` are never asked" in step
     assert "the others in `others`" in step
     assert "the tool sets every value with its row" in step
     assert "the economics are set (step 5)" in text and "and its economics set" in text
@@ -306,3 +306,47 @@ def test_the_air_pressure_comes_from_a_source_or_an_elevation_by_code():
     assert "asks the user for the air pressure or the site's elevation" in text
     assert '"pressure": {"elevation": {"value": 12, "unit": "m"}}' in text
     assert "Never write a pressure you worked out" in text
+
+
+def test_the_per_energy_kinds_the_prompt_puts_in_values_each_have_a_catalogue_row():
+    """Catalogue batch 3 gave the boiler, electric boiler and heat pump per-energy rows.
+
+    The four kinds the prompt puts in ``values`` each have a sourced row; the chillers none, so
+    the prompt names them in ``open``. A row added for a chiller fails here until the rule says so.
+    """
+    import csv
+    from pathlib import Path
+
+    catalogue = Path(__file__).parents[4] / "data" / "knowledge" / "cost-sources.csv"
+    start = "economics.opex.per_energy."
+    kinds = {
+        row["path"].removeprefix(start)
+        for row in csv.DictReader(catalogue.open())
+        if row["path"].startswith(start) and row["status"] != "placeholder" and row["value_2015"]
+    }
+    assert kinds == {"boiler", "electric_boiler", "heat_pump", "chp"}
+
+
+def test_the_catalogue_s_currency_and_price_year_are_never_asked():
+    """E2E-9: the economics question asked for currency and price year; the catalogue gives both."""
+    text = " ".join(CaseLead().prompt.content.split())
+    assert "never ask the user for either" in text and "never both" in text
+
+
+def test_the_reference_rows_and_the_esp_basis_are_named():
+    """Catalogue batch 3: ESP rows are per W electric; the waste and erratum rows never go in."""
+    text = " ".join(CaseLead().prompt.content.split())
+    assert "per W electric (the motor's rating) while the key is per W of shaft power" in text
+    assert "`EUR/m3` or `t/m3`" in text and "`discount-rate-pbl-sde-2026-erratum` rows" in text
+    assert "never a value nor in `others`" in text
+
+
+def test_the_air_is_read_from_a_server_and_the_humidity_is_a_fraction():
+    """E2E-2: the air values were asked for with a weather server connected.
+
+    The question asks for the location when only it is missing; the humidity is 0-1 (one run's
+    hint said 0-100).
+    """
+    text = " ".join(CaseLead().prompt.content.split())
+    assert "the question asks for the location (place or coordinates)" in text
+    assert "`relative_humidity` is a fraction 0-1 (0.8, not 80 %)" in text

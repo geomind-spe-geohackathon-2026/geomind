@@ -25,7 +25,7 @@ from geomind import runtime
 from geomind.errors import ToolError
 from geomind.stores.casefiles import case_files, is_safe_name, named_files
 from geomind.tools.base import tool
-from geomind.tools.files import file_names_schema, project_file
+from geomind.tools.files import file_names_schema, has_files, project_file, project_file_names
 from geomind.tools.gemini.air import pressure_from_elevation
 from geomind.tools.gemini.explain import MISSING_CODES, shown_message, unit_error, unit_retry
 from geomind.tools.gemini.skeleton import case_skeleton, requirement_shape
@@ -94,9 +94,60 @@ def project_has_case(context):
     if workspace is None or context.project is None:
         return False
     try:
-        return workspace.case(context.project) is not None
+        return workspace.case(context.project) is not None or bool(case_file_names(context))
     except (OSError, ValueError):
         return False
+
+
+CASE_JSON = "case.json"
+"""The name of a project's case file, beside its data or among the project's files."""
+
+
+def case_file_names(context):
+    """Return the names of the project files that are a ``case.json``, in a folder or not."""
+    names = project_file_names(context)
+    return [name for name in names if name == CASE_JSON or name.endswith(f"/{CASE_JSON}")]
+
+
+def files_case(context):
+    """Return ``(case dict, {name: bytes})`` of a ``case.json`` among the project files, or none.
+
+    The backend's project keeps the user's files, ``case.json`` among them (``files/case.json``),
+    and the workspace's ``case`` reads only one beside the project's data (E2E-1). The files the
+    case names are read beside it, in its folder.
+    """
+    found = case_file_names(context)
+    if not found:
+        return None
+    if len(found) > 1:
+        raise ToolError(
+            f"set_case: the project has {len(found)} case files, {join_names(found)}; expected "
+            "one: ask_user which is the case, then set_case with its values in changes",
+            code="invalid_input",
+            path="source",
+        )
+    name = found[0]
+    try:
+        data = json.loads(project_file(context, "set_case", name))
+    except ValueError as error:
+        raise ToolError(
+            f"set_case: {name} is no JSON ({error}); expected a gemini case", path="source"
+        ) from error
+    kind = data.get("kind") if isinstance(data, dict) else None
+    if kind != "case":
+        raise ToolError(
+            f"set_case: {name} has kind = {kind!r}; expected 'case', a gemini case file",
+            code="invalid_input",
+            path="source",
+        )
+    folder = name.removesuffix(CASE_JSON)
+    workspace = context.session.workspace
+    files = {}
+    for file in map(checked_name, case_files(data)):
+        content = workspace.file(context.project, f"{folder}{file}")
+        if content is not None:
+            files[file] = content
+    return data, files
 
 
 def file_contents(context, data, supplied):
@@ -168,11 +219,12 @@ def readable_case(data, files):
             ) from error
         skeleton = [json.dumps(case_skeleton())] if header else []
         first = (shown[0] or missing)[0]
+        columns = column_choices(missing, data, files)
         raise ToolError(
             shown_message(error),
             code="case_incomplete",
             path=first,
-            suggestions=[*shown[0], *shown[1], *skeleton],
+            suggestions=[*shown[0], *shown[1], *columns, *skeleton],
         ) from error
 
 
@@ -239,13 +291,18 @@ def column_retry(error, supplied, names, changes):
 
 
 def checked_case(data, files):
-    """Return the ``gm.Case`` of a case dict, or raise gemini's error for its first problem.
+    """Return the ``gm.Case`` of a case dict, or raise gemini's error with every problem.
 
-    ``Case.from_dict`` raises on what it cannot read; ``Case.check`` finds the rest.
+    ``Case.from_dict`` raises on what it cannot read; ``Case.check`` finds the rest; the bounds of
+    a fraction (``fraction_problems``) join either.
     """
     import gemini as gm
 
-    case = readable_case(data, files)
+    fractions = fraction_problems(data)
+    try:
+        case = readable_case(data, files)
+    except gm.errors.ValidationError as error:
+        raise with_problems(error, fractions) from error
     issues = case.check()
     if issues:
         first = issues[0].problem()
@@ -254,9 +311,9 @@ def checked_case(data, files):
             path=first["path"],
             code=first["code"],
             suggestions=first["suggestions"],
-            problems=[issue.problem() for issue in issues],
+            problems=[issue.problem() for issue in issues] + fractions,
         )
-    fraction_bounds(case)
+    raise_fractions(data)
     return case
 
 
@@ -264,32 +321,67 @@ FRACTION_WORDS = ("efficiency", "fraction", "share")
 """Words of a requirement quantity whose bounds are a fraction 0-1 when it has no unit (#130)."""
 
 
-def fraction_bounds(case):
-    """Raise for a requirement on an efficiency or fraction with a bound outside 0-1 (#130).
+def fraction_problems(data):
+    """Return the problems of requirements on an efficiency or fraction bounded outside 0-1 (#130).
 
     gemini reads such a bound with no unit as a fraction, so ``70`` meant as 70 % passes its
-    check and fails every design; nemotron wrote ``pump_efficiency`` ``min 70, max 70``.
+    check and fails every design; nemotron wrote ``pump_efficiency`` ``min 70, max 70``. Read
+    from the case dict, so they come back with gemini's own problems in one call (E2E-8).
     """
     import gemini as gm
 
     roles = gm.plants.roles()
-    for index, item in enumerate(case.requirements or ()):
-        read = roles.get(item.on, {}).get(item.quantity, {})
-        if read.get("dimension") is not None or item.over == "duration":
+    problems = []
+    for index, item in enumerate(data.get("requirements") or ()):
+        if not isinstance(item, dict) or not isinstance(item.get("quantity"), str):
             continue
-        if not any(word in item.quantity for word in FRACTION_WORDS):
+        quantity = item["quantity"]
+        read = roles.get(item.get("on"), {}).get(quantity, {})
+        if read.get("dimension") is not None or item.get("over") == "duration":
             continue
-        bounds = [value for value in (item.min, item.max) if value is not None]
-        wrong = [value for value in bounds if not 0 <= value <= 1]
-        if not wrong:
+        if not any(word in quantity for word in FRACTION_WORDS):
             continue
-        given = item.to_dict()
+        bounds = [item.get(side) for side in ("min", "max")]
+        numbers = [value for value in bounds if isinstance(value, int | float)]
+        if all(0 <= value <= 1 for value in numbers):
+            continue
+        problems.append(
+            {
+                "path": f"requirements[{index}]",
+                "code": "out_of_bounds",
+                "message": f"requirements[{index}] ({item.get('name')}): {quantity} min = "
+                f"{bounds[0]}, max = {bounds[1]}; an efficiency is a fraction 0-1: 0.7, not 70",
+                "suggestions": [],
+            }
+        )
+    return problems
+
+
+def with_problems(error, problems):
+    """Return gemini's ``error`` with ``problems`` of geomind's own added, or ``error`` as it is."""
+    import gemini as gm
+
+    if not problems:
+        return error
+    given = list(getattr(error, "problems", None) or [error.to_dict()])
+    return gm.errors.ValidationError(
+        str(error),
+        path=error.path,
+        code=error.code,
+        suggestions=list(getattr(error, "suggestions", None) or ()),
+        problems=given + problems,
+    )
+
+
+def raise_fractions(data):
+    """Raise the fraction problems of ``data`` as one gemini error, if it has any."""
+    import gemini as gm
+
+    problems = fraction_problems(data)
+    if problems:
+        first = problems[0]
         raise gm.errors.ValidationError(
-            f"requirements[{index}] ({given.get('name')}): {item.quantity} min = "
-            f"{given.get('min')}, max = {given.get('max')}; an efficiency is a fraction 0-1: "
-            "0.7, not 70",
-            path=f"requirements[{index}]",
-            code="out_of_bounds",
+            first["message"], path=first["path"], code=first["code"], problems=problems
         )
 
 
@@ -330,10 +422,13 @@ def project_case(context):
             path="source",
         )
     found = workspace.case(context.project)
+    if found is None and has_files(workspace):
+        found = files_case(context)
     if found is None:
         raise ToolError(
-            f"set_case: project {context.project!r} has no case; expected changes with the values"
-            " or ask_user",
+            f"set_case: project {context.project!r} has no case: no {CASE_JSON} beside its data "
+            f"and none among its files (list_files); expected changes with the values the files "
+            "and the user give, or ask_user",
             code="unknown_name",
             path="source",
         )
@@ -401,6 +496,44 @@ def own_argument_retry(changes, key, files):
     return retry + (f", files={needed!r})" if needed != list(files or []) else ")")
 
 
+def moved_arguments(changes, base, arguments):
+    """Return ``(changes, argument values)``: the arguments a new case's changes hold, moved out.
+
+    The run (E2E-8) put ``requirements``, ``files`` and ``columns`` inside the changes of a first
+    case and spent a call on each refusal. Each is its argument when that argument is not given
+    and, for ``requirements`` and ``economics``, the case has none yet: then the merge patch and
+    the argument set the same. Any other stays for ``checked_changes`` to refuse.
+    """
+    if not isinstance(changes, dict):
+        return changes, tuple(arguments.values())
+    changes, arguments = dict(changes), dict(arguments)
+    for key, fits in MOVABLE.items():
+        if key not in changes or arguments.get(key) is not None or base.get(key) is not None:
+            continue
+        if fits(changes[key]):
+            value = changes.pop(key)
+            arguments[key] = by_name(value) if key == "requirements" else value
+    return changes, tuple(arguments.values())
+
+
+def named_requirements(value):
+    """Tell whether ``value`` is a requirement list, each with its name, or one by name."""
+    if isinstance(value, dict):
+        return all(isinstance(item, dict) for item in value.values())
+    return isinstance(value, list) and all(
+        isinstance(item, dict) and isinstance(item.get("name"), str) for item in value
+    )
+
+
+MOVABLE = {
+    "requirements": named_requirements,
+    "economics": lambda value: isinstance(value, dict),
+    "files": lambda value: isinstance(value, list) and all(isinstance(n, str) for n in value),
+    "columns": lambda value: isinstance(value, dict),
+}
+"""The arguments of set_case a new case's ``changes`` may hold, with the form each must have."""
+
+
 def checked_changes(changes, files):
     """Return ``changes`` if it leaves ``requirements`` and ``economics`` to their own argument.
 
@@ -432,7 +565,32 @@ def case_retries(error, data, supplied, files, columns, changes):
         retries.extend(unit_retry(error, data))
     retries.append(zone_retry(error, files, columns))
     retries.extend(renamed_columns(error, data, columns))
-    return [retry for retry in retries if retry is not None]
+    paths = [problem.get("path") for problem in getattr(error, "problems", None) or ()]
+    retries.extend(column_choices([error.path, *paths], data, supplied))
+    return [retry for retry in dict.fromkeys(retries) if retry is not None]
+
+
+def column_choices(paths, data, files):
+    """Return, per series ``path`` that lacks its column, the columns its file has (E2E-8).
+
+    The run: ``demand.heating.power.column = None; expected text`` came with no suggestion, and
+    the model guessed. The file's header names but ``time`` are what the column may be.
+    """
+    from geomind.tools.gemini.explain import field_of
+
+    choices = []
+    for path in dict.fromkeys(path for path in paths if path):
+        if not path.endswith(".column") or field_of(data, path) is not None:
+            continue
+        file = field_of(data, path.removesuffix(".column") + ".file")
+        content = files.get(file) if isinstance(file, str) else None
+        if content is None:
+            continue
+        header = content.decode("utf-8-sig").partition("\n")[0].rstrip("\r").split(",")
+        names = [name.strip() for name in header if name.strip() != TIME_COLUMN]
+        shown = ", ".join(repr(name) for name in names)
+        choices.append(f"{path}: a column of {file}: {shown}")
+    return choices
 
 
 def renamed_columns(error, data, columns):
@@ -593,12 +751,15 @@ async def set_case(
 ):
     """Set the case of the problem state: the project's case, changes to it, or both.
 
-    ``source`` is ``project`` to load the project's ``case.json`` and its files, ``origin`` to go
+    ``source`` is ``project`` to load the project's ``case.json`` (beside its data or among its
+    files, ``list_files``) and the files it names, ``origin`` to go
     back to the case the user or the project gave, or omitted to start from the state's case (an
     empty one when it has none). ``changes`` is a JSON merge patch (RFC 7386) on the case: an
     object merges into the case, a value replaces, null removes a key; it never holds
-    ``requirements`` or ``economics``. ``requirements`` is ``{name: requirement or null}``: a
-    requirement object adds or replaces the one of that name, null removes it, and the others stay.
+    ``requirements`` or ``economics`` of a case that has them (on a new case, they and ``files``
+    and ``columns`` in ``changes`` are taken as those arguments). ``requirements`` is
+    ``{name: requirement or null}``: a requirement object adds or replaces the one of that name,
+    null removes it, and the others stay.
     ``economics`` is a merge patch on the content of the case's economics file. ``files`` names
     project files (``list_files``): their bytes go to gemini, under the same name, so a data file
     is given to the case and never retyped: name it in ``changes``, as the ``file`` of a series.
@@ -633,6 +794,8 @@ async def set_case(
             suggestions=[json.dumps(case_skeleton())],
         )
     base, supplied = base_case(context, source)
+    own = {"requirements": requirements, "economics": economics, "files": files, "columns": columns}
+    changes, (requirements, economics, files, columns) = moved_arguments(changes, base, own)
     files = changes_files(context, changes, files, supplied)
     if files:
         given = await runtime.in_gemini_thread(project_files_of, context, files, columns)
@@ -657,8 +820,7 @@ async def set_case(
         raise ToolError(
             every_problem(error, paths), code=error.code, path=error.path, suggestions=retries
         ) from error
-    result = {"case": data, "version": version}
-    return {**result, "converted": converted} if converted else result
+    return {"case": data, "version": version, **({"converted": converted} if converted else {})}
 
 
 def problem_paths(error):

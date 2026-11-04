@@ -6,10 +6,13 @@ a gas fraction in ``%`` is only named ``mol%`` here, the same number. Unit names
 them (``kg/m³``, ``mPa·s``, ``MWth``) become gemini's name of the same unit, ``kg/m3``,
 ``mPa.s``, ``MW``, only where the key's units hold that name: a name, no factor (#118).
 ``set_case`` lists each mapping in its result (``converted``) so the case lead puts it in the
-confirmation question.
+confirmation question. A catalogue row's unit with a basis word after it (``EUR/W electric``,
+``EUR/MWh cold``) is the unit before the word on an economics key that takes it
+(``economics_unit``); the economics question shows the word beside the key's own basis.
 """
 
 import copy
+import re
 
 FRACTIONS = (("site", "fluid", "dissolved_gas"), ("utilities", "gas", "composition"))
 PERCENT_UNITS = ("%", "mol %")
@@ -20,6 +23,10 @@ SPELLINGS = {"³": "3", "²": "2", "·": "."}
 UNIT_NAMES = {"MWth": "MW", "MWcool": "MW"}
 """Unit names that say what the power is for, and the unit they are in."""
 NAME_REASON = "unit name"
+NO_UNIT = ("-", "")
+"""How a catalogue writes a number with no unit (a rate, a share)."""
+BASIS = re.compile(r"(per [^(),;]+?) \(([^()]+)\)")
+"""A cost basis in gemini's description of an economics key: ``per W of capacity (EUR/W)``."""
 
 
 def bridged_units(changes):
@@ -140,3 +147,39 @@ def bridged_requirements(requirements):
             item["unit"] = renamed
             converted.append(_entry(("requirements", name), None, unit, None, renamed, NAME_REASON))
     return requirements, converted
+
+
+def economics_schema(key):
+    """Return gemini's schema of the economics key ``key`` (``capex.heat_pump``), or ``None``."""
+    import gemini as gm
+
+    node = gm.case.Economics.schema()
+    for part in key.removeprefix("economics.").split("."):
+        node = _child_schema(node, part)
+    return node
+
+
+def economics_unit(key, unit):
+    """Return ``(unit, note, accepted)`` of an economics value's ``unit`` as its key takes it.
+
+    ``unit`` is the key's unit, ``None`` when the key takes none (``-``) or when it refuses the
+    unit, which ``accepted`` (the units it takes) then tells. A unit with a basis word after it
+    (``EUR/W electric``) is the unit before the word when the key takes it, never a factor;
+    ``note`` then says the row's unit and the basis the key reads that unit on (E2E-10).
+    """
+    schema = economics_schema(key)
+    accepted = sorted(_accepted_units(schema))
+    given = unit.strip() if isinstance(unit, str) else unit
+    if given is None or given in accepted:
+        return given, None, accepted
+    if not accepted:
+        return (None, None, accepted) if given in NO_UNIT else (given, None, accepted)
+    head, _, words = given.partition(" ")
+    name = head if head in accepted else gemini_unit_name(head, accepted)
+    if name is None:
+        return None, None, accepted
+    if not words:
+        return name, None, accepted
+    basis = dict((unit, text) for text, unit in BASIS.findall(schema.get("description") or ""))
+    note = f"the row's unit is {given}; set as {name}"
+    return name, note + (f", which the key reads {basis[name]}" if name in basis else ""), accepted

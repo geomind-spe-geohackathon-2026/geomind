@@ -62,7 +62,8 @@ async def test_the_question_lists_every_value_with_its_row_and_the_others():
     assert isinstance(request, Request)
     assert [option.value for option in request.options] == ["approve all", "change some", "stop"]
     lines = request.message.splitlines()
-    assert lines.index("economics.currency = EUR | no row | the catalogue's value_2015 columns") < (
+    currency = next(line for line in lines if line.startswith("economics.currency = EUR |"))
+    assert lines.index(currency) < (
         lines.index(next(line for line in lines if line.startswith("economics.capex.heat_pump")))
     )
     drilling = next(line for line in lines if line.startswith("economics.capex.drilling"))
@@ -73,9 +74,12 @@ async def test_the_question_lists_every_value_with_its_row_and_the_others():
 
 async def test_a_question_without_the_currency_or_with_an_unknown_key_is_refused():
     """The run's question left currency, price year and discount rate as open lines of text."""
-    result = await call(ask_economics, {"values": [HEAT_PUMP]})
+    result = await call(ask_economics, {"values": [{**HEAT_PUMP, "row": None}]})
     message = result.output["error"]["message"]
     assert result.is_error and "currency, price_year, discount_rate" in message
+    result = await call(ask_economics, {"values": [HEAT_PUMP]})
+    message = result.output["error"]["message"]
+    assert result.is_error and message.startswith("ask_economics: discount_rate not named")
     wrong = [*VALUES, {"key": "capex.heatpump", "value": 1, "source": "x"}]
     result = await call(ask_economics, {"values": wrong})
     assert result.output["error"]["code"] == "unknown_name"
@@ -242,3 +246,136 @@ async def test_approve_all_sets_the_economics_parts_of_gemini_0_6_2():
     assert stored["revenue"]["subsidy"]["cap"] == {"value": 6000, "unit": "h/yr"}
     assert stored["revenue"]["subsidy"]["capacity"] == {"value": 20, "unit": "MW"}
     assert stored["capex"]["ice_storage"]["unit"] == "EUR/MWh"
+
+
+CATALOGUE_ROWS = [HEAT_PUMP, DRILLING, {"key": "discount_rate", "value": 0.051, "row": "dr-row"}]
+"""Catalogue rows only: the currency and the price year are the catalogue's, never the model's."""
+
+
+async def test_the_currency_and_price_year_follow_from_the_catalogue_s_columns():
+    """E2E-9: the question left currency and price_year open though every value is EUR at 2015.
+
+    A value from a catalogue row is its ``value_2015`` in ``unit_2015``: ask_economics shows EUR
+    and 2015 with that source, never as open, and approve all sets and records both.
+    """
+    from geomind.engine import Context
+    from geomind.tools import dispatch
+    from geomind.types import ToolCall
+    from tests.fixtures.sessions import StubSession
+
+    tool_input = {"values": CATALOGUE_ROWS, "open": ["currency", "price_year"]}
+    asked = ToolCall(id="q", name="ask_economics", input=tool_input)
+    request = await dispatch(ask_economics, asked, Context(session=StubSession()))
+    assert isinstance(request, Request), request
+    lines = request.message.splitlines()
+    assert "Open (no usable row; give a value with change some, or leave it open):" not in lines
+    currency = next(line for line in lines if line.startswith("economics.currency = EUR |"))
+    year = next(line for line in lines if line.startswith("economics.price_year = 2015 |"))
+    assert "value_2015" in currency and "value_2015" in year
+    context = await case_context("hackathon_2026")
+    output = await economics_answered(context, tool_input, "approve all")
+    stored = json.loads(context.session.artifacts["case/economics.json"])
+    assert stored["currency"] == {"value": "EUR"} and stored["price_year"] == {"value": 2015}
+    assert output["open"] == [] and {"currency", "price_year"} <= set(output["keys"])
+
+
+async def test_another_currency_than_the_catalogue_s_is_refused():
+    """A currency or price year other than the catalogue's says where they come from."""
+    usd = [*CATALOGUE_ROWS, {"key": "currency", "value": "USD", "source": "x"}]
+    result = await call(ask_economics, {"values": usd})
+    message = result.output["error"]["message"]
+    assert result.is_error and "value_2015" in message and "'EUR'" in message
+
+
+async def test_a_key_with_a_value_and_in_open_is_named_with_what_to_do():
+    """E2E-9: "keys = [...]; expected each key once" did not say the keys were in both lists."""
+    result = await call(ask_economics, {"values": CATALOGUE_ROWS, "open": ["discount_rate"]})
+    message = result.output["error"]["message"]
+    assert result.is_error and "discount_rate is in values and in open" in message
+    from geomind.engine import Context
+    from geomind.tools import dispatch
+    from geomind.types import ToolCall
+    from tests.fixtures.sessions import StubSession
+
+    nulls = [*CATALOGUE_ROWS[:2], {"key": "discount_rate", "value": None}]
+    tool_input = {"values": nulls, "open": ["discount_rate"]}
+    asked = ToolCall(id="q", name="ask_economics", input=tool_input)
+    request = await dispatch(ask_economics, asked, Context(session=StubSession()))
+    assert isinstance(request, Request)
+    assert request.message.splitlines()[-1].endswith("discount_rate")
+
+
+ICE = {
+    "key": "capex.ice_storage",
+    "value": 23249.8663132687,
+    "unit": "EUR/MWh cold",
+    "row": "ice-storage-mlakar-2022-low",
+}
+ESP = {
+    "key": "capex.production_pump",
+    "value": 0.5986231667165519,
+    "unit": "EUR/W electric",
+    "row": "production-pump-esp-kennisagenda-2016-500kwel",
+}
+
+
+async def test_a_row_s_basis_word_is_set_as_the_key_s_unit_and_shown_to_the_user():
+    """E2E-10: ``EUR/MWh cold`` on ice storage was lost on approve all; ESP rows are per W electric.
+
+    The unit before the basis word is one the key takes, so it is set (money per energy for ice
+    storage); the question says the row's basis beside the key's, shaft power for the ESP.
+    """
+    from geomind.engine import Context
+    from geomind.tools import dispatch
+    from geomind.types import ToolCall
+    from tests.fixtures.sessions import StubSession
+
+    tool_input = {"values": [*CATALOGUE_ROWS, ICE, ESP]}
+    asked = ToolCall(id="q", name="ask_economics", input=tool_input)
+    request = await dispatch(ask_economics, asked, Context(session=StubSession()))
+    assert isinstance(request, Request), request
+    lines = request.message.splitlines()
+    pump = next(line for line in lines if line.startswith("economics.capex.production_pump"))
+    assert "EUR/W electric" in pump and "shaft power" in pump
+    ice = next(line for line in lines if line.startswith("economics.capex.ice_storage"))
+    assert "EUR/MWh cold" in ice and "energy capacity" in ice
+    context = await case_context("hackathon_2026")
+    output = await economics_answered(context, tool_input, "approve all")
+    assert output["economics"] == "set", output
+    stored = json.loads(context.session.artifacts["case/economics.json"])
+    assert stored["capex"]["ice_storage"]["unit"] == "EUR/MWh"
+    assert stored["capex"]["production_pump"]["unit"] == "EUR/W"
+
+
+async def test_every_unit_a_key_refuses_is_named_before_the_user_is_asked():
+    """E2E-10, E2E-8: a refused unit came back only after approve all, one key at a time.
+
+    Each value whose unit its key does not take is named at once, with the units it takes.
+    """
+    waste = {
+        "key": "opex.variable.waste_disposal",
+        "value": 1027.221366204417,
+        "unit": "EUR/m3",
+        "row": "waste-disposal-tfa-france-2022",
+    }
+    wrong = [*CATALOGUE_ROWS, waste, {**ICE, "unit": "EUR/W"}]
+    result = await call(ask_economics, {"values": wrong})
+    message = result.output["error"]["message"]
+    assert result.is_error and "2 values" in message
+    assert "opex.variable.waste_disposal: unit 'EUR/m3'" in message and "EUR/kg" in message
+    assert "capex.ice_storage: unit 'EUR/W'" in message and "EUR/MWh" in message
+
+
+def test_the_catalogue_basis_is_what_the_catalogue_states():
+    """The currency and price year ask_economics sets are the catalogue's columns and its notes."""
+    import csv
+    from pathlib import Path
+
+    from geomind.tools.gemini.economics import CATALOGUE_BASIS
+
+    folder = Path(__file__).parents[4] / "data" / "knowledge"
+    year = CATALOGUE_BASIS["price_year"]
+    header = next(csv.reader((folder / "cost-sources.csv").open()))
+    assert {f"value_{year}", f"unit_{year}"} <= set(header)
+    notes = " ".join((folder / "cost-sources.md").read_text().split())
+    assert f"{CATALOGUE_BASIS['currency']} at {year} prices" in notes

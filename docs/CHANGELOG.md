@@ -27,7 +27,7 @@ geomind 0.4.24 (on gemini 0.6.4) uses more of gemini 0.6.2 and 0.6.3 (evolve's s
 
 ### Known issues
 
-- gemini still refuses `opex.fixed.pipe` per MW per year (two catalogue rows unused); no per-energy catalogue rows yet for the boilers and the heat pump.
+- gemini still refuses `opex.fixed.pipe` per MW per year (two catalogue rows unused); no per-energy catalogue rows yet for the chillers.
 - gemini describes each map entry as "The entry of this map for <key>."; geomind shows the map's own description.
 - gemini reports no SO2 from burnt H2S.
 - An end-to-end run needs a pressure or the site's elevation, from a file, the knowledge base, an MCP server or the user: no default.
@@ -101,6 +101,51 @@ run tree before; the audit found none and tests now pin it.
 - Tests: `GEOMIND_CONTEXT_WINDOW` of the test settings is the test model's real window (1,048,576,
   was 128,000); the long-chat test sets its own window.
 - B3 (gemini, H2S) is gemini's: not changed here; gemini 0.6.4 fixes it (below).
+
+### E2E fixes: the case and its economics
+
+From the e2e hunt on 0.4.24.dev2 (`.tmp/e2e-bugs/bug-list.md`).
+
+**Contract changes for the backend:** none in the tool schemas. `set_case(source="project")`
+also reads a `case.json` among the project's files (`Workspace.files`/`file`), with the files it
+names beside it, when `Workspace.case` has none. `ask_economics` no longer needs `currency` and
+`price_year` (it sets them, below) and has a new refusal, code `invalid_unit` at `values`, before
+the question is asked.
+
+- E2E-1: `set_case(source="project")` said "has no case" for a project whose `case.json` is a
+  project file (`files/case.json`): `Workspace.case` reads only one beside the project's data.
+  A single `case.json` among the files (in a folder or not) is now the project case, its files
+  read beside it; two are refused by name, a JSON whose `kind` is not `case` too. The refusal
+  without any says where it looked (`case.json` beside the data, among the files: `list_files`).
+- E2E-8: fewer `set_case` rounds. On a new case, `requirements`, `economics`, `files` and
+  `columns` inside `changes` are taken as those arguments (the run spent two calls on "changes
+  has 'requirements'" and "key 'files'"); a case that has them still refuses them in `changes`.
+  A requirement efficiency or fraction outside 0-1 (#130) now comes back with gemini's own
+  problems in one error, not after they are fixed; a series without its `column` gets the
+  columns of its file in `suggestions`.
+- E2E-9: `ask_economics` sets `currency` EUR and `price_year` 2015 itself whenever a value comes
+  from a catalogue row: the catalogue's `value_2015` in `unit_2015` are EUR at 2015 prices
+  (`cost-sources.md`; a test reads both files). Either named in `open` is taken out; another
+  value for either is refused with where they come from. A key with a value and in `open` is
+  refused naming the key in both; a key null in `values` and in `open` is open once.
+- E2E-10: approve all failed with `units: quantity = 'money_per_volume_or_money_per_energy'`:
+  `explain.unit_retry` joined gemini's "a unit of money per volume or money per energy" into one
+  quantity. Each quantity is now looked up alone (`explain.quantities`), so `capex.ice_storage`
+  lists the units of both bases. `ask_economics` checks each unit against its key before asking,
+  every refused unit in one error with the units the key takes; a basis word after a row's unit
+  (`EUR/MWh cold`, `EUR/W electric`) is set as the unit before it (`unit_bridge.economics_unit`,
+  a name, no factor) and the question shows the row's unit beside the key's basis ("which the
+  key reads per W of shaft power at the nominal flow"), also kept as `basis` in the citation.
+  gemini request (plan.md): carry `quantity` and `accepted` in an `invalid_unit` problem.
+- E2E-2 (prompt): the air values are read from a connected weather or elevation server before
+  any question; with only the location missing, the question asks for the location;
+  `relative_humidity` is named a fraction 0-1 (gemini refuses 80). The MCP source lines of the
+  prompt are another session's.
+- Catalogue batch 3 in the case lead's prompt: `opex.per_energy` takes the four kinds the
+  catalogue prices (`boiler`, `electric_boiler`, `heat_pump`, `chp`; a test ties the list to the
+  catalogue) and names the chillers in `open`; the ESP rows of `capex.production_pump` are per W
+  electric, the key per W of shaft power, said in the question; the waste rows in EUR/m3 and t/m3
+  and the two `discount-rate-pbl-sde-2026-erratum` rows are never a value nor an other.
 
 ### gemini 0.6.4
 

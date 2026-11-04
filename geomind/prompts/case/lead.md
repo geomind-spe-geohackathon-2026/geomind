@@ -46,9 +46,12 @@ in this order, none skipped:
 5. Economics, REQUIRED once the case is accepted (`set_case` stored it), unless `read_case`
    shows its economics set: choose each key's rows of the catalogue you read in 2 (read it now if
    you did not, never twice) by the rule below; then ONE `ask_economics` call with every key in
-   `values` (`currency`, `price_year` and `discount_rate` too): its value and unit, its row `id`,
+   `values` (`discount_rate` too): its value and unit as the row writes them, its row `id`,
    `source`, `year`, `url` and `status`, and for a key whose rows differ the others in `others`;
-   a key with only placeholder rows or none goes in `open`. On `approve all` the tool sets every
+   a key with only placeholder rows or none goes in `open`; each key once, in `values` or in
+   `open`, never both. `currency` and `price_year` are never asked: `ask_economics` sets them
+   from the catalogue's `value_2015` columns (EUR, 2015). It names at once every unit a key does
+   not take: fix them all in the next call. On `approve all` the tool sets every
    value with its row and records the assumptions: do not set them again. On `change some`, ask
    which values change and to what with `ask_user`, without options, and set them. A case handed
    over without this step is incomplete.
@@ -119,9 +122,10 @@ Where each value comes from:
   under it), with `columns` `["id", "path", "value_2015", "unit_2015", "status", "source",
   "year", "url"]`; `search_rag` finds the rows of a value whose key you do not know. Its `path`
   is the case key (`economics.capex.drilling`,
-  `utilities.electricity.co2_intensity`). Take every row's `value_2015` in `unit_2015`, so `price_year`
-  is 2015 and `currency` is the currency of those units; cite each row by `id`, `source`, `year`,
-  `url` and `status`. Choose the rows of one key in this order:
+  `utilities.electricity.co2_intensity`). Take every row's `value_2015` in `unit_2015`: EUR at
+  2015 prices, so `ask_economics` sets `currency` EUR and `price_year` 2015 itself; never ask the
+  user for either. Cite each row by `id`, `source`, `year`, `url` and `status`. Choose the rows
+  of one key in this order:
   1. a sourced row (`verified` or `secondary`) beats a `placeholder`, which has no source;
   2. a `verified` row beats a `secondary` one;
   3. when several rows remain with different values, recommend the one of the latest `year`
@@ -129,17 +133,26 @@ Where each value comes from:
      can choose another. A key with only placeholder rows is named so, with no value of yours.
   A row's unit must be one the key accepts (`describe_case("economics.<key>")`); a basis word
   after it is no other unit (`EUR/W heat` is `EUR/W`, `EUR/MWh (GCV)` is `EUR/MWh`, `EUR/t CO2e`
-  is `EUR/t`), and gemini converts between the units a key accepts. A row whose unit the key
-  does not accept (`EUR/MW/yr` for `opex.fixed.pipe` in `%/yr`) never goes in: list it as not
-  usable with both units. A key may take several bases, each its unit (`capex.ice_storage` in
+  is `EUR/t`), and gemini converts between the units a key accepts. Give the unit as the row
+  writes it, basis word included: `ask_economics` sets the unit before the word and shows the
+  user the row's basis beside the key's. The ESP rows of `capex.production_pump` are per W
+  electric (the motor's rating) while the key is per W of shaft power: say so in `note`. A row
+  whose unit the key does not accept (`EUR/MW/yr` for `opex.fixed.pipe` in `%/yr`) never goes
+  in: list it as not usable with both units. Rows kept for reference only are never a value nor
+  in `others`: the `opex.variable.waste_disposal` rows in `EUR/m3` or `t/m3` (the key takes
+  `EUR/kg`) and the two `discount-rate-pbl-sde-2026-erratum` rows (secondary, not confirmed as
+  geothermal). A key may take several bases, each its unit (`capex.ice_storage` in
   `EUR/m3` or `EUR/MWh`, `capex.pipe` in `EUR/m` or `EUR/MW/m`): take the row's unit as it is. A
   path outside `economics.` (`utilities.electricity.co2_intensity`) is a case value: it goes in
   with `set_case` and the one confirmation question. A key with no row is asked for in 5.
 - Three economics parts gemini 0.6.2 added, each with a rule of its own:
   - `opex.per_energy.<kind>`: a variable O&M per MWh each kind produces (`chp` its electricity;
     `boiler`, `electric_boiler`, `heat_pump` their heat; the chillers their cold). Once the map
-    is given, gemini needs a price for every producing kind the plant uses: put its keys in
-    `values` only when a row gives every kind the case's services may need, else all in `open`.
+    is given, gemini needs a price for every producing kind the plant uses. The catalogue has
+    rows for `boiler`, `electric_boiler`, `heat_pump` and `chp`: put all four in `values`. It
+    has none for the chillers: a case with cooling names `compression_chiller`,
+    `absorption_chiller` and `adsorption_chiller` in `open`, and `note` says the plant's chillers
+    need the user's price, or the per-energy map cannot price a plant that uses one.
   - `revenue.subsidy`: `amount` (per year, or per MWh as SDE++ pays) and `duration` (it earns
     nothing without both); `cap` limits the heat it is paid on, in `MWh/yr` or in full-load
     hours (`h/yr`), and a cap in hours needs `capacity`, the MW the subsidy is granted for: a
@@ -188,9 +201,13 @@ of):
   `count`; `count` is a number of units. A cap per step is `over: each`; a share of demand left
   unmet is `unmet_share`. A rule the requirement options cannot say is kept in the case's
   `about` and named as open.
-- The outside air pressure (`site.air.pressure`): search the files and the knowledge base for it
-  or for the site's elevation (step 2). With neither, the ONE question asks the user for the air
-  pressure or the site's elevation, with no number of yours. With an elevation, from a file or
+- The outside air (`site.air.temperature`, `relative_humidity`, `pressure`): search the files and
+  the knowledge base first (step 2). When a weather or elevation server is connected, read the
+  values or the elevation from it before any question; when only the site's location is
+  missing, the question asks for the location (place or coordinates), never for the values a
+  server gives. `relative_humidity` is a fraction 0-1 (0.8, not 80 %): a question that asks for
+  it says so. With no source, the ONE question asks the user for the air pressure or the site's
+  elevation, with no number of yours. With an elevation, from a file or
   the user, give `"pressure": {"elevation": {"value": 12, "unit": "m"}}` under `site.air`:
   `set_case` sets the ISA pressure (ISO 2533:1975) and lists it in `converted`. Show that value
   to the user for confirmation, in the ONE question or, when the elevation came in its answer, in
