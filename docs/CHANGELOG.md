@@ -15,6 +15,7 @@ Rounds D1 to D3 had started the engineers from a class plant given by its header
 - Fix (#76): `evaluate_module` checks parameter and control names before gemini: a control given as a parameter (`temperature_setpoint` of a heat pump) raised a bare `KeyError` in gemini, seen as `internal`; it is `invalid_input` now, saying to give it in `controls`, and an unknown name gets close matches.
 - Fix (#77): the process engineer builds from the project's plant file of the chosen class (`read_plant(project_plant=...)`), which holds every value; `read_plant(plant_class=...)` gives a header and modules only.
 - Docs: `patch_plant` takes every value of one module or several in one patch.
+- Fix (#78): the design lead records `design.reference` and `design.result` before every `finish`, also for a handed design it only checked; nemotron finished with the verdict in its answer alone.
 
 ### Shared rules for every agent, gemini's module reference, and set_case loads the files the case names (0.4.22.dev47)
 

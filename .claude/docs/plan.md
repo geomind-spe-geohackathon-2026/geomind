@@ -270,6 +270,7 @@ Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/C
 | 75 | D3, process engineer | two garbled calls in a row (`">site</</parameter_name...`) counted as invalid calls and ended the run as failed; `">HackathonPlant</` was not caught | a markup slip is an error but no validation failure; a lone `</` or a leading `">` counts as markup; prose tools (`finish`, `ask_user`, `update_state`, `write_lesson`) are not checked | track-b |
 | 76 | B2, energy engineer | `evaluate_module` with a control as a parameter (`temperature_setpoint`) gave `internal` (gemini's bare `KeyError`), then misleading "missing inlets", five times until the run stopped | names checked before gemini: `invalid_input` with where it goes | track-b2 |
 | 77 | B2, process engineer | built from `read_plant(plant_class=...)`, a header with 110 values missing, while the project held the class's whole file | the prompt prefers the project plant of the class | track-b2 |
+| 78 | B2, design lead (nemotron) | checked a handed design feasible, then finished without `design.reference` and `design.result`; DeepSeek records them | the prompt asks for the record before every `finish` | track-b2 |
 | 50 | A1, all | models saw only the first paragraph of each tool's docstring | the whole docstring but its `NOTE:` paragraphs | `768f396` |
 
 ### The adaptation to gemini 0.5 (done) and what is open
