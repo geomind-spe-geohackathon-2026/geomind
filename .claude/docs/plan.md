@@ -289,6 +289,20 @@ Each per-agent task on both models, the same fixtures, prompts and commit, no pr
 | reviewer/fails | E | nemotron (n3) | pass | yes | 4 | 6 | 0 | 45776/8672/7947 | 47.6 | 0.0000 |
 | reviewer/passes | E | deepseek (e4) | pass | yes | 10 | 15 | 1 | 130589/44022/13019 | 161.0 | 0.0093 |
 | reviewer/passes | E | nemotron (n2) | pass | yes | 3 | 6 | 0 | 34632/4336/4076 | 22.7 | 0.0000 |
+| case_lead/project | A | deepseek-v4.1-flash | fail | no case: no set_case accepted; stopped by the repeat guard (same files-only set_case failed 3 times) | 34 | 78 | 18 | 1647092/1116919/64428 | 800 | 0.0536 |
+| case_lead/from_files | A | deepseek-v4.1-flash | fail | no case; capped at 0.07; `sourced` flags the cap message's numbers | 31 | 90 | 14 | 1521181/1007755/68017 | 889 | 0.0542 |
+| case_lead/from_chat | A | deepseek-v4.1-flash | fail | case accepted by gemini; capped at 0.03 before finishing; `sourced` flags the cap message's numbers | 8 | 35 | 1 | 293854/174117/18399 | 208 | 0.0136 |
+| case_lead/flawed | A | deepseek-v4.1-flash | fail | capped at 0.03 before any question; `sourced` flags the cap message's numbers | 12 | 25 | 2 | 315193/104621/31755 | 388 | 0.0226 |
+| case_lead/change_one | A | deepseek-v4.1-flash | pass | case accepted by gemini, sourced | 7 | 7 | 1 | 79659/69623/9768 | 76 | 0.0053 |
+| case_lead/question | A | deepseek-v4.1-flash | pass | sourced | 3 | 4 | 1 | 31888/0/3911 | 39 | 0.0029 |
+| geoscientist/brief | A | deepseek-v4.1-flash | pass | sourced | 6 | 10 | 1 | 69932/25088/14154 | 173 | 0.0083 |
+| case_lead/project | A | nemotron-3.5-super (free) | fail | case accepted by gemini, sourced, no economics; fails `before` (no search_rag before ask_user) | 14 | 18 | 4 | 331361/268832/50318 | 281 | 0.0000 |
+| case_lead/from_files | A | nemotron-3.5-super (free) | fail | case accepted (no economics); fails `before`; run error: economics sent twice as broken JSON text | 14 | 19 | 7 | 415328/260160/64253 | 318 | 0.0000 |
+| case_lead/from_chat | A | nemotron-3.5-super (free) | pass | case accepted by gemini, sourced | 8 | 13 | 2 | 107806/73712/11742 | 72 | 0.0000 |
+| case_lead/flawed | A | nemotron-3.5-super (free) | fail | no question asked: took the project as having no case file; flaws not raised | 5 | 8 | 3 | 103939/52032/8036 | 46 | 0.0000 |
+| case_lead/change_one | A | nemotron-3.5-super (free) | pass | case accepted by gemini, sourced | 3 | 3 | 0 | 34282/17344/631 | 14 | 0.0000 |
+| case_lead/question | A | nemotron-3.5-super (free) | pass | sourced | 3 | 3 | 1 | 33132/26016/1373 | 9 | 0.0000 |
+| geoscientist/brief | A | nemotron-3.5-super (free) | pass | sourced | 4 | 4 | 1 | 31619/13008/5265 | 32 | 0.0000 |
 
 Track C, round C4 at 39c4003: 5 of 5 on each model, no 429, no markup check firing. nemotron took fewer calls and a third to a half the time on the lead's two longer tasks; its failed calls are `update_state` slips (JSON text, a stray bracket), each corrected on the next call. Both models failed the same way only where the prompt was wrong (#85, #88, #90).
 
@@ -297,6 +311,8 @@ Track D notes: no 429 on nemotron (nine tasks two at a time). Nemotron called me
 Track B2 notes: Big differences: DeepSeek pinned to its own provider takes 30 to 90 s a call (reservoir 451 s for 6 calls), nemotron 4 to 20 s; that is the model and the provider, not the prompt. Before the prompt fixes DeepSeek also looped where nemotron did not (integration 18 calls, energy 18 calls); after #79 to #81 the counts are close, so that part was the prompt. Both models converted units in their answers (#80), a prompt matter. The markup check of #70/#75 never fired on nemotron.
 
 Track E notes: `deepseek/deepseek-v4.1-flash-1017` (provider DeepSeek) and `nvidia/nemotron-3.5-super-vl:free` (no pin, two at a time, retries 6 x 10 s; no 429 in track E). Round in brackets; tokens are input/cached/output; DeepSeek's coordinator and lead `needs_case` rows are their E1/E2 recordings scored again with the corrected criteria (e6, no new call).
+
+Track A notes (case team, dev51 at 1a50f61): DeepSeek (provider DeepSeek) capped at 0.15 for the project case and 0.03/0.07 for the six tasks; nemotron at no pin, two at a time, retries 6 x 10 s; no 429 on either. Model and tool calls count the geoscientist's calls inside the lead's run; failed counts every refused tool call and refused answer, from an offline replay. DeepSeek passes 3 of 6 tasks: three ran out of their caps, and its project case set nothing (four `already_asked` geoscientist calls, then a files-only `set_case` repeated until the repeat guard stopped the run). nemotron passes 4 of 6 and sets the project case gemini accepts, without economics, but never calls `search_rag` before asking. Both models first sent the gradient as °C/km and the gas fractions as mol% (80), which gemini's case keys refuse.
 
 Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/CHANGELOG.md)):
 
