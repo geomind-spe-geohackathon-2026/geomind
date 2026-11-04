@@ -230,10 +230,30 @@ cap is 5 USD (1.66 USD spent before the team).
 | C2 | the case team alone again, after #61 to #63 | 0.08 | 3.77 | 6 of 6 passed; one self-computed dew point (#64) |
 | TA1 | Track A after dev43 (compact tree, run-long pages, columns), six tasks | 0.16 | 4.20 | 4 of 6; from_files at its cap; cache cold after the prompt change, 10 `read_stored` left |
 | TA2 | Track A after dev44, provider pinned to DeepSeek (`GEOMIND_PROVIDER=deepseek`) | 0.035 | 4.24 | 4 of 6 by the criteria; from_files 39 → 15 model calls and 0.069 → 0.011 USD, but stopped on #65; total 0.112 → 0.035 USD |
+| TC1-4 | Track C: the analysis lead and the economist alone, 5 tasks, rounds C1 to C4 (C2 on, both DeepSeek and nemotron) | 0.19 | | C1 2 of 4; C4 5 of 5 on both models; bugs #85 to #90 |
 | A2 | the 6 agents the fixes touched, alone again | 0.29 | 2.38 | 5 passed; the case lead now asks for the values with no source (#44 working), so its task's fixed answer must change |
 | D1 | the design team alone: process, integration, reservoir, well and energy engineers and the design lead, one task each on the C1 case, 0.08 cap each | 0.38 | — | 1 of 6 passed (integration); four engineers stopped at their cap; bugs #70 to #72 |
 | D2 | the same six after #70 to #72, 0.065 cap each | 0.26 | — | the lead's verdict and records right at a third of D1's cost; the engineers still at their cap; bugs #73 and #74 |
 | D3 | the process and well engineers after #73 and #74, 0.06 cap each | 0.09 | — | the well engineer's failed module calls fell from 8 to 1 and it patched; the process engineer's run still ended on two garbled calls (#75) |
+
+### Model comparison
+
+Each per-agent task on both models, the same fixtures, prompts and commit, no provider pin for nemotron. Correctness: every number checked against gemini's own (the `number` criteria), every value sourced and none worked out (`sourced`). Tokens are input/cached/output.
+
+| agent | track | model | pass | correctness | model calls | tool calls | failed | tokens | seconds | USD |
+|---|---|---|---|---|---|---|---|---|---|---|
+| analysis_lead/costs | C | deepseek-v4.1-flash | pass | gemini's numbers, sourced, none computed | 10 | 15 | 0 | 136452/81874/12780 | 167.2 | 0.0083 |
+| analysis_lead/costs | C | nemotron-3.5-super (free) | pass | gemini's numbers, sourced, none computed | 7 | 7 | 1 | 85421/39024/8146 | 46.7 | 0.0000 |
+| analysis_lead/operating | C | deepseek-v4.1-flash | pass | gemini's numbers, sourced, none computed | 3 | 4 | 0 | 38089/32242/3900 | 33.0 | 0.0022 |
+| analysis_lead/operating | C | nemotron-3.5-super (free) | pass | gemini's numbers, sourced, none computed | 3 | 3 | 0 | 36814/26016/977 | 15.0 | 0.0000 |
+| analysis_lead/sensitivity | C | deepseek-v4.1-flash | pass | gemini's numbers, sourced, none computed | 22 | 34 | 1 | 327521/164281/25059 | 240.4 | 0.0181 |
+| analysis_lead/sensitivity | C | nemotron-3.5-super (free) | pass | gemini's numbers, sourced, none computed | 10 | 11 | 0 | 131176/60704/5356 | 39.7 | 0.0000 |
+| economist/cost | C | deepseek-v4.1-flash | pass | gemini's numbers, sourced, none computed | 4 | 5 | 0 | 42127/16373/5912 | 58.7 | 0.0037 |
+| economist/cost | C | nemotron-3.5-super (free) | pass | gemini's numbers, sourced, none computed | 4 | 5 | 0 | 45870/34688/2827 | 17.1 | 0.0000 |
+| economist/uncertainty | C | deepseek-v4.1-flash | pass | gemini's numbers, sourced, none computed | 8 | 10 | 0 | 101590/36332/10042 | 97.7 | 0.0071 |
+| economist/uncertainty | C | nemotron-3.5-super (free) | pass | gemini's numbers, sourced, none computed | 6 | 8 | 1 | 74420/52032/2835 | 68.1 | 0.0000 |
+
+Track C, round C4 at 39c4003: 5 of 5 on each model, no 429, no markup check firing. nemotron took fewer calls and a third to a half the time on the lead's two longer tasks; its failed calls are `update_state` slips (JSON text, a stray bracket), each corrected on the next call. Both models failed the same way only where the prompt was wrong (#85, #88, #90).
 
 Bugs found by the team's runs (the earlier 41 are in [CHANGELOG.md](../../docs/CHANGELOG.md)):
 
