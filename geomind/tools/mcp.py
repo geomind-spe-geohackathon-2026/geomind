@@ -1,10 +1,14 @@
-"""The run's MCP servers, offered as three tools: ``list_mcp``, ``read_mcp`` and ``call_mcp``.
+"""The run's MCP servers as tools: ``list_mcp``, ``read_mcp``, ``call_mcp``, ``save_mcp_table``.
 
-``list_mcp`` lists the servers and their tools, each with ``read_only`` (its ``readOnlyHint``).
-``read_mcp`` calls a read-only tool only; ``call_mcp`` calls any, and a call of a tool that is not
-read-only has the effect ``external``, so the ``ask`` mode asks for its approval. Every answer
-carries its origin (server, tool, time): a value from it enters the case or the plant only after
-the user confirms it, as any value no project file gives.
+``list_mcp`` lists the servers and their tools, each with ``read_only`` (its ``readOnlyHint``)
+and its arguments, short enough to stay in the history; ``list_mcp(server, tool)`` gives one tool's
+whole ``input_schema``. ``read_mcp`` calls a read-only tool only; ``call_mcp`` calls any, and a call
+of a tool that is not read-only has the effect ``external``, so the ``ask`` mode asks for its
+approval. A call whose arguments the schema or the server refuses answers with the schema. Every
+answer carries its origin (server, tool, time, arguments, the tool's description, ``future``) and
+its tables, and is kept as the artifact ``answer``; ``save_mcp_table`` saves one of its tables as
+a case file, times in UTC. A value from a server enters the case or the plant only after the user
+confirms it, as any value no project file gives.
 
 NOTE: before 0.4.22.dev42 each server tool was a tool of its own, ``<server>__<tool>``; a replay
 of such a log reuses the recorded answers through ``RecordedMcpTool``.
@@ -12,13 +16,31 @@ of such a log reuses the recorded answers through ``RecordedMcpTool``.
 
 import copy
 import difflib
+import hashlib
+import json
 from datetime import datetime, timezone
 from typing import Any
 
 from geomind.errors import ToolError
 from geomind.mcp import McpClient, McpError
+from geomind.mcp.answers import (
+    TEXT_CHARACTERS,
+    TIME_COLUMN,
+    argument_problem,
+    is_future,
+    rows_of,
+    safe_file_name,
+    short_structured,
+    summary_of,
+    table_csv,
+    tables_of,
+    tool_outline,
+    tzinfo_of,
+    zone_of,
+)
 from geomind.mcp.client import as_server
 from geomind.tools.base import Tool, tool
+from geomind.tools.stored import STORE_CHARACTERS
 from geomind.utils.strings import join_names
 
 SEPARATOR = "__"
@@ -49,10 +71,23 @@ class Servers:
         self.timeout = timeout
         self.transport = transport
 
-    def listing(self, tool_name, server=None):
-        """Return ``[{server, name, description, read_only, input_schema}]`` of one or all."""
+    def listing(self, tool_name, server=None, name=None):
+        """Return the outline of the tools of one server or all, or one tool's whole row.
+
+        The outline is ``[{server, name, read_only, summary, arguments}]``; with ``name`` it is
+        ``[{server, name, description, read_only, input_schema}]`` of that tool alone.
+        """
+        if name is not None:
+            if server is None:
+                raise ToolError(
+                    f"{tool_name}: tool = {name!r} and no server; expected the server too, one of "
+                    f"{join_names(self.servers)}",
+                    path="server",
+                    suggestions=list(self.servers),
+                )
+            return [{"server": server, **self.row(tool_name, server, name)}]
         names = [self._server(tool_name, server)] if server is not None else list(self.rows)
-        return [{"server": name, **row} for name in names for row in self.rows[name].values()]
+        return [tool_outline(item, row) for item in names for row in self.rows[item].values()]
 
     def _server(self, tool_name, server):
         """Return a server's name, or raise ``unknown_name`` with the servers."""
@@ -78,21 +113,80 @@ class Servers:
         )
 
     async def call(self, tool_name, server, name, arguments):
-        """Call one tool through a new connection; its text, structured content and origin."""
-        self.row(tool_name, server, name)
+        """Call one tool through a new connection; its text, structured content and origin.
+
+        Arguments the tool's ``input_schema`` refuses never reach the server; a refusal, the
+        schema's or the server's, carries the schema.
+        """
+        row = self.row(tool_name, server, name)
+        problem = argument_problem(row["input_schema"], arguments)
+        if problem is not None:
+            path, message, suggestions = problem
+            raise ToolError(
+                f"{tool_name}: {server}/{name}: {message}{schema_note(row)}",
+                path=path,
+                suggestions=suggestions,
+            )
         origin = {
             "server": server,
             "tool": name,
             "time": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "arguments": arguments,
+            "tool_description": summary_of(row["description"]),
         }
         try:
             async with McpClient(self.servers[server], self.timeout, self.transport) as client:
                 answer = await client.call_tool(name, arguments)
         except McpError as error:
+            if error.code == "invalid_arguments":
+                message = f"{tool_name}: {error}{schema_note(row)}"
+                raise ToolError(message, path="arguments") from None
             raise ToolError(f"{tool_name}: {error}", code="mcp_unavailable") from None
         if answer["is_error"]:
-            raise ToolError(f"{tool_name}: {server}/{name}: {answer['text'] or 'the tool failed'}")
+            raise ToolError(
+                f"{tool_name}: {server}/{name}: {answer['text'] or 'the tool failed'}"
+                f"{schema_note(row)}"
+            )
         return {"text": answer["text"], "structured": answer["structured"], "origin": origin}
+
+
+def schema_note(row):
+    """Return the end of a refusal of arguments: the tool's whole ``input_schema``."""
+    schema = json.dumps(row["input_schema"], ensure_ascii=False)
+    return f". The tool's input_schema: {schema}"
+
+
+def answer_key(server, name, arguments):
+    """Return the artifact key of the answer of one call: the same call has the same key."""
+    called = json.dumps([server, name, arguments], sort_keys=True, ensure_ascii=False)
+    return f"mcp-{hashlib.sha256(called.encode()).hexdigest()[:16]}"
+
+
+SHORT_NOTE = (
+    "the answer is long: this is its short form. read_stored(reference=<answer>, path=<a table's "
+    "path>) reads a part; save_mcp_table(answer, table, file) saves a table as a case file"
+)
+
+
+async def kept_answer(context, called):
+    """Return an answer for the model, kept whole as the artifact ``answer``.
+
+    It leads with its origin (``future`` when a date lies after the call), the artifact's key and
+    its tables (path, rows, columns, units, time zone, first and last time), so the model sees
+    the structured part and its units before the text. A long answer comes back short: the
+    structured content without its tables and the head of the text.
+    """
+    origin, structured, text = called["origin"], called["structured"], called["text"]
+    tables = tables_of(structured)
+    origin = {**origin, "future": is_future(origin["arguments"], tables, origin["time"])}
+    key = answer_key(origin["server"], origin["tool"], origin["arguments"])
+    whole = {"origin": origin, "answer": key, "tables": tables, "structured": structured}
+    whole["text"] = text
+    await context.session.save_artifact(key, whole)
+    if len(json.dumps(whole, ensure_ascii=False)) <= STORE_CHARACTERS:
+        return whole
+    head = text if len(text) <= TEXT_CHARACTERS else text[: TEXT_CHARACTERS - 1] + "…"
+    return {**whole, "structured": short_structured(structured), "text": head, "note": SHORT_NOTE}
 
 
 def servers_of(context, tool_name):
@@ -136,23 +230,36 @@ class CallTool(ServerTool):
         return reading
 
 
-@tool(effect="read")
-def list_mcp(context, server: str | None = None):
+LIST_NOTE = (
+    "each tool's arguments are name: type; list_mcp(server, tool) gives one tool's description "
+    "and whole input_schema"
+)
+
+
+@tool(effect="read", keeps_result="run")
+def list_mcp(context, server: str | None = None, tool: str | None = None):
     """List the connected MCP servers and their tools, of one ``server`` or of all.
 
-    Returns ``tools``, each ``{server, name, description, read_only, input_schema}``;
-    ``input_schema`` is the ``arguments`` the tool takes. Call a read-only tool with
-    ``read_mcp``, any other with ``call_mcp``.
+    Returns ``tools``, each ``{server, name, read_only, summary, arguments}``: ``arguments`` is
+    ``{name: type}``, ``required`` marked. ``list_mcp(server, tool)`` returns that tool alone,
+    ``{server, name, description, read_only, input_schema}``. Call a read-only tool with
+    ``read_mcp``, any other with ``call_mcp``, with the server's name as listed.
     """
-    return {"tools": servers_of(context, "list_mcp").listing("list_mcp", server)}
+    listing = servers_of(context, "list_mcp").listing("list_mcp", server, tool)
+    return {"tools": listing} if tool is not None else {"tools": listing, "note": LIST_NOTE}
 
 
-@tool(effect="read")
+@tool(effect="read", keeps_result="run")
 async def read_mcp(context, server: str, tool: str, arguments: dict[str, Any]):
     """Call a read-only tool of a connected MCP server, with its ``arguments``.
 
-    Returns ``text``, ``structured`` and ``origin`` (server, tool, time): cite a value with its
-    origin. A tool that is not read-only answers ``not_read_only``: call it with ``call_mcp``.
+    Returns ``origin`` (server, tool, time, arguments, the tool's description and ``future``,
+    true when a date lies after the call: a forecast or a projection, never a measurement),
+    ``answer`` (the key of the whole answer, for ``read_stored`` and ``save_mcp_table``),
+    ``tables`` (each table's path, rows, columns, units, time zone, first and last time),
+    ``structured`` and ``text``; a long answer comes back short. Cite a value with its origin.
+    Arguments the tool refuses come back with its ``input_schema``. A tool that is not read-only
+    answers ``not_read_only``: call it with ``call_mcp``.
     """
     servers = servers_of(context, "read_mcp")
     if not servers.row("read_mcp", server, tool)["read_only"]:
@@ -162,23 +269,138 @@ async def read_mcp(context, server: str, tool: str, arguments: dict[str, Any]):
             code="not_read_only",
             path="tool",
         )
-    return await servers.call("read_mcp", server, tool, arguments)
+    return await kept_answer(context, await servers.call("read_mcp", server, tool, arguments))
 
 
-@tool(effect="external", idempotent=False)
+@tool(effect="external", idempotent=False, keeps_result="run")
 async def call_mcp(context, server: str, tool: str, arguments: dict[str, Any]):
     """Call any tool of a connected MCP server, with its ``arguments``.
 
-    A tool that is not read-only asks the user's approval before it runs. Returns ``text``,
-    ``structured`` and ``origin`` (server, tool, time): cite a value with its origin.
+    A tool that is not read-only asks the user's approval before it runs. Returns the same as
+    ``read_mcp``: ``origin``, ``answer``, ``tables``, ``structured`` and ``text``; cite a value
+    with its origin.
     """
-    return await servers_of(context, "call_mcp").call("call_mcp", server, tool, arguments)
+    called = await servers_of(context, "call_mcp").call("call_mcp", server, tool, arguments)
+    return await kept_answer(context, called)
+
+
+def stored_answer(context, answer):
+    """Return the whole answer an ``answer`` key names, or raise ``unknown_name``."""
+    found = context.session.load_artifact(answer) if answer.startswith("mcp-") else None
+    if not isinstance(found, dict) or "origin" not in found:
+        raise ToolError(
+            f"save_mcp_table: answer = {answer!r}; expected the `answer` of a read_mcp or "
+            "call_mcp result, mcp-...",
+            code="unknown_name",
+            path="answer",
+        )
+    return found
+
+
+def table_rows(whole, table):
+    """Return the rows of the table at ``table`` of an answer, or raise naming its tables."""
+    paths = [item["path"] for item in whole.get("tables") or ()]
+    rows = None
+    if table in paths:
+        rows = rows_of((whole.get("structured") or {}).get(table.removeprefix("structured.")))
+    if rows is None:
+        raise ToolError(
+            f"save_mcp_table: table = {table!r}; expected the path of a table of the answer, one "
+            f"of {join_names(paths) if paths else 'none: the answer has no table'}",
+            code="unknown_name",
+            path="table",
+            suggestions=paths,
+        )
+    if any(TIME_COLUMN not in row for row in rows):
+        raise ToolError(
+            f"save_mcp_table: table = {table!r} has rows without a {TIME_COLUMN!r} column; "
+            "expected a time series, one time per row",
+            path="table",
+        )
+    return rows
+
+
+def table_zone(whole, time_zone):
+    """Return ``(zone name, tzinfo)`` of an answer's times: the answer's, else ``time_zone``."""
+    named = zone_of(whole.get("structured"))
+    if named is not None and time_zone is not None and time_zone != named:
+        raise ToolError(
+            f"save_mcp_table: time_zone = {time_zone!r}, but the answer names its times in "
+            f"{named!r}; expected no time_zone, or {named!r}",
+            path="time_zone",
+            suggestions=[named],
+        )
+    zone = named or time_zone
+    if zone is None:
+        raise ToolError(
+            "save_mcp_table: time_zone = None, and the answer names no time zone; expected the "
+            "IANA zone its times are in, as the server's text or the call's arguments give it",
+            path="time_zone",
+        )
+    return zone, tzinfo_of(zone, "save_mcp_table")
+
+
+@tool(effect="write", reruns_in_replay=True)
+async def save_mcp_table(context, answer: str, table: str, file: str, time_zone: str | None = None):
+    """Save a table of an MCP answer as a case file, its times in UTC, with its origin beside it.
+
+    ``answer`` is the ``answer`` of a ``read_mcp`` or ``call_mcp`` result and ``table`` the
+    ``path`` of one of its ``tables`` (``structured.daily``). ``file`` is the file name, made
+    safe (``data/open-meteo_trondheim_2025.csv``). ``time_zone`` is the IANA zone of the times,
+    only for an answer that names none. The file has the column ``time`` in UTC and one column
+    per value; the origin (server, tool, time, arguments, ``future``) is saved as
+    ``<file>.origin.json``. Returns ``file``, ``columns``, ``units``, ``rows``, ``time_zone``,
+    ``first``, ``last`` and ``origin``: name the file and a column as the ``file`` and
+    ``column`` of a series in ``set_case``, with the unit ``units`` gives.
+    """
+    from geomind.tools.gemini.case import CASE_FILE
+
+    whole = stored_answer(context, answer)
+    rows = table_rows(whole, table)
+    given, file = file, safe_file_name(file)
+    if file is None:
+        raise ToolError(
+            f"save_mcp_table: file = {given!r}; expected a file name such as 'data/air.csv'",
+            path="file",
+        )
+    zone, tzinfo = table_zone(whole, time_zone)
+    try:
+        content, columns = table_csv(rows, tzinfo)
+    except ValueError as error:
+        raise ToolError(
+            f"save_mcp_table: table = {table!r}: a time is no ISO date or time ({error})",
+            path="table",
+        ) from None
+    origin_file = f"{file.removesuffix('.csv')}.origin.json"
+    origin = {**whole["origin"], "answer": answer, "table": table}
+    await context.session.save_artifact(f"{CASE_FILE}{file}", content)
+    origin_text = json.dumps(origin, indent=2, ensure_ascii=False).encode()
+    await context.session.save_artifact(f"{CASE_FILE}{origin_file}", origin_text)
+    [described] = [item for item in whole["tables"] if item["path"] == table]
+    units = described["units"] or {}
+    lines = content.decode().splitlines()
+    return {
+        "file": file,
+        "origin_file": origin_file,
+        "columns": columns,
+        "units": {column: units[column] for column in columns if column in units},
+        "rows": len(rows),
+        "time_zone": {"from": zone, "to": "UTC"},
+        "first": lines[1].split(",", 1)[0],
+        "last": lines[-1].split(",", 1)[0],
+        "origin": whole["origin"],
+    }
 
 
 list_mcp = ServerTool(list_mcp)
 read_mcp = ServerTool(read_mcp)
 call_mcp = CallTool(call_mcp)
-MCP_TOOLS = {"list_mcp": list_mcp, "read_mcp": read_mcp, "call_mcp": call_mcp}
+MCP_TOOLS = {
+    "list_mcp": list_mcp,
+    "read_mcp": read_mcp,
+    "call_mcp": call_mcp,
+    "save_mcp_table": save_mcp_table,
+}
 """The tools an agent with tools is offered when the run has a server."""
 
 

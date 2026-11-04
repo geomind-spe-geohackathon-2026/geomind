@@ -14,6 +14,7 @@ from geomind.prompts.prompt import (
     STORED_RESULTS,
 )
 from geomind.tools.base import with_old_names
+from geomind.tools.mcp import MCP_TOOLS
 from geomind.tools.stored import shortened_message
 from geomind.types import Message
 
@@ -147,10 +148,13 @@ class Context:
 
 
 def kept_calls(messages, agent):
-    """Return ``{call id: keeps_result}`` of the calls whose tool keeps its results."""
+    """Return ``{call id: keeps_result}`` of the calls whose tool keeps its results.
+
+    The MCP tools count too: the session offers them beside the agent's own (E2E-4).
+    """
     if agent is None:
         return {}
-    tools = with_old_names(agent.tools())
+    tools = with_old_names({**MCP_TOOLS, **agent.tools()})
     return {
         call.id: getattr(tools.get(call.name), "keeps_result", False)
         for item in messages

@@ -1,0 +1,828 @@
+[
+ {
+  "name": "openmeteo_search_locations",
+  "description": "Resolve a place name to ranked coordinate matches with country, region, elevation, timezone, and population. Required prerequisite for name-based queries — all weather tools take latitude/longitude, not place names. Search by a bare place name (city, region, or landmark); never fold a qualifier into it — pass \"Baoding\", not \"Baoding Hebei\", and \"Paris\", not \"Paris, France\". To disambiguate places that share a name, set the country input (ISO 3166-1 alpha-2, e.g. \"US\") and/or read the admin1 and country fields on each ranked result — admin1 is a result field for choosing among matches, not a search input. Returns up to 10 matches ranked by population/relevance.",
+  "inputSchema": {
+   "type": "object",
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "properties": {
+    "name": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 100,
+     "description": "Place name to search — a bare city, region, or landmark (\"Seattle\", \"Mount Rainier\"). Do not fold in a region or country qualifier (\"Baoding\", not \"Baoding Hebei\"); use the country input to disambiguate. A one- or two-character native-script name (\"서울\", \"大阪\") needs the full administrative name (\"서울특별시\", \"大阪市\") or the romanized name (\"Seoul\", \"Osaka\") — see the language field. Weather tools require coordinates — use the lat/lon from this result."
+    },
+    "country": {
+     "description": "ISO 3166-1 alpha-2 country code (e.g. \"US\", \"FR\") to disambiguate places that share a name. Omit for a global search.",
+     "type": "string",
+     "pattern": "^[A-Za-z]{2}$"
+    },
+    "count": {
+     "default": 5,
+     "description": "Max results to return (1–10). Default 5. Return more when disambiguating common names like \"Springfield\" or \"Portland\".",
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 10
+    },
+    "language": {
+     "default": "en",
+     "description": "Language for matching and returning place names (ISO 639-1, e.g., \"en\", \"de\", \"zh\"). The API matches name against the localized index for this language, so set it to match the script of name — e.g. language \"zh\" for \"上海\", \"ru\" for \"Москва\". This resolves a native-script name of three or more characters, which is matched by normalized prefix; a one- or two-character name must equal an index entry exactly, so setting language alone will not find \"서울\" or \"大阪\" — retry those with the full administrative name (\"서울특별시\", \"大阪市\") or the romanized name (\"Seoul\", \"Osaka\"). Default \"en\"; a query in a recognized non-Latin script (CJK, Hangul, Cyrillic, Arabic, Greek, Hebrew, Thai, Devanagari) that misses under \"en\" is retried once with the language inferred from its script, and effective_language on the response names that language when the retry supplied the results.",
+     "type": "string"
+    }
+   },
+   "required": [
+    "name"
+   ],
+   "additionalProperties": false
+  },
+  "annotations": {
+   "readOnlyHint": true
+  }
+ },
+ {
+  "name": "openmeteo_get_elevation",
+  "description": "Terrain elevation from the Copernicus Digital Elevation Model (~90m resolution) for one or more coordinate pairs. Accepts up to 1,000 pairs and samples the first 100 in one upstream request; when more were submitted, unprocessed_count says how many remain and next_offset is where to resume — resubmit latitudes.slice(next_offset) and longitudes.slice(next_offset) of the arrays just sent, until next_offset is null. Open-Meteo counts each sampled pair as one call against its per-IP limit of 600 a minute, so a seventh full slice inside one minute comes back rate_limited — space later slices about a minute apart. Useful for geographic context, elevation-adjusted weather interpretation, or route planning. A point the DEM has no value for (latitude 90) returns elevation_m null; the other points in the call are unaffected.",
+  "inputSchema": {
+   "type": "object",
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "properties": {
+    "latitudes": {
+     "minItems": 1,
+     "maxItems": 1000,
+     "type": "array",
+     "items": {
+      "type": "number",
+      "minimum": -90,
+      "maximum": 90
+     },
+     "description": "Array of latitudes in decimal degrees (up to 1,000; the first 100 are sampled per call). Must be same length as longitudes."
+    },
+    "longitudes": {
+     "minItems": 1,
+     "maxItems": 1000,
+     "type": "array",
+     "items": {
+      "type": "number",
+      "minimum": -180,
+      "maximum": 180
+     },
+     "description": "Array of longitudes in decimal degrees (up to 1,000; the first 100 are sampled per call). Must be same length as latitudes."
+    }
+   },
+   "required": [
+    "latitudes",
+    "longitudes"
+   ],
+   "additionalProperties": false
+  },
+  "annotations": {
+   "readOnlyHint": true
+  }
+ },
+ {
+  "name": "openmeteo_get_forecast",
+  "description": "Weather forecast for coordinates: hourly and/or daily variables for up to 16 days ahead, with optional past_days (up to 92) for recent history. Use past_days instead of openmeteo_get_historical for dates within the last week, since the archive’s ERA5 components lag by about a week. Returns per-timestamp records — each hourly entry contains a \"time\" field (ISO 8601) plus one key per requested variable; each daily entry contains a \"time\" field (YYYY-MM-DD) plus requested variables. Common hourly variables: temperature_2m, precipitation, wind_speed_10m, relative_humidity_2m, cloud_cover, uv_index, apparent_temperature, precipitation_probability, weather_code, surface_pressure, visibility, wind_direction_10m, wind_gusts_10m, dew_point_2m. Common daily variables: temperature_2m_max, temperature_2m_min, precipitation_sum, wind_speed_10m_max, sunrise, sunset, uv_index_max, precipitation_hours, weather_code. Set current_variables for conditions at this instant — Open-Meteo serves those from 15-minute model data, which is more precise than picking the nearest hourly row, and the response carries a current object plus a current_units map. Set models to compare deterministic models side by side (e.g., [\"ncep_gfs_seamless\", \"ecmwf_ifs025\", \"dwd_icon_seamless\"]) — where they disagree, the forecast is uncertain. With 2+ models every hourly and daily key carries the model name as a suffix (temperature_2m_ecmwf_ifs025); with models omitted the data is Open-Meteo’s best_match blend. A wide window — a large past_days plus many hourly variables — produces thousands of records; these spill to a DataCanvas when canvas is enabled, returning canvas_id and table_name with truncated: true — inspect the staged columns with openmeteo_dataframe_describe, then query the full set with openmeteo_dataframe_query. With canvas disabled they return a bounded preview instead. At least one of current_variables, hourly_variables, or daily_variables is required.",
+  "inputSchema": {
+   "type": "object",
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "properties": {
+    "latitude": {
+     "type": "number",
+     "minimum": -90,
+     "maximum": 90,
+     "description": "Latitude in decimal degrees (e.g., 47.6062 for Seattle). Use openmeteo_search_locations to resolve a place name to coordinates."
+    },
+    "longitude": {
+     "type": "number",
+     "minimum": -180,
+     "maximum": 180,
+     "description": "Longitude in decimal degrees (e.g., -122.3321 for Seattle)."
+    },
+    "current_variables": {
+     "description": "Variables to return for the current instant (e.g., [\"temperature_2m\", \"precipitation\", \"wind_speed_10m\", \"weather_code\"]). Uses Open-Meteo's 15-minute current-conditions data, so it answers \"what is it doing right now?\" without requesting an hourly series and picking a row. Takes the hourly variable names; a daily-only name such as temperature_2m_max comes back null with the unit \"undefined\" and is reported in the notice. Satisfies the variable requirement on its own.",
+     "maxItems": 50,
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "hourly_variables": {
+     "description": "Hourly variables to fetch (e.g., [\"temperature_2m\", \"precipitation\", \"wind_speed_10m\", \"relative_humidity_2m\", \"cloud_cover\", \"uv_index\", \"apparent_temperature\"]). Hourly names only — a daily aggregate such as temperature_2m_max or precipitation_sum belongs in daily_variables and is rejected here. At least one of current_variables, hourly_variables, or daily_variables is required.",
+     "maxItems": 50,
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "daily_variables": {
+     "description": "Daily summary variables (e.g., [\"temperature_2m_max\", \"temperature_2m_min\", \"precipitation_sum\", \"wind_speed_10m_max\", \"sunrise\", \"sunset\", \"uv_index_max\"]). Daily names only — an hourly name such as cloud_cover or temperature_2m belongs in hourly_variables and is rejected here; for a daily summary of an hourly variable use its published aggregate (cloud_cover_max, cloud_cover_mean, cloud_cover_min). At least one of current_variables, hourly_variables, or daily_variables is required.",
+     "maxItems": 50,
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "models": {
+     "description": "Deterministic forecast models to read from, to compare modeling centers side by side. Documented: best_match, ecmwf_ifs, ecmwf_ifs025, ecmwf_aifs025_single, cma_grapes_global, bom_access_global, ncep_gfs_seamless, ncep_gfs_global, ncep_hrrr_conus, ncep_nbm_conus, ncep_nam_conus, ncep_aigfs025, ncep_hgefs025_ensemble_mean, jma_seamless, jma_msm, jma_gsm, kma_seamless, kma_ldps, kma_gdps, dwd_icon_seamless, dwd_icon_global, dwd_icon_global_native, dwd_aicon_global_native, dwd_icon_eu, dwd_icon_eu_native, dwd_icon_d2, dwd_icon_d2_native, dwd_icon_d2_ruc_native, cmc_gem_seamless, cmc_gem_gdps, cmc_gem_rdps, cmc_gem_hrdps, cmc_gem_hrdps_west, meteofrance_seamless, meteofrance_arpege_world, meteofrance_arpege_europe, meteofrance_arome_france, meteofrance_arome_france_hd, italia_meteo_arpae_icon_2i, metno_seamless, metno_nordic, knmi_seamless, knmi_harmonie_arome_europe, knmi_harmonie_arome_netherlands, dmi_seamless, dmi_harmonie_arome_europe, ukmo_seamless, ukmo_global_deterministic_10km, ukmo_uk_deterministic_2km, meteoswiss_icon_seamless, meteoswiss_icon_ch1, meteoswiss_icon_ch2, geosphere_seamless, geosphere_arome_austria, chmi_aladin_seamless, chmi_aladin_central_europe_2km, chmi_aladin_cz_1km. Older spellings such as gfs_seamless, icon_seamless, icon_d2, and gfs_hrrr still resolve. Omit to use Open-Meteo's best_match blend. With 2+ models every hourly and daily column and unit key is suffixed with the model name (temperature_2m_max_ecmwf_ifs025); one model keeps plain names. Regional models serve only their own domain: when every requested model misses the coordinate the call fails as coverage_gap, and when only some do, Open-Meteo drops those and the notice names them, or, when one model is left with unsuffixed columns, says the values cannot be attributed to a model. current_variables takes at most one model. A name outside this list is sent upstream rather than rejected here.",
+     "maxItems": 57,
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "forecast_days": {
+     "default": 7,
+     "description": "Number of forecast days (1–16). Default 7.",
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 16
+    },
+    "past_days": {
+     "default": 0,
+     "description": "Include this many days of past data before today (0–92). Use for recent history — the archive’s ERA5 components lag by about a week. Default 0.",
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 92
+    },
+    "temperature_unit": {
+     "default": "celsius",
+     "description": "Temperature unit. Default \"celsius\".",
+     "type": "string",
+     "enum": [
+      "celsius",
+      "fahrenheit"
+     ]
+    },
+    "wind_speed_unit": {
+     "default": "kmh",
+     "description": "Wind speed unit: \"kmh\" (km/h), \"mph\", \"ms\" (m/s), or \"kn\" (knots). Default \"kmh\".",
+     "type": "string",
+     "enum": [
+      "kmh",
+      "mph",
+      "ms",
+      "kn"
+     ]
+    },
+    "precipitation_unit": {
+     "default": "mm",
+     "description": "Precipitation unit: \"mm\" or \"inch\". Default \"mm\".",
+     "type": "string",
+     "enum": [
+      "mm",
+      "inch"
+     ]
+    },
+    "timezone": {
+     "default": "auto",
+     "description": "IANA timezone (e.g., \"America/Los_Angeles\") or \"auto\" to use the location's local timezone. Default \"auto\". The timezone from openmeteo_search_locations is ideal to pass here.",
+     "type": "string"
+    },
+    "canvas_id": {
+     "description": "DataCanvas token for wide past_days or multi-variable queries. When a result is too large to return inline — driven by total payload size, so a wide multi-variable pull can spill at any row count — it spills to this canvas: pass the returned token to openmeteo_dataframe_describe to list the staged table and its columns, then to openmeteo_dataframe_query to run SQL against it. Omit to create a fresh canvas.",
+     "type": "string",
+     "pattern": "^[A-Za-z0-9_-]{10}$"
+    }
+   },
+   "required": [
+    "latitude",
+    "longitude"
+   ],
+   "additionalProperties": false
+  },
+  "annotations": {
+   "readOnlyHint": true
+  }
+ },
+ {
+  "name": "openmeteo_get_historical",
+  "description": "Historical weather from the Open-Meteo reanalysis archive (1940–present). Requires start_date and end_date (ISO 8601 date, e.g., \"2024-07-01\"). With models omitted the archive answers from Best Match, which blends IFS HRES, ERA5, and ERA5-Land seamlessly — so the source varies by date and no single update lag describes the response. Set models to pin a consistent source for a multi-decade series: the ERA5 family updates daily with about a week of delay, while IFS HRES has none, so for the last week either request models: [\"ecmwf_ifs\"] or use openmeteo_get_forecast with past_days. Available models: best_match (default, blends IFS HRES + ERA5 + ERA5-Land), ecmwf_ifs (global 9 km, updated every 6 hours, no delay), ecmwf_ifs_analysis_long_window (global 9 km, daily, 2 days delay), era5_seamless (ERA5 and ERA5-Land combined), era5 (global 0.25° (~25 km), daily, about a week delay), era5_land (global 0.1° (~11 km), daily, about a week delay), era5_ensemble (global 0.5° (~55 km), daily, about a week delay), cerra (Europe only, 5 km, no real-time updates). Uses the same variable names as the forecast API for direct comparison. Large date ranges (multi-year hourly) produce thousands of records — these spill to a DataCanvas when canvas is enabled, returning canvas_id and table_name with truncated: true; inspect the staged columns with openmeteo_dataframe_describe, then query the full set with openmeteo_dataframe_query. With canvas disabled they return a bounded preview instead. At least one of hourly_variables or daily_variables is required.",
+  "inputSchema": {
+   "type": "object",
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "properties": {
+    "latitude": {
+     "type": "number",
+     "minimum": -90,
+     "maximum": 90,
+     "description": "Latitude in decimal degrees. Use openmeteo_search_locations to resolve a place name to coordinates."
+    },
+    "longitude": {
+     "type": "number",
+     "minimum": -180,
+     "maximum": 180,
+     "description": "Longitude in decimal degrees."
+    },
+    "start_date": {
+     "type": "string",
+     "format": "date",
+     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+     "description": "Start date (YYYY-MM-DD, e.g., \"2024-07-01\"). The archive covers from 1940-01-01; how close to today it reaches depends on the model — the ERA5 family runs about a week behind, IFS HRES is current."
+    },
+    "end_date": {
+     "type": "string",
+     "format": "date",
+     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+     "description": "End date (YYYY-MM-DD, inclusive). Must be on or after start_date. For the last few days, either request models: [\"ecmwf_ifs\"] or use openmeteo_get_forecast with past_days."
+    },
+    "hourly_variables": {
+     "description": "Hourly archive variables (e.g., [\"temperature_2m\", \"precipitation\", \"wind_speed_10m\", \"relative_humidity_2m\", \"cloud_cover\", \"soil_moisture_0_to_7cm\"]). Hourly names only — a daily aggregate such as temperature_2m_max or precipitation_sum belongs in daily_variables and is rejected here. At least one of hourly_variables or daily_variables required.",
+     "maxItems": 50,
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "daily_variables": {
+     "description": "Daily summary variables (e.g., [\"temperature_2m_max\", \"temperature_2m_min\", \"precipitation_sum\", \"wind_speed_10m_max\"]). Daily names only — an hourly name such as cloud_cover or temperature_2m belongs in hourly_variables and is rejected here; for a daily summary of an hourly variable use its published aggregate (cloud_cover_max, cloud_cover_mean, cloud_cover_min). At least one of hourly_variables or daily_variables required.",
+     "maxItems": 50,
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "models": {
+     "description": "Archive models to read from: best_match (default, blends IFS HRES + ERA5 + ERA5-Land), ecmwf_ifs (global 9 km, updated every 6 hours, no delay), ecmwf_ifs_analysis_long_window (global 9 km, daily, 2 days delay), era5_seamless (ERA5 and ERA5-Land combined), era5 (global 0.25° (~25 km), daily, about a week delay), era5_land (global 0.1° (~11 km), daily, about a week delay), era5_ensemble (global 0.5° (~55 km), daily, about a week delay), cerra (Europe only, 5 km, no real-time updates). Omit to use Open-Meteo's Best Match default, which blends IFS HRES, ERA5, and ERA5-Land — pin a model instead when a consistent source matters across the range. With 2+ models each variable column is suffixed with the model name. cerra covers Europe only: requested alone elsewhere it is rejected as a coverage gap, and beside another model the archive drops it and the notice says so. A name outside this list is sent upstream rather than rejected here.",
+     "maxItems": 8,
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "temperature_unit": {
+     "default": "celsius",
+     "description": "Temperature unit. Default \"celsius\".",
+     "type": "string",
+     "enum": [
+      "celsius",
+      "fahrenheit"
+     ]
+    },
+    "wind_speed_unit": {
+     "default": "kmh",
+     "description": "Wind speed unit. Default \"kmh\".",
+     "type": "string",
+     "enum": [
+      "kmh",
+      "mph",
+      "ms",
+      "kn"
+     ]
+    },
+    "precipitation_unit": {
+     "default": "mm",
+     "description": "Precipitation unit. Default \"mm\".",
+     "type": "string",
+     "enum": [
+      "mm",
+      "inch"
+     ]
+    },
+    "timezone": {
+     "default": "auto",
+     "description": "IANA timezone or \"auto\". Default \"auto\".",
+     "type": "string"
+    },
+    "canvas_id": {
+     "description": "DataCanvas token for multi-year or multi-variable queries. When a result is too large to return inline — driven by total payload size, so a wide multi-variable pull can spill at any row count — it spills to this canvas: pass the returned token to openmeteo_dataframe_describe to list the staged table and its columns, then to openmeteo_dataframe_query to run SQL against it. Omit to create a fresh canvas.",
+     "type": "string",
+     "pattern": "^[A-Za-z0-9_-]{10}$"
+    }
+   },
+   "required": [
+    "latitude",
+    "longitude",
+    "start_date",
+    "end_date"
+   ],
+   "additionalProperties": false
+  },
+  "annotations": {
+   "readOnlyHint": true
+  }
+ },
+ {
+  "name": "openmeteo_get_marine",
+  "description": "Marine wave and ocean conditions for a coastal or ocean coordinate: wave height, wave period, wave direction, wind-wave height, swell height, sea-surface temperature. Forecast horizon up to 8 days, with optional past_days (up to 92) for recent history — or start_date and end_date together for an archive range, which returns real wave values back to at least 2022. One window per call: a date range is mutually exclusive with forecast_days and past_days, and needs both ends — a lone start_date or end_date is rejected. Returns per-timestamp records — each entry contains a \"time\" field plus one key per requested variable. Best for open-ocean and coastal exposed points — sheltered water such as a sound or bay returns near-zero wave values, and a land point well inland returns null values, which the notice reports. A land point near the coast is answered from a nearby sea cell with real values and no notice, so check the response latitude and longitude is the water you meant. Common hourly variables: wave_height, wave_direction, wave_period, wind_wave_height, wind_wave_direction, wind_wave_period, swell_wave_height, swell_wave_direction, swell_wave_period. Common daily: wave_height_max, wave_direction_dominant, wave_period_max. Note: ocean_current_velocity is null for non-open-ocean coordinates. Set current_variables for conditions at this instant — Open-Meteo serves those from 15-minute model data, and the response carries a current object plus a current_units map, alongside either window. length_unit \"imperial\" returns heights in ft, wind_speed_unit sets the ocean_current_velocity unit, and temperature_unit the sea_surface_temperature unit — converted upstream, with every unit read from the *_units maps. A wide window — a large past_days or date range plus many variables — produces thousands of records; these spill to a DataCanvas when canvas is enabled, returning canvas_id and table_name with truncated: true — inspect the staged columns with openmeteo_dataframe_describe, then query the full set with openmeteo_dataframe_query. With canvas disabled they return a bounded preview instead. At least one of current_variables, hourly_variables, or daily_variables is required.",
+  "inputSchema": {
+   "type": "object",
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "properties": {
+    "latitude": {
+     "type": "number",
+     "minimum": -90,
+     "maximum": 90,
+     "description": "Latitude of a coastal or ocean point. Use openmeteo_search_locations to resolve a place name. Sheltered water returns near-zero wave values; a land point well inland returns null values, which the notice reports, while one near the coast is answered from a nearby sea cell with no notice — check the response latitude and longitude is the water you meant."
+    },
+    "longitude": {
+     "type": "number",
+     "minimum": -180,
+     "maximum": 180,
+     "description": "Longitude in decimal degrees."
+    },
+    "current_variables": {
+     "description": "Marine variables to return for the current instant (e.g., [\"wave_height\", \"wave_period\", \"wave_direction\", \"sea_surface_temperature\"]). Uses Open-Meteo's 15-minute current-conditions data, so it answers \"what are the waves right now?\" without requesting an hourly series and picking a row. Takes the hourly variable names — a daily aggregate such as wave_height_max belongs in daily_variables and is rejected here. Combines with past_days or a start_date/end_date range; the current block is always the present instant. Satisfies the variable requirement on its own.",
+     "maxItems": 50,
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "hourly_variables": {
+     "description": "Hourly marine variables (e.g., [\"wave_height\", \"wave_direction\", \"wave_period\", \"wind_wave_height\", \"swell_wave_height\"]). Hourly names only — a daily aggregate such as wave_height_max or wave_direction_dominant belongs in daily_variables and is rejected here. At least one of current_variables, hourly_variables, or daily_variables is required.",
+     "maxItems": 50,
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "daily_variables": {
+     "description": "Daily marine summary variables (e.g., [\"wave_height_max\", \"wave_direction_dominant\", \"wave_period_max\"]). Daily names only — an hourly name such as wave_height belongs in hourly_variables and is rejected here; for a daily summary use its published aggregate (wave_height_max). At least one of current_variables, hourly_variables, or daily_variables is required.",
+     "maxItems": 50,
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "forecast_days": {
+     "description": "Forecast horizon in days (1–8). Omit for the upstream default of 7. Mutually exclusive with start_date/end_date — omit it entirely when pulling an archive range.",
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 8
+    },
+    "past_days": {
+     "default": 0,
+     "description": "Include this many days of past data before today (0–92). Use for recent history instead of a start_date/end_date range. Default 0. Must stay 0 when start_date/end_date are used.",
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 92
+    },
+    "start_date": {
+     "description": "Start date for the archive range (YYYY-MM-DD, e.g., \"2024-07-01\"). Real wave values go back to at least 2022. Requires end_date — the pair must be sent together, and neither combines with forecast_days or past_days.",
+     "type": "string",
+     "format": "date",
+     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+    },
+    "end_date": {
+     "description": "End date for the archive range (YYYY-MM-DD, inclusive). Must be on or after start_date. Requires start_date — the pair must be sent together, and neither combines with forecast_days or past_days.",
+     "type": "string",
+     "format": "date",
+     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+    },
+    "length_unit": {
+     "default": "metric",
+     "description": "Unit for wave, wind-wave, and swell heights and sea_level_height_msl: \"metric\" (m) or \"imperial\" (ft). Periods stay in seconds and directions in degrees. Default \"metric\".",
+     "type": "string",
+     "enum": [
+      "metric",
+      "imperial"
+     ]
+    },
+    "wind_speed_unit": {
+     "default": "kmh",
+     "description": "Unit for ocean_current_velocity: \"kmh\" (km/h), \"mph\" (labelled \"mp/h\" in the units maps), \"ms\" (m/s), or \"kn\" (knots). Default \"kmh\".",
+     "type": "string",
+     "enum": [
+      "kmh",
+      "mph",
+      "ms",
+      "kn"
+     ]
+    },
+    "temperature_unit": {
+     "default": "celsius",
+     "description": "Unit for sea_surface_temperature: \"celsius\" or \"fahrenheit\". Default \"celsius\".",
+     "type": "string",
+     "enum": [
+      "celsius",
+      "fahrenheit"
+     ]
+    },
+    "timezone": {
+     "default": "auto",
+     "description": "IANA timezone or \"auto\". Default \"auto\".",
+     "type": "string"
+    },
+    "canvas_id": {
+     "description": "DataCanvas token for wide past_days, archive-range, or multi-variable queries. When a result is too large to return inline — driven by total payload size, so a wide multi-variable pull can spill at any row count — it spills to this canvas: pass the returned token to openmeteo_dataframe_describe to list the staged table and its columns, then to openmeteo_dataframe_query to run SQL against it. Omit to create a fresh canvas.",
+     "type": "string",
+     "pattern": "^[A-Za-z0-9_-]{10}$"
+    }
+   },
+   "required": [
+    "latitude",
+    "longitude"
+   ],
+   "additionalProperties": false
+  },
+  "annotations": {
+   "readOnlyHint": true
+  }
+ },
+ {
+  "name": "openmeteo_get_air_quality",
+  "description": "Modeled CAMS (Copernicus Atmosphere Monitoring Service) air quality: PM2.5, PM10, nitrogen dioxide, sulphur dioxide, ozone, carbon monoxide, dust, pollen, and European/US AQI indices. This is modeled grid data, not measured station readings — for measured data, use openaq-mcp-server. Forecast horizon up to 7 days, with optional past_days (up to 92) for recent history — or start_date and end_date together for an archive range; the CAMS global archive begins in August 2022, and earlier dates return rows of nulls. One window per call: a date range is mutually exclusive with forecast_days and past_days, and needs both ends — a lone start_date or end_date is rejected. Common variables: pm2_5, pm10, carbon_monoxide, nitrogen_dioxide, sulphur_dioxide, ozone, dust, european_aqi, us_aqi, alder_pollen, birch_pollen, grass_pollen, mugwort_pollen, olive_pollen, ragweed_pollen. Pollen is modeled for Europe only, and only in pollen season — elsewhere the pollen values come back null, and the notice names them. Set current_variables for pollutant and AQI values at this instant — returned as a current object plus a current_units map, and enough on its own without hourly_variables; the block’s interval field is its aggregation interval in seconds (3600 on this endpoint). A wide window — a large past_days or date range plus many variables — produces thousands of records; these spill to a DataCanvas when canvas is enabled, returning canvas_id and table_name with truncated: true — inspect the staged columns with openmeteo_dataframe_describe, then query the full set with openmeteo_dataframe_query. With canvas disabled they return a bounded preview instead.",
+  "inputSchema": {
+   "type": "object",
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "properties": {
+    "latitude": {
+     "type": "number",
+     "minimum": -90,
+     "maximum": 90,
+     "description": "Latitude in decimal degrees. Use openmeteo_search_locations to resolve a place name."
+    },
+    "longitude": {
+     "type": "number",
+     "minimum": -180,
+     "maximum": 180,
+     "description": "Longitude in decimal degrees."
+    },
+    "current_variables": {
+     "description": "Air quality variables to return for the current instant (e.g., [\"pm2_5\", \"pm10\", \"european_aqi\", \"us_aqi\"]). Uses Open-Meteo's current-conditions data, so it answers \"what is the AQI now?\" without requesting an hourly series and picking a row; the returned interval is the block's aggregation interval, 3600 seconds on this endpoint. Satisfies the variable requirement on its own.",
+     "maxItems": 50,
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "hourly_variables": {
+     "description": "Hourly air quality variables (e.g., [\"pm2_5\", \"pm10\", \"ozone\", \"nitrogen_dioxide\", \"european_aqi\", \"us_aqi\"]). At least one of current_variables or hourly_variables is required.",
+     "maxItems": 50,
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "forecast_days": {
+     "description": "Forecast horizon in days (1–7). Omit for the upstream default of 5. Mutually exclusive with start_date/end_date — omit it entirely when pulling an archive range.",
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 7
+    },
+    "past_days": {
+     "default": 0,
+     "description": "Include this many days of past data before today (0–92). Use for recent history instead of a start_date/end_date range. Default 0. Must stay 0 when start_date/end_date are used.",
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 92
+    },
+    "start_date": {
+     "description": "Start date for the archive range (YYYY-MM-DD, e.g., \"2024-07-01\"). The CAMS global archive begins in August 2022; earlier dates return rows of nulls, and us_aqi starts a day later than the pollutant series (european_aqi starts with it). Requires end_date — the pair must be sent together, and neither combines with forecast_days or past_days.",
+     "type": "string",
+     "format": "date",
+     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+    },
+    "end_date": {
+     "description": "End date for the archive range (YYYY-MM-DD, inclusive). Must be on or after start_date. Requires start_date — the pair must be sent together, and neither combines with forecast_days or past_days.",
+     "type": "string",
+     "format": "date",
+     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+    },
+    "timezone": {
+     "default": "auto",
+     "description": "IANA timezone or \"auto\". Default \"auto\".",
+     "type": "string"
+    },
+    "canvas_id": {
+     "description": "DataCanvas token for wide past_days, archive-range, or multi-variable queries. When a result is too large to return inline — driven by total payload size, so a wide multi-variable pull can spill at any row count — it spills to this canvas: pass the returned token to openmeteo_dataframe_describe to list the staged table and its columns, then to openmeteo_dataframe_query to run SQL against it. Omit to create a fresh canvas.",
+     "type": "string",
+     "pattern": "^[A-Za-z0-9_-]{10}$"
+    }
+   },
+   "required": [
+    "latitude",
+    "longitude"
+   ],
+   "additionalProperties": false
+  },
+  "annotations": {
+   "readOnlyHint": true
+  }
+ },
+ {
+  "name": "openmeteo_get_ensemble",
+  "description": "Probabilistic ensemble weather forecast — up to 64 ensemble members, up to 35 days ahead with optional past_days (0–92). Most models end within 16 days; a model's columns are null past its horizon, and the response notice names where its data ends. Each member's values appear as separate columns named with a member suffix (e.g. temperature_2m_member01, temperature_2m_member02). Use the spread across members to compute exceedance probabilities, quantify forecast uncertainty, and build decision thresholds. Available models: ecmwf_ifs025_ensemble (51 members, global 0.25°), ecmwf_aifs025_ensemble (51, global 0.25°), ecmwf_ifs_europe_ensemble (51, Europe 9 km), ecmwf_aifs_europe_ensemble (51, Europe 31 km), google_weathernext2_ensemble (64, global 0.25°), ncep_gefs_seamless (31, global blend), ncep_gefs025 (31, global 0.25°), ncep_gefs05 (31, global 50 km, 35 days), ncep_aigefs025 (31, global 0.25°), icon_seamless_eps (20–40, global/Europe blend), icon_global_eps (40, global 26 km), icon_eu_eps (40, Europe 13 km), icon_d2_eps (20, Central Europe 2 km), gem_global_ensemble (21, global 0.25°), bom_access_global_ensemble (18, global 40 km), ukmo_global_ensemble_20km (18, global 20 km), ukmo_uk_ensemble_2km (3, UK 2 km), meteoswiss_icon_ch1_ensemble (11, Central Europe 1 km), meteoswiss_icon_ch2_ensemble (21, Central Europe 2 km). Omit models to use ecmwf_ifs025_ensemble. A regional model returns no data outside the area it covers; that comes back as an input error naming the coverage gap, not a transient failure, so pick a global model or move the coordinate inside the region rather than retrying. A model name this list does not carry is still sent upstream, so a newly added one keeps working. Large multi-member, multi-day pulls produce thousands of records and spill to a DataCanvas when canvas is enabled, returning canvas_id and table_name with truncated: true — inspect the staged columns with openmeteo_dataframe_describe, then query the full set with openmeteo_dataframe_query. With canvas disabled they return a bounded preview instead. At least one of hourly_variables or daily_variables is required.",
+  "inputSchema": {
+   "type": "object",
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "properties": {
+    "latitude": {
+     "type": "number",
+     "minimum": -90,
+     "maximum": 90,
+     "description": "Latitude in decimal degrees. Use openmeteo_search_locations to resolve a place name to coordinates."
+    },
+    "longitude": {
+     "type": "number",
+     "minimum": -180,
+     "maximum": 180,
+     "description": "Longitude in decimal degrees."
+    },
+    "hourly_variables": {
+     "description": "Hourly variables to fetch across all ensemble members (e.g., [\"temperature_2m\", \"precipitation\", \"wind_speed_10m\"]). Each variable appears as temperature_2m_member01, temperature_2m_member02, … in the output. Hourly names only — a daily-only aggregate such as precipitation_sum or wind_speed_10m_max belongs in daily_variables and is rejected here; temperature_2m_max and temperature_2m_min are an exception, published here as 3-hourly aggregations as well as daily. At least one of hourly_variables or daily_variables required.",
+     "maxItems": 50,
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "daily_variables": {
+     "description": "Daily variables to fetch across all ensemble members (e.g., [\"temperature_2m_max\", \"temperature_2m_min\", \"precipitation_sum\"]). Each variable appears as temperature_2m_max_member01, … Daily names only — an hourly name such as precipitation or temperature_2m belongs in hourly_variables and is rejected here; for a daily summary use its published aggregate (precipitation_sum, temperature_2m_max). At least one of hourly_variables or daily_variables required.",
+     "maxItems": 50,
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "models": {
+     "description": "Ensemble model to use, one name: ecmwf_ifs025_ensemble (51 members, global 0.25°), ecmwf_aifs025_ensemble (51, global 0.25°), ecmwf_ifs_europe_ensemble (51, Europe 9 km), ecmwf_aifs_europe_ensemble (51, Europe 31 km), google_weathernext2_ensemble (64, global 0.25°), ncep_gefs_seamless (31, global blend), ncep_gefs025 (31, global 0.25°), ncep_gefs05 (31, global 50 km, 35 days), ncep_aigefs025 (31, global 0.25°), icon_seamless_eps (20–40, global/Europe blend), icon_global_eps (40, global 26 km), icon_eu_eps (40, Europe 13 km), icon_d2_eps (20, Central Europe 2 km), gem_global_ensemble (21, global 0.25°), bom_access_global_ensemble (18, global 40 km), ukmo_global_ensemble_20km (18, global 20 km), ukmo_uk_ensemble_2km (3, UK 2 km), meteoswiss_icon_ch1_ensemble (11, Central Europe 1 km), meteoswiss_icon_ch2_ensemble (21, Central Europe 2 km). Member counts include the control run. Omit or leave blank to use ecmwf_ifs025_ensemble. A name outside this list is sent upstream rather than rejected here, so a model Open-Meteo adds later still works.",
+     "type": "string"
+    },
+    "forecast_days": {
+     "default": 7,
+     "description": "Forecast horizon in days (1–35). Default 7. Most ensemble models end within 16 days; past a model's horizon its columns come back null and the response notice names where its data ends.",
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 35
+    },
+    "past_days": {
+     "default": 0,
+     "description": "Include this many days of past ensemble data before today (0–92). Default 0.",
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 92
+    },
+    "temperature_unit": {
+     "default": "celsius",
+     "description": "Temperature unit. Default \"celsius\".",
+     "type": "string",
+     "enum": [
+      "celsius",
+      "fahrenheit"
+     ]
+    },
+    "wind_speed_unit": {
+     "default": "kmh",
+     "description": "Wind speed unit. Default \"kmh\".",
+     "type": "string",
+     "enum": [
+      "kmh",
+      "mph",
+      "ms",
+      "kn"
+     ]
+    },
+    "precipitation_unit": {
+     "default": "mm",
+     "description": "Precipitation unit. Default \"mm\".",
+     "type": "string",
+     "enum": [
+      "mm",
+      "inch"
+     ]
+    },
+    "timezone": {
+     "default": "auto",
+     "description": "IANA timezone (e.g., \"America/Los_Angeles\") or \"auto\" to use the location's local timezone. Default \"auto\".",
+     "type": "string"
+    },
+    "canvas_id": {
+     "description": "DataCanvas token for large multi-member queries. When a result is too large to return inline — driven by total payload size, so a wide member fan-out can spill at any row count — it spills to this canvas: pass the returned token to openmeteo_dataframe_describe to list the staged table and its per-member columns, then to openmeteo_dataframe_query to run SQL against it. Omit to create a fresh canvas.",
+     "type": "string",
+     "pattern": "^[A-Za-z0-9_-]{10}$"
+    }
+   },
+   "required": [
+    "latitude",
+    "longitude"
+   ],
+   "additionalProperties": false
+  },
+  "annotations": {
+   "readOnlyHint": true
+  }
+ },
+ {
+  "name": "openmeteo_get_flood",
+  "description": "GloFAS (Global Flood Awareness System) daily river discharge (m³/s) from the GloFAS 0.05° grid cell nearest the given coordinates — no river ID needed. The response's latitude and longitude name that cell. It is not reliably on the river intended: a point near a confluence, a pair of parallel channels, or a bank can resolve to a cell with little flow. When the value is far below what the named river carries, step the coordinate 0.05° across the channel and compare the values. One mode per call: forecast_days for the outlook, or start_date and end_date together for a date range from 1984-01-01. The two modes are mutually exclusive, and a date range needs both ends — a lone start_date or end_date is rejected. forecast_days accepts up to 210, but the current GloFAS run sets how far the data reaches (about six months ahead); later days come back null and the notice names where the data ends. What a date range holds depends on the model. Omitting models reads seamless_v4: consolidated_v4 reanalysis before 2023-08-05, then forecast-run discharge from 2023-08-05 on, so a range crossing that date changes source mid-series. Set models to pin a source: seamless_v4 (default — consolidated_v4 reanalysis before 2023-08-05, forecast_v4 runs from 2023-08-05 into the live forecast), consolidated_v4 (reanalysis from 1984 through 2025-05-31; null after it and on every forecast_days call), forecast_v4 (forecast runs from 2023-06-01 into the live forecast; null before). consolidated_v4 is the only way to read reanalysis for 2023-08-05 through 2025-05-31. With 2+ models every daily column is suffixed with the model name (river_discharge_consolidated_v4). Available daily variables: \"river_discharge\" (the daily discharge value; the mean across ensemble members is \"river_discharge_mean\"), and the ensemble statistics \"river_discharge_mean\", \"river_discharge_median\", \"river_discharge_min\", \"river_discharge_max\", \"river_discharge_p25\" (25th percentile), and \"river_discharge_p75\" (75th percentile). The statistics carry spread across ensemble members on forecast-run days — the forecast_days outlook, and date-range days from 2023-08-05 under seamless_v4 or forecast_v4. On reanalysis days (seamless_v4 before 2023-08-05, consolidated_v4 through 2025-05-31) they repeat river_discharge and are not uncertainty estimates. Returns null for coordinates far from any river or in areas without GloFAS coverage. A wide date range produces thousands of daily records and spills to a DataCanvas when canvas is enabled, returning canvas_id and table_name with truncated: true — inspect the staged columns with openmeteo_dataframe_describe, then query the full set with openmeteo_dataframe_query. With canvas disabled it returns a bounded preview instead.",
+  "inputSchema": {
+   "type": "object",
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "properties": {
+    "latitude": {
+     "type": "number",
+     "minimum": -90,
+     "maximum": 90,
+     "description": "Latitude in decimal degrees. Discharge is returned for the GloFAS 0.05° grid cell nearest this point — no river ID required, and that cell is not reliably on the river intended. When the value is far below what the named river carries, step the coordinate 0.05° across the channel and compare. Use openmeteo_search_locations to resolve a place name."
+    },
+    "longitude": {
+     "type": "number",
+     "minimum": -180,
+     "maximum": 180,
+     "description": "Longitude in decimal degrees. With latitude it selects the nearest GloFAS 0.05° grid cell, which is not reliably on the river intended."
+    },
+    "daily_variables": {
+     "description": "Daily discharge variables to fetch (e.g., [\"river_discharge\", \"river_discharge_p25\", \"river_discharge_p75\", \"river_discharge_min\", \"river_discharge_max\"]). Required. river_discharge is the daily discharge value; the _mean, _median, _min, _max, _p25, and _p75 statistics span the ensemble members on forecast-run days — the forecast_days outlook, and date-range days from 2023-08-05 under seamless_v4 or forecast_v4. On reanalysis days (seamless_v4 before 2023-08-05, consolidated_v4 through 2025-05-31) they repeat river_discharge and are not uncertainty estimates.",
+     "maxItems": 20,
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "forecast_days": {
+     "description": "Number of forecast days ahead (1–210). The API accepts up to 210, but the current GloFAS run sets how far the data reaches (about six months); later days come back null. consolidated_v4 serves no forecast days — with it every row is null. Mutually exclusive with start_date/end_date — omit it entirely when pulling a date range.",
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 210
+    },
+    "start_date": {
+     "description": "Start of a date range (YYYY-MM-DD, e.g., \"2023-01-01\"), from 1984-01-01. Under the default seamless_v4 a range holds consolidated_v4 reanalysis before 2023-08-05 and forecast-run discharge from 2023-08-05 on; request models: [\"consolidated_v4\"] for reanalysis through 2025-05-31. Requires end_date — the pair must be sent together, and neither combines with forecast_days.",
+     "type": "string",
+     "format": "date",
+     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+    },
+    "end_date": {
+     "description": "End of the date range (YYYY-MM-DD, inclusive). Must be on or after start_date. Days from 2023-08-05 are forecast-run discharge under the default seamless_v4; consolidated_v4 reanalysis ends 2025-05-31 and answers later days with null. Requires start_date — the pair must be sent together, and neither combines with forecast_days.",
+     "type": "string",
+     "format": "date",
+     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+    },
+    "models": {
+     "description": "GloFAS models to read from: seamless_v4 (default — consolidated_v4 reanalysis before 2023-08-05, forecast_v4 runs from 2023-08-05 into the live forecast), consolidated_v4 (reanalysis from 1984 through 2025-05-31; null after it and on every forecast_days call), forecast_v4 (forecast runs from 2023-06-01 into the live forecast; null before). Omit to use Open-Meteo's seamless_v4 default. With 2+ models each daily column and unit key is suffixed with the model name (river_discharge_consolidated_v4); one model keeps plain names. A model with no data for the requested days answers with null values rather than an error, and the notice names those columns. A name outside this list (the GloFAS v3 selectors included) is sent upstream rather than rejected here.",
+     "maxItems": 6,
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "timezone": {
+     "default": "auto",
+     "description": "IANA timezone or \"auto\". Default \"auto\".",
+     "type": "string"
+    },
+    "canvas_id": {
+     "description": "DataCanvas token for wide date-range queries. When a result is too large to return inline — driven by total payload size, so a multi-variable pull can spill at any row count — it spills to this canvas: pass the returned token to openmeteo_dataframe_describe to list the staged table and its columns, then to openmeteo_dataframe_query to run SQL against it. Omit to create a fresh canvas.",
+     "type": "string",
+     "pattern": "^[A-Za-z0-9_-]{10}$"
+    }
+   },
+   "required": [
+    "latitude",
+    "longitude"
+   ],
+   "additionalProperties": false
+  },
+  "annotations": {
+   "readOnlyHint": true
+  }
+ },
+ {
+  "name": "openmeteo_get_climate",
+  "description": "Long-range climate projections from bias-corrected daily CMIP6 models, covering 1950-01-01 to 2050-12-31 at any coordinate. Answers \"what will conditions look like through 2050?\" — the future-projection counterpart to openmeteo_get_historical (the observed archive, what happened). Daily resolution only. Available models: CMCC_CM2_VHR4, FGOALS_f3_H, HiRAM_SIT_HR, MRI_AGCM3_2_S, EC_Earth3P_HR, MPI_ESM1_2_XR, NICAM16_8S. A model name outside that list is sent upstream rather than rejected here, so a model Open-Meteo adds later still works; if upstream rejects the request, the error names the offending model on its own rather than the whole requested list. With 2+ models each variable appears once per model with the model name as suffix (e.g. temperature_2m_max_CMCC_CM2_VHR4); a single or omitted model returns plain variable names. Not all models carry all variables — missing combinations return null. Multi-decade daily pulls across several models produce thousands of records and spill to a DataCanvas when canvas is enabled, returning canvas_id and table_name with truncated: true — inspect the staged columns with openmeteo_dataframe_describe, then query the full set with openmeteo_dataframe_query. With canvas disabled they return a bounded preview instead.",
+  "inputSchema": {
+   "type": "object",
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "properties": {
+    "latitude": {
+     "type": "number",
+     "minimum": -90,
+     "maximum": 90,
+     "description": "Latitude in decimal degrees. Use openmeteo_search_locations to resolve a place name to coordinates."
+    },
+    "longitude": {
+     "type": "number",
+     "minimum": -180,
+     "maximum": 180,
+     "description": "Longitude in decimal degrees."
+    },
+    "start_date": {
+     "type": "string",
+     "format": "date",
+     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+     "description": "Start date (YYYY-MM-DD, e.g., \"2049-01-01\"). CMIP6 projections cover 1950-01-01 to 2050-12-31."
+    },
+    "end_date": {
+     "type": "string",
+     "format": "date",
+     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+     "description": "End date (YYYY-MM-DD, inclusive, max 2050-12-31). Must be on or after start_date."
+    },
+    "daily_variables": {
+     "description": "Daily climate variables to fetch (e.g., [\"temperature_2m_max\", \"temperature_2m_min\", \"precipitation_sum\", \"wind_speed_10m_mean\", \"shortwave_radiation_sum\"]). Required — the Climate API is daily-only.",
+     "maxItems": 50,
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "models": {
+     "description": "CMIP6 models to include: CMCC_CM2_VHR4, FGOALS_f3_H, HiRAM_SIT_HR, MRI_AGCM3_2_S, EC_Earth3P_HR, MPI_ESM1_2_XR, NICAM16_8S. With 2+ models each variable column is suffixed with the model name (e.g. temperature_2m_max_MRI_AGCM3_2_S). Omit to use the API default (a single model, unsuffixed columns). A name outside this list is sent upstream rather than rejected here.",
+     "maxItems": 7,
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "temperature_unit": {
+     "default": "celsius",
+     "description": "Temperature unit. Default \"celsius\".",
+     "type": "string",
+     "enum": [
+      "celsius",
+      "fahrenheit"
+     ]
+    },
+    "wind_speed_unit": {
+     "default": "kmh",
+     "description": "Wind speed unit. Default \"kmh\".",
+     "type": "string",
+     "enum": [
+      "kmh",
+      "mph",
+      "ms",
+      "kn"
+     ]
+    },
+    "precipitation_unit": {
+     "default": "mm",
+     "description": "Precipitation unit. Default \"mm\".",
+     "type": "string",
+     "enum": [
+      "mm",
+      "inch"
+     ]
+    },
+    "timezone": {
+     "default": "auto",
+     "description": "IANA timezone or \"auto\". Default \"auto\".",
+     "type": "string"
+    },
+    "canvas_id": {
+     "description": "DataCanvas token for multi-decade or multi-model queries. When a result is too large to return inline — driven by total payload size, so a wide multi-model pull can spill at any row count — it spills to this canvas: pass the returned token to openmeteo_dataframe_describe to list the staged table and its per-model columns, then to openmeteo_dataframe_query to run SQL against it. Omit to create a fresh canvas.",
+     "type": "string",
+     "pattern": "^[A-Za-z0-9_-]{10}$"
+    }
+   },
+   "required": [
+    "latitude",
+    "longitude",
+    "start_date",
+    "end_date"
+   ],
+   "additionalProperties": false
+  },
+  "annotations": {
+   "readOnlyHint": true
+  }
+ },
+ {
+  "name": "openmeteo_dataframe_query",
+  "description": "Run a read-only SQL SELECT against tables staged on a DataCanvas by openmeteo_get_forecast, openmeteo_get_historical, openmeteo_get_marine, openmeteo_get_air_quality, openmeteo_get_ensemble, openmeteo_get_flood, or openmeteo_get_climate. Pass the canvas_id returned when any of those tools spills (truncated: true), and reference the exact table_name those tools return alongside it. Call openmeteo_dataframe_describe to list staged tables and their columns when you need to discover names. Returns up to 100 leading rows — fewer when wide rows would pass the 80,000-character inline ceiling — plus row_count — exact, or a lower bound flagged by count_error when counting fails or runs past 5 seconds; page the rest with LIMIT / OFFSET.",
+  "inputSchema": {
+   "type": "object",
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "properties": {
+    "canvas_id": {
+     "type": "string",
+     "pattern": "^[A-Za-z0-9_-]{10}$",
+     "description": "Canvas ID returned by openmeteo_get_forecast, openmeteo_get_historical, openmeteo_get_marine, openmeteo_get_air_quality, openmeteo_get_ensemble, openmeteo_get_flood, or openmeteo_get_climate when truncated: true."
+    },
+    "sql": {
+     "type": "string",
+     "description": "Read-only SELECT statement. Reference table names from openmeteo_dataframe_describe; in the examples below, replace <table_name> with a staged table and <column> with one of its columns. time is ISO 8601 text — YYYY-MM-DDTHH:MM on hourly rows, YYYY-MM-DD on daily rows — as are daily sunrise and sunset, so date functions need a cast: CAST(time AS TIMESTAMP). WHERE time LIKE '%T%' selects the hourly rows of a table that holds both cadences. Monthly means: `SELECT strftime(CAST(time AS TIMESTAMP), '%Y-%m') AS month, AVG(<column>) AS mean FROM <table_name> GROUP BY month ORDER BY month`. An openmeteo_get_ensemble table carries one column per member (precipitation_member01, precipitation_member02, …) beside the unsuffixed control run; count members per row with `SELECT time, list_count(list_filter([*COLUMNS('^precipitation_member\\d+$')], lambda x: x > 0.5)) AS members_over, list_count([*COLUMNS('^precipitation_member\\d+$')]) AS members_reporting FROM <table_name> ORDER BY time` — the anchored pattern leaves out the control column, and members_reporting is the per-row denominator, since rows past a model's last forecast hour carry no member values. Write lambdas with the lambda x: syntax."
+    }
+   },
+   "required": [
+    "canvas_id",
+    "sql"
+   ],
+   "additionalProperties": false
+  },
+  "annotations": {
+   "readOnlyHint": true
+  }
+ },
+ {
+  "name": "openmeteo_dataframe_describe",
+  "description": "List the tables and their columns on a DataCanvas staged by openmeteo_get_forecast, openmeteo_get_historical, openmeteo_get_marine, openmeteo_get_air_quality, openmeteo_get_ensemble, openmeteo_get_flood, or openmeteo_get_climate. Call this first to discover table names before querying with openmeteo_dataframe_query.",
+  "inputSchema": {
+   "type": "object",
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "properties": {
+    "canvas_id": {
+     "type": "string",
+     "pattern": "^[A-Za-z0-9_-]{10}$",
+     "description": "Canvas ID returned by openmeteo_get_forecast, openmeteo_get_historical, openmeteo_get_marine, openmeteo_get_air_quality, openmeteo_get_ensemble, openmeteo_get_flood, or openmeteo_get_climate when truncated: true."
+    }
+   },
+   "required": [
+    "canvas_id"
+   ],
+   "additionalProperties": false
+  },
+  "annotations": {
+   "readOnlyHint": true
+  }
+ }
+]
