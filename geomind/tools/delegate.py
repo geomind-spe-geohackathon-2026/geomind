@@ -88,7 +88,9 @@ class Delegate(Tool):
     async def _delegate(self, context, task, beside=False):
         """Run the nested agent through the run of ``context``, within its limit if it has one.
 
-        ``beside`` runs it as a member of a ``Team``, which never pauses for an approval.
+        ``beside`` runs it as a member of a ``Team``, which never pauses for an approval; a
+        ``runs_beside`` delegate always runs so, as its calls of one step run together and one
+        pause among them never reached the chat (QA-016, run 0cb4b436).
         """
         if self.once:
             asked = context.session.__dict__.setdefault("asked_once", set())
@@ -101,6 +103,7 @@ class Delegate(Tool):
                 )
             asked.add(self.name)
         max_steps = required_setting(self.steps, self.name) if self.steps else None
+        beside = beside or self.runs_beside
         if self.limit is None:
             result = await context.session.delegate(self.agent, task, max_steps, beside)
         else:

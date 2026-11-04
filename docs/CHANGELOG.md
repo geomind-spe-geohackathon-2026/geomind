@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.47] - 2026-11-05
+
+### Fixed
+
+- QA-016 (reopened): a side-by-side engineer called alone (`well_engineer`, a `runs_beside` delegate) also never pauses for an approval: such calls of one step run together, and the pause of one never reached the chat (run 0cb4b436 waited 90 minutes). Its approvals are allowed with the rule `beside:<rule>`, as inside `fill_parts`.
+
 ## [0.4.46] - 2026-11-04
 
 ### Fixed
