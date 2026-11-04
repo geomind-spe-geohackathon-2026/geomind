@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.43] - 2026-11-04
+
+### Fixed
+
+- QA-043: the case lead leaves a server's humidity series in `%` (open-meteo) out of `site.air.relative_humidity` at once, tells the user it is not usable, and asks for the fraction, instead of retrying it and dropping it silently. gemini request 38 asks gemini to accept `%` on a fraction leaf.
+
 ## [0.4.42] - 2026-11-04
 
 ### Fixed
