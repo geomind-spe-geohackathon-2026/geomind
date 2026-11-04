@@ -354,12 +354,25 @@ Open requests to gemini (full text in the adaptation notes):
 15. `site.fluid.dissolved_gas.*` take a bare `{value}` (a mole fraction) with no unit, while
     briefs give `mol%`: the agents must turn 20 mol% into 0.2 by hand, which their rules forbid.
     A `unit` (`mol%`, `-`) on those fields, converted by gemini (Track A).
+16. Economics units the cited cost data needs but the keys refuse: `capex.ice_storage` per MWh of
+    cold (only EUR/m3), `capex.heat_exchanger` in EUR/W (only EUR/(W/K)), `capex.pipe` in EUR/MW/m
+    (only EUR/m), `opex.fixed.*` as an amount per W or MW per year (only %/yr), and
+    `revenue.subsidy.amount` per MWh of heat as SDE++ pays it (only EUR/yr).
+17. gemini's own cost catalogue (`docs/cost-sources/sources.csv`) names paths that are no keys of
+    `gm.case.Economics`: the prefix `assumptions.finance.*`, `emissions.CO2.electricity` (the
+    case's `utilities.electricity.co2_intensity`), `opex.chemical`, `opex.waste_disposal`
+    (`opex.variable.waste_disposal`).
+18. `opex.variable.*` has no keys for `chp`, `scale_inhibitor` and `corrosion_inhibitor`, which
+    cited sources price (EUR/MWh electric, EUR/kg).
 22. Case schema descriptions: `Case.schema()` gives no description for `about`,
     `initial_state`, `economics.about` and `demand.{heating,cooling}.{minimum,maximum}_return_temperature`;
     geomind took their meaning from gemini's code (`geomind/tools/gemini/fields.py`, each text
     naming its module and function: `heating.maximum_return_temperature` and
     `cooling.minimum_return_temperature` are read but never used). Asked: a description of each
     in the schema (Track F).
+
+Items 1 to 22 were merged into Sahand's list to gemini on 2026-11-04 00:30 (the coordinator's
+16-21 overlap these numbers); new requests are numbered from 26 on.
 
 ### S2b: gemini tools (the first job; the text below is the original plan)
 

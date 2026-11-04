@@ -6,7 +6,7 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
-### Next-step suggestions, S
+### Next-step suggestions (0.4.22.dev51)
 
 - Contract (addition): `run.finished` has `suggestions?`, the next steps `[{label, message}]`: one to three, on the root run that ended `done` only; `label` at most 40 characters, `message` (what the app sends as the user's message when one is picked) at most 200; in the user's language (Persian when the user's last message is in Arabic script, else English). A nested, waiting, failed or cancelled run has none, an empty list is left out, and a log before this has none; a replay compares the answer as before and makes the same list again.
 - Code picks the stage from the problem state and its steps (`geomind/tools/suggestions.py`): no case → build the case from the files (with files only), by questions, or which files are needed; a case without `design.reference` → design a plant, check the case and its unsourced values, compare plant options; a plant without a result → optimise, economics, check the design; a result → report, sensitivity, explain.
@@ -14,10 +14,10 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 - API (addition): `gd.suggest(problem, files, project=None)` gives the list of an empty chat before its first message: sync, no model call, in the language of the chat's goal (English when it has none).
 - Contract v4 (addition): the optional `Workspace.project_state(project_id)` returns `{case, plant, study, results, report: {state, label}, case_version, plant_version, study_case_version, case_changed_after_study}` (states `empty`, `incomplete`, `ready`, `running`, `done`); when it answers, the stage follows the project, not the chat: case not done → build it; plant neither done nor ready → design; study or results not done → optimise, economics, check (a running study: wait or explain, no new study); report not done → report, explain, sensitivity; all done → more studies (uncertainty, structure search, another objective, another case). A stale study puts "run the study again" first, an incomplete item "finish the <label>"; a new chat in a project with a case never builds one. `FileWorkspace.project_state` reads it from the project folder (`case.json`, `plants/`, `studies/`, `results/`, `report/`; stale when `case.json` is newer than the newest study). Without the method or with `None`, the chat's problem state decides, as above.
 - Contract v5 (addition): `RunResult` has `suggestions?`, the same `[{label, message}]` as the run's `run.finished` event: on a root run that ended `done` only, `None` on a nested, waiting, failed or cancelled run.
-### Case fields from gemini's code, F
+### Case fields from gemini's code (0.4.22.dev51)
 
 - The seven case fields gemini's schema leaves undescribed (`about`, `initial_state`, `economics.about`, `demand.{heating,cooling}.{minimum,maximum}_return_temperature`) read with a meaning taken from gemini 0.6.1's code, each naming its source; `heating.maximum_return_temperature` and `cooling.minimum_return_temperature` say gemini does not use them. `undescribed()` no longer lists them (plan.md, gemini request 22).
-### Model-agnostic tool inputs, A2
+### Model-agnostic tool inputs (0.4.22.dev51)
 
 - Fix (#67): on `nvidia/nemotron-3.5-super-vl:free` the case lead sent `set_case`'s `changes` as its JSON text (`'{"format": 1, ...}'`), was refused twice and the run ended; `Tool.validate` now reads a string as JSON for a parameter whose schema takes an object or an array and no string, when the text gives that type. Any other string is refused as before; a string parameter keeps its string. Every tool, the hand-made ones too.
 
