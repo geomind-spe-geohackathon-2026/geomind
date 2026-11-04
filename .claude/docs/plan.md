@@ -611,9 +611,11 @@ or derived inputs for other packages, so a request of that kind is dropped.
 | 30 | closed, 0.6.3: `Plant.to_dict(units="display")`, used by `read_plant` |
 | 31 | closed, 0.6.3: `°C/km`, `degC/km`; geomind's gradient mapping is gone |
 | 32 | dropped (a derived input): geomind sets the ISA pressure from the site's elevation itself (`air.py`) |
-| 33-35 | open, not sent |
-| 36, 37 | open, not sent (QA-040, QA-039; 2026-11-04 20:50 UTC) |
-| 38 | open, not sent (QA-043; 2026-11-04 21:12 UTC) |
+| 33, 36 | closed, gemini 0.6.5 (2026-11-05): `gm.check` names `params.control.dispatch`, `params.control.outages`, `params.backup` and a split well's `esp_depth`; the run's `invalid_design` path is still None |
+| 34 | closed, 0.6.5: a unit problem carries `quantity` and `accepted` |
+| 35 | open: the ESP's `out_of_range` still names one flow; geomind's `runs.curve_ranges` stays |
+| 37 | closed, 0.6.5: a local daily series is matched by calendar date (QA-039) |
+| 38 | closed, 0.6.5: a relative humidity takes `-` or `%` (QA-043) |
 
 gemini 0.6.4 (2026-11-04) is a bug fix only: H2S in a gas composition (B3, row 147). None of
 the requests above changes status.
