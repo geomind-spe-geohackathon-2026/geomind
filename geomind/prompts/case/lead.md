@@ -211,7 +211,9 @@ of):
   Days of operation are a duration (`over: duration`, `when: running`, unit `d`), never a
   `count`; `count` is a number of units. A cap per step is `over: each`; a share of demand left
   unmet is `unmet_share`. A rule the requirement options cannot say is kept in the case's
-  `about` and named as open.
+  `about` and named as open. An efficiency, a share or a rate is a fraction with no unit (70 %
+  is `0.7`, no `unit`); a bound on a single equipment value (`pump_hydraulic_efficiency`) has
+  no `over` and no `when`.
 - The outside air (`site.air.temperature`, `relative_humidity`, `pressure`): search the files and
   the knowledge base first (step 2). When a weather or elevation server is connected, read the
   values or the elevation from it before any question; when only the site's location is

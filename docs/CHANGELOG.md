@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.33] - 2026-11-04
+
+### Fixed
+
+- QA-002: the case lead's prompt says an efficiency, a share or a rate is a fraction with no unit (70 % is 0.7) and a bound on one equipment value has no `over` or `when`, so `pump_hydraulic_efficiency` is no longer sent as 70 % and refused.
+
 ## [0.4.32] - 2026-11-04
 
 ### Fixed
