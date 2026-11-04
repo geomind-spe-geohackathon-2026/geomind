@@ -545,7 +545,7 @@ the list):
     naming its module and function: `heating.maximum_return_temperature` and
     `cooling.minimum_return_temperature` are read but never used). Asked: a description of each
     in the schema (Track F).
-33. (E2E-13, number to settle at merge) `gm.check` says "an empty list means ready", but two
+33. (E2E-13, open, not sent: for Sahand) `gm.check` says "an empty list means ready", but two
     values it passes stop the run: `params.control.dispatch` and `params.control.outages`
     (optional `Parameter`s, `None` by default; `gm.schedule` raises `missing_value` only in
     `_stated_rules`) and a `ProductionWell` split at its pump (`segment` `below_esp` or
