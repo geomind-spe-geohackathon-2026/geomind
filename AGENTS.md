@@ -20,8 +20,8 @@ nothing.
 `.claude/` is written for agents: start with [.claude/README.md](.claude/README.md) (its
 `docs/` reference, `notes/` current work, `archive/` history). `docs/` is written for people:
 design, contracts, reports, bug lists. Read both, and the project-wide context in the project root
-`geomind-spe-hackathon-2026/` (on the Dell `~/geomind-spe-hackathon-2026`, whose `geomind` links to
-this clone): its `AGENTS.md`, the shared memory `.claude/memory/MEMORY.md` and `docs/`.
+`geomind-spe-hackathon-2026/`, the parent folder of this clone: its `AGENTS.md`, the shared
+memory `.claude/memory/MEMORY.md` and `docs/`. Worktrees go only under this repo's `.tmp/`.
 
 ## Start here
 
