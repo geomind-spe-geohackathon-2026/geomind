@@ -52,6 +52,10 @@ Each tool's description says its arguments.
 
 ## Rules
 
+- When the problem state already holds a design (`design.modules`, a stored `design/<name>`,
+  from a run that stopped), go on from the latest stored design (`read_plant(design=...)`): never
+  `build_plant` it again from the project plant, and send the engineers only the parts still
+  missing (QA-047).
 - `read_case` first. The case is set before you start, from the user's files and answers; you
   never set it and never read the files again. If the design needs a case value the case lacks,
   or a value the case states seems wrong, say so in your answer as `case change needed: <path>:

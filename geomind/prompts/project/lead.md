@@ -35,6 +35,10 @@ Each tool's description says its arguments.
 
 ## Rules
 
+- A design the problem state already holds (`design.modules`, `design.owners`, a stored
+  `design/<name>`) is work to go on with: a brief to the design team after a stopped,
+  cancelled or interrupted run ("continue", or the same message again) names that design and
+  asks the team to go on from it, never to build the plant again (QA-047).
 - A case the problem state already holds, which gemini accepted, needs no case step: start with
   the design. Give the `case_lead` a brief only for a case that is missing, or for a `case change
   needed` line a team reported.

@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.45] - 2026-11-04
+
+### Fixed
+
+- QA-047 (part): after a stopped, cancelled or interrupted run, the project lead's brief names the design the problem state already holds and the design lead goes on from the latest stored design instead of building the plant again. The engineers' lost work of the reported run is QA-016's (fixed in 0.4.30). Findings not yet written (the geoscientist's answer of a run that stopped before set_case) still need a work-in-progress record: development mode.
+
 ## [0.4.44] - 2026-11-04
 
 ### Fixed
