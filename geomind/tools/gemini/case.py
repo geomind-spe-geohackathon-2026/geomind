@@ -895,6 +895,19 @@ def describe_case(path: str):
     )
 
 
+def unset_section(section, data):
+    """Return what ``read_case`` gives for a section the case does not set yet (QA-014).
+
+    An unset section is an answer, not an error: the model reads which sections the case has,
+    and the chat shows no failed call.
+    """
+    return {
+        "section": section,
+        "unset": True,
+        "note": f"the case does not set {section!r} yet; it has {join_names(sorted(data))}",
+    }
+
+
 @tool(effect="read")
 def read_case(context, section: str | None = None):
     """Return the case of the problem state, one of its sections, its economics or the schema.
@@ -902,6 +915,7 @@ def read_case(context, section: str | None = None):
     ``section`` is a key of the case (``time``, ``site``, ``demand``, ``utilities``,
     ``requirements``, ``initial_state``), ``economics`` for the content of the economics file, or
     ``schema`` for the JSON Schema of a case (and of the economics under ``economics_schema``).
+    A section the case does not set yet returns ``{section, unset: true, note}``.
     """
     import gemini as gm
 
@@ -910,16 +924,12 @@ def read_case(context, section: str | None = None):
     data = state_case(context)
     if section is None:
         return data
+    if section == "economics" and not data.get("economics"):
+        return unset_section(section, data)
     if section == "economics":
         return economics_of(context, data)
     if section not in data and section in gm.Case.schema()["properties"]:
-        raise ToolError(
-            f"read_case: section = {section!r}; the case has no {section!r} (it is unset): "
-            f"the case has {join_names(sorted(data))}",
-            code="unknown_name",
-            path="section",
-            suggestions=sorted(data),
-        )
+        return unset_section(section, data)
     if section not in data:
         names = sorted(gm.Case.schema()["properties"])
         raise ToolError(

@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.35] - 2026-11-04
+
+### Fixed
+
+- QA-014: `read_case` of a section the case does not set yet (`utilities`, `initial_state`, `economics`) returns `{section, unset: true, note}` with the sections the case has, instead of an error per section.
+
 ## [0.4.34] - 2026-11-04
 
 ### Fixed
