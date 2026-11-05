@@ -210,3 +210,15 @@ def test_qa_309_a_knowledge_case_is_offered_only_when_it_is_whole():
     text = " ".join(ProjectLead().prompt.content.split())
     assert "with the option to upload the files of a case" in text
     assert "a brief or an assumptions document alone is no case" in text
+
+
+def test_qa_269_an_explanation_of_a_stored_result_goes_to_the_explainer():
+    """QA-269: how much, why this unit, is X consistent: the explainer, never analysis_lead."""
+    text = " ".join(ProjectLead().prompt.content.split())
+    assert "goes to the explainer, never to analysis_lead" in text
+
+
+def test_qa_312_making_a_design_the_project_plant_is_one_adopt_design():
+    """QA-312: the design lead adopts it with one call and does nothing else."""
+    text = " ".join(ProjectLead().prompt.content.split())
+    assert "goes to the design lead as one `adopt_design` call; no other work" in text

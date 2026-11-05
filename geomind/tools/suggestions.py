@@ -227,12 +227,15 @@ def _fits(item):
     return not ARABIC_SCRIPT.search(label + message)
 
 
-def checked(proposed, steps):
+def checked(proposed, steps, item=""):
     """Return the proposed suggestions that fit, as ``[(step, item)]``.
 
-    A step appears once; at most one step that is not the stage's own replaces one of them.
+    A step appears once; at most one step that is not the stage's own replaces one of them. The
+    label is the code's own label of the step (``item`` fills its ``{label}``); the lead changes
+    only the message (QA-204: a lead's label "Compare 100 vs 400 mD" sat on a message asking for
+    the sensitivity table).
     """
-    kept, seen, foreign = [], set(), 0
+    kept, seen, foreign, item_label = [], set(), 0, item
     for item in proposed or ():
         if not _fits(item) or item["step"] in seen:
             continue
@@ -241,9 +244,8 @@ def checked(proposed, steps):
                 continue
             foreign += 1
         seen.add(item["step"])
-        kept.append(
-            (item["step"], {"label": item["label"].strip(), "message": item["message"].strip()})
-        )
+        label = shown(item["step"], item_label)["label"]
+        kept.append((item["step"], {"label": label, "message": item["message"].strip()}))
     return kept[:MAX_SUGGESTIONS]
 
 
@@ -257,8 +259,8 @@ def next_steps(problem, files, user_text, proposed=None, project=None):
     ``user_text``'s language; the engine still passes it.
     """
     steps = project_steps(project, files, problem) if project else stage_steps(problem, files)
-    kept = checked(proposed, steps)
     label = incomplete_label(project) if project else ""
+    kept = checked(proposed, steps, label)
     taken = {step for step, _ in kept}
     filled = [item for _, item in kept]
     for step in steps:

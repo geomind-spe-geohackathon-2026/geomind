@@ -67,18 +67,20 @@ def test_every_step_fits_the_limits():
         for label, message in texts.values():
             assert 0 < len(label) <= MAX_LABEL and 0 < len(message) <= MAX_MESSAGE
     staged = {step for steps in suggestions.STAGES.values() for step in steps}
-    assert staged | {"rerun_study", "wait_study", "finish_item", "set_economics"} == set(suggestions.STEPS)
+    assert staged | {"rerun_study", "wait_study", "finish_item", "set_economics"} == set(
+        suggestions.STEPS
+    )
 
 
 def test_the_lead_may_reword_and_reorder():
-    """A list that fits is kept, in its order."""
+    """A list that fits is kept, in its order; the label is the code's own for the step (QA-204)."""
     proposed = [
         {"step": "check_design", "label": "Check it first", "message": "Check the design now."},
         {"step": "optimise", "label": "Then optimise", "message": "Optimise the design."},
     ]
     assert next_steps(PLANT, [], "go", proposed) == [
-        {"label": "Check it first", "message": "Check the design now."},
-        {"label": "Then optimise", "message": "Optimise the design."},
+        {"label": suggestions.shown("check_design")["label"], "message": "Check the design now."},
+        {"label": suggestions.shown("optimise")["label"], "message": "Optimise the design."},
         suggestions.shown("economics"),
     ]
 
@@ -109,7 +111,9 @@ def test_at_most_three_and_one_step_from_outside_the_stage():
         {"step": "check_design", "label": "Check", "message": "Check it."},
     ]
     labels = [item["label"] for item in next_steps(PLANT, [], "go", proposed)]
-    assert labels == ["Report", "Optimise", "Costs"]
+    assert labels == [
+        suggestions.shown(step)["label"] for step in ("report", "optimise", "economics")
+    ]
 
 
 def test_the_end_to_end_finish_keeps_one_step_from_outside_the_case_stage():
@@ -136,7 +140,10 @@ def test_the_end_to_end_finish_keeps_one_step_from_outside_the_case_stage():
         },
     ]
     found = next_steps(ProblemState(case=CASE), [], "Design a plant", recorded)
-    kept = [{key: item[key] for key in ("label", "message")} for item in recorded[:2]]
+    kept = [
+        {"label": suggestions.shown(item["step"])["label"], "message": item["message"]}
+        for item in recorded[:2]
+    ]
     assert found == [*kept, suggestions.shown("check_case")]
     assert "other_case" not in suggestions.STAGES["case"]
 
@@ -184,7 +191,7 @@ async def test_the_lead_s_finish_suggestions_reach_the_event():
     script = [uses(call("finish", answer="Hi", suggestions=proposed))]
     event = await finished(script, Leader())
     assert event.data()["suggestions"] == [
-        {"label": "Send files", "message": "What files?"},
+        {"label": suggestions.shown("files_needed")["label"], "message": "What files?"},
         suggestions.shown("case_by_questions"),
     ]
 
@@ -396,7 +403,7 @@ def test_one_proposed_step_keeps_the_stage_s_others():
     """QA-204: the lead's one step comes first; the stage's own fill the list to three."""
     proposed = [{"step": "explain", "label": "Explain it", "message": "Explain the result."}]
     assert [item["label"] for item in next_steps(RESULT, [], "go", proposed)] == [
-        "Explain it",
+        suggestions.shown("explain")["label"],
         "Write the report",
         "Sensitivity analysis",
     ]
@@ -410,3 +417,19 @@ def test_a_case_without_economics_asks_for_them_first():
     state = project(plant="empty", study="empty", results="empty", economics="empty")
     assert labels(state)[0] == "Set the economics"
     assert labels({**state, "economics": "done"})[0] == "Design a plant"
+
+
+def test_qa_204_the_label_is_the_code_s_own_and_the_lead_changes_the_message():
+    """A lead's label that names another action never reaches the chip."""
+    proposed = [
+        {
+            "step": "sensitivity",
+            "label": "Compare 100 vs 400 mD",
+            "message": "Show the full sensitivity table of the new study on the current case.",
+        }
+    ]
+    [first, *_] = next_steps(RESULT, [], "go", proposed)
+    assert first == {
+        "label": suggestions.shown("sensitivity")["label"],
+        "message": "Show the full sensitivity table of the new study on the current case.",
+    }

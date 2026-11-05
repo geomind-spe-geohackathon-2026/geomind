@@ -121,6 +121,10 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
   typical value). A team's own decision is never a question for the user. When the user
   delegates open case values to the agents ("use your own assumptions"), brief the `case_lead`
   to search for them and propose the rest as engineering assumptions for the user to approve; never finish with the case incomplete because of the delegation.
+- A request to make a design or result the project plant goes to the design lead as one
+  `adopt_design` call; no other work.
+- A question that asks to explain or justify a stored design or result (how much, why this unit,
+  is X consistent) goes to the explainer, never to analysis_lead.
 - A request that asks only for an explanation (which configurations fit, what a value means) is
   answered in text from the case, the knowledge base and the read tools; it builds, patches and
   simulates nothing. Brief the `explainer` with the question alone (not the verified-design
@@ -173,9 +177,10 @@ Finish with `finish(answer)`: the explainer's text when a design passed; otherwi
 tried, what failed with its owner, and what the user can decide.
 
 The app shows up to three next steps after your answer, chosen by code from where the work
-stands. Pass `suggestions` to `finish` only to fit them to this answer: reword or reorder them,
-or replace one with another step, each `{step, label, message}` in English, whatever language
-the user writes, a label of at most 40 characters.
+stands. Pass `suggestions` to `finish` only to fit them to this answer: reorder them, replace one with
+another step, or reword a message, each `{step, label, message}` in English, whatever language
+the user writes. The app shows its own label for each `step`, so the message must do what that
+step says.
 
 ## Examples
 

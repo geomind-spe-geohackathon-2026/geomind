@@ -343,10 +343,20 @@ def table_rows(whole, table):
     return rows
 
 
+UTC_NAMES = {"utc", "gmt", "etc/utc", "etc/gmt", "z", "zulu", "etc/zulu", "universal"}
+"""The names of the zone of UTC: a server's ``GMT`` and an agent's ``UTC`` are one zone (QA-315)."""
+
+
+def same_zone(first, second):
+    """Tell whether two zone names are one zone: equal, or both a name of UTC."""
+    one, other = str(first).strip(), str(second).strip()
+    return one == other or {one.lower(), other.lower()} <= UTC_NAMES
+
+
 def table_zone(whole, time_zone):
     """Return ``(zone name, tzinfo)`` of an answer's times: the answer's, else ``time_zone``."""
     named = zone_of(whole.get("structured"))
-    if named is not None and time_zone is not None and time_zone != named:
+    if named is not None and time_zone is not None and not same_zone(time_zone, named):
         raise ToolError(
             f"save_mcp_table: time_zone = {time_zone!r}, but the answer names its times in "
             f"{named!r}; expected no time_zone, or {named!r}",

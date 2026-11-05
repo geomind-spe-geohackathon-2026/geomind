@@ -490,14 +490,16 @@ async def compare(context, references: list[str], by: list[str]):
     comparison, reports = await runtime.in_gemini_thread(compare_runs, runs, by)
     entries = to_plain(comparison.to_dict())
     shown = [report.to_dict() for report in reports]
-    return [
-        {
-            "reference": reference,
-            **entry,
-            "values": {name: display[name] for name in entry["values"]},
-        }
-        for reference, entry, display in zip(references, entries, shown)
-    ]
+    return figures(
+        [
+            {
+                "reference": reference,
+                **entry,
+                "values": {name: display[name] for name in entry["values"]},
+            }
+            for reference, entry, display in zip(references, entries, shown)
+        ]
+    )
 
 
 EVOLVE_SETTINGS = {
@@ -650,16 +652,18 @@ async def evolve_structure(context, design: str, objectives: list[str], name: st
     key = await save_study(
         context, name, "evolve_structure", recorded, wrote, recommended, case, runs=runs
     )
-    return {
-        "front": front,
-        "best": best,
-        "evaluations": found["evaluations"],
-        "invalid": found["invalid"],
-        "rejected": [
-            {"structure": item["structure"], "reasons": item["reasons"]}
-            for item in kept["rejected"]
-        ],
-        "stopped": kept["budget"]["stopped"],
-        "why": stop_reason(kept["budget"]["stopped"], settings),
-        "study": key,
-    }
+    return figures(
+        {
+            "front": front,
+            "best": best,
+            "evaluations": found["evaluations"],
+            "invalid": found["invalid"],
+            "rejected": [
+                {"structure": item["structure"], "reasons": item["reasons"]}
+                for item in kept["rejected"]
+            ],
+            "stopped": kept["budget"]["stopped"],
+            "why": stop_reason(kept["budget"]["stopped"], settings),
+            "study": key,
+        }
+    )

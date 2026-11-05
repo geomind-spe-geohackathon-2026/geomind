@@ -849,3 +849,17 @@ def test_qa_299_sample_uncertainty_passes_the_percentiles_asked_for(monkeypatch)
     study_module.sample_design("plant", "case", ["lcts"], 4, 0)
     study_module.sample_design("plant", "case", ["lcts"], 4, 0, [10, 90])
     assert calls == [{}, {"percentiles": [10, 90]}]
+
+
+def test_qa_099_compare_and_the_structure_search_round_what_the_model_reads():
+    """QA-099: every study tool gives its figures to the significant digits of figures()."""
+    import inspect
+
+    from geomind.tools.gemini import study as study_module
+
+    for tool in (study_module.compare, study_module.evolve_structure):
+        assert "return figures(" in inspect.getsource(tool.function)
+    assert study_module.figures({"lcts": 49.28130562173663}) == {
+        "lcts": study_module.figures(49.28130562173663)
+    }
+    assert study_module.figures(49.28130562173663) != 49.28130562173663

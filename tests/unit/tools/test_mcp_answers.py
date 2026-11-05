@@ -300,7 +300,8 @@ async def test_a_replay_saves_the_table_again_from_the_recorded_answer():
 def test_the_prompts_say_how_to_use_a_server_s_answer():
     """The MCP section, the shared rules and skill `connectors` say what to do with an answer.
 
-    The arguments as listed, ``future``, UTC and ``save_mcp_table``.
+    The arguments as listed, ``future``, UTC and ``save_mcp_table``. The case lead's server how-to
+    is skill ``connectors`` (7e3c357), which it reads first.
     """
     from pathlib import Path
 
@@ -315,6 +316,21 @@ def test_the_prompts_say_how_to_use_a_server_s_answer():
     assert "`future: true`" in shared and "UTC" in shared and "save_mcp_table" in shared
     lead = (folder / "case" / "lead.md").read_text()
     assert "read_skill('connectors')" in lead
-    # The case lead's server how-to moved to skill `connectors` (7e3c357), which it reads first.
     skill = (folder.parent / "skills" / "connectors" / "SKILL.md").read_text()
     assert "save_mcp_table(answer, table, file)" in skill and "`future: true`" in skill
+
+
+async def test_save_mcp_table_takes_utc_for_a_server_s_gmt():
+    """QA-315: open-meteo names its times GMT; time_zone 'UTC' (or Z, Etc/UTC) is the same zone."""
+    from geomind.tools.mcp import same_zone
+
+    script = [
+        uses(read("openmeteo_get_climate", CLIMATE)),
+        uses(save("structured.daily", "data/climate", time_zone="UTC")),
+        says("done"),
+    ]
+    _, events = await run_open_meteo(script)
+    [output] = outputs(events, "save_mcp_table")
+    assert "error" not in output and output["time_zone"] == {"from": "GMT", "to": "UTC"}
+    assert same_zone("Etc/UTC", "GMT") and same_zone("Z", "utc")
+    assert not same_zone("Europe/Oslo", "GMT")
