@@ -185,3 +185,9 @@ def test_qa_224_a_saved_case_is_loaded_by_rule_and_never_again_as_a_no_op():
     text = " ".join(ProjectLead().prompt.content.split())
     assert "The run loads a saved case that differs from the chat's by rule" in text
     assert "(a card that changes nothing)" in text
+
+
+def test_qa_179_an_optimisation_answer_comes_from_the_study_record():
+    """QA-179: the analysis lead and explainer are briefed at once, with the study key."""
+    text = " ".join(ProjectLead().prompt.content.split())
+    assert "After an optimisation, the study record holds the answer" in text

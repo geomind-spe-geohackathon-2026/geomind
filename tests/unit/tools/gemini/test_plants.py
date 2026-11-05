@@ -989,3 +989,23 @@ async def test_build_plant_warns_when_it_types_a_stored_plant_again(gm):
     assert "differs from the stored HeatingPlant" in output.output["warning"]
     alone = await call(TOOLS.build_plant, {"name": "f2", "plant": other}, StubSession())
     assert "warning" not in alone.output
+
+
+def test_values_size_or_the_doublet_design_derive_are_no_missing_values(gm):
+    """QA-287: an injection pump's setpoint and a doublet's ESP stages leave ``missing``."""
+    from geomind.tools.gemini.stages import derived_issues
+
+    plant = gemini.Plant.from_dict(
+        {"format": 1, "kind": "plant", "name": "p", "type": "HeatingPlant"}
+    )
+    pump = next(path for path, module in plant.named_modules() if type(module).__name__ == "InjectionPump")
+    issues = [
+        {"path": f"params.{pump}.pressure_setpoint", "message": "missing"},
+        {"path": "params.d0.esp.stage_count", "message": "missing"},
+        {"path": "", "message": f"{pump}: supply the pressure_setpoint control or head_coefficients"},
+        {"path": "params.d0.nominal_flow", "message": "missing"},
+    ]
+    kept, derived = derived_issues(plant, issues)
+    assert [item["path"] for item in kept] == ["params.d0.nominal_flow"]
+    by = {item["path"]: item["derived_by"] for item in derived}
+    assert by == {f"params.{pump}.pressure_setpoint": "size", "params.d0.esp.stage_count": "design"}

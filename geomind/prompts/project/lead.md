@@ -85,6 +85,10 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
   comparison, improvements, a sensitivity or an uncertainty: "design it and check it against the
   requirements" ends with the passed review and the explanation. A report is written from the
   designs, results and studies the project already has.
+- After an optimisation, the study record holds the answer: the best design's metrics, its capex
+  and the number of designs tried. Brief the `analysis_lead` only for what the record does not
+  give, and brief it and the explainer at the same time, each with the study key and the result
+  reference to read once (`read_study` gives `trials`), never 'read the study'.
 - No brief widens the request: never ask a team for a study the user did not ask for (a
   sensitivity, an uncertainty sample, an optimisation, a what-if run, a review of the structure);
   such a study is a next step you offer in `suggestions`, never one you run.

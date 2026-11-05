@@ -242,8 +242,27 @@ def _stored(context, reference, path):
     part = reference.get("path")
     if not isinstance(part, str) or not part:
         raise _error("a stored operand needs path, the dotted path of one value in it", path)
+    part = with_unit(stored, part, path, reference["stored"])
     value, unit = _quantity(_walk(stored, part, path, reference["stored"]), path, "the stored part")
     return value, unit, {"kind": "stored", "reference": reference["stored"], "path": part}
+
+
+def with_unit(stored, part, path, where):
+    """Return ``part`` without a last ``.value`` when its parent is ``{value, unit}`` (QA-179).
+
+    ``lcts.value`` is a bare number, read as dimensionless, and a difference of two metrics was
+    refused as "the result is dimensionless" six times; the quantity ``lcts`` keeps its unit.
+    """
+    if not part.endswith(".value"):
+        return part
+    parent = part[: -len(".value")]
+    try:
+        found = _walk(stored, parent, path, where)
+    except ToolError:
+        return part
+    if isinstance(found, dict) and "value" in found and found.get("unit"):
+        return parent
+    return part
 
 
 def _calculation(context, reference, path):
@@ -289,11 +308,16 @@ RESOLVERS = {
 
 def _aliased(reference):
     """Return ``{value, unit}``, the form every other tool uses, as ``{number, unit}`` (QA-235)."""
-    if isinstance(reference, dict) and "value" in reference and not set(REFERENCE_KINDS) & set(
-        reference
+    if (
+        isinstance(reference, dict)
+        and "value" in reference
+        and not set(REFERENCE_KINDS) & set(reference)
     ):
-        return {"number": reference["value"], "unit": reference.get("unit", "-"),
-                **{key: item for key, item in reference.items() if key not in ("value", "unit")}}
+        return {
+            "number": reference["value"],
+            "unit": reference.get("unit", "-"),
+            **{key: item for key, item in reference.items() if key not in ("value", "unit")},
+        }
     return reference
 
 
@@ -305,8 +329,8 @@ def _operand(context, reference, position):
         raise _error(
             f"{path} = {reference!r}; expected an object: a reference to a sourced value (one "
             f"of {', '.join(SOURCED_KINDS)}), {{\"constant\": \"pi\"}} or "
-            f"{{\"number\": 24, \"unit\": \"h\"}}, or a nested {{\"operation\", "
-            f"\"operands\", \"unit\"}}",
+            f'{{"number": 24, "unit": "h"}}, or a nested {{"operation", '
+            f'"operands", "unit"}}',
             path,
         )
     kinds = [kind for kind in REFERENCE_KINDS if kind in reference]
@@ -331,7 +355,11 @@ def _name(operand):
     if kind == "number":
         return f"{operand['value']:g} {operand['unit']} (plain)"
     if kind == "constant":
-        return f"{reference['constant']} [{operand['value']:g} {operand['unit']}]" if operand["unit"] != "-" else reference["constant"]
+        return (
+            f"{reference['constant']} [{operand['value']:g} {operand['unit']}]"
+            if operand["unit"] != "-"
+            else reference["constant"]
+        )
     suffix = f".{reference['path']}" if kind == "stored" else ""
     return f"{kind}:{reference[kind]}{suffix} [{operand['value']:g} {operand['unit']}]"
 
@@ -493,8 +521,13 @@ async def _flattened(context, label, operands, where):
         if not operand.get("unit"):
             raise _error(f"{path} has no unit; expected the nested result's unit", f"{path}.unit")
         inner, _, inner_sourced = await _derived(
-            context, operand.get("label") or f"{label}, part {index + 1}", operand["operation"],
-            operand["operands"], operand["unit"], operand.get("exponent"), f"{path}.operands",
+            context,
+            operand.get("label") or f"{label}, part {index + 1}",
+            operand["operation"],
+            operand["operands"],
+            operand["unit"],
+            operand.get("exponent"),
+            f"{path}.operands",
         )
         flat.append({"calculation": inner["id"]})
         made[inner["id"]] = inner
@@ -519,9 +552,11 @@ async def _derived(context, label, operation, operands, unit, exponent, where):
     operands, sourced, made = await _flattened(context, label, operands, where)
     _checked_shape(operation, operands, exponent)
     resolved = [
-        _made_operand(reference, made)
-        if isinstance(reference, dict) and reference.get("calculation") in made
-        else _operand(context, reference, index)
+        (
+            _made_operand(reference, made)
+            if isinstance(reference, dict) and reference.get("calculation") in made
+            else _operand(context, reference, index)
+        )
         for index, reference in enumerate(operands)
     ]
     bases = [_base(operand, index) for index, operand in enumerate(resolved)]

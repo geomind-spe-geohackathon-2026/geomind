@@ -63,3 +63,14 @@ async def test_numbers_alone_stay_refused_also_when_nested():
     }
     result, _ = await calculated(tool_input)
     assert result.is_error and "no operand has a source" in result.output["error"]["message"]
+
+
+def test_qa_179_a_stored_path_ending_in_value_keeps_its_unit():
+    """QA-179: lcts.value was read as dimensionless; the quantity lcts keeps its unit."""
+    from geomind.tools.calculate import with_unit
+
+    stored = {"metrics": {"lcts": {"value": 41.3, "unit": "EUR/MWh"}, "count": {"value": 3}}}
+    assert with_unit(stored, "metrics.lcts.value", "operands[0]", "r") == "metrics.lcts"
+    assert with_unit(stored, "metrics.lcts", "operands[0]", "r") == "metrics.lcts"
+    assert with_unit(stored, "metrics.count.value", "operands[0]", "r") == "metrics.count.value"
+    assert with_unit(stored, "metrics.none.value", "operands[0]", "r") == "metrics.none.value"

@@ -14,13 +14,15 @@ RUN_CODES = ("missing_value", "missing_assumption", "invalid_binding")
 """The codes of a probe run's issues that name a value the plant lacks, not a probe value."""
 
 
-def doublet_issues(plant, found):
+def doublet_issues(plant, found, case=None):
     """Return a ``missing`` issue for each design value of a doublet that gemini asks only later.
 
     gemini asks the flow path and pump values of a doublet (``well_diameter``, ``nominal_flow``,
     ``pump_efficiency``, ``nominal_wellhead_pressure`` ...) only once its depth group is complete.
     They are named with the rest when gemini already asks a design value of that doublet (its
-    depth): a doublet whose child values are stated by hand needs none.
+    depth): a doublet whose child values are stated by hand needs none. A value the ``case``
+    fills (``permeability``, ``thickness`` from the site) is no design value and is not named: a
+    patch of it was refused as a case value (QA-212, QA-287).
     """
     from gemini.plants._utils import doublet_design
     from gemini.plants.doublet import Doublet
@@ -28,6 +30,7 @@ def doublet_issues(plant, found):
     known = {issue.get("path") for issue in found}
     params = plant.to_dict(structure=True)["params"]
     names = (*doublet_design.COLUMN, *doublet_design.FLOW_PATH, *doublet_design.PUMP)
+    filled = case_filled(plant, case)
     issues = []
     for path, module in plant.named_modules():
         prefix = f"params.{path}."
@@ -41,8 +44,37 @@ def doublet_issues(plant, found):
             value = stated.get(name)
             if (value.get("value") if isinstance(value, dict) else value) is not None:
                 continue
+            if f"{path}.{name}" in filled:
+                continue
             issues.append(design_issue(path, name, parameters[name]))
     return issues
+
+
+def case_filled(plant, case):
+    """Return the ``<doublet>.<name>`` design values of ``plant`` that the ``case`` sets."""
+    if case is None:
+        return set()
+    from gemini.engine.apply import apply_case
+    from gemini.errors import ValidationError
+    from gemini.plants._utils import doublet_design
+    from gemini.plants.doublet import Doublet
+
+    try:
+        applied = apply_case(plant, case)
+    except ValidationError:
+        return set()
+    filled = set()
+    for path, module in applied.named_modules():
+        if not isinstance(module, Doublet):
+            continue
+        for name in doublet_design.FLOW_PATH:
+            try:
+                value = getattr(module, name)
+            except ValidationError:
+                continue
+            if value is not None:
+                filled.add(f"{path}.{name}")
+    return filled
 
 
 def design_issue(path, name, parameter):
@@ -157,10 +189,58 @@ def later_issues(plant, found, case=None):
     gives no later issues.
     """
     try:
-        doublets = doublet_issues(plant, found)
+        doublets = doublet_issues(plant, found, case)
         setpoints, lacking = setpoint_issues(plant, case) if case is not None else ([], {})
     except (ImportError, AttributeError):
         return [], None
     known = {issue.get("path") for issue in found}
     issues = [issue for issue in doublets + setpoints if issue["path"] not in known]
     return issues, (probe_plant(plant, lacking) if lacking else None)
+
+
+SIZE_NOTE = (
+    "derived by size: size_plant (or a study with prepare size) sets it from the doublets the "
+    "pump serves; never patch it"
+)
+"""What an injection pump's setpoint issue says once it is set aside for ``size`` (QA-287)."""
+DESIGN_NOTE = (
+    "derived by the doublet's design from its nominal_flow, pump_efficiency and "
+    "nominal_wellhead_pressure; give those, never this"
+)
+"""What an issue on a doublet's derived pump value says once it is set aside (QA-287)."""
+
+
+def derived_issues(plant, issues):
+    """Return ``(issues, derived)``: the issues to fill, and those gemini derives itself (QA-287).
+
+    An injection pump of a plant with doublets gets its ``pressure_setpoint`` from ``size``; a
+    doublet's ESP stages, curves and setting depth come from its design values (a well split at
+    its pump by hand still needs its ``esp_depth``). A design lead
+    chased them one patch at a time for 20 min. They are kept out of ``missing``, each with what
+    derives it, so the lead goes on to the size and the study.
+    """
+    from gemini.modules.pumps import InjectionPump
+    from gemini.plants._utils import doublet_design
+    from gemini.plants.doublet import Doublet
+
+    modules = dict(plant.named_modules())
+    doublets = [path for path, module in modules.items() if isinstance(module, Doublet)]
+    pumps = {path for path, module in modules.items() if isinstance(module, InjectionPump)}
+    esp = [name for name in doublet_design.PUMP_VALUES if name.startswith("esp.")]
+    pumped = {f"params.{path}.{name}" for path in doublets for name in esp}
+    kept, derived = [], []
+    for issue in issues:
+        path = str(issue.get("path") or "")
+        module, _, name = path.removeprefix("params.").rpartition(".")
+        text = str(issue.get("message") or "")
+        if doublets and "supply the pressure_setpoint control" in text:
+            path = path or f"params.{text.partition(':')[0]}.pressure_setpoint"
+            module, name = path.removeprefix("params.").rpartition(".")[::2]
+        if doublets and name == "pressure_setpoint" and module in pumps:
+            derived.append({"path": path, "derived_by": "size", "message": SIZE_NOTE})
+        elif path in pumped:
+            derived.append({"path": path, "derived_by": "design", "message": DESIGN_NOTE})
+        else:
+            kept.append(issue)
+    unique = {item["path"]: item for item in derived}
+    return kept, list(unique.values())

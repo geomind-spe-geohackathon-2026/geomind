@@ -328,24 +328,35 @@ def plant_issues(context, plant):
     """
     import gemini as gm
 
-    from geomind.tools.gemini.stages import later_issues
+    from geomind.tools.gemini.stages import derived_issues, later_issues
 
     rules = rule_issues(plant)
     if context.problem.case is None:
         ruled = {rule["path"] for rule in rules}
         found = [issue_dict(i) for i in plant.check() if i.problem()["path"] not in ruled] + rules
         found += later_issues(plant, found)[0]
-        return {"checked_against": "plant", "issues": owned_first(context, found)}
+        found, derived = derived_issues(plant, found)
+        shown = {"checked_against": "plant", "issues": owned_first(context, found)}
+        return {**shown, "derived": derived} if derived else shown
     case = case_of(context)
     checked = gm.check(plant, case)
     ruled = {rule["path"] for rule in rules}
     issues = [issue_dict(i) for i in checked if i.problem()["path"] not in ruled] + rules
     later, probe = later_issues(plant, issues, case)
-    if not rules and all(issue.is_warning for issue in checked):
+    if not rules and all(issue.is_warning or derived_path(plant, issue) for issue in checked):
         issues += later + probe_run_issues(plant, probe, case)
     else:
         issues += later
-    return {"checked_against": "case", "issues": owned_first(context, issues)}
+    issues, derived = derived_issues(plant, issues)
+    shown = {"checked_against": "case", "issues": owned_first(context, issues)}
+    return {**shown, "derived": derived} if derived else shown
+
+
+def derived_path(plant, issue):
+    """Return whether a gemini issue names a value that size or the doublet design derives."""
+    from geomind.tools.gemini.stages import derived_issues
+
+    return bool(derived_issues(plant, [{"path": issue.problem()["path"]}])[1])
 
 
 def probe_run_issues(plant, probe, case):

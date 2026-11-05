@@ -82,7 +82,9 @@ the plant, a profile or a finding once and never again unless you wrote it since
    list form takes their `changes` as they are) under a new name. Evaluate what they asked in
    `evaluations` with `evaluate_module`. Record each engineer's assumption (`source`
    `assumption`) with `update_state`, all in one call.
-5. As soon as `missing` is 0, go straight to the search, as gemini's hackathon example does:
+5. The `derived` list of a check names values gemini sets itself (`size` sets an injection
+   pump's setpoint, the doublet design its ESP stages and curves): never patch or ask for them.
+   As soon as `missing` is 0, go straight to the search, as gemini's hackathon example does:
    ONE `set_ranges` (the doublets, the depth, `nominal_flow` and the heat pump and chiller
    capacities), `size_plant`, then ONE `optimize` study per configuration. Never size by hand
    with builds or patches: a new plant version is not a search. Then `simulate` the best for the
@@ -122,6 +124,10 @@ stopped), read it with `read_stored` and use it: never ask the same brief again.
 - Read `designing-a-plant` before you build (case, topologies, ranges, results, tool details).
 - Round 1: record the case's requirements with `update_state` (`case_requirement` is the name) and
   your assumptions, each with value, source and `confirmed: false` unless the user gave it.
+- A card the user denies is their instruction for this request: never send the same write again
+  under another `name` or with the same ranges or changes. Your answer opens with `The user
+  denied <tool> (<what it would do>): '<the user's words>'`, then what you did instead on those
+  words, so the project lead sees the denial.
 - Do what the request asks and no more. A request to optimise, size, simulate or check a given
   design (a stored plant, a plant version, the current design) works on that design only: no
   other family, no alternative, no `design.families` entry; once its best is simulated and

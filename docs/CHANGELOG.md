@@ -6,6 +6,18 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.130] - 2026-11-05
+
+### Fixed
+- QA-287: values that size or the doublet design derive (injection pump pressure_setpoint, ESP
+  stages and curves) are listed under `derived`, never as missing, and do not block the probe run
+  (gemini 0.6.26 sets the setpoint in size).
+- QA-212 (part): doublet issues no longer name permeability or thickness the case fills.
+- QA-179: the project lead briefs the analysis lead only for what the study record lacks; the
+  analysis lead quotes both values instead of computing differences; calculate reads `<path>.value`
+  of a quantity with its unit.
+- QA-294 (prompt): the last result is the newest project result of the same plant.
+
 ### Fixed
 - QA-288: a denied write under a new name is refused with the user's words; a nested answer carries
   each user denial of its run.

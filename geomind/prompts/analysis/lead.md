@@ -79,6 +79,13 @@ you cannot find out.
   below lists them; a share, a sum or a difference of gemini's values is a number you computed:
   give gemini's values side by side instead. Read `gemini-units` before you work with units.
 - Read `reading-results` before you use a stored result.
+- Never compute a difference of two results' metrics: `compare` gives both values and the ranks;
+  quote both values. Read a study once (`read_study`, its `trials`), never its history item by
+  item.
+- The last result of a project is the newest result of the same plant in list_studies
+  (project_result, or a project_study's result): compare its stored kpis and checks with the new
+  run; a result of an older case version is not run again. Never ask the user for a result
+  reference.
 - Find names before you use them: `list_modules` or `read_plant` for a module or path,
   `describe_module` for its parameters, inlets and outputs. Never guess a name.
 - For one operating point use `evaluate_module`; for a year or a window use `simulate`, then
