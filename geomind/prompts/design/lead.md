@@ -186,6 +186,9 @@ stopped), read it with `read_stored` and use it: never ask the same brief again.
 - Reuse stored plants: to compare or rank plant versions, pass `design/v<N>` (or
   `plant_version`) to `simulate`, `size_plant`, `optimize` or `run_study`; never re-type a
   stored plant with `build_plant` (QA-221).
+- An engineer's proposal that copies the case's production flow band into an ESP's
+  `minimum_flow`, `maximum_flow` or `best_efficiency_flow` goes back: the pump's window is at
+  its intake and stays as gemini's reference plant gives it, or a sourced datasheet (QA-250).
 - Review the engineers' proposals before you write: values that couple (the flow, the source
   and return temperatures, the pump depth and the drawdown) agree across groups; every value has
   a source or a reason; no change reaches another group's path. A conflict is yours to decide.

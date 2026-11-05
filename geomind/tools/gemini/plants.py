@@ -328,7 +328,7 @@ def plant_issues(context, plant):
     """
     import gemini as gm
 
-    from geomind.tools.gemini.stages import derived_issues, later_issues
+    from geomind.tools.gemini.stages import derived_issues, later_issues, window_warnings
 
     rules = rule_issues(plant)
     if context.problem.case is None:
@@ -349,7 +349,9 @@ def plant_issues(context, plant):
         issues += later
     issues, derived = derived_issues(plant, issues)
     shown = {"checked_against": "case", "issues": owned_first(context, issues)}
-    return {**shown, "derived": derived} if derived else shown
+    shown |= {"derived": derived} if derived else {}
+    warnings = window_warnings(plant)
+    return {**shown, "warnings": warnings} if warnings else shown
 
 
 def derived_path(plant, issue):

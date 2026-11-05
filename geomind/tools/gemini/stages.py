@@ -257,3 +257,32 @@ def derived_issues(plant, issues):
             kept.append(issue)
     unique = {item["path"]: item for item in derived}
     return kept, list(unique.values())
+
+
+WINDOW_NOTE = (
+    "the ESP's maximum_flow is at or below the doublet's nominal_flow: the pump's window is at "
+    "its intake, where the flow is higher; never the case's flow band (QA-250)"
+)
+"""What a doublet's ESP window that copies its flow says."""
+
+
+def window_warnings(plant):
+    """Return a warning for each doublet whose ESP ``maximum_flow`` is at most its nominal flow.
+
+    The case's production band copied into the ESP's window failed every second step of a run:
+    the ESP sees the flow at its intake, above the surface flow (QA-250).
+    """
+    from gemini.errors import ValidationError
+    from gemini.plants.doublet import Doublet
+
+    found = []
+    for path, module in plant.named_modules():
+        if not isinstance(module, Doublet):
+            continue
+        try:
+            flow, window = module.nominal_flow, module.get_submodule("esp").maximum_flow
+        except (AttributeError, ValidationError):
+            continue
+        if flow is not None and window is not None and window <= flow * (1 + 1e-9):
+            found.append({"path": f"params.{path}.esp.maximum_flow", "message": WINDOW_NOTE})
+    return found

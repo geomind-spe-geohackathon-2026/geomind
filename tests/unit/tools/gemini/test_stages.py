@@ -79,3 +79,17 @@ def test_the_doublet_design_names_agree_with_gemini():
     assert stages.DOUBLET_FLOW_PATH == doublet_design.FLOW_PATH
     assert stages.DOUBLET_PUMP == doublet_design.PUMP
     assert set(stages.DOUBLET_ESP) <= set(doublet_design.PUMP_VALUES)
+
+
+def test_an_esp_window_at_the_doublet_flow_is_warned_of():
+    """QA-250: an ESP maximum_flow copied from the flow band gets a warning; the reference none."""
+    import json
+
+    from geomind.tools.gemini.stages import window_warnings
+    from tests.fixtures.cases import read_plants
+
+    data = json.loads(read_plants("hackathon_2026")["plants/HeatingHeatPumpCoolingPlant.json"])
+    assert window_warnings(gemini.Plant.from_dict(data)) == []
+    data["params"]["d0"]["esp"]["maximum_flow"] = {"value": 300, "unit": "m3/h"}
+    found = window_warnings(gemini.Plant.from_dict(data))
+    assert [item["path"] for item in found] == ["params.d0.esp.maximum_flow"]
