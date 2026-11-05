@@ -15,6 +15,18 @@ sensitivity.
   reason.
 - A metric with `failed` draws is reported with that count.
 - A case without declared uncertainty is an error: report it, never invent a range.
+- A one-at-a-time sensitivity on drivers the user names (electricity price, discount rate, heat
+  price, drilling cost, ...) with ranges is gemini's `sensitivity`, never code:
+  1. Each range goes into the case as the value's `uncertainty`, set by the lead (who has
+     `set_case`) with the range the user gave. `economics` is a merge patch, so send only the
+     ranges: `set_case(economics={"discount_rate": {"uncertainty": {"kind": "uniform", "min":
+     0.03, "max": 0.08}}, "capex": {"drilling": {"uncertainty": {"kind": "uniform", "min": 1000,
+     "max": 1600}}}})`; the values and their sources stay. Bounds are in the value's own unit.
+  2. `sensitivity(design, metrics=["lcts"], name, values=["economics.discount_rate",
+     "economics.capex.drilling", ...])` moves only the named values, each to its low and high
+     end; without `values` every declared uncertainty moves.
+  3. Report each row: the driver, `low`/`high`, `at_low`/`at_high` and `effect` of the metric.
+  Never use `run_python` for a sensitivity: it cannot load a stored design, case or result.
 
 Studies:
 
@@ -67,7 +79,9 @@ Rank the case's uncertain values (from the user or the case, never made up) by e
 
 The metrics are those of a stored design.
 
-Each value the case declares an `uncertainty` for is set at its low and high bound. `name`
+Each value the case declares an `uncertainty` for is set at its low and high bound; with
+`values` (paths such as `economics.energy.electricity`) only those, and a path the case declares
+no uncertainty for is an error listing the declared ones. `name`
 names the study `study/<name>` that records the call; a taken name is refused. Returns the
 `study` key and `rows`, sorted by effect, each `{parameter, metric, low, high, at_low,
 at_high, effect}`.

@@ -131,7 +131,18 @@ async def hackathon_calls():
     draws = {**arguments, "samples": 3, "seed": 1, "name": "draws"}
     drawn = await run(study.sample_uncertainty, context, draws)
     tornado = await run(study.sensitivity, context, {**arguments, "name": "tornado"})
-    return {"smoke": smoke, "drawn": drawn, "tornado": tornado, "context": context}
+    named = {**arguments, "name": "named", "values": ["economics.discount_rate"]}
+    one = await run(study.sensitivity, context, named)
+    wrong = {**arguments, "name": "wrong", "values": ["economics.capex.drilling"]}
+    undeclared = await run(study.sensitivity, context, wrong)
+    return {
+        "smoke": smoke,
+        "drawn": drawn,
+        "tornado": tornado,
+        "named": one,
+        "undeclared": undeclared,
+        "context": context,
+    }
 
 
 async def search_and_study():
@@ -247,6 +258,15 @@ def test_sensitivity_ranks_the_uncertain_values():
     """The tornado has rows for the metric."""
     rows = slow_calls()["studies"]["tornado"].output["rows"]
     assert rows[0]["metric"] == "lcts"
+
+
+def test_a_sensitivity_of_named_values_moves_only_those():
+    """values keeps the named uncertainty; a value the case declares none for is refused."""
+    studies = slow_calls()["studies"]
+    rows = studies["named"].output["rows"]
+    assert {row["parameter"] for row in rows} == {"case.economics.discount_rate"}
+    refused = studies["undeclared"]
+    assert refused.is_error and "economics.discount_rate" in refused.output["error"]["message"]
 
 
 def test_run_study_ranks_the_designs_in_display_units():

@@ -209,20 +209,84 @@ def sensitivity_of_design(plant, case, metrics):
     runs_alone=True,
     late_schemas={"design": reference_schema("design")},
 )
-async def sensitivity(context, design: str, metrics: list[str], name: str):
+async def sensitivity(
+    context, design: str, metrics: list[str], name: str, values: list[str] | None = None
+):
     """Rank the case's uncertain values (from the user or the case, never made up) by effect.
 
     Skill `economics`.
     """
     settings = {"method": "sensitivity", "metrics": metrics}
     ran, plants, study, case = prepared(context, "sensitivity", name, [design], settings, [])
+    data, files = (ran[0], ran[1]) if not values else only_uncertainty(ran[0], ran[1], values)
     tornado = await runtime.in_gemini_thread(
-        sensitivity_of_design, plants[design], build_case(*ran), metrics
+        sensitivity_of_design, plants[design], build_case(data, files), metrics
     )
     result = to_plain(tornado.to_dict())
     found = (study.to_dict(), result)
     key = await save_study(context, name, "sensitivity", found, ([design], []), None, case)
     return {"study": key, **result}
+
+
+def declared_uncertainty(data, prefix=""):
+    """Return the dotted paths of the case dict ``data`` whose value declares an ``uncertainty``."""
+    found = []
+    for key, node in data.items() if isinstance(data, dict) else ():
+        path = f"{prefix}{key}"
+        if isinstance(node, dict):
+            if "uncertainty" in node:
+                found.append(path)
+            found += declared_uncertainty(node, f"{path}.")
+    return found
+
+
+def kept_uncertainty(node, names, prefix):
+    """Drop, in place, the ``uncertainty`` of every value of ``node`` whose path is not named."""
+    for key, child in node.items() if isinstance(node, dict) else ():
+        path = f"{prefix}{key}"
+        if isinstance(child, dict):
+            if "uncertainty" in child and path not in names:
+                child.pop("uncertainty")
+            kept_uncertainty(child, names, f"{path}.")
+
+
+def only_uncertainty(data, files, values):
+    """Return ``(case dict, files)`` with the ``uncertainty`` of the named ``values`` only.
+
+    A sensitivity of the drivers a user names moves only those, not every value the case
+    declares (QA-131). The economics may be a file of the case (``"economics": "<name>"``); its
+    values are ``economics.<path>``. A name the case declares no uncertainty for is an error
+    listing the declared ones: the ranges are set in the case first, with ``set_case``.
+    """
+    import copy
+
+    names = [str(item).removeprefix("case.") for item in values]
+    kept, files = copy.deepcopy(data), dict(files or {})
+    economics = kept.get("economics")
+    sheet = None
+    if isinstance(economics, str) and economics in files:
+        sheet = json.loads(files[economics])
+    elif isinstance(economics, dict):
+        sheet = kept.pop("economics")
+    declared = declared_uncertainty({k: v for k, v in kept.items() if k != "economics"})
+    declared += declared_uncertainty(sheet or {}, "economics.")
+    unknown = [item for item in names if item not in declared]
+    if unknown:
+        raise ToolError(
+            f"sensitivity: values = {unknown}: the case declares no uncertainty for them; declared: "
+            f"{declared or 'none'}. Set each range in the case first: set_case(economics={{key: "
+            "{value, unit, uncertainty: {kind: 'uniform', min, max}}}}) for an economics value, "
+            "with the range the user gave",
+            path="values",
+        )
+    kept_uncertainty(kept, names, "")
+    if sheet is not None:
+        kept_uncertainty(sheet, names, "economics.")
+        if isinstance(economics, str):
+            files[economics] = json.dumps(sheet).encode()
+        else:
+            kept["economics"] = sheet
+    return kept, files
 
 
 def study_runs(study):

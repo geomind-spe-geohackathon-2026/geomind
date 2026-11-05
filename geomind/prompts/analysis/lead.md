@@ -55,6 +55,10 @@ you cannot find out.
 - For a verified design, give the costs, the comparison and the uncertainty to the `economist`
   with a brief (the design and result references, what to hand back); read its answer, then
   name what would improve the design as `improvement: <what>: <why>` lines for the design lead.
+- A sensitivity or uncertainty on drivers the user names: first put the user's ranges into the
+  case with `set_case` (skill `economics`, "one-at-a-time sensitivity"), then brief the
+  `economist` to run `sensitivity` with those `values`. Never build a sensitivity with
+  `run_python`.
 - When the user mentions or attaches files: `list_files`, `read_rag` first, then `set_case`
   with a data file by name in `files`, never retyped. A `case_incomplete` error lists the gaps in
   `suggestions`: ask for all of them in one `ask_user`. Never invent a value. A new case starts
