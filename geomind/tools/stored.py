@@ -352,6 +352,20 @@ def deeper(reference, path, value):
                 "`next`; never a sample of it"
             ),
         }
+    parts, rest = whole_parts(value, runtime.get("tool_result_limit"))
+    if parts:
+        named = ", ".join(f"'{prefix}{key}'" for key in rest)
+        return {
+            "reference": reference,
+            "path": path or None,
+            "parts": parts,
+            "rest": rest,
+            "note": (
+                f"too long to show whole: {len(parts)} of {len(keys)} parts are here whole; read "
+                f"each of the rest with read_stored(reference={reference!r}, path=...), one of "
+                f"{named}, all in one step"
+            ),
+        }
     return {
         "reference": reference,
         "path": path or None,
@@ -362,3 +376,32 @@ def deeper(reference, path, value):
             f"read_stored(reference={reference!r}, path='{prefix}{first}')"
         ),
     }
+
+
+def whole_parts(mapping, limit):
+    """Return ``(parts, rest)``: the values of a mapping that fit ``limit`` whole, then the others.
+
+    QA-156: a team's answers came back as their keys alone, and the lead read each by hand in
+    further steps; the parts that fit are given whole at once, in their order, and the rest named.
+    A value that is JSON text (a member's typed answer) is given as its JSON.
+    """
+    parts, rest, used = {}, [], 0
+    for key, value in mapping.items():
+        shown = _parsed(value)
+        size = len(json.dumps({key: shown}))
+        if used + size <= limit:
+            parts[key] = shown
+            used += size
+        else:
+            rest.append(str(key))
+    return parts, rest
+
+
+def _parsed(value):
+    """Return a JSON text's value, or the value itself."""
+    if isinstance(value, str) and value[:1] in "{[":
+        try:
+            return json.loads(value)
+        except ValueError:
+            return value
+    return value

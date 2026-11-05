@@ -227,3 +227,26 @@ async def test_a_long_list_is_read_whole_in_pages():
     assert (await read(path="project_plants", start=0, length=10))["next"] is None
     assert "error" in await read(path="capabilities", start=0)
     assert "error" in await read(path="plants", start=31)
+
+
+async def test_a_long_mapping_gives_the_parts_that_fit_whole():
+    """QA-156: a team's answers come back whole as far as they fit, the rest named by path."""
+    import json
+
+    from geomind import runtime
+
+    session = StubSession()
+    limit = runtime.get("tool_result_limit")
+    answer = json.dumps({"values": ["v" * (limit // 3)]})
+    team = {f"Geoscientist {n}": answer for n in ("I", "II", "III", "IV")}
+    await session.save_artifact("result-team", team)
+    result = await dispatch(
+        read_stored,
+        ToolCall(id="r", name="read_stored", input={"reference": "result-team"}),
+        Context(session=session),
+    )
+    output = result.output
+    assert list(output["parts"]) == ["Geoscientist I", "Geoscientist II"]
+    assert output["parts"]["Geoscientist I"]["values"][0].startswith("v")
+    assert output["rest"] == ["Geoscientist III", "Geoscientist IV"]
+    assert "'Geoscientist III'" in output["note"]
