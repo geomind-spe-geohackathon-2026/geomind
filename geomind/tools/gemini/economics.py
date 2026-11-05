@@ -256,6 +256,12 @@ def _rank(row):
     )
 
 
+POLICY_KEYS = ("revenue.subsidy",)
+"""Keys of a policy the site may not have (a subsidy scheme): never filled with a recommended
+row; open unless the case lead names them because the user or the brief gives a subsidy (QA-084:
+a Dutch SDE++ amount and duration went into a case whose user said no subsidy)."""
+
+
 def recommended(context, values, open_keys):
     """Return ``(values, open keys)`` with every catalogue key the case lead did not name (QA-013).
 
@@ -277,6 +283,9 @@ def recommended(context, values, open_keys):
     added, opened = [], []
     for key, found in sorted(by_key.items()):
         if key in CATALOGUE_BASIS:
+            continue
+        if key.startswith(POLICY_KEYS):
+            opened.append(key)
             continue
         sourced = sorted(
             (

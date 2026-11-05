@@ -54,7 +54,7 @@ in this order, none skipped:
    value, unit, source, year, url or status: `ask_economics` reads them from the knowledge base
    itself, and copying every row runs past the output limit and loses the call;
    a key with only placeholder rows or none goes in `open`; each key once, in `values` or in
-   `open`, never both. `currency` and `price_year` are never asked: `ask_economics` sets them
+   `open`, never both. A subsidy (`revenue.subsidy.*`) is never recommended: the tool leaves it open; name its keys only when the user or the brief gives a subsidy, and when the user says there is none, every `revenue.subsidy` key stays open. `currency` and `price_year` are never asked: `ask_economics` sets them
    from the catalogue's `value_2015` columns (EUR, 2015). It names at once every unit a key does
    not take: fix them all in the next call. On `approve all` the tool sets every
    value with its row and records the assumptions: do not set them again. On `change some`, ask
