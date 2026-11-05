@@ -6,6 +6,15 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.99] - 2026-11-05
+
+### Fixed
+- QA-152: a plant of the project (Plant page, earlier chat) is `design/<its name>` or
+  `design/v<version>` in every design tool, so the study tools (`sensitivity`,
+  `sample_uncertainty`, `run_study`) run on it; an unknown design reference says so.
+- QA-158: the case lead prompt no longer says dates without an offset are read as UTC: gemini
+  refuses them without a series `time_zone`, which the lead proposes as an assumption.
+
 ## [0.4.98] - 2026-11-05
 
 ### Fixed

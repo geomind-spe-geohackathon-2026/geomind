@@ -93,9 +93,30 @@ def load_design(context, design, where):
 
     design = unquoted(design)
     data = context.session.load_artifact(design) if design.startswith(DESIGN) else None
+    if data is None and design.startswith(DESIGN):
+        data = project_design(context, design[len(DESIGN):])
     if data is None:
         raise unknown_reference(context, "design", design, where, "design")
     return gm.Plant.from_dict(data)
+
+
+def project_design(context, name):
+    """Return the project's plant ``name`` or saved version ``v<N>`` as a plant dict, or ``None``.
+
+    A plant from the Plant page or an earlier chat is no design of this chat; ``design/<plant
+    name>`` and ``design/v<N>`` reach it, so every design tool (studies too) runs on it (QA-152).
+    """
+    workspace = context.session.workspace
+    if workspace is None or context.project is None:
+        return None
+    plants = workspace.plants(context.project) or {}
+    if name in plants:
+        return plants[name]
+    version = name.removeprefix("v")
+    read = getattr(workspace, "plant_version", None)
+    if version.isdigit() and read is not None:
+        return read(context.project, int(version))
+    return None
 
 
 def run_id(plant_data, case_data, files, options):

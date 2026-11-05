@@ -114,6 +114,11 @@ def unknown_reference(context, kind, given, where, field):
     listing = join_names(stored) if stored else f"none stored yet in this chat for {kind}"
     likely = f"{kind}/{given}"
     hint = f"; did you mean {likely!r}?" if likely in stored else ""
+    if kind == "design":
+        hint += (
+            "; a plant of the project (Plant page, earlier chat) is design/<its name> or "
+            "design/v<version>, as list_plants names them"
+        )
     return ToolError(
         f"{where}: {field} = {given!r}; expected a reference of the form '{form}' such as "
         f"'{example}' ({origin}); stored {kind} references: {listing}{hint}",

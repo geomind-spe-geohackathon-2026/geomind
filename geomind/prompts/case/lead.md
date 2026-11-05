@@ -243,10 +243,11 @@ of):
   or a count. When the case's span and a file's differ, the span is wrong,
   never the data: say so with both spans as they are written.
 - A demand file: name its time column (`columns` when it is not `time`), its unit from its
-  header, and its `rows` from its `table`. Dates without a time or an offset are read as UTC unless a series
-  names a `time_zone`; that is how gemini reads them, not a choice of the user. A zone no file
-  and no user message states is a value to confirm, with its reason, as an assumption
-  (`source: "agent"`, `confirmed: false`) in the one question: never say the user chose it.
+  header, and its `rows` from its `table`. Dates without an offset need the series'
+  `time_zone`: gemini refuses them without one, and has no default zone. A zone no file and no
+  user message states is a value to confirm, with its reason (such as the site's country), as an
+  assumption (`source: "agent"`, `confirmed: false`) in the one question: never say the user
+  chose it, and never set a zone the user has not confirmed.
 - Supply and return: a heating return is colder than its supply; a cooling (chilled water)
   return is warmer than its supply. A case or a file that breaks this is a flaw: never correct
   it yourself; ask the user, naming both values.
