@@ -6,6 +6,13 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.85] - 2026-11-05
+
+### Fixed
+
+- QA-119: `set_case` returns `check` when `site.reservoir.reference_depth` moves while its pressure or temperature stay; the case lead treats a depth asked for the wells as the plant's `params.depth`.
+- QA-120: `ask_economics` refuses a fraction key (`discount_rate`, a share) given a whole number with no unit, naming the fraction (8 -> 0.08).
+
 ## [0.4.84] - 2026-11-05
 
 ### Added
