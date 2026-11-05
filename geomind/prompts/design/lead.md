@@ -74,15 +74,11 @@ Each tool's description says its arguments.
   `{id, summary, status}`. When more than one way to meet a service is sensible, let it be one
   superstructure (the process engineer's `optional` modules and `choices`, or `union_designs` of
   whole alternatives you already have, such as two project plants that both fit), not one design
-  per family. Read the union's `structures` and `notes` (a value the alternatives state
-  differently: gemini kept the first and widened its range) before `evolve_structure`. Mark an option gemini cannot build `blocked` with the reason.
-- With a superstructure, after your review call `evolve_structure` on the merged design with the
-  objectives the case or your brief names, never ones you choose. Read the front and `rejected`
-  (a structure gemini refused, with its reasons, such as a port left open): take the best
-  feasible design on the first objective, or the trade-off the brief asks for, and say why,
-  quoting `stopped` and `why`, and for more, `read_study`'s `explanation` and `table`, as gemini
-  gives them, never computed. Take
-  that design on as any other: size, simulate the whole year, check, and record it. A family that needs a model gemini lacks is `blocked:
+  per family. Mark an option gemini cannot build `blocked` with the reason.
+- With a superstructure, read `read_skill('comparing-designs')` before `union_designs` or
+  `evolve_structure`: what to read in the union, the objectives, the front, `rejected` and how to
+  pick and cite the design. Take that design on as any other: size, simulate the whole year,
+  check, and record it. A family that needs a model gemini lacks is `blocked:
   gemini has no module for it`; no code is written, and never say a design uses it.
 - Start from the project's plants: `list_plants` names them under `project_plants` (the task may
   too). When there are any, a family is one of them: `read_plant(project_plant=...)`, then
@@ -147,10 +143,9 @@ Each tool's description says its arguments.
 - `optimize` the sized design, then `simulate` the best. A trial is feasible only when gemini's
   verdict says so. If `optimize` returns `feasible: false`, read its `reason`, change the options
   or the topology (a range only with the user's word), and search again, without the Reviewer.
-- With two or more buildable families, size each and compare them in one `run_study` (`designs`,
-  `method="minimize"`, `objective`, `evaluations`, `seed`, `prepare=["size"]`); keep the feasible
-  design it ranks first (`best`), `simulate` it for the whole year, take it as final. Record the
-  study in `design.study` as returned.
+- With two or more buildable families, compare them in one `run_study`, keep the feasible design
+  it ranks first, `simulate` it for the whole year and take it as final; read
+  `read_skill('comparing-designs')` first for the call and what to record.
 - After any change every earlier result is stale: simulate the whole year (no `start`, `end`).
 - Record the final design with `update_state`: `design.reference` (`design/<name>`),
   `design.result` (`result/<id>`), `design.family` and a one-paragraph `design.schematic`. A
