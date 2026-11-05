@@ -112,6 +112,8 @@ async def tree_usage(session):
 STEP_OPTIONS = ("continue", "stop")
 """The answers to the question a run asks at its step limit."""
 STEPS_POINT = "steps"
+AUTO_CONTINUES = 3
+"""How often a run in ``auto`` mode takes its steps again by itself before it asks (QA-086)."""
 """The point a run pauses at when it took its steps."""
 
 
@@ -246,6 +248,9 @@ class Engine:
             recorded = self.recorded_steps.get(state.run_id)
             if not recorded and session.ends_at_limit:
                 return Stop("step_limit", f"stopped after {state.step} steps")
+            if not recorded and self._continues_alone(session):
+                await self._decide_steps(session, True, None, rule="mode:auto")
+                continue
             if not recorded:
                 break
             stop = await self._decide_steps(session, recorded.pop(0) == "allow", None)
@@ -369,13 +374,27 @@ class Engine:
         """Give the run its steps again on ``continue``; on ``stop`` end it at its step limit."""
         return await self._decide_steps(session, text == STEP_OPTIONS[0], pending.request)
 
-    async def _decide_steps(self, session, is_continued, request):
+    def _continues_alone(self, session):
+        """Tell whether a run in ``auto`` mode takes its next steps without asking (QA-086).
+
+        With the chat's auto-approve on nobody may be there to click continue, so the run goes on
+        by itself ``AUTO_CONTINUES`` times per agent run, then asks as in any mode.
+        """
+        if getattr(self.permissions, "mode", None) != "auto":
+            return False
+        taken = session.__dict__.get("auto_continues", 0)
+        if taken >= AUTO_CONTINUES:
+            return False
+        session.__dict__["auto_continues"] = taken + 1
+        return True
+
+    async def _decide_steps(self, session, is_continued, request, rule="user"):
         """Log the decision at the step limit; return the stop of ``stop``, else ``None``."""
         await session.emit(
             PermissionDecided,
             index=session.state.step,
             decision="allow" if is_continued else "deny",
-            rule="user",
+            rule=rule,
             point=STEPS_POINT,
             request=request,
             reason=None if is_continued else "the user stopped the run at its step limit",
