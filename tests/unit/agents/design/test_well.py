@@ -73,3 +73,9 @@ def test_equipment_values_come_from_the_equipment_catalogue_first():
         text = " ".join(agent.prompt.render().split())
         assert "first the row of `knowledge/data-equipment.csv`" in text, agent.name
         assert "cited by its row id" in text
+
+
+def test_qa_357_well_paths_are_left_to_gemini():
+    """QA-357: stated paths stayed at 2500 m while the depth search moved to 2875 m."""
+    text = " ".join(WellEngineer().prompt.render().split())
+    assert "Leave the section lists of `well`, `riser` and `injector` out" in text
