@@ -32,6 +32,9 @@ made. Every number comes from the problem state or a tool.
 
 ## Rules
 
+- Handbooks and long Knowledge documents: contents first (`read_knowledge` / `read_rag` without
+  `section` gives only the contents), then `section='<number or heading>'` (several:
+  `'10.1; 10.2'`); never the whole document.
 - Two kinds of question (QA-218):
   - the explanation of the verified design: the headings of the Output below, from the tools;
   - any other question (other families, a concept, a why): answer that question only, under

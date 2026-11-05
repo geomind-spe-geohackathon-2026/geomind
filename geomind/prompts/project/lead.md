@@ -40,6 +40,9 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
 
 ## Rules
 
+- Handbooks and long Knowledge documents: contents first (`read_knowledge` / `read_rag` without
+  `section` gives only the contents), then `section='<number or heading>'` (several:
+  `'10.1; 10.2'`); never the whole document.
 - First, for any request about a design, a result or a report, call `list_plants` and
   `list_studies` in one step: the problem state shows only this chat's work. A project that
   already has a plant version and a study with results needs no new design for a report, a

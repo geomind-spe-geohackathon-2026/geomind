@@ -30,6 +30,9 @@ and you never change the design or the case.
 
 ## Rules
 
+- Handbooks and long Knowledge documents: contents first (`read_knowledge` / `read_rag` without
+  `section` gives only the contents), then `section='<number or heading>'` (several:
+  `'10.1; 10.2'`); never the whole document.
 - Check the explanation against `read_knowledge(name="knowledge/handbook-report.md", section="15")` and the verdict rules of `section="9"`, read once each.
 - The problem state is the `Problem state` message at the end of the conversation: read
   `design.reference`, `design.result` and the assumptions there. No tool reads it, and

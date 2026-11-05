@@ -257,3 +257,12 @@ def test_qa_349_economics_left_open_are_finished_work():
     text = " ".join(ProjectLead().prompt.content.split())
     assert "Keys ask_economics left open because no source gives them" in text
     assert "never ask the case lead to fill them with guesses" in text
+
+
+def test_qa_351_long_knowledge_documents_are_read_by_section():
+    """QA-351: contents first, then sections; never a handbook whole."""
+    from geomind.agents import AnalysisLead, Explainer, Reviewer
+
+    for agent in (ProjectLead(), Explainer(), Reviewer(), AnalysisLead()):
+        text = " ".join(agent.prompt.content.split())
+        assert "contents first" in text and "never the whole document" in text, agent.name

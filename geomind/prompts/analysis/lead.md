@@ -56,6 +56,9 @@ you cannot find out.
 
 ## Rules
 
+- Handbooks and long Knowledge documents: contents first (`read_knowledge` / `read_rag` without
+  `section` gives only the contents), then `section='<number or heading>'` (several:
+  `'10.1; 10.2'`); never the whole document.
 - Method: `read_knowledge(name="knowledge/handbook-economics.md", section="0")` once for costs; to compare or rank designs, `section="14"`; for a sensitivity, `section="12"`.
 - For a verified design, give the costs, the comparison and the uncertainty to the `economist`
   with a brief (the design and result references, what to hand back); read its answer, then,
