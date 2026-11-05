@@ -114,13 +114,24 @@ def answer_change(problem, question, text):
     return {"op": "add", "path": "/assumptions/-", "value": assumption}
 
 
+def auto_answered(context, text):
+    """Tell whether Auto-approve gave ``text`` as the answer now, not the user (QA-339)."""
+    engine = getattr(context.session, "engine", None)
+    answer = getattr(engine, "auto_answer", None)
+    return answer is not None and answer == text
+
+
 async def user_answered(context, tool_input, text):
     """Keep the user's answer in the problem state and return what the model reads of it.
 
-    A record the state refuses is left out: the answer still reaches the model.
+    A record the state refuses is left out: the answer still reaches the model. An answer
+    Auto-approve gave is no answer of the user's: the engine keeps it as its own unconfirmed
+    assumption (source ``auto-approve``), so it is not recorded here as confirmed (QA-339).
     """
     question = str(tool_input.get("question") or "")
     request = Request(kind="question", message=question, options=tool_input.get("options"))
+    if auto_answered(context, text):
+        return typed_answer(request, text)
     if question and getattr(context, "problem", None) is not None:
         try:
             await context.session.change_state([answer_change(context.problem, question, text)])

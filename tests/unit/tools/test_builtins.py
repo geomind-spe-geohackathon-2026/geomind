@@ -58,3 +58,27 @@ async def test_a_question_that_retypes_a_long_number_is_refused_with_its_source(
         await ask_user.function(context, question="N2 0.110838972435462335, right?")
     right = await ask_user.function(context, question="N2 0.11083897243546233 and 0.5, right?")
     assert right.kind == "question"
+
+
+async def test_an_answer_auto_approve_gave_is_not_recorded_as_the_user_s():
+    """QA-339: an answer Auto-approve gave is never recorded as the user's confirmed answer."""
+    from types import SimpleNamespace
+
+    from geomind.context import ProblemState
+    from geomind.context.state import apply_changes
+    from geomind.engine import Context
+    from geomind.tools.builtins import user_answered
+    from tests.fixtures.sessions import StubSession
+
+    def answered(auto):
+        session = StubSession()
+        session.engine = SimpleNamespace(auto_answer=auto)
+        return session, Context(session=session, problem=ProblemState())
+
+    session, context = answered("yes")
+    await user_answered(context, {"question": "Use 2 doublets?"}, "yes")
+    assert session.changes == []
+    session, context = answered(None)
+    await user_answered(context, {"question": "Use 2 doublets?"}, "yes")
+    [kept] = apply_changes(ProblemState(), session.changes[-1]).assumptions
+    assert (kept.source, kept.confirmed) == ("user", True)
