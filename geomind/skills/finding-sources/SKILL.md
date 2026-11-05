@@ -18,12 +18,14 @@ Read one with `read_rag`, and give a data file to the case with `set_case` `file
 Read a project file, or a document of the knowledge base as `knowledge/<name>`, as text.
 
 A long document with headings (a handbook of 25 to 50 pages with `#`, `##`, `###`) is read by
-section, never page by page from the start:
+section, never whole and never page by page from the start. Contents first, then `section=`: a
+read without `section` of a document over 12,000 characters gives only its `contents` (each
+`{section: "§7.4", title, level, size}`) and a `note`; read next only the sections you need:
 
 - `read_rag(name, outline=true)`: the heading tree, each `{level, number, title, start, size}`
   (`number` is the title's own, such as `3.2`, else its place in the tree).
-- `read_rag(name, section="3.2")` or `section="Pumps"` (a title, or a part of one): exactly that
-  section with its subsections, paged with `start` inside it when it is longer than a page; the
+- `read_rag(name, section="3.2")` or `section="Pumps"` (a title, or a part of one), several at
+  once as `section="3.2; 7.4"`: exactly those sections with their subsections, paged with `start` inside it when it is longer than a page; the
   answer names the `section` read. An unknown section is refused with the headings it has.
 - A knowledge hit of `search_rag` carries `section`, the heading path it falls in
   (`3 Wells > 3.2 Pumps`): read that whole section next with `section`.
@@ -70,6 +72,8 @@ to search for what that text lacks.
 
 ### `read_knowledge`
 
-Read one Knowledge document, `read_knowledge(name="knowledge/<name>")`; `outline=true` lists
-its sections, `section="10.2"` (or a title) reads one, `start` and `length` a window. A name
+Read one Knowledge document by its contents first, then by section: `read_knowledge(name=
+"knowledge/<name>")` of a long handbook gives its `contents` only (never its whole text, also
+with `whole=true`); `section="10.2"` (a title or a word of one; several as `"10.2; 12.1"`)
+reads only those sections, `start` and `length` a window inside one. A name
 outside `knowledge/` is refused: project files are the lead's to read.
