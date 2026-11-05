@@ -39,13 +39,19 @@ def test_the_shared_text_names_the_tool_it_is_given_with():
     assert all(f"`{name}" in STORED_RESULTS + MEMORY + KNOWLEDGE for name in SHARED_TOOLS)
 
 
-def test_the_well_engineer_sets_the_pump_depth_and_the_lead_sends_it_back():
-    """E2E-13: the design lead chose a riser's ``esp_depth`` itself after a refused simulate."""
+def test_gemini_derives_the_pump_depth_and_the_lead_sends_a_missing_design_value_back():
+    """E2E-13, QA-359: the lead chose a riser's ``esp_depth``; engineers set segments by hand.
+
+    gemini derives the pump depth and the well paths from the doublet's design values; an issue
+    on ``esp_depth`` means a design value is missing, which goes to the well engineer.
+    """
     well = " ".join(Prompt("design/well").render().split())
     lead = " ".join(Prompt("design/lead").render().split())
-    assert "The pump depth is yours." in well
-    assert "`riser.esp_depth` both the ESP's `setting_depth`" in well
-    assert "the well engineer's: send it back to them" in lead
+    assert "The pump depth and the well paths are gemini's." in well
+    assert "section lists, `segment` or `esp_depth`, nor the ESP's `setting_depth`" in well
+    assert "is derived by gemini from the doublet's design values" in lead
+    assert "a design value is missing, which you send to the well engineer" in lead
+    assert "never choose a pump depth" in lead
     assert "Simulate only when `missing` is 0." in lead
 
 
