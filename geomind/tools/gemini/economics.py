@@ -159,7 +159,10 @@ def _row_fields(rows, key, row_id):
         near = [item for item, data in rows.items() if data.get("path") == f"economics.{key}"]
         raise ToolError(
             f"ask_economics: row = {row_id!r} is not in {CATALOGUE}; expected the id of a row "
-            f"of economics.{key}" + (f": {', '.join(near)}" if near else ", or the key in open"),
+            f"of economics.{key}"
+            + (f": {', '.join(near)}" if near else ", or the key in open")
+            + "; a value a Knowledge document or a project file gives goes as {key, value, unit, "
+            "source} with no row, never with a row id you made up",
             code="unknown_name",
             path="values",
         )

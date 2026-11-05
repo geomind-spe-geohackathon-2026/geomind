@@ -433,3 +433,25 @@ def test_qa_197_a_stop_must_be_reported_and_qa_198_the_question_says_what_is_sto
     assert stop_not_reported(Context(messages=told)) is None
     again = [*hidden, Message(role="tool", content=f"{NO_STOP}: ...", tool_call_id="f")]
     assert stop_not_reported(Context(messages=[*again, answer("x")])) is None
+
+
+def test_qa_243_economics_written_with_set_case_unasked_are_refused_once():
+    """QA-243: two refused ask_economics, then economics by set_case; the finish is refused."""
+    from geomind.agents.case.lead import BY_HAND, economics_by_hand
+    from geomind.engine import Context
+    from geomind.types import Message, ToolCall
+
+    ask = ToolCall(id="e", name="ask_economics", input={"values": []})
+    write = ToolCall(id="s", name="set_case", input={"economics": {"capex": {}}})
+    refused = Message(role="tool", content="ask_economics: row = 'x' is not in", tool_call_id="e")
+    messages = [
+        Message(role="assistant", tool_calls=(ask,)),
+        refused,
+        Message(role="assistant", tool_calls=(write,)),
+        Message(role="tool", content="{'case': {}}", tool_call_id="s"),
+    ]
+    assert economics_by_hand(Context(messages=messages)).startswith(BY_HAND)
+    answered = Message(role="tool", content="{'answer': 'change some'}", tool_call_id="e")
+    assert economics_by_hand(Context(messages=[messages[0], answered, *messages[2:]])) is None
+    text = " ".join(CaseLead().prompt.content.split())
+    assert "Economics enter the case ONLY through `ask_economics`" in text

@@ -182,6 +182,15 @@ def _unitless(given):
     return None, None, ["no unit (a fraction or a ratio, such as 0.05 for 5 %)"]
 
 
+def bracketed(unit, accepted):
+    """Return ``EUR/(W/K)`` for ``EUR/W/K`` when the key takes the bracketed form (QA-243)."""
+    if not isinstance(unit, str) or unit in accepted or unit.count("/") < 2 or "(" in unit:
+        return unit
+    head, _, rest = unit.partition("/")
+    form = f"{head}/({rest})"
+    return form if form in accepted else unit
+
+
 def economics_unit(key, unit):
     """Return ``(unit, note, accepted)`` of an economics value's ``unit`` as its key takes it.
 
@@ -193,6 +202,7 @@ def economics_unit(key, unit):
     schema = economics_schema(key)
     accepted = sorted(_accepted_units(schema))
     given = unit.strip() if isinstance(unit, str) else unit
+    given = bracketed(given, accepted)
     if given is None or given in accepted:
         return given, None, accepted
     if not accepted and "unit" not in (schema or {}).get("properties", {}):

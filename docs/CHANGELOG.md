@@ -6,6 +6,14 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.114] - 2026-11-05
+
+### Fixed
+- QA-243: economics enter the case only through `ask_economics`; the case lead's finish is
+  refused once when it wrote economics with `set_case` without an answered economics question;
+  `EUR/W/K` is read as `EUR/(W/K)`; an unknown row id says to send a document's value with no
+  row instead of a made-up id.
+
 ## [0.4.113] - 2026-11-05
 
 ### Fixed

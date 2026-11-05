@@ -81,6 +81,13 @@ in this order, none skipped:
    value with its row and records the assumptions: do not set them again. On `change some`, ask
    which values change and to what with `ask_user`, without options, and set them. A case handed
    over without this step is incomplete.
+   Economics enter the case ONLY through `ask_economics`: never send `economics` to `set_case`
+   (the argument or inside `changes`) except the values the user typed after `change some` on
+   the economics question; `approve all` on the case question never covers the economics. A
+   refused `ask_economics` is fixed and called again, never replaced by `set_case`: an invalid
+   unit becomes one of the units the error lists, as written (`EUR/(W/K)`, not `EUR/W/K`); an
+   unknown row becomes an id the error lists, or, for a value a Knowledge document gives (an
+   assumptions document), `{key, value, unit, source}` with no `row`. Never make up a row id.
 6. `read_case` once more, the checklist, then `finish`.
 
 Trust the case over the brief: what `read_case` shows now is the case. When a brief's claim

@@ -58,6 +58,51 @@ def economics_missing(context):
     )
 
 
+BY_HAND = "economics not asked"
+"""The start of the case lead's one refusal of an answer that set economics without asking."""
+
+
+def economics_by_hand(context):
+    """Return the refusal of an answer that wrote economics with ``set_case`` unasked, or ``None``.
+
+    QA-243: ``ask_economics`` was refused twice, then the lead wrote the economics with
+    ``set_case`` and the user never saw the economics question. Economics sent to ``set_case``
+    pass only after an answered ``ask_economics`` (``change some`` then gives the values).
+    """
+    messages = context.messages
+    by_hand = [
+        call
+        for call in calls_of(messages, "set_case")
+        if call.get("economics")
+        or (isinstance(call.get("changes"), dict) and call["changes"].get("economics"))
+    ]
+    if not by_hand or any(BY_HAND in (message.content or "") for message in messages):
+        return None
+    asked = {
+        call.id
+        for message in messages
+        if message.role == "assistant"
+        for call in message.tool_calls
+        if call.name == "ask_economics"
+    }
+    answered = [
+        message
+        for message in messages
+        if message.role == "tool"
+        and message.tool_call_id in asked
+        and "answer" in (message.content or "")
+    ]
+    if answered:
+        return None
+    return (
+        f"{BY_HAND}: you wrote economics with set_case, but the user never answered the economics "
+        "question. Economics enter the case only through ask_economics: call it now, fixing what "
+        "its last refusal named (each row by an id from knowledge/data-economics.csv, each unit "
+        "as the error lists it; a Knowledge document's value as {key, value, unit, source} with "
+        "no row), then finish"
+    )
+
+
 QUESTION_TOOLS = ("ask_user", "ask_economics")
 """The tools of the case lead that ask the user."""
 CHANGE_SOME = "change some"
@@ -206,5 +251,8 @@ class CaseLead(Agent):
     def answer_problem(self, context):
         """Refuse once an answer hiding a ``stop``, or skipping ``change some`` or the economics."""
         return (
-            stop_not_reported(context) or changes_not_asked(context) or economics_missing(context)
+            stop_not_reported(context)
+            or changes_not_asked(context)
+            or economics_by_hand(context)
+            or economics_missing(context)
         )
