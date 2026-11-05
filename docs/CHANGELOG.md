@@ -6,6 +6,13 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.88] - 2026-11-05
+
+### Fixed
+- QA-131: `sensitivity` takes `values`, the case paths to move (only those); the economics skill
+  and the analysis lead give the path for a chat sensitivity: the user's ranges into the case as
+  `uncertainty` with `set_case`, then `sensitivity`, never `run_python`.
+
 ## [0.4.87] - 2026-11-05
 
 ### Fixed
