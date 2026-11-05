@@ -107,9 +107,13 @@ def user_sourced(call):
 
     QA-256: a price the user names in chat ("carbon price 80 EUR/t") is set in one ``set_case``
     whose ``about.sources`` names the user for each key; it needs no economics question again.
+    ``about`` or ``sources`` written as text is no user source (QA-319: the text made the
+    finish crash with "'str' object has no attribute 'get'").
     """
     patch = call.get("economics") or _changes_economics(call) or {}
-    sources = (patch.get("about") or {}).get("sources") or {}
+    about = patch.get("about") if isinstance(patch, dict) else None
+    sources = about.get("sources") if isinstance(about, dict) else None
+    sources = sources if isinstance(sources, dict) else {}
     keys = economics_leaves(patch)
     return bool(keys) and all(
         isinstance(sources.get(key), dict) and sources[key].get("source") == "user" for key in keys

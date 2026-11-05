@@ -541,3 +541,23 @@ def test_qa_295_a_case_that_lost_an_approved_value_is_refused_once():
     )
     again = [*messages, Message(role="tool", content=f"{NOT_STORED}: ...", tool_call_id="f")]
     assert approved_values_differ(Context(messages=again, problem=ProblemState(case={}))) is None
+
+
+def test_qa_319_economics_sources_written_as_text_do_not_crash_the_finish():
+    """QA-319: set_case stored about.sources as text; the finish crashed on ``.get``."""
+    from geomind.agents.case.lead import economics_by_hand, user_sourced
+    from geomind.engine import Context
+    from geomind.types import Message, ToolCall
+
+    economics = {
+        "about": {"sources": "All values are catalogue rows"},
+        "discount_rate": {"value": 0.05},
+    }
+    write = ToolCall(id="s", name="set_case", input={"economics": economics})
+    assert user_sourced(write.input) is False
+    assert user_sourced({"economics": "economics.json"}) is False
+    messages = [
+        Message(role="assistant", tool_calls=(write,)),
+        Message(role="tool", content="{'case': {}}", tool_call_id="s"),
+    ]
+    assert economics_by_hand(Context(messages=messages)) is not None

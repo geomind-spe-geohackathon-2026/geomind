@@ -50,14 +50,32 @@ def failure_stop(error, reason):
     if isinstance(error, ProviderError):
         prefix = f"{error.code}: " if error.code else ""
         return Stop(reason, f"{prefix}{error}")
-    return Stop(reason, str(error), is_crash=reason == "error")
+    return Stop(reason, crash_text(error), is_crash=reason == "error")
+
+
+def crash_text(error):
+    """Return a crash as its class, message and innermost file and line (QA-083, QA-319).
+
+    A nested run that crashed told its parent only "the detail is in the log", and the log held
+    the message alone ("'str' object has no attribute 'get'"), with no class or place.
+    """
+    import traceback
+    from pathlib import Path
+
+    frames = traceback.extract_tb(error.__traceback__)
+    where = ""
+    if frames:
+        last = Path(frames[-1].filename)
+        where = f" at {last.parent.name}/{last.name}:{frames[-1].lineno}"
+    return f"{type(error).__name__}: {error}{where}"
 
 
 def was_asked(session, request_id):
     """Return whether the run's log holds a request with ``request_id``: it was asked before."""
     events = session.engine.store.load_events(session.state.root)
     return any(
-        event.type == "request" and getattr(getattr(event, "request", None), "id", None) == request_id
+        event.type == "request"
+        and getattr(getattr(event, "request", None), "id", None) == request_id
         for event in events
     )
 
@@ -66,7 +84,9 @@ def run_result(session, stop, suggestions=None, report=None):
     """Return the result of a stop; ``suggestions`` are those of its ``run.finished`` event.
 
     A run that waits on a nested run's request counts that run's usage so far, which joins its
-    own only when the nested run ends. ``report`` is the root run's ``(sessions, agents, total)``.
+    own only when the nested run ends. A nested run's crash keeps its ``crash_text`` in the
+    result, so its parent reads the class and place; a root run's crash stays in the log.
+    ``report`` is the root run's ``(sessions, agents, total)``.
     """
     sessions, agents, total = report or (None, None, None)
     state = session.state
@@ -79,7 +99,7 @@ def run_result(session, stop, suggestions=None, report=None):
         usage=state.usage + (waiting or Usage()),
         steps=state.step,
         stop_reason=stop.reason,
-        message=None if stop.is_crash else stop.message,
+        message=None if stop.is_crash and state.parent is None else stop.message,
         suggestions=suggestions,
         sessions=sessions,
         agents=agents,

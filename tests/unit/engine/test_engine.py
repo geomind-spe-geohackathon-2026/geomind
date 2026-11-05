@@ -78,3 +78,15 @@ async def test_usage_event_holds_running_totals():
     assert totals == [10, 20]
     step = of_type(events, "step.finished")[1].usage
     assert step == Usage(input_tokens=10, output_tokens=5, cost=0.01)
+
+
+def test_a_crash_is_its_class_message_and_place():
+    """QA-319: a nested crash said only "'str' object has no attribute 'get'", no class or line."""
+    from geomind.engine.engine import crash_text
+
+    try:
+        "text".get("x")
+    except AttributeError as error:
+        text = crash_text(error)
+    assert text.startswith("AttributeError: 'str' object has no attribute 'get' at ")
+    assert "test_engine.py:" in text
