@@ -737,7 +737,12 @@ def call_summary(tool, tool_input):
         tail = f" and {links} connections" if links else ""
         return f"Build plant '{item.get('name')}' {what}{tail}."
     if tool == "patch_plant":
-        paths = _leaves(item.get("changes") or {})
+        changes = item.get("changes") or {}
+        if isinstance(changes, list):
+            listed = [change for change in changes if isinstance(change, dict)]
+            paths = [str(change.get("path")).removeprefix("plant.") for change in listed]
+        else:
+            paths = _leaves(changes)
         return (
             f"Change {len(paths)} value(s) of {item.get('design')} and save it as "
             f"'{item.get('name')}': {_listed(paths)}."

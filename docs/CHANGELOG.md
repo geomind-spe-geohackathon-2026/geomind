@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.105] - 2026-11-05
+
+### Fixed
+- QA-172, QA-174, QA-183: the approval card of a `patch_plant` that sends its changes as a list
+  `[{path, value}]` counts and names each path, instead of "Change 0 value(s)".
+
 ## [0.4.104] - 2026-11-05
 
 ### Fixed
