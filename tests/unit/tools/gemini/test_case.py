@@ -223,7 +223,7 @@ async def test_a_case_with_gemini_s_own_units_has_no_converted_list():
     session, problem = await loaded("shallow_district")
     changes = {"site": {"ground": {"gradient": {"value": 30, "unit": "K/km"}}}}
     result = await edited(session, problem, {"changes": changes})
-    assert set(result.output) == {"case", "version"}
+    assert set(result.output) == {"case", "version", "version_is"}
 
 
 @pytest.mark.parametrize("key", ["requirements", "economics"])

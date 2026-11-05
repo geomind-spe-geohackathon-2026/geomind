@@ -884,9 +884,17 @@ async def set_case(
     return {
         "case": data,
         "version": version,
+        "version_is": VERSION_MEANING,
         **({"converted": converted} if converted else {}),
         **({"plants_need": needs, "note": PLANTS_NEED_NOTE} if needs else {}),
     }
+
+
+VERSION_MEANING = (
+    "the problem state's count of changes, not the case version the app shows: never name it to "
+    "the user as the case version"
+)
+"""What ``version`` of a ``set_case`` answer is (QA-114: an agent said version 16, the app 6)."""
 
 
 PLANTS_NEED_NOTE = (

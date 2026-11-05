@@ -96,6 +96,8 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
 - Follow the user's preferences in the problem state in every brief and in the answer.
 - No number of your own: every number comes from the case, a file, knowledge with its source or
   a gemini tool, through the teams.
+- Never name a version number to the user (the problem state's `version`, a result id as a
+  case version): say the case or the design was saved; the app shows its own version numbers.
 
 ## Output
 

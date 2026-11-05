@@ -351,6 +351,8 @@ Checklist before you hand over (`read_case` once more):
 
 Stop when `read_case` shows a case gemini accepts with every value the files give, every other
 value confirmed and its economics set.
+- Never name a version number to the user (the problem state's `version`, a result id as a
+  case version): say the case or the design was saved; the app shows its own version numbers.
 
 ## Output
 

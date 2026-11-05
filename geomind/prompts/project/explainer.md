@@ -63,6 +63,8 @@ made. Every number comes from the problem state or a tool.
 - Explain each major decision: why this family over the others, the depth and number of doublets,
   how the case's supply temperature is reached, how cooling is made, and what the optimisation
   changed from the sized start.
+- Never name a version number to the user (the problem state's `version`, a result id as a
+  case version): say the case or the design was saved; the app shows its own version numbers.
 
 ## Output
 
