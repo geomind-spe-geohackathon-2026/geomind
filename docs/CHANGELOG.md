@@ -6,6 +6,14 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.74] - 2026-11-05
+
+### Fixed
+
+- QA-084: `ask_economics` never recommends a subsidy row: the `revenue.subsidy` keys stay open unless the case lead names them because the user or the brief gives a subsidy.
+- QA-085: the economics question marks each row of one country's prices (`prices of the Netherlands`, from the row id or a national scheme such as SDE++) and says they fit only a site there: approve them as an assumption or name the site's country.
+- QA-086: in permission mode `auto` (the chat's auto-approve) a run at its step limit takes its steps again by itself, three times per agent run (`rule` `mode:auto`), then asks as before.
+
 ## [0.4.73] - 2026-11-05
 
 ### Added
