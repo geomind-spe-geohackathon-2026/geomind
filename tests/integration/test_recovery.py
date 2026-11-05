@@ -206,4 +206,4 @@ async def test_a_foreign_exception_ends_the_run_with_an_error():
     events = engine.store.load_events(start.run_id)
     assert (result.status, result.stop_reason) == ("failed", "error")
     assert of_type(events, "error")[0].error_class == "OSError"
-    assert of_type(events, "run.finished")[0].message == "connection reset"
+    assert of_type(events, "run.finished")[0].message.startswith("OSError: connection reset at ")
