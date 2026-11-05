@@ -30,6 +30,10 @@ A large result does not come back whole. You get a summary and a `reference` to 
     in d, reinjection ratio, flow), `limit`, `unit_path` (which doublet or module) and
     `worst_step` (its day). Quote `value` against `limit` for every requirement; never write that
     a requirement "rests on the verdict" when its entry has a value.
+  - a doublet's production flow against its range: the series `<doublet>.reservoir.liquid_flow`
+    (the liquid at brine density, what the requirement judges). The pump's
+    `fluid_in.volume_flow` also counts the free gas at the intake pressure, so it reads higher
+    (341 m3/h for 300 m3/h of liquid) and is no flow limit.
   Use `run_python` only for what none of these gives, and never to sum a power series into an
   energy: the energies come from gemini in MWh.
 - A wrong `path` or `field` is an error result that lists what exists, so read it and try again.
