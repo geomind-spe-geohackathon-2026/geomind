@@ -1163,6 +1163,11 @@
             "default": 0,
             "title": "Start",
             "type": "integer"
+          },
+          "whole": {
+            "default": false,
+            "title": "Whole",
+            "type": "boolean"
           }
         },
         "required": [
@@ -1393,6 +1398,11 @@
             "default": 0,
             "title": "Start",
             "type": "integer"
+          },
+          "whole": {
+            "default": false,
+            "title": "Whole",
+            "type": "boolean"
           }
         },
         "required": [

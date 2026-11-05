@@ -7,6 +7,7 @@ without them gets ``files_unavailable``, so a backend that has not added them ke
 import csv
 import difflib
 import io
+import re
 from pathlib import Path
 
 from geomind.errors import ToolError
@@ -348,9 +349,65 @@ def document_bytes(context, name):
     return project_file(context, "read_rag", name)
 
 
+CONTENTS_CHARACTERS = 12_000
+"""A document with headings longer than this is not read whole at once: its contents come first."""
+CONTENTS_NOTE = (
+    "This document is long, so only its contents are shown. Read the sections you need with "
+    "section='<number or heading>' (several: section='7.4; 8.1'), never the whole document; "
+    "a Knowledge handbook is never read whole (whole=true pages through a long project file only)."
+)
+"""What an agent reads with the contents of a long document."""
+
+
+def outline_or_contents(name, text, outline, from_the_top, whole):
+    """Return the outline asked for, or the contents a whole read of a long document gets."""
+    if outline:
+        return {"name": name, "total": len(text), "outline": sections.outline(text)}
+    paging = whole and not name.startswith("knowledge/")
+    return contents_first(name, text) if from_the_top and not paging else None
+
+
+def contents_first(name, text):
+    """Return the contents of a long document with headings, or ``None`` to read it as before.
+
+    A handbook of 50k characters read at once filled an agent's context for the rest of its
+    run: the agent sees each heading with its number (``§7.4``) and size, then reads only the
+    sections it needs. A short document, or one without headings (a brief, a table), is read
+    as before.
+    """
+    if len(text) <= CONTENTS_CHARACTERS or Path(name).suffix.lower() in TABLE_SUFFIXES:
+        return None
+    found = sections.headings(text)
+    if not found:
+        return None
+    listed = [
+        {
+            "section": f"§{item['number']}",
+            "title": item["title"],
+            "level": item["level"],
+            "size": item["size"],
+        }
+        for item in found
+    ]
+    return {"name": name, "total": len(text), "contents": listed, "note": CONTENTS_NOTE}
+
+
 def section_text(name, text, key, section):
-    """Return ``(section text, read key, heading)`` of the section ``section`` names, or refuse."""
+    """Return ``(section text, read key, heading)`` of the section ``section`` names, or refuse.
+
+    ``section`` may name several, apart by ``;`` or ``,`` (``"7.4; 8.1"``), by number, heading or
+    a word of it: their texts come one after the other, in the asked order.
+    """
     found = sections.section_span(text, section)
+    parts = [part.strip() for part in re.split(r"[;,]", str(section)) if part.strip()]
+    if found is None and len(parts) > 1:
+        many = [sections.section_span(text, part) for part in parts]
+        if all(item is not None for item in many):
+            joined = "\n\n".join(text[item["start"] : item["end"]] for item in many)
+            numbers = "+".join(item["number"] for item in many)
+            first = {**many[0], "number": numbers, "size": len(joined)}
+            first["title"] = "; ".join(item["title"] for item in many)
+            return joined, f"{key}#{numbers}", first
     if found is None:
         listed = ", ".join(sections.label(item) for item in sections.headings(text))
         raise ToolError(
@@ -373,16 +430,23 @@ def read_rag(
     rows: dict[str, list[str] | str] | None = None,
     outline: bool = False,
     section: str | None = None,
+    whole: bool = False,
 ):
     """Read a project file, or a document of the knowledge base as ``knowledge/<name>``, as text.
+
+    A long document with headings, read without ``section``, gives its contents first
+    (``contents_first``); ``whole`` pages through a long project file all the same, never a
+    Knowledge document (QA-351).
 
     Skill `finding-sources`.
     """
     if start < 0:
         raise ToolError(f"read_rag: start = {start}; expected 0 or more", path="start")
     text, key = narrowed(name, document_text(name, document_bytes(context, name)), rows, columns)
-    if outline:
-        return {"name": name, "total": len(text), "outline": sections.outline(text)}
+    top = section is None and start == 0 and rows is None and columns is None
+    shape = outline_or_contents(name, text, outline, top, whole)
+    if shape is not None:
+        return shape
     if section is not None:
         text, key, found = section_text(name, text, key, section)
         name_shown = {"section": {k: found[k] for k in ("number", "title", "start", "size")}}

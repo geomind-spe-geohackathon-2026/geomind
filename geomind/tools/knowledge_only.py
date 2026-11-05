@@ -34,11 +34,13 @@ def read_knowledge(
     length: int | None = None,
     outline: bool = False,
     section: str | None = None,
+    whole: bool = False,
 ):
     """Read one document of the Knowledge base, ``knowledge/<name>`` or ``<name>``, as text.
 
     Every name is a Knowledge document: a bare ``handbook-design.md`` reads
-    ``knowledge/handbook-design.md`` (QA-169, QA-182).
+    ``knowledge/handbook-design.md`` (QA-169, QA-182). A long document without ``section``
+    gives its contents first; then read only the sections needed (``section="7.4; 8.1"``).
 
     Skill `finding-sources`.
     """
@@ -46,5 +48,5 @@ def read_knowledge(
     if not name.startswith(PREFIX):
         name = PREFIX + name.lstrip("/")
     return read_rag.function(
-        context, name, start=start, length=length, outline=outline, section=section
+        context, name, start=start, length=length, outline=outline, section=section, whole=whole
     )

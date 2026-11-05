@@ -123,3 +123,24 @@ def test_a_rate_in_the_catalogue_has_its_2015_value():
     rows = list(csv.DictReader(io.StringIO(CATALOGUE.decode())))
     rates = [row for row in rows if row["path"] == "economics.discount_rate"]
     assert rates and all(row["value_2015"] == row["value"] for row in rates if row["value"])
+
+
+def _handbook():
+    """Return a long handbook with numbered sections."""
+    parts = [f"## {n}. Part {n}\n\n" + ("text of part %d. " % n) * 400 for n in range(1, 6)]
+    return "# Handbook\n\n" + "\n\n".join(parts)
+
+
+async def test_a_long_handbook_read_without_a_section_gives_its_contents_only():
+    """QA-351: a whole handbook filled an agent's context; it gets the contents, then sections."""
+    import geomind as gd
+
+    session = session_with(MemoryKnowledge({"handbook-x.md": _handbook().encode()}))
+    whole = (await call(gd.tools.read_knowledge, {"name": "handbook-x.md"}, session)).output
+    assert "text" not in whole and whole["contents"][1]["section"] == "§1"
+    assert "section=" in whole["note"]
+    two = await call(gd.tools.read_knowledge, {"name": "handbook-x.md", "section": "2; 4"}, session)
+    assert "text of part 2" in two.output["text"] and "text of part 4" in two.output["text"]
+    assert "text of part 3" not in two.output["text"]
+    forced = {"name": "handbook-x.md", "whole": True}
+    assert "text" not in (await call(gd.tools.read_knowledge, forced, session)).output
