@@ -240,6 +240,10 @@ class DesignDriver(Agent):
             note = {"round": round_number, "case_changed": True}
             question = changed_question(changed)
             return act(note, index, "ask_user", question=question, options=list(CASE_OPTIONS))
+        searchable = found["passed"] and await runtime.in_gemini_thread(has_ranges, context, design)
+        if searchable and not optimised(context) and round_number < self._max_rounds:
+            note = {"round": round_number, "design": design, "result": result, "optimising": True}
+            return act(note, index, "design_lead", task=optimise_task(design, result))
         if found["passed"]:
             await runtime.in_gemini_thread(remember_design, context, found)
             task = economist_task(design, result, context.problem)
@@ -448,6 +452,42 @@ def restored_task(context, round_number):
 def rounds(calls):
     """Return the number of the current round: each round starts with a design lead call."""
     return sum(name == "design_lead" for name, _ in calls)
+
+
+def has_ranges(context, design):
+    """Tell whether a stored design states search ranges or options, so a search can improve it."""
+    from geomind.tools.gemini.stored import load_design
+
+    if not design:
+        return False
+    try:
+        plant = load_design(context, design, "design loop")
+    except Exception:
+        return False
+    return bool(plant.ranges or plant.options)
+
+
+def optimised(context):
+    """Tell whether the loop already sent a passed design to be optimised in this run."""
+    return any(note.get("optimising") for note in notes(context.messages))
+
+
+def optimise_task(design, result):
+    """Return the design lead's task once a design passes every requirement (IMP-017).
+
+    0 of 45 runs reached ``optimize``: the loop stopped at the first design that passed. Once,
+    the passed design goes to a search of its ranges; a design whose search finds nothing better
+    stays the final one.
+    """
+    return (
+        f"{design} ({result}) passes every requirement of the case. Improve it once: optimize "
+        "it on the brief's objective (lcts when the brief names none), over the search ranges "
+        "it states, with your recorded number of evaluations and seed "
+        "(read_skill('simulating-a-plant')); simulate the best for the whole year, "
+        "check_results, and record the better of the two as design.reference and "
+        f"design.result. When the search finds nothing feasible and better, keep {design} and "
+        "record why."
+    )
 
 
 def verifier_task(context):

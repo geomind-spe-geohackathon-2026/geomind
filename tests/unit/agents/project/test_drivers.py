@@ -24,3 +24,16 @@ def test_a_requirement_failing_three_rounds_in_a_row_stops_the_loop():
     note = {"stop": "requirement_budget", "round": 3, "design": "design/x", "result": "result/y",
             "failures": ["b"], "stuck": ["b"]}
     assert "b failed in each of the last 3 rounds" in stop_answer(note)
+
+
+def test_a_passed_design_is_optimised_once():
+    """IMP-017: the first pass goes back to the design lead to optimise, only once."""
+    from types import SimpleNamespace
+
+    from geomind.agents.project.drivers import MARK, optimise_task, optimised
+
+    assert "optimize" in optimise_task("design/a", "result/b")
+    context = SimpleNamespace(messages=[])
+    assert optimised(context) is False
+    said = SimpleNamespace(role="assistant", content=MARK + '{"optimising": true}')
+    assert optimised(SimpleNamespace(messages=[said])) is True
