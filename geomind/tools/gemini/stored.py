@@ -13,6 +13,7 @@ run reads. The id is a hash of the
 plant, the case, the files and the run's options, so the same run has the same reference.
 """
 
+import contextvars
 import hashlib
 import json
 import re
@@ -46,10 +47,33 @@ def check_design_name(name, where):
         )
 
 
+DRY_DESIGNS = contextvars.ContextVar("dry_designs", default=False)
+"""Set while a plant tool's precheck runs: the call is checked whole and stores no design."""
+
+
+def dry_precheck(function):
+    """Return the precheck of a plant tool: the call run whole, with no design stored (IMP-018).
+
+    The engine runs it before it asks the user to approve the call, so a write gemini refuses
+    (a plant it cannot build, a part another engineer owns, a taken name) is refused at once.
+    """
+
+    async def precheck(context, **arguments):
+        token = DRY_DESIGNS.set(True)
+        try:
+            await function(context, **arguments)
+        finally:
+            DRY_DESIGNS.reset(token)
+
+    return precheck
+
+
 async def save_design(context, name, plant):
     """Store a gemini plant as ``design/<name>`` and return the reference."""
     check_design_name(name, "design")
     reference = f"{DESIGN}{name}"
+    if DRY_DESIGNS.get():
+        return reference
     await context.session.save_artifact(reference, plant.to_dict(structure=True))
     await index_reference(context, "design", reference)
     return reference

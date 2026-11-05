@@ -12,7 +12,7 @@ from geomind.tools.gemini.case import case_of
 from geomind.tools.gemini.explain import shown_message
 from geomind.tools.gemini.references import reference_schema
 from geomind.tools.gemini.skeleton import plant_skeleton
-from geomind.tools.gemini.stored import load_design, save_design
+from geomind.tools.gemini.stored import dry_precheck, load_design, save_design
 from geomind.utils.strings import did_you_mean, join_names
 
 
@@ -658,3 +658,8 @@ async def set_ranges(
     for path, values in (options or {}).items():
         plant.set_options(path, [as_quantity(value) for value in values])
     return {"design": await save_design(context, name, plant), **plant_view(plant)}
+
+
+build_plant.precheck = dry_precheck(build_plant.function)
+patch_plant.precheck = dry_precheck(patch_plant.function)
+merge_designs.precheck = dry_precheck(merge_designs.function)

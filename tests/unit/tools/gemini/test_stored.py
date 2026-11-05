@@ -149,3 +149,23 @@ def test_a_reference_in_quotes_is_read_as_the_reference():
 
     assert unquoted('"result/9b0db55da13a4a5b"') == "result/9b0db55da13a4a5b"
     assert unquoted("'design/hp'") == "design/hp" and unquoted("design/hp") == "design/hp"
+
+
+async def test_a_dry_precheck_stores_no_design():
+    """IMP-018: under the precheck, save_design names the reference and stores nothing."""
+    from geomind.tools.gemini.stored import dry_precheck, save_design
+
+    saved = []
+
+    class Session:
+        async def save_artifact(self, name, data):
+            saved.append(name)
+
+    class Context:
+        session = Session()
+
+    async def write(context, name):
+        return await save_design(context, name, None)
+
+    await dry_precheck(write)(Context(), name="start")
+    assert saved == []

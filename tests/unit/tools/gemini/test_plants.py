@@ -822,3 +822,12 @@ async def test_a_plant_ready_for_its_case_still_has_no_issues_after_the_run_chec
     """The run check finds nothing on the example's own plant: a ready plant stays ready."""
     output = await patched_issues(plant_dict("hackathon_2026", "HackathonPlant"), {})
     assert output["issues"] == [] and output["missing"] == 0
+
+
+def test_plant_writes_are_checked_before_the_approval():
+    """IMP-018: build_plant, patch_plant and merge_designs have a precheck that stores nothing."""
+    from geomind.tools.gemini.plants import build_plant, merge_designs, patch_plant
+    from geomind.tools.gemini.stored import DRY_DESIGNS
+
+    assert all(callable(item.precheck) for item in (build_plant, patch_plant, merge_designs))
+    assert DRY_DESIGNS.get() is False
