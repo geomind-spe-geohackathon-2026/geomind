@@ -117,6 +117,8 @@ stopped), read it with `read_stored` and use it: never ask the same brief again.
 - Handbooks and long Knowledge documents: contents first (`read_knowledge` without `section`
   gives only the contents), then `section='<number or heading>'` (several: `'10.1; 10.2'`);
   never the whole document.
+- Quote the handbook lines a member needs in its brief, with their section number; it reads
+  only what the brief lacks.
 - When the problem state already holds a design (`design.reference`, a stored `design/<name>`,
   from a run that stopped), go on from the latest stored design (`read_plant(design=...)`): never
   `build_plant` it again, and brief the engineers only on the paths still missing.

@@ -242,3 +242,9 @@ def test_a_long_knowledge_document_is_read_by_its_contents_then_sections():
     for name in ("DesignLead", "ReservoirEngineer", "EnergySystemsEngineer", "WellEngineer"):
         text = " ".join(getattr(agents, name)().prompt.render().split())
         assert "contents first (`read_knowledge` without `section` gives only the contents)" in text
+
+
+def test_a_brief_quotes_the_handbook_lines_the_member_needs():
+    """QA-351: the brief carries the handbook lines with their section; the member reads less."""
+    text = " ".join(DesignLead().prompt.render().split())
+    assert "Quote the handbook lines a member needs in its brief, with their section number" in text
