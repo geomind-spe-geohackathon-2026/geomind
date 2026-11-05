@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### Fixed
+- QA-269: a tool that fails its retry limit is refused for the rest of the run instead of ending
+  it with an internal error; only a further call of it stops the run.
+- QA-301: a call refused before its approval card counts toward the repeat limit.
+- QA-312: adopt_design makes a design or a result the project plant.
+
 ## [0.4.131] - 2026-11-05
 
 ### Fixed (QA-296)

@@ -10,7 +10,7 @@ from geomind import runtime
 from geomind.context.compaction import context_window
 from geomind.engine.compaction import compact_history
 from geomind.engine.questions import answered_paths, asking_new, named_paths, reused_answer
-from geomind.engine.recovery import call_key
+from geomind.engine.recovery import BLOCKED, call_key
 from geomind.engine.state import Stop, is_cancel
 from geomind.context.skills import first_call_skill
 from geomind.errors import OutputError, ToolError, UnknownNameError
@@ -193,11 +193,12 @@ def same_result(session, agent, tool, call):
 
 
 def _over_retries(session, tool):
-    """Return the stop of a tool that failed validation too often in a row, or ``None``.
+    """Return the stop of a call the model keeps repeating, or ``None``.
 
     The same call failing the same way more than the tool's ``max_retries`` times in a row stops
-    the run too: the model is not learning from the error, so going on only spends. So does a
-    call answered from its earlier result (``same_result``) in more steps in a row than that.
+    the run: the model is not learning from the error, so going on only spends. So does a call
+    answered from its earlier result (``same_result``) in more steps in a row than that. A tool
+    whose different calls keep failing is refused instead (``_refuse_over_limit``, QA-269).
     """
     if session.state.same_calls > tool.max_retries:
         return Stop(
@@ -211,10 +212,7 @@ def _over_retries(session, tool):
             f"{tool.name}: the same call failed {session.state.repeated} times in a row with the "
             "same error; the run stops instead of spending more",
         )
-    failures = session.state.failures.get(tool.name, 0)
-    if failures < tool.max_retries:
-        return None
-    return Stop("error", f"{tool.name}: {failures} invalid calls in a row")
+    return None
 
 
 async def _reuse(session, tool, call, recorded):
@@ -400,8 +398,36 @@ async def _refuse_unknown(session, agent, call):
         is_validation=True,
     )
     await record_result(session, call, result)
-    failures = session.state.failures.get(call.name, 0)
-    return Stop("error", f"{call.name}: unknown tool") if failures >= MAX_UNKNOWN_CALLS else None
+
+
+BLOCKED_NOTE = (
+    "{tool}: refused for the rest of this run after {failures} invalid calls in a row, and not "
+    "run. Answer from what you already have (the results and stored data you read), or hand "
+    "back with what is missing; one more call of {tool} ends the run"
+)
+"""What a model reads for a call of a tool that reached its retry limit (QA-269)."""
+
+
+async def _refuse_over_limit(session, call, limit):
+    """Return a ``Stop`` for a call of a refused tool, ``True`` when this call is refused, or None.
+
+    QA-269: two invalid calls of one tool ended a 15-minute run with "internal error" and no
+    answer. At the limit the tool is refused for the rest of the run instead (its ``source`` is
+    ``blocked``, so a resumed run knows it too), and only a call after that refusal stops the run.
+    """
+    state = session.state
+    if call.name in state.blocked:
+        return Stop(
+            "error", f"{call.name}: called again after it was refused for the rest of the run"
+        )
+    failures = state.failures.get(call.name, 0)
+    if failures < limit:
+        return None
+    text = BLOCKED_NOTE.format(tool=call.name, failures=failures)
+    error = ToolError(text, code="not_allowed")
+    result = ToolResult(call_id=call.id, tool=call.name, output=error_output(error), is_error=True)
+    await record_result(session, call, result, source=BLOCKED)
+    return True
 
 
 async def _refuse_hidden(session, call):
@@ -436,10 +462,14 @@ async def _run_calls(session, agent):
     is_together = all(call.name in tools and _runs_together(tools[call.name]) for call in calls)
     admitted = []
     for call in calls:
+        limit = tools[call.name].max_retries if call.name in tools else MAX_UNKNOWN_CALLS
+        over = await _refuse_over_limit(session, call, limit)
+        if isinstance(over, Stop):
+            return over
+        if over:
+            continue
         if call.name not in tools:
-            stop = await _refuse_unknown(session, agent, call)
-            if stop is not None:
-                return stop
+            await _refuse_unknown(session, agent, call)
             continue
         if call.name in hidden:
             await _refuse_hidden(session, call)

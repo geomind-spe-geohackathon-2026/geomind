@@ -138,12 +138,31 @@ async def test_unknown_tool_is_a_result_for_the_model():
     assert "did you mean 'lookup'" in output["error"]["message"]
 
 
-async def test_validation_failures_in_a_row_stop_the_run():
-    """After ``max_retries`` invalid calls of one tool the run stops."""
-    result, _, _ = await run(
-        [uses(call("add", "a", left="x", right=1)), uses(call("add", "b", left="y", right=1))]
-    )
+async def test_a_tool_at_its_retry_limit_is_refused_and_a_call_after_that_stops_the_run():
+    """QA-269: two invalid calls ended a run with no answer; the tool is refused instead."""
+    bad = [uses(call("add", name, left=name, right=1)) for name in ("a", "b", "c", "d")]
+    result, _, events = await run(bad)
+    refused = [event for event in of_type(events, "tool.result") if event.source == "blocked"]
+    assert [event.call_id for event in refused] == ["c"]
+    assert "refused for the rest of this run" in refused[0].output["error"]["message"]
     assert (result.stop_reason, result.status) == ("error", "failed")
+    assert "called again after it was refused" in result.message
+
+
+async def test_a_refused_tool_leaves_the_agent_free_to_answer():
+    """After the refusal the agent finishes with what it has: the run is done, not failed."""
+    bad = [uses(call("add", name, left=name, right=1)) for name in ("a", "b", "c")]
+    result, _, _ = await run([*bad, says("answer from what I read")])
+    assert (result.status, result.answer) == ("done", "answer from what I read")
+
+
+async def test_an_unknown_tool_at_its_limit_is_refused_before_the_run_stops():
+    """The same for a tool that does not exist (``MAX_UNKNOWN_CALLS``)."""
+    steps = [uses(call("lookupp", name, key=name)) for name in ("a", "b", "c")] + [says("done")]
+    result, _, events = await run(steps)
+    sources = {event.call_id: event.source for event in of_type(events, "tool.result")}
+    assert sources["c"] == "blocked" and sources["b"] == "tool"
+    assert result.status == "done"
 
 
 async def test_parallel_failing_calls_of_one_step_do_not_stop_the_run():

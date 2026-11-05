@@ -116,6 +116,20 @@ def _count_failure(state, event):
     state.failure_steps.pop(event.tool, None)
 
 
+BLOCKED = "blocked"
+"""The ``source`` of a call refused because its tool reached its retry limit (QA-269)."""
+
+
+def _count_blocked(state, event):
+    """Keep the tools refused for the rest of the run: another call of one ends the run.
+
+    QA-269: two invalid calls of one tool ended a 15-minute run with no answer; the tool is
+    refused instead, and the agent answers with what it has.
+    """
+    if event.source == BLOCKED and event.tool not in state.blocked:
+        state.blocked.append(event.tool)
+
+
 def _count_repeat(state, event):
     """Count how often in a row the same call failed, in steps after the model saw its error.
 
@@ -198,6 +212,7 @@ def _tool_result(state, event):
         return
     _count_failure(state, event)
     _count_same(state, event)
+    _count_blocked(state, event)
     if state.pending is not None and state.pending.call.id == event.call_id:
         state.pending = None
     state.results[event.call_id] = Message(
