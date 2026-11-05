@@ -10,6 +10,23 @@ import copy
 
 PROBE_SETPOINTS = {"heating": 333.15, "cooling": 280.15, "cooler": 303.15}
 """The supply setpoints [K] a probe copy of the plant gets, only to reach the run's checks."""
+DOUBLET_COLUMN = ("depth", "gradient", "surface_temperature")
+"""A doublet's design values of its water column, as gemini's doublet design reads them."""
+DOUBLET_FLOW_PATH = ("permeability", "thickness", "well_diameter", "roughness")
+"""A doublet's design values of its wells and reservoir flow."""
+DOUBLET_PUMP = ("nominal_flow", "pump_efficiency", "nominal_wellhead_pressure")
+"""A doublet's design values of its production pump."""
+DOUBLET_ESP = (
+    "esp.stage_count",
+    "esp.head_coefficients",
+    "esp.power_coefficients",
+    "esp.setting_depth",
+)
+"""The ESP values a doublet's design derives from ``DOUBLET_PUMP`` (QA-287).
+
+gemini keeps these lists in a private module; geomind names them here until gemini makes them
+public (gemini-requests.md), and a test checks they agree.
+"""
 RUN_CODES = ("missing_value", "missing_assumption", "invalid_binding")
 """The codes of a probe run's issues that name a value the plant lacks, not a probe value."""
 
@@ -24,12 +41,11 @@ def doublet_issues(plant, found, case=None):
     fills (``permeability``, ``thickness`` from the site) is no design value and is not named: a
     patch of it was refused as a case value (QA-212, QA-287).
     """
-    from gemini.plants._utils import doublet_design
     from gemini.plants.doublet import Doublet
 
     known = {issue.get("path") for issue in found}
     params = plant.to_dict(structure=True)["params"]
-    names = (*doublet_design.COLUMN, *doublet_design.FLOW_PATH, *doublet_design.PUMP)
+    names = (*DOUBLET_COLUMN, *DOUBLET_FLOW_PATH, *DOUBLET_PUMP)
     filled = case_filled(plant, case)
     issues = []
     for path, module in plant.named_modules():
@@ -38,7 +54,7 @@ def doublet_issues(plant, found, case=None):
             continue
         parameters = module.describe()["parameters"]
         stated = params.get(path) or {}
-        for name in (*doublet_design.FLOW_PATH, *doublet_design.PUMP):
+        for name in (*DOUBLET_FLOW_PATH, *DOUBLET_PUMP):
             if name not in parameters or f"{prefix}{name}" in known:
                 continue
             value = stated.get(name)
@@ -56,7 +72,6 @@ def case_filled(plant, case):
         return set()
     from gemini.engine.apply import apply_case
     from gemini.errors import ValidationError
-    from gemini.plants._utils import doublet_design
     from gemini.plants.doublet import Doublet
 
     try:
@@ -67,7 +82,7 @@ def case_filled(plant, case):
     for path, module in applied.named_modules():
         if not isinstance(module, Doublet):
             continue
-        for name in doublet_design.FLOW_PATH:
+        for name in DOUBLET_FLOW_PATH:
             try:
                 value = getattr(module, name)
             except ValidationError:
@@ -220,14 +235,12 @@ def derived_issues(plant, issues):
     derives it, so the lead goes on to the size and the study.
     """
     from gemini.modules.pumps import InjectionPump
-    from gemini.plants._utils import doublet_design
     from gemini.plants.doublet import Doublet
 
     modules = dict(plant.named_modules())
     doublets = [path for path, module in modules.items() if isinstance(module, Doublet)]
     pumps = {path for path, module in modules.items() if isinstance(module, InjectionPump)}
-    esp = [name for name in doublet_design.PUMP_VALUES if name.startswith("esp.")]
-    pumped = {f"params.{path}.{name}" for path in doublets for name in esp}
+    pumped = {f"params.{path}.{name}" for path in doublets for name in DOUBLET_ESP}
     kept, derived = [], []
     for issue in issues:
         path = str(issue.get("path") or "")

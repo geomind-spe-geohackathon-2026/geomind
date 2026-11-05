@@ -67,3 +67,15 @@ def test_a_probe_run_keeps_only_the_values_the_plant_lacks():
         {"path": "hp.cop", "code": "invalid_design", "message": "lift too small at the setpoint"},
     ]
     assert [issue["path"] for issue in lacking_values(issues)] == ["", "x.flow"]
+
+
+def test_the_doublet_design_names_agree_with_gemini():
+    """geomind's copies of gemini's doublet design lists match gemini's (private) module."""
+    from gemini.plants._utils import doublet_design
+
+    from geomind.tools.gemini import stages
+
+    assert stages.DOUBLET_COLUMN == doublet_design.COLUMN
+    assert stages.DOUBLET_FLOW_PATH == doublet_design.FLOW_PATH
+    assert stages.DOUBLET_PUMP == doublet_design.PUMP
+    assert set(stages.DOUBLET_ESP) <= set(doublet_design.PUMP_VALUES)

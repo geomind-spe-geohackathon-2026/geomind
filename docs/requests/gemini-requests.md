@@ -22,3 +22,15 @@ geomind requests (economics and schema, found in agent tests on gemini 0.6.1):
 ```
 
 Older open items 1-12 are in geomind's plan.md; priority suggested by geomind: 13, 14, 15, 16, 6 (evaluate speed).
+
+## New (2026-11-05, QA-287 follow-up, for Sahand)
+
+```
+geomind request (private names, found by test_geomind_uses_no_private_gemini_name):
+- A public name for a doublet's design groups. geomind needs the design values of a doublet
+  (gemini.plants._utils.doublet_design COLUMN, FLOW_PATH, PUMP) and the ESP values its design
+  derives (PUMP_VALUES esp.*), to name all missing values at once and to leave derived ones out
+  of `missing`. Today geomind keeps a copy in tools/gemini/stages.py and a test compares it with
+  gemini's private module. Asked: e.g. gm.plants.Doublet.design_groups() or the lists in
+  Doublet.describe().
+```

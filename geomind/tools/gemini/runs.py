@@ -466,21 +466,25 @@ def single_choices(plant):
     ``params.control.outages`` = ``lowest_demand``). When gemini allows more than one, nothing is
     filled and the agent must choose.
     """
-    from gemini.modules._utils import description
-    from gemini.plants._utils.form import file_path
-
+    declared = plant.describe()["parameters"]
     notes = []
-    for name, declaration in plant.named_parameters():
+    for name, _ in plant.named_parameters():
         if "." in name or getattr(plant, name, None) is not None:
             continue
-        options = [item for item in (description._enum(declaration) or []) if item is not None]
+        options = [item for item in (declared.get(name) or {}).get("enum") or [] if item is not None]
         if len(options) == 1:
             plant.set_params("", {name: options[0]})
             notes.append(
-                f"params.{file_path(name)} was unset; set to {options[0]!r}, the only value "
+                f"params.{file_name(plant, name)} was unset; set to {options[0]!r}, the only value "
                 "gemini allows"
             )
     return notes
+
+
+def file_name(plant, name):
+    """Return the plant-file path of a plant-level value: a control sits under ``control``."""
+    control = plant.to_dict().get("params", {}).get("control")
+    return f"control.{name}" if isinstance(control, dict) and name in control else name
 
 
 def simulated_plant(context, design, plant_version):

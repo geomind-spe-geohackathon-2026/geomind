@@ -627,6 +627,8 @@ def stored_twins(context, built):
     HeatingFullCoolingPlant to 52.5 EUR/MWh, the stored one to 32.4. The warning names the stored
     plant to work on and whether the built one differs from it.
     """
+    import gemini as gm
+
     kind = built.to_dict().get("type")
     if not kind:
         return {}
@@ -635,7 +637,7 @@ def stored_twins(context, built):
     for reference, load in stored_plants(context):
         try:
             plant = load()
-        except Exception:  # noqa: BLE001 - a stored plant gemini cannot read is no twin
+        except (gm.errors.ValidationError, ToolError):
             continue
         if plant.to_dict().get("type") != kind:
             continue

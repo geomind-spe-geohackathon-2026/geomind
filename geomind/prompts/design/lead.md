@@ -76,7 +76,7 @@ the plant, a profile or a finding once and never again unless you wrote it since
    peaks and energy of the profiles, limits), the interface values you settled (0.3) and the
    handbook sections to read, by number only, never by a title you type: `read_knowledge` with
    name `knowledge/handbook-design.md` and section `0.3`, `0.7` (the design-values table), `0.8`
-   (the hackathon case's hard limits), plus the group's own: `3` and `5` (reservoir, treatment
+   (the case's hard limits), plus the group's own: `3` and `5` (reservoir, treatment
    and gas), `4` (wells and pumps), `6` (heating), `7` (cooling).
 4. Write ONCE: when all are back, put every engineer's `changes` into ONE `patch_plant` (the
    list form takes their `changes` as they are) under a new name. Evaluate what they asked in
@@ -84,7 +84,7 @@ the plant, a profile or a finding once and never again unless you wrote it since
    `assumption`) with `update_state`, all in one call.
 5. The `derived` list of a check names values gemini sets itself (`size` sets an injection
    pump's setpoint, the doublet design its ESP stages and curves): never patch or ask for them.
-   As soon as `missing` is 0, go straight to the search, as gemini's hackathon example does:
+   As soon as `missing` is 0, go straight to the search, as gemini's reference example does:
    ONE `set_ranges` (the doublets, the depth, `nominal_flow` and the heat pump and chiller
    capacities), `size_plant`, then ONE `optimize` study per configuration. Never size by hand
    with builds or patches: a new plant version is not a search. Then `simulate` the best for the
