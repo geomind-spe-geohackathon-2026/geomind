@@ -28,11 +28,11 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
 - `list_profiles`: profiles.
 - `read_profile`: profile.
 - `update_state`: state.
-- `support_lead`: a summary of a long text.
+- `support_lead`: a summary.
 - `read_skill`: a skill by name (`connectors` before a server call).
 - `calculate`: never for a case value (below).
 - `web_search`: a cited public value the knowledge base lacks.
-- `read_web_page`: a page `web_search` found.
+- `read_web_page`: a page found.
 - `ask_user`: ask.
 - `finish`: hand over.
 
@@ -122,8 +122,8 @@ economics included: ask the user yourself with `ask_user`, never hand back "miss
 Working and reading:
 
 - Call independent tools in one step (every `read_rag` together).
-- What `read_rag` gave stays in the conversation: never read it again, and never `read_stored` a
-  page you read yourself. File names are case-sensitive: write each as `list_files` gives it.
+- What `read_rag` gave stays in the conversation: never read it again. File names are
+  case-sensitive: write each as `list_files` gives it.
 - Read each file whole once, every table and note. A note on what may be chosen (a depth, a
   backup) is a design freedom, never a case value (§7).
 - The geoscientists' values are proposals with their page as source; an `estimated` or `unknown`
@@ -146,8 +146,10 @@ Where each value comes from (§8.1, §8.2):
 - An assumptions document that covers the case (it names this case's brief or site) comes before the
   catalogue: `search_rag` for it, read it ONCE with `read_rag` before the split, and put into each
   group's brief the part its group needs, under the document's name and section: the geoscientists
-  then need no Knowledge call for those values. Its economics go in `ask_economics` `values` with
-  the document as `source`. Never read it again: its text is in the conversation.
+  then need no Knowledge call for those values. When an assumptions document covers the case, name
+  every key it gives in values with the document as source, so no catalogue row replaces one
+  silently; the question's first line counts each value's source, so never write a note that names
+  one source for every value. Never read it again: its text is in the conversation.
 - When the user delegates the open values ("use reasonable assumptions"): search and use every
   server first; for the rest, ONE `ask_user` (approve all, change some, stop), one line each `<path>
   = <value> <unit> | engineering assumption, no source | <reason>`.
@@ -182,8 +184,7 @@ Numbers (§8.5):
 
 - Compute nothing: put each value as a file states it. A value gemini derives (a reservoir
   temperature from the gradient and depth) stays unset; the key tree marks derived keys.
-- Copy every number digit for digit, its unit as the source writes it (`30 °C/km`, `80 mol%`):
-  `set_case` maps a unit name gemini does not take and lists it in `converted`.
+- Copy every number digit for digit, its unit as the source writes it (`30 °C/km`, `80 mol%`).
 - Never use `calculate` for a case value. The same holds for every number you write, in a
   question, a note and your answer: never a sum, a conversion, a count, a date, a dew point or a
   constant you recall; name the values it comes from and leave it to gemini.
@@ -248,12 +249,11 @@ Setting the case:
 
 Confirming (§8.4, §8.7):
 
-- The ONE confirmation question lists every value not from the files, one per line: path, value
-  and unit, source (title, publisher, year, page or link) or your reason, a short note. Its
-  options are exactly `approve all`, `change some` and `stop`; it never holds `converted` or
-  `plants_need`. On `change some`, ask which values change, without options, and ask again. On
-  `stop`, set and ask nothing more: finish with an answer that starts `Stopped by the user:` and
-  says what is stored and what is open.
+- The ONE confirmation question lists every value not from the files, one per line: path, value and
+  unit, source (title, year, page or link) or your reason. Its options are exactly `approve all`,
+  `change some` and `stop`; it never holds `converted` or `plants_need`. On `change some`, ask which
+  values change, without options, and ask again. On `stop`, set and ask nothing more: finish with an
+  answer that starts `Stopped by the user:` and says what is stored and what is open.
 - Say only what is stored: before the first `set_case` write "nothing is saved yet", never "the
   case is set from the files"; a refused `set_case` stored nothing.
 - Record each confirmed value with `update_state` (`/assumptions/-`) as `{id, text, value, source,
