@@ -434,3 +434,19 @@ async def test_an_esp_curve_failure_names_the_flows_where_the_curve_is_negative(
     zero = 3000 / 543439.65
     assert start == 0.0 and zero - found["resolution"] <= end < zero
     assert "negative head at flows 0 to" in failure["message"]
+
+
+def test_a_requirement_with_no_value_names_the_failed_steps():
+    """QA-104: a figure of the period has no value when steps failed; the reason says so."""
+    from geomind.tools.gemini.runs import explained_report
+
+    report = {
+        "failed_steps": 122,
+        "requirements": [{"name": "heat_delivered", "value": {"value": None, "reason": "no value"}}],
+    }
+    reason = explained_report(report)["requirements"][0]["value"]["reason"]
+    assert "122 steps" in reason and reason.startswith("no value")
+    assert explained_report({"failed_steps": 0, "requirements": []}) == {
+        "failed_steps": 0,
+        "requirements": [],
+    }

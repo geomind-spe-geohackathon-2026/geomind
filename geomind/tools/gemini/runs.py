@@ -372,12 +372,35 @@ def with_curve(plant, group):
     return {**group, "message": message, "curve": curve}
 
 
+def explained_report(report):
+    """Return a report dict whose requirements with no value say why when steps failed (QA-104).
+
+    A figure of the whole period (``unmet_share``) has no value when any step failed, and gemini
+    says only "no value"; the Results page showed that as a missing rule. The reason now names
+    the failed steps, which are what to fix.
+    """
+    failed = report.get("failed_steps") or 0
+    if not failed:
+        return report
+    reason = (
+        f"no value: {failed} steps of the run failed, so the run holds no figure for the whole "
+        "period; fix the failed steps (failures) first"
+    )
+    items = []
+    for item in report.get("requirements") or ():
+        value = item.get("value")
+        if isinstance(value, dict) and value.get("value") is None and value.get("reason") == "no value":
+            item = {**item, "value": {**value, "reason": reason}}
+        items.append(item)
+    return {**report, "requirements": items}
+
+
 def run_summary(plant, case, results, label):
     """Return what the model reads of a run: steps, failures, totals in display units."""
     import gemini as gm
 
     failures = gm.evaluate.failures(results).to_dict()
-    report = gm.evaluate.report(plant, case, results).to_dict()
+    report = explained_report(gm.evaluate.report(plant, case, results).to_dict())
     totals = gm.evaluate.totals(plant, case, results)
     times = results.to_frame().index
     return {

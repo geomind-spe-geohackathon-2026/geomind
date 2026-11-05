@@ -116,7 +116,7 @@ async def full_run(context, run, design, ran, options):
     (``run.report.to_dict()``, display units) and ``run`` gemini's run record (``run.to_dict()``).
     """
     from geomind.tools.gemini.case import build_case
-    from geomind.tools.gemini.runs import run_summary
+    from geomind.tools.gemini.runs import explained_report, run_summary
 
     case = build_case(*ran)
     summary = await runtime.in_gemini_thread(run_summary, run.plant, case, run.results, design)
@@ -126,7 +126,7 @@ async def full_run(context, run, design, ran, options):
         "case_name": run.case_name,
         "design": design,
         "result": reference,
-        "report": to_jsonable(run.report.to_dict()),
+        "report": explained_report(to_jsonable(run.report.to_dict())),
         "run": to_jsonable(run.to_dict()),
     }
 
@@ -149,7 +149,7 @@ async def simulated_run(context, design, ran, options):
     import gemini as gm
 
     from geomind.tools.gemini.case import build_case
-    from geomind.tools.gemini.runs import run_summary
+    from geomind.tools.gemini.runs import explained_report, run_summary
 
     plant = load_design(context, design, "study")
     case = build_case(*ran)
@@ -164,7 +164,7 @@ async def simulated_run(context, design, ran, options):
         "case_name": case.name,
         "design": design,
         "result": reference,
-        "report": to_jsonable(report.to_dict()),
+        "report": explained_report(to_jsonable(report.to_dict())),
         "run": None,
     }
 
