@@ -349,7 +349,14 @@ def with_curve(plant, group):
         return group
     if not isinstance(module, gm.modules.ESP):
         return group
-    curve = curve_ranges(module)
+    try:
+        curve = curve_ranges(module)
+    except gm.errors.ValidationError:
+        # NOTE: the plant here holds the plant file's values only (the case is applied to the
+        # run's own copy); reading a curve it lacks raised gemini's whole-plant "uninitialized
+        # parameters" error, which listed the case's values as missing and failed a simulate
+        # that had run (QA-082). The group is then given without the curve.
+        return group
     said = [
         f"negative {name} at flows "
         + ", ".join(f"{start:.4g} to {end:.4g}" for start, end in curve[f"negative_{name}"])
