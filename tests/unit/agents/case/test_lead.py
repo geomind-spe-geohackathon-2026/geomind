@@ -392,3 +392,44 @@ def test_every_row_keeps_its_status_and_the_filter_waste_row_is_secondary():
         text
     )
     assert "`waste-density-geothermal-filter-nrg-2020`" in text
+
+
+def test_qa_177_one_question_then_one_set_case_then_one_follow_up():
+    """QA-177: converted, plants_need only after set_case; source labels; no calculate."""
+    text = " ".join(CaseLead().prompt.content.split())
+    assert "merge their findings; save nothing yet" in text
+    assert "Group III, brine, gas, air and utilities (`site.fluid.*`, `site.air.*`" in text
+    assert "ONE follow-up `ask_user`, only when that `set_case` returns `plants_need`" in text
+    assert "put each of those in the ONE confirmation question" not in text
+    assert "Show that value" not in text and "never the ISA pressure" in text
+    assert "Never use `calculate` for a case value" in text
+    assert 'a Knowledge value is `"knowledge"`' in text and '`"connector"`' in text
+
+
+def test_qa_227_the_case_is_trusted_over_the_brief():
+    """QA-227: a brief's claim that differs from read_case is reported, never asked."""
+    text = " ".join(CaseLead().prompt.content.split())
+    assert "Trust the case over the brief" in text
+
+
+def test_qa_197_a_stop_must_be_reported_and_qa_198_the_question_says_what_is_stored():
+    """QA-197: an answer after stop starts with STOPPED; QA-198: no 'case is set' before it is."""
+    from geomind.agents.case.lead import NO_STOP, STOPPED, stop_not_reported
+    from geomind.engine import Context
+    from geomind.types import Message, ToolCall
+
+    text = " ".join(CaseLead().prompt.content.split())
+    assert 'never "the case is set from the files"' in text
+    asked = Message(role="assistant", tool_calls=(ToolCall(id="q", name="ask_user", input={}),))
+    reply = Message(role="tool", content="stop", tool_call_id="q")
+
+    def answer(text):
+        call = ToolCall(id="f", name="finish", input={"answer": text})
+        return Message(role="assistant", tool_calls=(call,))
+
+    hidden = [asked, reply, answer("Blocking: no time zone")]
+    assert stop_not_reported(Context(messages=hidden)).startswith(NO_STOP)
+    told = [asked, reply, answer(f"{STOPPED}: nothing is stored")]
+    assert stop_not_reported(Context(messages=told)) is None
+    again = [*hidden, Message(role="tool", content=f"{NO_STOP}: ...", tool_call_id="f")]
+    assert stop_not_reported(Context(messages=[*again, answer("x")])) is None

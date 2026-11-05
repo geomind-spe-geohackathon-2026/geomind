@@ -110,6 +110,47 @@ def changes_not_asked(context):
     )
 
 
+STOP = "stop"
+"""The option of the case lead's questions that ends the request (QA-197)."""
+STOPPED = "Stopped by the user"
+"""The start of the case lead's answer after ``stop``; the project lead ends the request on it."""
+NO_STOP = "stop not reported"
+"""The start of the case lead's one refusal of an answer after ``stop`` that does not say so."""
+
+
+def proposed_answer(messages):
+    """Return the text of the ``finish`` call the last assistant message proposes, or ``""``."""
+    for message in reversed(messages):
+        if message.role != "assistant":
+            continue
+        for call in message.tool_calls:
+            if call.name == "finish":
+                return str((call.input or {}).get("answer", ""))
+        return message.content or ""
+    return ""
+
+
+def stop_not_reported(context):
+    """Return the refusal of an answer after the user chose ``stop`` that hides it, or ``None``.
+
+    QA-197: after ``stop`` the project lead sent the case lead again, which wrote the case seven
+    times. The answer must start with ``STOPPED`` so the project lead ends the request by rule.
+    """
+    messages = context.messages
+    reply = last_reply(messages)
+    if reply is None or reply.strip().lower() != STOP:
+        return None
+    if any(NO_STOP in (message.content or "") for message in messages):
+        return None
+    if proposed_answer(messages).lstrip().startswith(STOPPED):
+        return None
+    return (
+        f"{NO_STOP}: the user chose 'stop'. Set nothing more and ask nothing more. Finish now with "
+        f"an answer that starts with '{STOPPED}:', then says what the case holds as stored (from "
+        "the last set_case result or read_case, never from your plan) and what is open"
+    )
+
+
 class CaseLead(Agent):
     """Set the case of a design from the project's files, with assumptions for what they lack.
 
@@ -163,5 +204,7 @@ class CaseLead(Agent):
         self.model = Model(setting="caselead_model", temperature=0)
 
     def answer_problem(self, context):
-        """Refuse once an answer that skipped the values after ``change some``, or the economics."""
-        return changes_not_asked(context) or economics_missing(context)
+        """Refuse once an answer hiding a ``stop``, or skipping ``change some`` or the economics."""
+        return (
+            stop_not_reported(context) or changes_not_asked(context) or economics_missing(context)
+        )

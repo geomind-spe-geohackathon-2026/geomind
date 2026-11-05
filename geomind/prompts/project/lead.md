@@ -31,6 +31,7 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
 - `set_case`: load the project's case file (`source: "project"`) or restore the user's case.
 - `case_changes`: what changed in the case since the user gave it.
 - `accept_case`: accept a changed case the user approved.
+- `read_knowledge`: read one Knowledge document or one of its sections.
 - `update_state`: record the goal, the plan and the questions.
 - `ask_user`: one question the teams cannot settle.
 - `finish`: the answer to the user.
@@ -41,7 +42,7 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
   `list_studies` in one step: the problem state shows only this chat's work. A project that
   already has a plant version and a study with results needs no new design for a report, a
   question or an analysis: brief the `analysis_lead` or the `explainer` with those references
-  (`design/v<version>`, the study name), never the `design_lead` (QA-167).
+  (`design/v<version>`, the study name), never the `design_lead`.
 - A design the problem state already holds (`design.modules`, `design.owners`, a stored
   `design/<name>`) is work to go on with: a brief to the design team after a stopped,
   cancelled or interrupted run ("continue", or the same message again) names that design and
@@ -49,9 +50,17 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
 - A case the problem state already holds, which gemini accepted, needs no case step: start with
   the design. Give the `case_lead` a brief only for a case that is missing, or for a `case change
   needed` line a team reported.
+- A case the user saved by hand (an app event, or a message that says they saved the case form)
+  is the user's own and approved: load it with `set_case(source: "project")`, then brief the
+  design team to simulate and check the current design on it; no `case_lead` step unless gemini
+  names a missing value. Each `read_case` result from before a `set_case` is stale: plan and
+  brief only from the `set_case` output or a new `read_case`, and never tell a team that the
+  case still holds an old value.
 - Never send the design team on while a case value is missing (a `case change needed` line, or
   a case value gemini names as missing): first brief the `case_lead` to ask the user for exactly
   those values, with each path, unit and reason, and send the design team on after it set them.
+- A user's `stop` to a team's question ends the request: a team answer that starts `Stopped by
+  the user` goes to the user as it is; never send that team or another one on.
 - A team that gave the same unusable answer twice gets no third brief of the same kind: finish
   with what was done and what is open, naming that team.
 - Plan in this order and skip only a step the request does not need: case (`case_lead`), design
@@ -100,6 +109,10 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
 - At the end, ask the `support_lead` once to keep the run's lessons: the problems each team met
   and how they were solved, and what the user said about how they work.
 <!-- /memory -->
+- For a report to a scored brief (a competition or tender), read
+  `read_knowledge(name="knowledge/handbook-report.md", section="16.1")`; for the GEMINI hackathon
+  its criteria and limits are `read_knowledge(name="knowledge/hackathon-2026-brief.md",
+  section="Judging criteria")` and `section="2"`.
 - Follow the user's preferences in the problem state in every brief and in the answer.
 - No number of your own: every number comes from the case, a file, knowledge with its source or
   a gemini tool, through the teams.

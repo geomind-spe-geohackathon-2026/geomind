@@ -6,6 +6,19 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.112] - 2026-11-05
+
+### Fixed
+- QA-177: the case prompts follow handbook-case (one confirmation question, one set_case, one
+  follow-up only for plants_need or a mapped unit name; source labels; no calculate for a case
+  value; the geoscientists read the sections their brief names; requirement rules).
+- QA-227: the case and project leads trust the case over a brief; `set_case(source="project")`
+  lists `changed` `[{path, before, after}]` and says earlier reads are stale.
+- QA-197: a user's `stop` to the case question ends the request; the project lead finishes by
+  rule instead of sending the case lead again.
+- QA-198: the confirmation question says only what is stored and names each refused set_case.
+- QA-173: the project lead has `read_knowledge` and cites handbook-report 16.1 for a scored brief.
+
 ## [0.4.111] - 2026-11-05
 
 ### Fixed

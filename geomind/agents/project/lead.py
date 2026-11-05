@@ -3,7 +3,7 @@
 from geomind import runtime, tools
 from geomind.agents.agent import Agent, Model
 from geomind.agents.analysis.lead import AnalysisLead
-from geomind.agents.case.lead import CaseLead
+from geomind.agents.case.lead import STOPPED, CaseLead
 from geomind.agents.design.lead import DesignLead
 from geomind.agents.project.comparison import ComparisonDriver
 from geomind.agents.project.explainer import Explainer
@@ -19,6 +19,8 @@ EXPLANATION_TOKENS = 6000
 """The most tokens of the explanation, which is most of the final answer."""
 LOAD_CASE = "load-project-case"
 """The id of the call that loads the project's case by rule before the first model call."""
+STOP_CASE = "finish-on-stop"
+"""The id of the finish call that ends the request by rule after the user's ``stop`` (QA-197)."""
 
 
 def has_project_case(context):
@@ -27,6 +29,27 @@ def has_project_case(context):
     if context.problem.case is not None or workspace is None or context.project is None:
         return False
     return hasattr(workspace, "case") and workspace.case(context.project) is not None
+
+
+def case_stopped(messages):
+    """Return the case lead's last answer when it says the user chose ``stop``, or ``None``.
+
+    QA-197: a ``stop`` to the case lead's question ends the request; the project lead must not
+    send the case lead again, so its answer goes to the user as it is.
+    """
+    if not messages or messages[-1].role != "tool":
+        return None
+    asked = {
+        call.id
+        for message in messages
+        if message.role == "assistant"
+        for call in message.tool_calls
+        if call.name == "case_lead"
+    }
+    last = messages[-1]
+    if last.tool_call_id in asked and STOPPED in (last.content or ""):
+        return last.content
+    return None
 
 
 def comparison():
@@ -79,6 +102,7 @@ class ProjectLead(Agent):
         self.accept_case = tools.gemini.accept_case
         self.update_state = tools.update_state
         self.read_stored = tools.read_stored
+        self.read_knowledge = tools.read_knowledge
         self.ask_user = tools.ask_user
         self.finish = suggestions.finish
 
@@ -86,7 +110,11 @@ class ProjectLead(Agent):
         self.model = Model(setting="projectlead_model", temperature=0)
 
     async def forward(self, context):
-        """Load the project's case file by rule first; then ask the model."""
+        """End on the user's ``stop``; load the project's case file by rule first; else ask."""
+        stopped = case_stopped(context.messages)
+        if stopped is not None:
+            call = ToolCall(id=STOP_CASE, name="finish", input={"answer": stopped})
+            return Action(text="", tool_calls=(call,))
         if not context.messages or context.messages[-1].role != "user":
             return await super().forward(context)
         if has_project_case(context) and not any(

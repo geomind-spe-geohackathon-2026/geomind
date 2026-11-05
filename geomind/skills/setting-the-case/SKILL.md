@@ -124,5 +124,7 @@ mol%), and a unit name as sources print it becomes gemini's name of it (`kg/m³`
 `kg/m3`, `mPa·s` is `mPa.s`, `MWth` is `MW`). With only the site's elevation, give
 `site.air.pressure` as `{"elevation": {"value", "unit"}}`: set_case sets the ISA pressure
 in Pa (ISO 2533:1975), never a value of yours. Returns the case, the state version
-and `converted`, each value set_case mapped or converted (`{path, from, to, reason}`), to
-list in the user's confirmation question.
+and `converted`, each value set_case mapped or converted (`{path, from, to, reason}`). It
+comes after the one confirmation question, so a unit NAME it mapped, with `plants_need` paths
+(by path and unit, no number), goes in the one follow-up `ask_user` after it; the ISA pressure
+is never asked, the user confirms the elevation. Never use `calculate` for a case value.

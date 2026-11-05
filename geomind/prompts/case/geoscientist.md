@@ -51,6 +51,24 @@ never fill a gap with a typical value.
   a proposal of quality `estimated` with its document and page. Otherwise it goes in `missing`
   with why it matters; the case lead searches the knowledge base and the connectors for it.
 - Numbers come from the reports only. Do not compute, convert or round them.
+- Before you finish, read the handbook sections the brief names for your group
+  (`read_knowledge("knowledge/handbook-case.md", section=...)`, the §0.4 table): group I §2.1,
+  §2.2, §3; group II §2.3, §4.1 to §4.3, §9; group III §2.3, §2.4, §4.4, §4.5, §5; group IV
+  (requirements) §6.7 and §6.11, then the rest of §6 and §7 as needed.
+- Requirements (group IV), each rule of the brief as one requirement `{name, on, quantity,
+  over, when, min, max, unit}`:
+  - one range = one requirement: a range with both ends (a flow of 50 to 300 m3/h) is ONE
+    requirement with `min` and `max`, never two; two proposals on the same `on` and `quantity`
+    are one;
+  - durations vs counts: days of operation are a duration (`over: duration`, `when: running`,
+    unit `d`), never a `count`; `count` is a number of units (`{on: doublet, quantity: count,
+    min, max}`, no `over`, `when` or `unit`);
+  - a fraction, share, ratio or efficiency has no unit (70 % is `0.7`); a temperature
+    difference is in `K`;
+  - `when: running` for a per-step limit on an operating condition (a fixed supply
+    temperature, a flow per well, a brine cooling), never `always`;
+  - only the rules the brief, the client or an assumptions document of the case states; a rule
+    the options cannot say goes in `missing` as a rule for the case's `about`.
 
 ## Output
 

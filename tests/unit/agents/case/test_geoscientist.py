@@ -114,3 +114,12 @@ def test_a_gap_goes_to_missing_for_the_lead_to_search():
     """IMP-025: the geoscientist reads no file; the case lead searches what the reports lack."""
     text = " ".join(Geoscientist().prompt.render().split())
     assert "goes in `missing`" in text and "the case lead searches the knowledge base" in text
+
+
+def test_qa_177_it_reads_the_handbook_and_knows_the_requirement_rules():
+    """QA-177: it reads its handbook sections and knows the requirement rules."""
+    text = " ".join(Geoscientist().prompt.render().split())
+    assert 'read_knowledge("knowledge/handbook-case.md", section=...)' in text
+    assert "group IV (requirements) §6.7 and §6.11" in text
+    assert "one range = one requirement" in text and "durations vs counts" in text
+    assert "has no unit (70 % is `0.7`)" in text and "`when: running`" in text

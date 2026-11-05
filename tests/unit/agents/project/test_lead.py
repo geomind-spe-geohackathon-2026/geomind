@@ -93,3 +93,32 @@ def test_a_case_change_the_user_confirmed_is_accepted_not_asked_again():
     """#53: the case lead's question was approved, then the project lead asked the same again."""
     text = ProjectLead().prompt.content
     assert "already confirmed through the case lead" in text and "never ask again" in text
+
+
+def test_qa_227_a_read_case_before_set_case_is_stale():
+    """QA-227: a case saved by hand is approved; an earlier read_case is stale."""
+    text = " ".join(ProjectLead().prompt.content.split())
+    assert "A case the user saved by hand" in text
+    assert "Each `read_case` result from before a `set_case` is stale" in text
+
+
+def test_qa_197_a_stop_to_the_case_lead_ends_the_request_by_rule():
+    """QA-197: the case lead's STOPPED answer ends the request; no team is sent again."""
+    from geomind.agents.case.lead import STOPPED
+    from geomind.agents.project.lead import case_stopped
+    from geomind.types import Message, ToolCall
+
+    sent = ToolCall(id="c", name="case_lead", input={"task": "set the case"})
+    stopped = f"{STOPPED}: nothing is stored."
+    messages = [
+        Message(role="user", content="Build the case"),
+        Message(role="assistant", tool_calls=(sent,)),
+        Message(role="tool", content=stopped, tool_call_id="c"),
+    ]
+    assert case_stopped(messages) == stopped
+    assert (
+        case_stopped([*messages[:2], Message(role="tool", content="Case set.", tool_call_id="c")])
+        is None
+    )
+    text = " ".join(ProjectLead().prompt.content.split())
+    assert "A user's `stop` to a team's question ends the request" in text
