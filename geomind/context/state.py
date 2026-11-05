@@ -40,6 +40,12 @@ class Assumption(Record):
     reason: str | None = None
     citation: dict[str, Any] | None = None
 
+    @field_validator("citation", mode="before")
+    @classmethod
+    def _text_citation(cls, value):
+        """Keep a citation given as text as its ``note`` (QA-155: a string was refused)."""
+        return {"note": value} if isinstance(value, str) else value
+
 
 class Result(Record):
     """A finding; ``reference`` names the stored full data."""

@@ -12,6 +12,8 @@ from geomind.types import Record
 from geomind.utils.strings import first_paragraph
 
 CHARACTERS_PER_TOKEN = 4
+ESCAPING = 1.25
+"""How much longer a JSON-text answer gets once it is a string in the team's JSON result."""
 STOP_CODES = ("context_exceeded",)
 """Codes a nested run's message may start with, which its delegate passes on."""
 
@@ -298,6 +300,25 @@ class Team(Tool):
     def is_pure(self):
         """Return that nested runs are never pure."""
         return False
+
+    @property
+    def result_limit(self):
+        """Return the most characters of a team result the lead reads whole, not outlined.
+
+        QA-156: each answer is already cut to its member's ``max_summary_tokens``, but the team's
+        result went through the generic outline and the lead read the findings back one by one.
+        The limit is the team size times the largest member budget, with room for the escaping
+        of answers that are JSON text; without a team size, the generic limit holds.
+        """
+        size = runtime.get("team_size")
+        if not size:
+            return None
+        budgets = [
+            (member.max_summary_tokens or runtime.get("delegate_summary_tokens"))
+            * CHARACTERS_PER_TOKEN
+            for member in self.members.values()
+        ]
+        return int(size * max(budgets, default=0) * ESCAPING)
 
     async def _run(self, context, briefs):
         """Run each brief at the same time; return each answer or error by member or instance."""

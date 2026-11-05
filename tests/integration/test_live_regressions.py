@@ -30,13 +30,11 @@ def session_with_files():
     return session
 
 
-async def test_a_csv_whose_time_column_has_another_name_gets_the_call_that_fixes_it():
-    """The error about a time column of another name carries the exact retry with ``columns``."""
+async def test_a_csv_whose_time_column_is_named_date_is_read_as_time():
+    """QA-222: a first column ``date`` is the time column; set_case renames it, no retry needed."""
     error = (await call(set_case, recorded(48, "set_case"), session_with_files(), "p")).output
-    error = error["error"]
-    assert error["code"] == "invalid_value" and "first column" in error["message"]
-    retry = error["suggestions"][0]
-    assert retry.startswith("set_case(") and "columns=" in retry and "'date': 'time'" in retry
+    message = error["error"]["message"]
+    assert "first column" not in message and "has no offset" in message
 
 
 async def test_the_column_mapping_renames_the_header_before_gemini_reads_the_file():

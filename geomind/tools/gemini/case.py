@@ -280,6 +280,64 @@ def first_columns(supplied, names):
     return found
 
 
+TIME_NAMES = re.compile(r"(?i)(date|time|day|timestamp)([ _-]?(utc|local))?")
+"""Header names of a first column that is a series' times under another name (QA-222)."""
+
+
+def time_renames(found, columns):
+    """Return ``(files, converted)``: each CSV's first column named like a time renamed ``time``.
+
+    QA-222: the case lead dropped ``columns`` from its full call and gemini refused the files'
+    ``date`` column. A first column named as a time (``date``, ``timestamp``) that ``columns``
+    leaves as it is IS the time column: renaming its header is a slip of form, not a value, so
+    set_case renames it and lists it in ``converted``.
+    """
+    renamed, converted = dict(found), []
+    for name, content in found.items():
+        if not name.lower().endswith(".csv"):
+            continue
+        first = content.decode("utf-8-sig").partition("\n")[0].split(",")[0].strip()
+        if first == TIME_COLUMN or first in (columns or {}).get(name, {}):
+            continue
+        if not TIME_NAMES.fullmatch(first):
+            continue
+        renamed[name] = renamed_header(content, {first: TIME_COLUMN})
+        converted.append({
+            "path": f"file {name}",
+            "from": {"value": first, "unit": None},
+            "to": {"value": TIME_COLUMN, "unit": None},
+            "reason": f"gemini reads a series' times from its first column named {TIME_COLUMN!r}",
+        })
+    return renamed, converted
+
+
+def without_empty_units(node, path=""):
+    """Return ``(node, converted)`` with every ``"unit": ""`` left out (QA-222).
+
+    The case lead wrote ``"unit": ""`` on each fraction, which gemini refuses; a key that takes
+    no unit is written without one, so an empty unit is no unit.
+    """
+    if isinstance(node, list):
+        pairs = [without_empty_units(item, f"{path}[{index}]") for index, item in enumerate(node)]
+        return [item for item, _ in pairs], [entry for _, found in pairs for entry in found]
+    if not isinstance(node, dict):
+        return node, []
+    result, converted = {}, []
+    for key, value in node.items():
+        here = f"{path}.{key}" if path else str(key)
+        if key == "unit" and isinstance(value, str) and not value.strip():
+            converted.append({
+                "path": here,
+                "from": {"value": None, "unit": value},
+                "to": {"value": None, "unit": None},
+                "reason": "an empty unit is no unit: a key that takes none is written without it",
+            })
+            continue
+        result[key], found = without_empty_units(value, here)
+        converted += found
+    return result, converted
+
+
 def column_retry(error, supplied, names, changes):
     """Return the ``set_case`` call that renames a file's time column, or ``None``."""
     if "first column" not in str(error) or not names:
@@ -737,12 +795,77 @@ def moved_reference_depth(base, data):
     )
 
 
+RANGE_KEYS = ("on", "quantity", "over", "when", "unit")
+"""The fields two one-sided requirements share when they are the two ends of one range."""
+
+
+def joined_ranges(requirements):
+    """Return ``(requirements, converted)`` with a lone ``min`` and a lone ``max`` joined (QA-160).
+
+    The brief's 50 to 300 m3/h became ``min_stable_flow`` (min 50) and ``max_production_flow``
+    (max 300) in one run of two: the same check, two rows of the verdict for one rule. Two
+    requirements on the same ``on``, ``quantity``, ``over``, ``when`` and ``unit``, one with only
+    ``min`` and one with only ``max``, are one requirement ``<quantity>_range`` with both.
+    """
+    if not isinstance(requirements, list):
+        return requirements, []
+    items, converted = list(requirements), []
+    names = {item.get("name") for item in requirements if isinstance(item, dict)}
+
+    def side(item, key):
+        other = "max" if key == "min" else "min"
+        return isinstance(item, dict) and item.get(key) is not None and item.get(other) is None
+
+    for low in [item for item in items if side(item, "min")]:
+        shape = tuple(low.get(key) for key in RANGE_KEYS)
+        highs = [item for item in items if side(item, "max")]
+        high = next((item for item in highs if tuple(map(item.get, RANGE_KEYS)) == shape), None)
+        if high is None or low not in items:
+            continue
+        name = f"{low.get('quantity')}_range"
+        name = name if name not in names - {low.get("name"), high.get("name")} else low["name"]
+        joined = {**low, **high, "min": low["min"], "max": high["max"], "name": name}
+        items[items.index(low)] = joined
+        items.remove(high)
+        names = (names - {low.get("name"), high.get("name")}) | {name}
+        converted.append({
+            "path": f"requirements.{name}",
+            "from": {"value": [low.get("name"), high.get("name")], "unit": None},
+            "to": {"value": {"min": low["min"], "max": high["max"]}, "unit": low.get("unit")},
+            "reason": "a range with both ends is ONE requirement with min and max",
+        })
+    return items, converted
+
+
+def exact_ratios(requirements):
+    """Return the warning of a per-step requirement with ``min`` equal to ``max`` (QA-203).
+
+    ``reinjection_ratio`` min 1, max 1 fails on round-off of a check, so gemini's example and the
+    assumptions document give it a tolerance; geomind invents none, so the user is asked.
+    """
+    exact = [
+        str(item.get("name"))
+        for item in (requirements if isinstance(requirements, list) else ())
+        if isinstance(item, dict)
+        and item.get("over") == "each"
+        and item.get("min") is not None
+        and item.get("min") == item.get("max")
+    ]
+    if not exact:
+        return None
+    return (
+        f"requirements {join_names(exact)} have min = max on each step: a computed value equal "
+        "to it fails on round-off. Take the tolerance the brief or the Knowledge base gives "
+        "(search_rag), or ask the user for it in the confirmation question"
+    )
+
+
 def judged_requirements(data):
     """Return ``converted`` of the case's requirements written as gemini judges them (copied)."""
     if not data.get("requirements"):
         return []
-    data["requirements"] = copy.deepcopy(data["requirements"])
-    return running_supply_temperatures(data["requirements"]) + period_requirements(
+    data["requirements"], joined = joined_ranges(copy.deepcopy(data["requirements"]))
+    return joined + running_supply_temperatures(data["requirements"]) + period_requirements(
         data["requirements"]
     )
 
@@ -872,6 +995,112 @@ def project_files_of(context, names, columns=None):
     return found
 
 
+def kept_columns(columns, kept):
+    """Return ``columns`` with the renames of an earlier call of the run it does not give.
+
+    QA-222: the case lead sent ``columns`` with files alone, was refused, and left them out of
+    the full call; the renames a run gave are kept for each file, a call's own first.
+    """
+    merged = {name: dict(renames) for name, renames in kept.items()}
+    for name, renames in (columns or {}).items():
+        merged[name] = {**merged.get(name, {}), **renames}
+    return merged or None
+
+
+def project_or_new(context, source, given):
+    """Return ``(source, note)``: ``project`` with no project case and values given is a new case.
+
+    QA-200, QA-222: the first call of every run was ``source='project'`` on a project with only a
+    brief and data files, refused with "has no case". With changes, requirements or economics the
+    call is set as a new case from them, and the answer says so.
+    """
+    if source != "project" or not given or context.problem.case is not None:
+        return source, None
+    try:
+        project_case(context)
+    except ToolError as error:
+        if error.code != "unknown_name" or "has no case" not in str(error):
+            raise
+        return None, (
+            "the project has no case.json, so source='project' loaded nothing: the case is set "
+            "from this call's values as a new case; leave source out from now on"
+        )
+    return source, None
+
+
+def file_facts(context, names, columns):
+    """Return one line per project CSV ``names``: its columns and whether its times have offsets."""
+    lines = []
+    for name in names:
+        try:
+            content = project_files_of(context, [name], columns)[name]
+        except (ToolError, OSError, ValueError):
+            continue
+        text = content.decode("utf-8-sig")
+        header, _, rest = text.partition("\n")
+        header_names = [item.strip() for item in header.rstrip("\r").split(",")]
+        read = "" if header_names[0] == TIME_COLUMN else (
+            " (read as `time`)" if TIME_NAMES.fullmatch(header_names[0]) else
+            f" (rename it: columns={{{name!r}: {{{header_names[0]!r}: 'time'}}}})"
+        )
+        first = rest.partition("\n")[0].split(",")[0].strip()
+        zone = "" if re.search(r"(Z|[+-]\d\d:?\d\d)$", first) else (
+            f"; its times ({first!r}) have no offset, so its series needs `time_zone` (an IANA "
+            "zone, recorded as an assumption)"
+        )
+        data = header_names[1:]
+        lines.append(
+            f"{name}: time column {header_names[0]!r}{read}, data columns {join_names(data)}: each "
+            f"series needs `file`, `column`, `unit`{zone}"
+        )
+    return lines
+
+
+def files_alone_error(context, files, kept, calls):
+    """Return the refusal of ``files`` alone on no case, naming every fix of the next call at once.
+
+    QA-200, QA-222: a files-only call came first in every run. The refusal keeps its ``columns``
+    for the next call and says what that call needs: the header, the time, and per file its
+    columns and time zone, so the full call is right the first time.
+    """
+    earlier = (
+        f" Your set_case of step {calls[-1]} held the whole case: send that call again, "
+        "whole (every section in changes), with only the fix the user's answer or the last error "
+        "asks for, such as each series' time_zone."
+        if calls
+        else ""
+    )
+    shown = f" The columns {kept!r} are kept for that call." if kept else ""
+    facts = file_facts(context, files, kept or None)
+    return ToolError(
+        f"set_case: files = {files!r} and nothing else; nothing is stored. Send ONE call with "
+        "changes that hold the whole case (header, time, site, demand, utilities) and name each "
+        "file as the `file` of its series, with requirements and economics in the same call: "
+        f"set_case loads the project files the changes name, and files alone set no case.{shown}"
+        f"{earlier}",
+        code="case_incomplete",
+        path="format",
+        suggestions=[*facts, *([] if calls else [json.dumps(case_skeleton())])],
+    )
+
+
+def first_case_error(error, data):
+    """Return the refusal of a first case without its header, said as what it is (QA-200).
+
+    gemini calls a case without ``format``, ``kind`` and ``name`` "an older shape"; with no case
+    stored yet it is a partial patch sent after a refused call, which stored nothing.
+    """
+    lacking = [key for key in ("format", "kind", "name", "time") if key not in data]
+    return ToolError(
+        "set_case: no case is stored yet (a refused call stores nothing), so this call is the "
+        f"first case and lacks {join_names(lacking)}: send the whole case in one call, every "
+        "section of your earlier call with only the fixes its error named",
+        code="case_incomplete",
+        path=lacking[0] if lacking else error.path,
+        suggestions=list(error.suggestions or ()),
+    )
+
+
 @tool(
     effect="write",
     idempotent=False,
@@ -893,49 +1122,53 @@ async def set_case(
     """
     import gemini as gm
 
+    session_state = getattr(context.session, "__dict__", {})
+    calls = session_state.setdefault("case_calls", [])
+    kept = session_state.setdefault("case_columns", {})
+    if columns:
+        kept.update(copy.deepcopy(columns))
     alone = files and source is None and not (changes or requirements or economics)
-    calls = getattr(context.session, "__dict__", {}).setdefault("case_calls", [])
     if alone and context.problem.case is None:
-        earlier = (
-            f" Your set_case of step {calls[-1]} held the whole case: send that call again, "
-            "whole (every section in changes, the files and columns), with only the fix the "
-            "user's answer or the last error asks for, such as each series' time_zone."
-            if calls
-            else ""
-        )
-        raise ToolError(
-            f"set_case: files = {files!r} and nothing else; expected changes that name each file "
-            "as the `file` of its series: set_case loads the project files the changes name, so "
-            f"`files` is not needed, and files alone set no case.{earlier}",
-            code="case_incomplete",
-            path="format",
-            suggestions=[] if calls else [json.dumps(case_skeleton())],
-        )
+        raise files_alone_error(context, files, kept, calls)
     step = getattr(getattr(context.session, "state", None), "step", None)
     if changes and step is not None and not DRY_RUN.get():
         calls.append(step)
     previous = context.problem.case
+    source, fallback = project_or_new(context, source, changes or requirements or economics)
     base, supplied = base_case(context, source)
     own = {"requirements": requirements, "economics": economics, "files": files, "columns": columns}
     changes, (requirements, economics, files, columns) = moved_arguments(changes, base, own)
+    if columns:
+        kept.update(copy.deepcopy(columns))
+    columns = kept_columns(columns, kept)
+    changes, converted = without_empty_units(changes or {})
     files = changes_files(context, changes, files, supplied)
     if files:
         given = await runtime.in_gemini_thread(project_files_of, context, files, columns)
+        given, renamed = time_renames(given, columns)
+        converted += renamed
         supplied = {**supplied, **given}
-    changes, converted = bridged_units(changes or {})
+    changes, bridged = bridged_units(changes)
+    converted += bridged
     changes, derived = pressure_from_elevation(changes)
     converted += derived
     data = merge_patch(base, checked_changes(changes, files))
     if requirements:
+        requirements, emptied = without_empty_units(requirements)
         requirements, renamed = bridged_requirements(requirements)
-        converted += renamed
+        converted += emptied + renamed
         data["requirements"] = edited_requirements(data.get("requirements"), requirements)
     converted += judged_requirements(data)
     moved = moved_reference_depth(base, data)
+    exact = exact_ratios(data.get("requirements"))
     contents = edited_economics(context, data, supplied, economics) if economics else supplied
     origin = given_case(context, source, (base, supplied), (data, contents))
     try:
         version = await store_case(context, data, contents, origin)
+    except ToolError as error:
+        if base or error.code != "case_incomplete" or not HEADER & set(error.suggestions or ()):
+            raise
+        raise first_case_error(error, data) from error
     except gm.errors.ValidationError as error:
         retries = case_retries(error, data, supplied, files, columns, changes)
         paths = problem_paths(error)
@@ -946,11 +1179,13 @@ async def set_case(
         ) from error
     needs = await runtime.in_gemini_thread(plants_need, context)
     return {
+        **({"note_on_source": fallback} if fallback else {}),
         **loaded_changes(source, previous, data),
         "case": data,
         "version": version,
         "version_is": VERSION_MEANING,
         **({"check": moved} if moved else {}),
+        **({"check_requirements": exact} if exact else {}),
         **({"converted": converted} if converted else {}),
         **({"plants_need": needs, "note": PLANTS_NEED_NOTE} if needs else {}),
     }
@@ -1135,7 +1370,7 @@ def unset_section(section, data):
     }
 
 
-@tool(effect="read")
+@tool(effect="read", keeps_result=True)
 def read_case(context, section: str | None = None):
     """Return the case of the problem state, one of its sections, its economics or the schema.
 

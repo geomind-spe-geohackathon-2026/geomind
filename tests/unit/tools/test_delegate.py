@@ -238,3 +238,23 @@ async def test_a_team_refuses_an_instance_of_an_unknown_member():
         Context(session=StubSession()),
     )
     assert result.is_error and "nobody" in result.output["error"]["message"]
+
+
+async def test_a_team_result_within_its_members_budgets_reaches_the_lead_whole():
+    """QA-156: the findings came back as a 684-character outline, read back one by one."""
+    from geomind.tools.delegate import Team
+
+    long = "x" * 15_000
+
+    class Session(StubSession):
+        async def delegate(self, agent, task, max_steps=None, beside=False, instance=None):
+            return RunResult(run_id=instance, status="done", answer=long)
+
+    member = Delegate(Helper(), max_summary_tokens=8000)
+    team = Team("team", "a team", {"geoscientist": member})
+    briefs = [{"role": "geoscientist", "task": task} for task in ("a", "b", "c")]
+    assert 3 * len(long) > runtime.get("tool_result_limit")
+    result = await dispatch(
+        team, ToolCall(id="t2", name="team", input={"briefs": briefs}), Context(session=Session())
+    )
+    assert result.output["Geoscientist III"] == long and result.reference is not None

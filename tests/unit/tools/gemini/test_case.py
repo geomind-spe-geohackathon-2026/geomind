@@ -812,3 +812,88 @@ def test_a_reference_depth_moved_without_its_pressure_is_flagged():
     warning = moved_reference_depth({"site": {"reservoir": reservoir}}, {"site": {"reservoir": moved}})
     assert "params.depth" in warning and "pressure" in warning
     assert moved_reference_depth({"site": {"reservoir": reservoir}}, {"site": {"reservoir": reservoir}}) is None
+
+
+def first_case_session(content=DEMAND):
+    """Return a session whose project ``p`` holds one demand file and no case."""
+    return StubSession(workspace=MemoryWorkspace(files={"p": {"demand.csv": content}}))
+
+
+async def test_an_empty_unit_is_no_unit_and_is_listed():
+    """QA-222: ``"unit": ""`` on a fraction was refused at every path; it is left out."""
+    changes = copy.deepcopy(FROM_FILE)
+    gas = {"CH4": {"value": 0.8, "unit": ""}, "CO2": {"value": 0.2}}
+    changes["site"] = {"fluid": {"dissolved_gas": gas}}
+    result = await call(set_case, {"changes": changes}, first_case_session(), "p")
+    assert result.is_error is False, result.output
+    assert result.output["case"]["site"]["fluid"]["dissolved_gas"]["CH4"] == {"value": 0.8}
+    paths = [item["path"] for item in result.output["converted"]]
+    assert "site.fluid.dissolved_gas.CH4.unit" in paths
+
+
+async def test_a_date_column_is_the_time_column_without_columns():
+    """QA-222: the full call dropped ``columns``; a first column named ``date`` is renamed."""
+    content = DEMAND.replace(b"time,", b"date,", 1).replace(b"T00:00:00Z", b"")
+    changes = {**FROM_FILE, "demand": copy.deepcopy(FROM_FILE["demand"])}
+    changes["demand"]["heating"]["power"]["time_zone"] = "UTC"
+    result = await call(set_case, {"changes": changes}, first_case_session(content), "p")
+    assert result.is_error is False, result.output
+    assert {"path": "file demand.csv", "to": {"value": "time", "unit": None}}.items() <= next(
+        item for item in result.output["converted"] if item["path"] == "file demand.csv"
+    ).items()
+
+
+async def test_files_alone_keep_their_columns_for_the_full_call():
+    """QA-200, QA-222: the refusal names each file's columns, and its ``columns`` are kept."""
+    session = first_case_session(DEMAND.replace(b"time,", b"stamp,", 1))
+    columns = {"demand.csv": {"stamp": "time"}}
+    alone = await call(set_case, {"files": ["demand.csv"], "columns": columns}, session, "p")
+    error = alone.output["error"]
+    assert error["code"] == "case_incomplete" and "kept" in error["message"]
+    assert any("heat_mw" in item for item in error["suggestions"])
+    result = await call(set_case, {"changes": FROM_FILE}, session, "p")
+    assert result.is_error is False, result.output
+
+
+async def test_the_project_source_with_values_on_a_project_without_a_case_is_a_new_case():
+    """QA-200, QA-222: ``source='project'`` came first in every run; with changes it sets them."""
+    arguments = {"source": "project", "changes": FROM_FILE}
+    result = await call(set_case, arguments, first_case_session(), "p")
+    assert result.is_error is False, result.output
+    assert "no case.json" in result.output["note_on_source"]
+
+
+async def test_a_partial_first_case_is_named_as_one_not_an_older_shape():
+    """QA-200: a patch after a refused full call was told "older shape"; nothing was stored."""
+    changes = {"site": {"ground": {"gradient": {"value": 30, "unit": "K/km"}}}}
+    error = (await call(set_case, {"changes": changes}, first_case_session(), "p")).output["error"]
+    assert error["code"] == "case_incomplete"
+    assert "no case is stored yet" in error["message"] and "older shape" not in error["message"]
+
+
+FLOW = {"on": "doublet", "quantity": "production_flow", "over": "each", "when": "running"}
+
+
+async def test_a_lone_min_and_a_lone_max_of_one_quantity_are_one_range():
+    """QA-160: 50 to 300 m3/h came as two requirements; set_case keeps one with both ends."""
+    session, problem = await loaded("shallow_district")
+    requirements = {
+        "production_flow_range": None,
+        "min_stable_flow": {**FLOW, "min": 50, "unit": "m3/h"},
+        "max_production_flow": {**FLOW, "max": 300, "unit": "m3/h"},
+    }
+    result = await edited(session, problem, {"requirements": requirements})
+    assert result.is_error is False, result.output
+    names = [item["name"] for item in result.output["case"]["requirements"]]
+    assert "production_flow_range" in names and "min_stable_flow" not in names
+    joined = result.output["case"]["requirements"][names.index("production_flow_range")]
+    assert (joined["min"], joined["max"]) == (50, 300)
+
+
+async def test_an_exact_ratio_on_each_step_asks_for_its_tolerance():
+    """QA-203: reinjection min 1, max 1 fails on round-off; geomind sets no tolerance, it asks."""
+    session, problem = await loaded("shallow_district")
+    ratio = {"on": "doublet", "quantity": "reinjection_ratio", "over": "each", "min": 1, "max": 1}
+    result = await edited(session, problem, {"requirements": {"reinjection": ratio}})
+    assert result.is_error is False, result.output
+    assert "reinjection" in result.output["check_requirements"]

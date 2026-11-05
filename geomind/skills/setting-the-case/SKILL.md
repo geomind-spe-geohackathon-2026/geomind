@@ -105,13 +105,23 @@ object merges into the case, a value replaces, null removes a key; it never hold
 `requirements` or `economics` of a case that has them (on a new case, they and `files`
 and `columns` in `changes` are taken as those arguments). `requirements` is
 `{name: requirement or null}`: a requirement object adds or replaces the one of that name,
-null removes it, and the others stay.
+null removes it, and the others stay. A range with both ends (a flow of 50 to 300 m3/h) is
+ONE requirement with `min` and `max`: two one-sided requirements on the same `on`,
+`quantity`, `over`, `when` and `unit` are joined into `<quantity>_range`, listed in
+`converted`. A per-step requirement with `min` equal to `max` comes back with
+`check_requirements`: take its tolerance from the brief or the Knowledge base, or ask.
 `economics` is a merge patch on the content of the case's economics file. `files` names
 project files (`list_files`): their bytes go to gemini, under the same name, so a data file
 is given to the case and never retyped: name it in `changes`, as the `file` of a series.
 A project file the changes name is loaded even when `files` leaves it out. `columns`
 renames header names of those files, such as `{"demand.csv": {"date": "time"}}`:
-gemini reads a series' times from a column named `time`. Once a case is stored, send only
+gemini reads a series' times from a column named `time`; a first column named as a time
+(`date`, `timestamp`) is renamed `time` by set_case itself, and the `columns` of an earlier
+call of the run are kept for each file. `"unit": ""` is no unit: leave `unit` out of a key that
+takes none. On a new case send ONE call with everything: the header, `time`, every section, each
+series with `file`, `column`, `unit` and `time_zone` (for times without an offset), and the
+requirements; `files` alone set no case. `source='project'` on a project without a `case.json`,
+with values, sets them as a new case. Once a case is stored, send only
 the keys that change: `changes` merges into it, and a rejected call stores nothing. The
 sections are
 in `read_case(section="schema")`, the exact schema. gemini validates the result: a rejected

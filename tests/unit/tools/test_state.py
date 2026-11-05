@@ -118,3 +118,13 @@ async def test_a_typed_design_key_takes_its_shape_from_the_state_model(monkeypat
         StubSession(),
     )
     assert ok.is_error is False
+
+
+def test_a_citation_is_an_object_and_text_is_kept_as_its_note():
+    """QA-155: the shape said ``string | any`` and a text citation was refused."""
+    from geomind.context.state import Assumption
+    from geomind.tools.state import shape_of
+
+    assert "'citation?': 'object | null'" in shape_of(Assumption)
+    item = Assumption(id="a", text="rate", citation="case economics.json")
+    assert item.citation == {"note": "case economics.json"}

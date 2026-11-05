@@ -281,8 +281,12 @@ def test_the_brief_follows_the_message_and_preferences_join_the_state():
 def test_a_short_answer_route_ends_the_run_with_it():
     """A greeting is answered by the route itself, by rule."""
     answer = says(json.dumps({"kind": "answer", "answer": "Hello."}))
-    result = gd.Run(message="hi", llm=FakeLLM([answer])).start()
+    run = gd.Run(message="hi", llm=FakeLLM([answer]))
+    result = run.start()
     assert (result.status, result.answer) == ("done", "Hello.")
+    events = run.store.load_events(run.id)
+    started = next(e for e in events if e.type == "run.started" and e.run_id == run.id)
+    assert started.loop == "answer"  # QA-190: the run says it was a direct answer
 
 
 def test_a_loop_set_by_hand_is_not_routed():

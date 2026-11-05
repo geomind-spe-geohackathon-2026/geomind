@@ -38,10 +38,20 @@ def _sync(coroutine):
     raise RunError("Run: called inside an event loop; expected astart() or aresume()")
 
 
+ANSWER_LOOP = "answer"
+"""The loop name a run of an ``answer`` route records (QA-190: it was ``tool``)."""
+
+
 def loop_of(route):
-    """Return the loop a ``Route`` names, with its agents; an ``answer`` route answers by rule."""
+    """Return the loop a ``Route`` names, with its agents; an ``answer`` route answers by rule.
+
+    An answer runs in a tool loop named ``answer``, so the run and its log say it was a direct
+    answer, not a tool run of an agent.
+    """
     if route.kind == "answer":
-        return LOOPS["tool"](Answer(route.answer or ""))
+        loop = LOOPS["tool"](Answer(route.answer or ""))
+        loop.name = ANSWER_LOOP
+        return loop
     if route.loop == "tool":
         return LOOPS["tool"](AGENTS[route.agent]())
     if route.loop == "project":

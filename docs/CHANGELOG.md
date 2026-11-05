@@ -6,6 +6,18 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.127] - 2026-11-05
+
+### Fixed
+- QA-200, QA-222, QA-157: set_case takes `unit: ""` as no unit, reads a date-named first column as
+  `time`, keeps earlier `columns`, names every fix of a files-only call at once, and sets a new
+  case from values on a project with no case.json; read_case keeps its result.
+- QA-160: two one-sided requirements of one quantity become one `<quantity>_range`.
+- QA-203: a per-step requirement with min = max asks for its tolerance.
+- QA-234: the explainer shows four significant figures and names requirements in words.
+- QA-155: a text citation is kept; QA-190: an answer route is logged as loop `answer`.
+- QA-156: a team's result is kept whole up to its members' budgets.
+
 ## [0.4.126] - 2026-11-05
 
 ### Fixed

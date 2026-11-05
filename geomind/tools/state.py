@@ -64,10 +64,15 @@ def changes_schema():
 
 
 def annotation_text(annotation):
-    """Return a field type as JSON-like text: ``string``, ``string | null``, ``user | agent``."""
+    """Return a field type as JSON-like text: ``string``, ``string | null``, ``object``, ``a | b``.
+
+    A mapping is an ``object`` (QA-155: ``dict[str, Any]`` read as ``string | any``).
+    """
     names = {str: "string", bool: "boolean", int: "integer", float: "number", type(None): "null"}
     if typing.get_origin(annotation) is typing.Literal:
         return " | ".join(typing.get_args(annotation))
+    if annotation is dict or typing.get_origin(annotation) is dict:
+        return "object"
     if typing.get_args(annotation):
         return " | ".join(annotation_text(part) for part in typing.get_args(annotation))
     return names.get(

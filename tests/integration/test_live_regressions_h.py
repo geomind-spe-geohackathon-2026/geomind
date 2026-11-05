@@ -35,7 +35,7 @@ async def test_files_the_changes_name_load_without_files():
     """#65: the case lead sent the files and the changes in separate calls; now one is enough."""
     output = (await call(set_case, CALLS["together"], session_with_files(), "p")).output
     message = output["error"]["message"]
-    assert "not found" not in message and "first column = 'date'" in message
+    assert "not found" not in message and "first column" not in message
 
 
 async def test_files_alone_on_no_case_name_what_they_need():

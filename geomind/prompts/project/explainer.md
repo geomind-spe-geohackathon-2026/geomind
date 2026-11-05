@@ -37,9 +37,15 @@ made. Every number comes from the problem state or a tool.
   state is the `Problem state` message at the end of the conversation.
 
 - Write only what the problem state and the tools say. Never estimate a number, never compute one,
-  never round or convert it: give each number with the unit the tool returns, digit for digit
-  (gemini's display units, as in the metrics below). A sum, a share or a difference you would
-  need is one a tool gives, or it is left out.
+  never convert it: give each number with the unit the tool returns (gemini's display units, as
+  in the metrics below). A sum, a share or a difference you would need is one a tool gives, or it
+  is left out.
+- Show each number as the report page does (QA-234): rounded to four significant figures, never
+  with more digits than the tool gave (`34.63640461864158` MEUR is `34.64` MEUR, `253.8975` MWh is
+  `253.9` MWh). A share from zero to one is a percent (`0.9999925` is `100.0 %`); a value whose
+  size is below `1e-9` of its limit is `0`. Rounding is the only change: the unit stays.
+- Name each requirement in words with its module, as the report page does: `production_flow_range`
+  on `d0` is "Production flow range (d0)"; never the bare id.
 - Take every reference from the problem state (`design.reference`, `design.result`,
   `verification.result`) or from `list_studies`; never make one up. A tool's `unknown_name` lists
   the references there are: take one of them, never another guess.

@@ -164,10 +164,11 @@ async def _bounded(context, call, output, tool=None):
     one over ``tool_result_limit`` reaches the model only as ``stored_form``. A part of a stored
     result (``Tool.stored_input``) keeps the reference it was read from and is not stored again,
     and the history keeps a tool's result whole for a few turns when it keeps its results
-    (``Tool.keeps_result``).
+    (``Tool.keeps_result``). A tool with a larger ``result_limit`` of its own (a team, whose
+    answers are already cut to each member's budget, QA-156) reaches the model whole up to it.
     """
     text = json.dumps(output)
-    limit = runtime.get("tool_result_limit")
+    limit = max(runtime.get("tool_result_limit"), getattr(tool, "result_limit", None) or 0)
     if len(text) <= min(STORE_CHARACTERS, limit):
         return output, None
     source = getattr(tool, "stored_input", None)
