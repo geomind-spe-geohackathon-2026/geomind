@@ -26,6 +26,8 @@ file and write no plant.
 
 ## Rules
 
+- Never put a nominal pressure drop on a closed loop with no pump: gemini refuses it; a loop
+  without a circulation pump takes none.
 - Equipment design values: first the row of `knowledge/data-equipment.csv` (`search_knowledge`
   for the value, or `read_knowledge` of that document), cited by its row id; else a sourced
   datasheet or the user.

@@ -58,6 +58,13 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
 
 ## Rules
 
+- Never set a doublet's `well`, `riser` or `injector` section lists, `segment` or `esp_depth`,
+  nor the ESP's `setting_depth`: gemini derives them from `depth` and the design values. Give
+  `depth`, `well_diameter`, `roughness`, `nominal_flow`, `pump_efficiency`, `drainage_radius`
+  and the model choices only; an issue that names one of the derived values means a design
+  value is missing: give that, never the derived one.
+- Never put a nominal pressure drop on a closed loop with no pump: gemini refuses it; a loop
+  without a circulation pump takes none.
 - Equipment design values: first the row of `knowledge/data-equipment.csv` (`read_knowledge`
   of that document, or `search_rag` for the value), cited by its row id; else a sourced
   datasheet or the user.
@@ -76,7 +83,7 @@ the plant, a profile or a finding once and never again unless you wrote it since
 3. Split: group the `issues` of `build_plant` (each a missing or wrong plant path) by the module
    groups of 0.3, at most {team_size}, and call `fill_parts` ONCE with one brief per group, for
    example: Reservoir engineer I: reservoir, doublets, treatment and gas; Well engineer I: wells
-   and pumps (depth, well values, riser with esp_depth, ESP, injection pump); Energy systems
+   and pumps (depth, well design values, ESP, injection pump; no derived well paths); Energy systems
    engineer I: heating; Energy systems engineer II: cooling. Each brief holds everything the engineer needs, as it reads
    no file: the paths it owns with gemini's issue text, the plant text of its modules (copied
    from `build_plant` or `read_plant`), the case values it needs with their units (temperatures,
@@ -223,8 +230,10 @@ stopped), read it with `read_stored` and use it: never ask the same brief again.
 - The `issues` of `build_plant` and `patch_plant` name every value `simulate` needs, also the
   ones only gemini's schedule or a run asks for: `params.control.dispatch` and
   `params.control.outages` are plant rules, yours, each set to the one value its `suggestions`
-  give; `params.d0.riser.esp_depth` (and a well's `esp_depth`) is the pump depth, the well
-  engineer's: send it back to them, never choose a pump depth yourself. Simulate only when
+  give; `params.d0.riser.esp_depth` (and a well's `esp_depth`) is derived by gemini from the
+  doublet's design values: an issue on it means a design value is missing, which you send to
+  the well engineer; never choose a pump depth, and never pass derived children in a brief as
+  paths to own. Simulate only when
   `missing` is 0.
 - An ESP's curves are the well engineer's, from gemini's pump design values or a named source:
   never patch an ESP's curves yourself. A run that fails on the ESP (`out_of_range`) goes back to

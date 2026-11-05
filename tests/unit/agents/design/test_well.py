@@ -62,7 +62,7 @@ def test_it_knows_the_form_of_a_well_path_s_section_lists():
 def test_qa_321_the_riser_and_the_well_share_the_whole_path():
     """QA-321: a riser and a well given each its own part ran a shorter producer."""
     text = " ".join(WellEngineer().prompt.render().split())
-    assert "The riser and the well share the WHOLE path" in text
+    assert "the riser and the well share the WHOLE path" in text
 
 
 def test_equipment_values_come_from_the_equipment_catalogue_first():
@@ -78,4 +78,16 @@ def test_equipment_values_come_from_the_equipment_catalogue_first():
 def test_qa_357_well_paths_are_left_to_gemini():
     """QA-357: stated paths stayed at 2500 m while the depth search moved to 2875 m."""
     text = " ".join(WellEngineer().prompt.render().split())
-    assert "Leave the section lists of `well`, `riser` and `injector` out" in text
+    assert "The pump depth and the well paths are gemini's" in text
+
+
+def test_qa_359_derived_well_values_are_never_set_by_hand():
+    """QA-359: segments 'full' and paths stated by hand modelled the producer twice."""
+    from geomind.agents import DesignLead, EnergySystemsEngineer, ReservoirEngineer
+
+    for agent in (DesignLead(), ReservoirEngineer(), WellEngineer()):
+        text = " ".join(agent.prompt.render().split())
+        assert "section lists, `segment` or `esp_depth`" in text, agent.name
+    for agent in (DesignLead(), EnergySystemsEngineer()):
+        text = " ".join(agent.prompt.render().split())
+        assert "Never put a nominal pressure drop on a closed loop with no pump" in text

@@ -80,20 +80,14 @@ Do and don't (from earlier runs):
   never coefficients of your own. A brief with a failed run on the ESP (`out_of_range`) gives
   the failure's `curve` (the flows where its head or power is negative): fix the source or the
   design values, never the coefficients.
-- The pump depth is yours. gemini derives it (`esp.setting_depth`, and the `segment` and
-  `esp_depth` of `well` and `riser`) only from a doublet's complete design values. When you set
-  the pump by hand instead, propose them all together: `well.segment` `below_esp`,
-  `riser.segment` `above_esp`, and `well.esp_depth` and `riser.esp_depth` both the ESP's
-  `setting_depth`. A split well without its `esp_depth` is an issue at
-  `params.d0.riser.esp_depth` (`invalid_design`): `simulate` would refuse it.
-- Leave the section lists of `well`, `riser` and `injector` out: gemini derives the vertical path
-  from the doublet's `depth` and keeps it in step when the depth is sized or searched; a path
-  stated by hand stays as it is, and `check` refuses it under a depth range. State them only for
-  a deviated well from a source, reaching the depth.
-- The riser and the well share the WHOLE path, from the wellhead to the reservoir; `esp_depth`
-  cuts it. Give both the same `section_length` (and inclination, diameter, roughness), never
-  each its own part: that runs a producer only as deep as the well's own part, shorter than the
-  doublet, and `check` refuses it at `params.d0.riser.section_length`.
+- The pump depth and the well paths are gemini's. Never set a doublet's `well`, `riser` or
+  `injector` section lists, `segment` or `esp_depth`, nor the ESP's `setting_depth`: gemini
+  derives them from `depth` and the design values. Give `depth`, `well_diameter`, `roughness`,
+  `nominal_flow`, `pump_efficiency`, `drainage_radius` and the model choices only; an issue that
+  names one of the derived values means a design value is missing: give that, never the derived
+  one.
+- A deviated well from a source is the one exception: then the riser and the well share the
+  WHOLE path (the same section lists for both, reaching the depth), never each its own part.
 - A value gemini asks for at a case path (`site`, `demand`, `utilities`, `time`, `economics`,
   `requirements`) belongs to the case: `case_changes` `<path>: <why>`; never put it into the
   plant under another path, and never with a number of your own.

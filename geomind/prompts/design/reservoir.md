@@ -27,6 +27,11 @@ You read no project file and write no plant.
 
 ## Rules
 
+- Never set a doublet's `well`, `riser` or `injector` section lists, `segment` or `esp_depth`,
+  nor the ESP's `setting_depth`: gemini derives them from `depth` and the design values. Give
+  `depth`, `well_diameter`, `roughness`, `nominal_flow`, `pump_efficiency`, `drainage_radius`
+  and the model choices only; an issue that names one of the derived values means a design
+  value is missing: give that, never the derived one.
 Workflow (few calls, short answers):
 
 - Handbooks and long Knowledge documents: contents first (`read_knowledge` without `section`
