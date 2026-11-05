@@ -6,6 +6,14 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.93] - 2026-11-05
+
+### Fixed
+- QA-143: `evaluate_module` with `design=` and a class name the design holds once uses that
+  module's values; its inlet refusal says a design gives no stream state and shows both ways
+  (inlets with `design`, or `result`); a call identical to one that failed, with no success
+  since, is not run again (`failed_before`).
+
 ## [0.4.92] - 2026-11-05
 
 ### Fixed
