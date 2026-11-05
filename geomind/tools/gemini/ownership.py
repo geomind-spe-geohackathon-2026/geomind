@@ -87,13 +87,29 @@ def parameter_paths(params, prefix=""):
     return paths
 
 
+def discipline_named(owner):
+    """Return the discipline an owner of ``design.owners`` names, or the owner as it is.
+
+    The process engineer writes an owner as a discipline (``reservoir``), as the engineer's tool
+    name (``reservoir_engineer``, ``energy_systems_engineer``) or in words (``Reservoir
+    engineer``); all name one discipline (QA-076: ``reservoir_engineer`` was refused its own part).
+    """
+    if not isinstance(owner, str):
+        return owner
+    words = owner.strip().lower().replace("-", "_").replace(" ", "_").split("_")
+    for discipline in DISCIPLINES:
+        if discipline in words:
+            return discipline
+    return owner
+
+
 def owner_of(path, owners):
     """Return the discipline of the longest prefix of ``path`` in ``owners``, or ``None``.
 
     A prefix is a parameter path with or without its ``params.`` in front, as the process
     engineer may write either.
     """
-    named = {key.removeprefix(PARAMS): owner for key, owner in owners.items()}
+    named = {key.removeprefix(PARAMS): discipline_named(owner) for key, owner in owners.items()}
     parts = path.split(".")
     for end in range(len(parts), 0, -1):
         owner = named.get(".".join(parts[:end]))
