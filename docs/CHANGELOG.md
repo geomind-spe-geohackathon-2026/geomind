@@ -6,6 +6,18 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.128] - 2026-11-05
+
+### Fixed
+- QA-235, QA-236, QA-278 (fix 3): calculate and the comparison take stored versions in one run_study.
+- QA-272: search_rag gives ~400-character snippets with a `read` call for the whole section, and
+  leaves out files the run already read whole.
+- QA-273: a skill's first tool result carries its opening and that tool's section; later tools of
+  the same skill get only their own section.
+- QA-203: case lead and geoscientist prompts take the requirements line.
+- QA-288 (prompt side): the project lead sees every user denial of the request and never briefs
+  the denied work again under another name.
+
 ## [0.4.127] - 2026-11-05
 
 ### Fixed

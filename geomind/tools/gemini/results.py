@@ -210,12 +210,61 @@ def search_rag(context, query: str):
             "the user",
             code="not_allowed",
         )
-    matches = in_turn(project or [], knowledge or [])[:SHOWN_MATCHES]
+    read = read_whole(context)
+    kept = [item for item in project or [] if item.get("name") not in read]
+    left_out = sorted({item["name"] for item in project or [] if item.get("name") in read})
+    matches = [snippet(item, query) for item in in_turn(kept, knowledge or [])[:SHOWN_MATCHES]]
     result = {"matches": matches}
     note = [NO_MATCH] if not matches else []
+    if left_out:
+        note.append(f"{READ_BEFORE}: {', '.join(left_out)}.")
     if words_of(query) in searched_before(context):
         note.insert(0, SEARCHED)
     return {**result, "note": " ".join(note)} if note else result
+
+
+SNIPPET_CHARS = 400
+"""The characters of a match ``search_rag`` shows, around its first word of the query (QA-272)."""
+READ_BEFORE = "left out, already in your context from a whole read_rag of this run"
+"""The note that names the project files a match was left out of: their text is in the run."""
+
+
+def snippet(item, query):
+    """Return a match with its text cut to ``SNIPPET_CHARS`` around the query and how to read it.
+
+    A whole Knowledge chunk or page of 1.1-1.5k characters per match put ~13k characters into
+    every answer and stayed in the run (QA-272): the snippet and its ``read`` call are enough to
+    choose what to read whole.
+    """
+    text = str(item.get("text", ""))
+    if len(text) > SNIPPET_CHARS:
+        lowered = text.lower()
+        hits = [lowered.find(word.lower()) for word in WORD.findall(str(query))]
+        first = min((hit for hit in hits if hit >= 0), default=0)
+        begin = max(0, min(first - SNIPPET_CHARS // 4, len(text) - SNIPPET_CHARS))
+        text = ("..." if begin else "") + text[begin : begin + SNIPPET_CHARS] + "..."
+    return {**item, "text": text, "read": read_call(item)}
+
+
+def read_call(item):
+    """Return the ``read_rag`` call that gives a match's whole section or page."""
+    name = item.get("name") or item.get("citation", {}).get("document", "")
+    if item.get("section"):
+        return f'read_rag("{name}", section="{item["section"]}")'
+    return f'read_rag("{name}")'
+
+
+def read_whole(context):
+    """Return the names of the files this run read whole with ``read_rag`` before this call."""
+    found = set()
+    for message in context.messages:
+        for call in message.tool_calls if message.role == "assistant" else ():
+            if call.id == context.call_id:
+                return found
+            narrowed = any(call.input.get(key) for key in ("rows", "section", "length", "start"))
+            if call.name == "read_rag" and not narrowed:
+                found.add(call.input.get("name"))
+    return found
 
 
 def words_of(query):

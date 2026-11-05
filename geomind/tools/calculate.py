@@ -287,14 +287,26 @@ RESOLVERS = {
 }
 
 
+def _aliased(reference):
+    """Return ``{value, unit}``, the form every other tool uses, as ``{number, unit}`` (QA-235)."""
+    if isinstance(reference, dict) and "value" in reference and not set(REFERENCE_KINDS) & set(
+        reference
+    ):
+        return {"number": reference["value"], "unit": reference.get("unit", "-"),
+                **{key: item for key, item in reference.items() if key not in ("value", "unit")}}
+    return reference
+
+
 def _operand(context, reference, position):
     """Return one operand as ``{reference, value, unit, source}``; a bare literal is refused."""
     path = f"operands[{position}]"
+    reference = _aliased(reference)
     if not isinstance(reference, dict):
         raise _error(
             f"{path} = {reference!r}; expected an object: a reference to a sourced value (one "
             f"of {', '.join(SOURCED_KINDS)}), {{\"constant\": \"pi\"}} or "
-            f"{{\"number\": 24, \"unit\": \"h\"}}",
+            f"{{\"number\": 24, \"unit\": \"h\"}}, or a nested {{\"operation\", "
+            f"\"operands\", \"unit\"}}",
             path,
         )
     kinds = [kind for kind in REFERENCE_KINDS if kind in reference]
@@ -444,18 +456,74 @@ async def calculate(
 ):
     """Derive a value from sourced values and keep it as a calculation with an id.
 
-    Skill `calculator`.
+    An operand is a sourced reference, ``{number, unit}`` (or ``{value, unit}``), a constant,
+    or a nested ``{operation, operands, unit}`` kept as a calculation of its own. Skill
+    `calculator`.
     """
-    if not isinstance(label, str) or not label.strip():
-        raise _error("label is empty; expected what the value is", "label")
-    _checked_shape(operation, operands, exponent)
-    resolved = [_operand(context, reference, index) for index, reference in enumerate(operands)]
-    if not any(operand["source"]["kind"] in SOURCED_KINDS for operand in resolved):
+    calculation, version, sourced = await _derived(
+        context, label, operation, operands, unit, exponent, "operands"
+    )
+    if not sourced:
         raise _error(
             "no operand has a source; expected at least one of "
             f"{', '.join(SOURCED_KINDS)} (plain numbers and constants do not count)",
             "operands",
         )
+    return {**calculation, "version": version}
+
+
+def _is_nested(operand):
+    """Tell whether an operand is an operation of its own: ``{operation, operands, ...}``."""
+    return isinstance(operand, dict) and "operation" in operand and "operands" in operand
+
+
+async def _flattened(context, label, operands, where):
+    """Return ``(operands, sourced, made)``: each nested operation kept first, referenced by id.
+
+    QA-235: a lead wrote ``[12 K, {operation: multiply, ...}]`` in every run and was refused;
+    each node becomes its own calculation, so every source stays traceable.
+    """
+    flat, sourced, made = [], False, {}
+    for index, operand in enumerate(operands if isinstance(operands, list) else ()):
+        if not _is_nested(operand):
+            flat.append(operand)
+            sourced |= isinstance(operand, dict) and bool(set(SOURCED_KINDS) & set(operand))
+            continue
+        path = f"{where}[{index}]"
+        if not operand.get("unit"):
+            raise _error(f"{path} has no unit; expected the nested result's unit", f"{path}.unit")
+        inner, _, inner_sourced = await _derived(
+            context, operand.get("label") or f"{label}, part {index + 1}", operand["operation"],
+            operand["operands"], operand["unit"], operand.get("exponent"), f"{path}.operands",
+        )
+        flat.append({"calculation": inner["id"]})
+        made[inner["id"]] = inner
+        sourced |= inner_sourced
+    return (flat if isinstance(operands, list) else operands), sourced, made
+
+
+def _made_operand(reference, made):
+    """Return a nested calculation of this call as an operand, as ``_calculation`` gives one."""
+    item = made[reference["calculation"]]
+    source = {"kind": "calculation", "id": item["id"], "label": item["label"]}
+    source["expression"] = item["expression"]
+    return {"reference": reference, "value": item["value"], "unit": item["unit"], "source": source}
+
+
+async def _derived(context, label, operation, operands, unit, exponent, where):
+    """Return ``(calculation, version, sourced)``: one calculation kept, nested ones before it."""
+    if not isinstance(label, str) or not label.strip():
+        raise _error("label is empty; expected what the value is", "label")
+    if operation not in OPERATIONS:
+        raise _error(f"operation = {operation!r}; expected one of {', '.join(OPERATIONS)}", where)
+    operands, sourced, made = await _flattened(context, label, operands, where)
+    _checked_shape(operation, operands, exponent)
+    resolved = [
+        _made_operand(reference, made)
+        if isinstance(reference, dict) and reference.get("calculation") in made
+        else _operand(context, reference, index)
+        for index, reference in enumerate(operands)
+    ]
     bases = [_base(operand, index) for index, operand in enumerate(resolved)]
     found = _result_dimensions(operation, bases, exponent)
     value = _combine(operation, [base for base, _ in bases], exponent)
@@ -473,4 +541,4 @@ async def calculate(
     }
     change = {"op": "add", "path": "/calculations/-", "value": calculation}
     version = await context.session.change_state([change])
-    return {**calculation, "version": version}
+    return calculation, version, sourced

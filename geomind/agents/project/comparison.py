@@ -68,15 +68,54 @@ def plan_instructions(asks):
         "the case, all of them. When neither names any, propose candidates from list_plants (the "
         f"plant classes and the project's plants), a one-line reason each, and {proposal}. Record "
         "them as design.families [{id, summary, status}], status 'blocked' for one gemini cannot "
-        "build. Record in design.search the objective, evaluations and seed the user or the case "
+        "build; a family that is a stored plant (a project plant version design/v<N>, or a "
+        "project plant design/<name>) also gets design with that reference, never a copy. "
+        "Record in design.search the objective, evaluations and seed the user or the case "
         "gave; where they gave none, choose and record each as an assumption."
     )
 
 
 def plan_task(context, asks):
     """Return the first design lead's task: the request, the project and the plan."""
-    project = f"{project_plants_text(context)}{project_files_text(context)}"
+    files = project_files_text(context) if missing_case(context.problem) is not None else ""
+    project = f"{project_plants_text(context)}{files}"
     return f"{request_of(context)}{project}\n\n{plan_instructions(asks)}"
+
+
+REREAD = (
+    "The case is set and the plan read it: read_case at most once, with no section (it gives "
+    "every section), and no handbook chapter the plan already cited."
+)
+"""What a family's run is told so it does not read again what the plan read (QA-236)."""
+
+
+def stored_designs(families):
+    """Return the stored design of each family, or ``None`` when one has none (QA-278)."""
+    designs = [item.get("design") for item in families]
+    if len(designs) < 2 or not all(isinstance(item, str) and item for item in designs):
+        return None
+    return designs
+
+
+def study_task(request, families, designs):
+    """Return the task of one run that compares stored plants with one ``run_study`` (QA-278)."""
+    listed = ", ".join(f"{item['id']}: {design}" for item, design in zip(families, designs))
+    return (
+        f"{request}\n\nThe alternatives are stored plants: {listed}. {REREAD} Compare them with "
+        f"ONE run_study (designs {designs}, method minimize, prepare size); never build or retype "
+        "them. Simulate each family's best for the whole year and check it. Add one entry per "
+        "family at /design/alternatives/-: {family, design, result, verdict, reason}, verdict "
+        "'feasible' or 'infeasible' with the reason. Do not write design.reference, "
+        "design.result or verification."
+    )
+
+
+def stored_text(family):
+    """Return the sentence naming a family's stored plant, or ``""`` (QA-221, QA-278)."""
+    design = family.get("design")
+    if not design:
+        return ""
+    return f"It is stored as {design}: work on that design, never build or retype it. "
 
 
 def family_task(request, family, failed=None, attempt=0):
@@ -93,8 +132,9 @@ def family_task(request, family, failed=None, attempt=0):
     )
     return (
         f"{request}\n\nDesign one alternative only: {family['id']}: {family['summary']}.{again} "
-        "Other runs design the others. Size it, simulate the whole year, check it, optimize it "
-        "with design.search, simulate the best and check it. When a run fails steps or the "
+        f"{stored_text(family)}{REREAD} Other runs design the others. Size it, simulate the "
+        "whole year, check it, optimize it with design.search, simulate the best and check it. "
+        "When a run fails steps or the "
         "check finds it infeasible, read its failures, fix them in one patch_plant (each value "
         "from the engineer who owns it) and simulate again, up to two repair rounds, before you "
         "record the family infeasible; never optimize a design whose run failed every step. "
@@ -325,8 +365,10 @@ class ComparisonDriver(DesignDriver):
     def after_batch(self, context, calls, note, index):
         """Record each family of the batch that left no entry, with why, then go on."""
         design = context.problem.design or {}
-        batch = notes(context.messages)[-1]["batch"]
-        outputs = [output for _, output in calls[-len(batch) :]]
+        last = notes(context.messages)[-1]
+        batch = last["batch"]
+        size = 1 if last.get("study") else len(batch)
+        outputs = [output for _, output in calls[-size:]] * (len(batch) if size == 1 else 1)
         missing = [
             {
                 "family": family,
@@ -393,9 +435,22 @@ class ComparisonDriver(DesignDriver):
         return act({**note, "stop": "limit"}, index, "finish", answer=answer)
 
     def batch(self, context, pending, note, index):
-        """Return one step of family runs, as many as the concurrency allows."""
-        families = pending[: self.batch_size()]
+        """Return one step of family runs, as many as the concurrency allows.
+
+        Families that are all stored plants run as one study in one run instead (QA-278).
+        """
         request = request_of(context)
+        designs = stored_designs(pending)
+        if designs is not None:
+            call = ToolCall(
+                id=f"loop-{index}-family-study",
+                name="family_design_lead",
+                input={"task": study_task(request, pending, designs)},
+            )
+            ids = [item["id"] for item in pending]
+            text = MARK + json.dumps({**note, "batch": ids, "study": True})
+            return Action(text=text, tool_calls=(call,))
+        families = pending[: self.batch_size()]
         calls = tuple(
             ToolCall(
                 id=f"loop-{index}-family-{position}",

@@ -43,3 +43,40 @@ def test_a_family_run_is_told_to_repair_before_it_records_infeasible():
     task = family_task("Compare.", {"id": "b", "summary": "absorption"})
     assert "up to two repair rounds" in task
     assert "never narrow the range" in task
+
+
+def test_stored_families_are_compared_by_one_study_run():
+    """QA-278: families that are stored plant versions run as one run_study, not N runs."""
+    import json
+    from types import SimpleNamespace
+
+    from geomind.agents.project.drivers import MARK
+
+    families = [
+        {"id": "v1", "summary": "full cooling", "design": "design/v1"},
+        {"id": "v2", "summary": "heat pump", "design": "design/v2"},
+    ]
+    context = SimpleNamespace(messages=[], problem=SimpleNamespace(design={}))
+    driver = ComparisonDriver()
+    from geomind.agents.project import comparison
+
+    monkey = comparison.request_of
+    comparison.request_of = lambda _: "Compare."
+    try:
+        move = driver.batch(context, families, {"round": 1}, 2)
+    finally:
+        comparison.request_of = monkey
+    assert len(move.tool_calls) == 1
+    task = move.tool_calls[0].input["task"]
+    assert "ONE run_study" in task and "['design/v1', 'design/v2']" in task
+    note = json.loads(move.text.removeprefix(MARK))
+    assert note == {"round": 1, "batch": ["v1", "v2"], "study": True}
+
+
+def test_a_family_run_reads_the_case_once_and_keeps_its_stored_plant():
+    """QA-236: no section-by-section re-read; a stored family is never retyped."""
+    from geomind.agents.project.comparison import family_task
+
+    task = family_task("Compare.", {"id": "v3", "summary": "x", "design": "design/v3"})
+    assert "read_case at most once" in task
+    assert "It is stored as design/v3" in task

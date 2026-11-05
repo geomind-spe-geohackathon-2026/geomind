@@ -207,3 +207,31 @@ async def test_a_group_path_gives_each_of_its_modules():
     assert not result.is_error and result.output["group"] == "d0"
     assert {"d0.reservoir", "d0.well", "d0.esp", "d0.riser"} <= set(result.output["modules"])
     assert "operation" in result.output["modules"]["d0.esp"]
+
+
+def test_a_match_is_a_snippet_around_the_query_with_the_call_that_reads_it_whole():
+    """QA-272: whole chunks of 1.1-1.5k characters per match filled the case lead's context."""
+    from geomind.tools.gemini.results import SNIPPET_CHARS
+
+    text = "x" * 900 + " the pump runs at 50 Hz " + "y" * 900
+    documents = {"p1": [{"id": "a", "title": "Pumps", "text": text}]}
+    match = search_rag.function(context(MemoryWorkspace(documents=documents)), "pump")["matches"][0]
+    assert "pump runs at 50 Hz" in match["text"]
+    assert len(match["text"]) <= SNIPPET_CHARS + len("......")
+    assert match["read"].startswith("read_rag(")
+
+
+def test_a_file_read_whole_in_this_run_is_named_not_searched_again():
+    """QA-272: every answer began with the brief's page 1, already read whole."""
+    from geomind.tools.gemini.results import read_whole
+    from geomind.types import Message, ToolCall
+
+    whole = ToolCall(id="r1", name="read_rag", input={"name": "brief.pdf"})
+    part = ToolCall(id="r2", name="read_rag", input={"name": "demand.csv", "length": 1200})
+    now = ToolCall(id="s1", name="search_rag", input={"query": "pump"})
+    messages = [
+        Message(role="assistant", tool_calls=(whole, part)),
+        Message(role="assistant", tool_calls=(now,)),
+    ]
+    run = Context(messages=messages, project="p1", session=StubSession())
+    assert read_whole(run.for_call("s1")) == {"brief.pdf"}

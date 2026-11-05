@@ -140,3 +140,41 @@ def test_qa_283_an_empty_project_asks_for_the_site_first():
     text = " ".join(lead.prompt.content.split())
     assert "In an empty project (no files, no case), ask the user first" in text
     assert "is never this project's brief unless the user or the project's files name" in text
+
+
+def test_qa_288_a_denied_card_reaches_the_project_lead_with_the_user_s_words():
+    """QA-288: a nested set_ranges denial with words is shown to the project lead."""
+    from geomind.agents.project.lead import DENIALS, denials_note
+
+    note = denials_note([("set_ranges", "Search ranges on design/v1", "Do not search the plant.")])
+    assert note.startswith(DENIALS) and "Do not search the plant." in note
+    assert denials_note([]) is None
+    text = " ".join(ProjectLead().prompt.content.split())
+    assert "A card the user denied is the user's instruction for this request" in text
+
+
+def test_qa_289_an_earlier_answer_is_not_printed_again():
+    """QA-289: a short comparison re-printed the whole earlier report; refused once."""
+    from geomind.agents.project.lead import REPEATED, earlier_answer_repeated
+    from geomind.engine import Context
+    from geomind.types import Message, ToolCall
+
+    report = "\n".join(
+        f"Module {n}: a line of the earlier design report, long enough." for n in range(30)
+    )
+
+    def answered(text):
+        finish = ToolCall(id="f", name="finish", input={"answer": text})
+        return [
+            Message(role="user", content="Write the report."),
+            Message(role="assistant", content=report),
+            Message(role="user", content="Compare the two versions in a short form."),
+            Message(role="assistant", tool_calls=(finish,)),
+        ]
+
+    assert earlier_answer_repeated(Context(messages=answered(report + "\n| v1 | v2 |"))).startswith(
+        REPEATED
+    )
+    assert earlier_answer_repeated(Context(messages=answered("| v1 | v2 |\nBuild v1."))) is None
+    text = " ".join(ProjectLead().prompt.content.split())
+    assert "An earlier answer of this chat is never printed again" in text

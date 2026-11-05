@@ -45,7 +45,9 @@ def test_a_tool_s_first_result_carries_its_skill_once():
 
     assert tool_skills()["evaluate_module"] == "evaluating-a-module"
     text = first_call_skill("evaluate_module", [])
-    assert text.startswith("[skill evaluating-a-module, sent with the first call of evaluate_module]")
+    assert text.startswith(
+        "[skill evaluating-a-module, sent with the first call of evaluate_module]"
+    )
     later = [Message(role="tool", content=text, tool_call_id="c1")]
     assert first_call_skill("evaluate_module", later) is None
     assert first_call_skill("describe_module", later) is None
@@ -74,3 +76,21 @@ def test_every_tool_is_explained_by_exactly_one_skill():
     assert {name: skills for name, skills in claims.items() if len(skills) > 1} == {}
     for name, item in found.items():
         assert f"`{claims[name][0]}`" in item.description, name
+
+
+def test_a_first_result_carries_the_skill_s_opening_and_its_own_section_only():
+    """QA-273: the whole skill stayed in the history; now each tool's section comes once."""
+    from geomind.context.skills import _skills, first_call_skill, tool_section
+    from geomind.types.messages import Message
+
+    first = first_call_skill("read_rag", [])
+    assert tool_section("read_rag") in first and tool_section("search_rag") not in first
+    assert "read_skill('finding-sources')" in first
+    assert len(first) < len(_skills()["finding-sources"][1])
+    later = [Message(role="tool", content=first, tool_call_id="c1")]
+    second = first_call_skill("search_rag", later)
+    assert second.startswith("[skill finding-sources, section of search_rag]")
+    assert tool_section("search_rag") in second
+    done = [*later, Message(role="tool", content=second, tool_call_id="c2")]
+    assert first_call_skill("search_rag", done) is None
+    assert first_call_skill("read_rag", done) is None

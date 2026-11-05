@@ -204,6 +204,8 @@ Facts of the case format (`describe_case(path)` before a part you are unsure of;
   range with both ends is ONE requirement. A fixed supply temperature is `when: running`; beside
   it one `unmet_share` per supply (`heat_delivered`, `cold_delivered`, max 0.01, an assumption).
   A rule no requirement can say goes in `about` and is named as open.
+  Write the requirements from the brief and the assumptions document only: each tolerance row as
+  given, and no conditional limit ('only if the design checks it').
 - A network return temperature no file gives is a design choice (§7.3): propose it in the one
   question as `<path> = <value> <unit> | design choice, the brief leaves it to the team |
   <reason>`, never ask the user to supply it.

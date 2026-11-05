@@ -69,7 +69,9 @@ def load_skill(name, role=None):
     if not extra:
         return _skills()[skill][1]
     files = sorted(
-        path.name for path in (SKILLS / skill).iterdir() if path.is_file() and path.name != "SKILL.md"
+        path.name
+        for path in (SKILLS / skill).iterdir()
+        if path.is_file() and path.name != "SKILL.md"
     )
     if extra not in files:
         raise UnknownNameError(
@@ -130,22 +132,46 @@ def first_call_skill(tool, messages):
     """Return the skill text to attach to ``tool``'s result, or ``None`` when already shown.
 
     A skill reaches a model only when loaded; an agent without ``read_skill`` (an engineer)
-    never loads one. So the first result of a tool in an agent's conversation carries the
-    skill that explains it, once: a later call, or a call after ``read_skill`` of that skill,
-    gets none.
+    never loads one. So the first result of a tool in an agent's conversation carries what
+    explains it, once: the skill's opening part (before its first tool section) with this tool's
+    own ``### `tool``` section; a later first call of another tool of the skill carries only its
+    section (``SECTION_MARK``). The other tools' sections are not sent: the whole skill stayed in
+    the history for the run, 15 % of the case lead's input (QA-273). A call after ``read_skill``
+    of that skill gets none.
     """
     name = tool_skills().get(tool)
     if name is None:
         return None
     opening = f"[skill {name}, sent with the first call of "
+    section_mark = SECTION_MARK.format(name=name, tool=tool)
+    shown = False
     for message in messages:
         text = str(getattr(message, "content", ""))
-        if opening in text:
+        if section_mark in text or f"{opening}{tool}]" in text:
             return None
+        shown = shown or opening in text
         for call in getattr(message, "tool_calls", None) or ():
-            if getattr(call, "name", None) == "read_skill" and name in str(getattr(call, "input", "")):
+            if getattr(call, "name", None) == "read_skill" and name in str(
+                getattr(call, "input", "")
+            ):
                 return None
-    return f"{SKILL_MARK.format(name=name, tool=tool)}\n{_skills()[name][1]}"
+    section = tool_section(tool)
+    if shown:
+        return f"{section_mark}\n{section}" if section else None
+    body = _skills()[name][1]
+    if not section:
+        return f"{SKILL_MARK.format(name=name, tool=tool)}\n{body}"
+    intro = body.split("\n### ", 1)[0].strip()
+    rest = WHOLE_SKILL.format(name=name)
+    return (
+        f"{SKILL_MARK.format(name=name, tool=tool)}\n{intro}\n\n### `{tool}`\n{section}\n\n{rest}"
+    )
+
+
+SECTION_MARK = "[skill {name}, section of {tool}]"
+"""The line that opens the section of a tool whose skill an earlier result already opened."""
+WHOLE_SKILL = "(The other tools' sections of this skill: read_skill('{name}').)"
+"""The pointer to the whole skill after a first result's part of it."""
 
 
 def tool_section(tool):

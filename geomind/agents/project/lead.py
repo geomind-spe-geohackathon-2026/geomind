@@ -11,7 +11,7 @@ from geomind.agents.project.review import Review
 from geomind.agents.support.lead import SupportLead
 from geomind.prompts import Prompt
 from geomind.tools import Delegate, suggestions
-from geomind.types import Action, ToolCall
+from geomind.types import Action, Message, ToolCall
 
 TEAM_TOKENS = 1500
 """The most tokens of a team lead's answer the project lead reads back."""
@@ -84,6 +84,104 @@ def case_stopped(messages):
     return None
 
 
+REPEATED = "earlier answer repeated"
+"""The start of the project lead's one refusal of an answer that prints an earlier one again."""
+REPEATED_LINES = 15
+"""How many long lines of an earlier answer a new answer may hold before it is refused."""
+LONG_LINE = 40
+"""The characters a line needs to count: headings and short table rows repeat by nature."""
+
+
+def proposed_text(messages):
+    """Return the text the last assistant message proposes as the answer, or ``""``."""
+    for message in reversed(messages):
+        if message.role != "assistant":
+            continue
+        for call in message.tool_calls:
+            if call.name == "finish":
+                return str((call.input or {}).get("answer", ""))
+        return message.content or ""
+    return ""
+
+
+def earlier_answer_repeated(context):
+    """Return the refusal of an answer that prints an earlier answer of the chat again, or None.
+
+    QA-289: asked for a short comparison for a manager, the answer re-printed the whole earlier
+    design report (360 lines) before the table. An answer is an assistant message of an
+    earlier turn, before the last user message; refused once.
+    """
+    messages = context.messages
+    if any(REPEATED in (message.content or "") for message in messages):
+        return None
+    last_user = max(
+        (index for index, message in enumerate(messages) if message.role == "user"), default=0
+    )
+    earlier = {
+        line.strip()
+        for message in messages[:last_user]
+        if message.role == "assistant" and not message.tool_calls
+        for line in (message.content or "").splitlines()
+        if len(line.strip()) >= LONG_LINE
+    }
+    if not earlier:
+        return None
+    lines = [line.strip() for line in proposed_text(messages).splitlines()]
+    repeated = sum(1 for line in lines if line in earlier)
+    if repeated <= REPEATED_LINES:
+        return None
+    return (
+        f"{REPEATED}: your answer prints {repeated} lines of an earlier answer of this chat again. "
+        "Answer only the new message, in the form the user asked for (short, one table, for a "
+        "manager): name the earlier answer ('the report above') instead of repeating it"
+    )
+
+
+DENIALS = "Denied by the user in this request"
+"""The start of the note that tells the project lead each card the user denied (QA-288)."""
+
+
+def request_denials(context):
+    """Return ``(tool, what it would do, the user's words)`` of each card denied in this request.
+
+    QA-288: the user denied a design lead's ``set_ranges`` with words; the denial lived in the
+    nested run, the project lead read only the design lead's pick and briefed the same search
+    again, twice. Every run of the request tree logs under the root, so the lead sees them all.
+    """
+    from geomind.engine.session import DENIED_BY_USER, call_summary
+
+    session = context.session
+    store = getattr(getattr(session, "engine", None), "store", None)
+    root = getattr(getattr(session, "state", None), "root", None)
+    if store is None or root is None:
+        return []
+    inputs, found = {}, []
+    for event in store.load_events(root):
+        call = getattr(event, "call", None)
+        if event.type == "request" and call is not None:
+            inputs[call.id] = call.input
+        if event.type == "permission" and event.decision == "deny" and event.rule == "user":
+            words = event.reason if event.reason and event.reason != DENIED_BY_USER else None
+            done = call_summary(event.tool, inputs.get(event.call_id) or {}) or event.tool
+            found.append((event.tool, done, words))
+    return found
+
+
+def denials_note(denials):
+    """Return the note the project lead reads after its teams' answers, or ``None``."""
+    if not denials:
+        return None
+    lines = [
+        f"- {tool}: {done}" + (f" -- the user's words: {words!r}" if words else "")
+        for tool, done, words in denials
+    ]
+    return (
+        f"{DENIALS} (the user's own instruction, which holds for the rest of the request; never "
+        "brief a team to do the denied work again, under any name, and follow the user's words):\n"
+        + "\n".join(lines)
+    )
+
+
 def comparison():
     """Return the rule-driven comparison of families as a delegate of the project lead.
 
@@ -142,6 +240,10 @@ class ProjectLead(Agent):
         # Model
         self.model = Model(setting="projectlead_model", temperature=0)
 
+    def answer_problem(self, context):
+        """Refuse once an answer that prints an earlier answer of the chat again (QA-289)."""
+        return earlier_answer_repeated(context)
+
     async def forward(self, context):
         """End on the user's ``stop``; load the project's case file by rule first; else ask."""
         stopped = case_stopped(context.messages)
@@ -149,7 +251,11 @@ class ProjectLead(Agent):
             call = ToolCall(id=STOP_CASE, name="finish", input={"answer": stopped})
             return Action(text="", tool_calls=(call,))
         if not context.messages or context.messages[-1].role != "user":
-            return await super().forward(context)
+            note = denials_note(request_denials(context))
+            if note is None:
+                return await super().forward(context)
+            messages = [*context.messages_for(self), Message(role="user", content=note)]
+            return await self.complete(context, messages)
         if has_project_case(context) and not any(
             message.role == "tool" for message in context.messages
         ):
