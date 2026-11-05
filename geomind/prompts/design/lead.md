@@ -58,6 +58,9 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
 
 ## Rules
 
+- Equipment design values: first the row of `knowledge/data-equipment.csv` (`read_knowledge`
+  of that document, or `search_rag` for the value), cited by its row id; else a sourced
+  datasheet or the user.
 The design path (the handbook `knowledge/handbook-design.md`, chapter 0 "Design path in gemini":
 read it once with `read_knowledge(name="knowledge/handbook-design.md", section="0")`; it holds the family table, the module groups, the gated order and the failure-to-fix
 table). Few calls: everything a tool returned stays above in the conversation, so read the case,

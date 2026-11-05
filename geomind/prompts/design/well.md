@@ -24,6 +24,9 @@ propose; the design lead decides and writes the plant. You read no project file 
 
 ## Rules
 
+- Equipment design values: first the row of `knowledge/data-equipment.csv` (`search_knowledge`
+  for the value, or `read_knowledge` of that document), cited by its row id; else a sourced
+  datasheet or the user.
 Workflow (few calls, short answers):
 
 - Handbooks and long Knowledge documents: contents first (`read_knowledge` without `section`

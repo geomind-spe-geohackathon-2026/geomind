@@ -63,3 +63,13 @@ def test_qa_321_the_riser_and_the_well_share_the_whole_path():
     """QA-321: a riser and a well given each its own part ran a shorter producer."""
     text = " ".join(WellEngineer().prompt.render().split())
     assert "The riser and the well share the WHOLE path" in text
+
+
+def test_equipment_values_come_from_the_equipment_catalogue_first():
+    """Design lead and engineers cite a row of knowledge/data-equipment.csv before a datasheet."""
+    from geomind.agents import DesignLead, EnergySystemsEngineer
+
+    for agent in (DesignLead(), EnergySystemsEngineer(), WellEngineer()):
+        text = " ".join(agent.prompt.render().split())
+        assert "first the row of `knowledge/data-equipment.csv`" in text, agent.name
+        assert "cited by its row id" in text
