@@ -187,11 +187,11 @@
     },
     "Permissions": "(self, mode='ask', allow=(), ask=(), deny=())",
     "Run": {
-      "__init__": "(self, message=None, *, chat=None, project=None, history=(), llm=None, store=None, workspace=None, permissions=None, callbacks=(), hooks=(), agent=None)",
+      "__init__": "(self, message=None, *, chat=None, project=None, history=(), llm=None, store=None, workspace=None, permissions=None, callbacks=(), hooks=(), agent=None, sandbox=None)",
       "aresume": "(self, request_id=None, answer=None)",
       "astart": "(self)",
       "cancel": "(self)",
-      "load": "(cls, run_id, *, llm=None, store=None, workspace=None, permissions=None, callbacks=(), hooks=())",
+      "load": "(cls, run_id, *, llm=None, store=None, workspace=None, permissions=None, callbacks=(), hooks=(), sandbox=None)",
       "resume": "(self, request_id=None, answer=None)",
       "start": "(self)"
     },
@@ -671,6 +671,7 @@
       "providers",
       "runlog",
       "runtime",
+      "sandbox",
       "stores",
       "suggest",
       "testing",
@@ -984,7 +985,9 @@
         "knowledge_search": "(self, query)",
         "mcp": "(self, project_id)",
         "memory": "(self, project_id)",
+        "plant_version": "(self, project_id, version)",
         "plants": "(self, project_id)",
+        "project_designs": "(self, project_id)",
         "project_state": "(self, project_id)",
         "rag": "(self, project_id, query)"
       }

@@ -64,6 +64,66 @@
       "title": "Assumption",
       "type": "object"
     },
+    "Calculation": {
+      "additionalProperties": false,
+      "description": "A derived value ``calculate`` stored: its result, the expression and every operand's source.\n\n``operands`` holds, per operand, the reference given, its value and unit, and its ``source``\n(the case path, the catalogue row with its citation, the approved assumption, the stored result\nor the earlier calculation), so the report can cite the chain.",
+      "properties": {
+        "code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Code"
+        },
+        "expression": {
+          "title": "Expression",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "operands": {
+          "default": [],
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Operands",
+          "type": "array"
+        },
+        "operation": {
+          "title": "Operation",
+          "type": "string"
+        },
+        "unit": {
+          "title": "Unit",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "operation",
+        "expression",
+        "value",
+        "unit"
+      ],
+      "title": "Calculation",
+      "type": "object"
+    },
     "Compaction": {
       "additionalProperties": false,
       "description": "The summary of the first ``turns`` turns of a chat's history.",
@@ -82,6 +142,41 @@
         "turns"
       ],
       "title": "Compaction",
+      "type": "object"
+    },
+    "Finding": {
+      "additionalProperties": false,
+      "description": "A teammate's whole answer, kept by reference so a later run never asks it again (QA-047).\n\nThe engine records one when a nested agent answers (``Delegate``): ``agent`` is the tool name,\n``task`` the brief's start, ``summary`` the answer's start and ``reference`` the chat artifact\n(``finding-...``) that ``read_stored`` reads whole.",
+      "properties": {
+        "agent": {
+          "title": "Agent",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "reference": {
+          "title": "Reference",
+          "type": "string"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        },
+        "task": {
+          "title": "Task",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "agent",
+        "task",
+        "summary",
+        "reference"
+      ],
+      "title": "Finding",
       "type": "object"
     },
     "Question": {
@@ -185,6 +280,14 @@
       "title": "Assumptions",
       "type": "array"
     },
+    "calculations": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Calculation"
+      },
+      "title": "Calculations",
+      "type": "array"
+    },
     "case": {
       "anyOf": [
         {
@@ -227,6 +330,14 @@
       "default": {},
       "title": "Design",
       "type": "object"
+    },
+    "findings": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Finding"
+      },
+      "title": "Findings",
+      "type": "array"
     },
     "goal": {
       "default": "",
