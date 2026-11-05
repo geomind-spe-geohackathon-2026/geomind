@@ -192,9 +192,13 @@ async def run_compare():
 
 @pytest.fixture(scope="module")
 def compared():
-    """Run the loop once for the module: it simulates and searches."""
+    """Run the loop once for the module: it simulates and searches.
+
+    A module fixture runs before the per-test settings of ``conftest.py``, so it states the team
+    size itself: ``GEOMIND_TEAM_SIZE`` has no default (QA-201).
+    """
     warm_gemini()
-    with runtime.settings(max_steps=STEPS):
+    with runtime.settings(max_steps=STEPS, team_size=4):
         return asyncio.run(run_compare())
 
 
