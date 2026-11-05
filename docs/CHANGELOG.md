@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.62] - 2026-11-05
+
+### Fixed
+
+- QA-069: `set_case` checks the stored case against each of the project's plants (`gm.check`) and returns `plants_need`, `[{path, message, plants}]`, the case values a plant still lacks (such as `site.air.pressure`), with a note; the case lead's checklist calls the case complete only when it is empty or each path was asked. `gm.case.missing` alone lists only what the case file needs.
+
 ## [0.4.61] - 2026-11-05
 
 ### Changed

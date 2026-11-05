@@ -838,7 +838,56 @@ async def set_case(
         raise ToolError(
             every_problem(error, paths), code=error.code, path=error.path, suggestions=retries
         ) from error
-    return {"case": data, "version": version, **({"converted": converted} if converted else {})}
+    needs = await runtime.in_gemini_thread(plants_need, context)
+    return {
+        "case": data,
+        "version": version,
+        **({"converted": converted} if converted else {}),
+        **({"plants_need": needs, "note": PLANTS_NEED_NOTE} if needs else {}),
+    }
+
+
+PLANTS_NEED_NOTE = (
+    "The case reads, but the project's plants need these case values before any design can run: "
+    "the case is not complete until each is set or asked for in the one confirmation question."
+)
+
+
+def plants_need(context):
+    """Return ``[{path, message, plants}]``: the case values project plants still lack (QA-069).
+
+    ``gm.case.missing`` lists only what the case file needs by itself; what a plant needs (the
+    outside air's pressure for an air-cooled unit) only ``gm.check(plant, case)`` names. A plant
+    that cannot be checked is left out: the design stage reports it.
+    """
+    import gemini as gm
+
+    from geomind.tools.gemini.plants import (
+        CASE_SECTIONS,
+        issue_dict,
+        project_plant_names,
+        workspace_plant,
+    )
+
+    names = project_plant_names(context)
+    if not names or context.problem.case is None:
+        return []
+    try:
+        case = case_of(context)
+    except (ToolError, gm.errors.ValidationError):
+        return []
+    found = {}
+    for name in names:
+        try:
+            checked = gm.check(workspace_plant(context, "set_case", name), case)
+        except (ToolError, gm.errors.GeminiError, ValueError):
+            continue
+        for item in map(issue_dict, (issue for issue in checked if not issue.is_warning)):
+            path = item.get("path") or ""
+            if path.startswith(CASE_SECTIONS):
+                entry = found.setdefault(path, {"path": path, "message": item["message"], "plants": []})
+                entry["plants"].append(name)
+    return list(found.values())
 
 
 async def set_case_precheck(context, **arguments):

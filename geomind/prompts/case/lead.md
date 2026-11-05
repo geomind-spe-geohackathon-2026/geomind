@@ -297,7 +297,9 @@ Confirming:
 
 Checklist before you hand over (`read_case` once more):
 
-- gemini accepts the case, and every required key is set;
+- gemini accepts the case, and every required key is set; `set_case`'s `plants_need` (the case
+  values the project's plants still lack, such as `site.air.pressure`) is empty, or each of its
+  paths was asked for in the one confirmation question: never call the case complete before;
 - every value a file states is in it with its file, and none you computed;
 - no number in your questions or answer that you worked out or recall;
 - no derived key is set by hand;
