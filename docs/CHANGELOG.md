@@ -6,6 +6,19 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.81] - 2026-11-05
+
+### Added
+
+- The first result of a tool in an agent's conversation carries the skill that explains it (`[skill <name>, sent with the first call of <tool>]`), once: an agent without `read_skill` (the engineers) gets it too. A text result gets it after the text, a dict result a `skill` key.
+- `evaluate_module` takes `design` or `result` (with `time`) and a module id as `name`: the plant's values fill the parameters and controls the call leaves out, and a result gives T, p and m_dot of every required inlet at that step (the largest inflow without `time`); the call gives only each inlet's fluid (IMP-013). Its usage moved to the new skill `evaluating-a-module` (also `describe_module`, `list_modules`); the tool descriptions name the skill.
+
+### Fixed
+
+- IMP-012: `evaluate_module` fixes slips of form and says so in `notes`: a type in snake case or another case (`heat_pump` -> `HeatPump`), a control given as a parameter or the reverse, a plant-file `range` on a value, a `{value}` choice, `inlets: []`. `set_case` drops `over` and `when` on a requirement read over the whole period (`unmet_share`, `count`) and lists it in `converted`.
+- QA-105: `ask_economics` keeps the per-energy map all given or all open (a map with the chillers open gave no cost metric); the case lead opens the whole map for a cooling case.
+- QA-104: a requirement with no value in the reports geomind stores names the failed steps that cause it.
+
 ## [0.4.80] - 2026-11-05
 
 ### Changed
