@@ -126,6 +126,12 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
   `case_lead` (a line `case change needed: <path>: <why>` from any team goes there); a design
   failure to the `design_lead` with gemini's failures. The review's verdict lists each failure
   with the team it goes to first: a hint, which you follow unless the reason says otherwise.
+- A question that asks whether a variant could be simulated or compared (another unit, such as an
+  electric compression chiller, which gemini models as a `HeatPump` in cooling mode as in the
+  reference plant `HeatingHeatPumpCoolingPlant`; another family) is a comparison: brief the
+  `design_lead` to build and simulate the variant on the case beside the current design, then
+  the `analysis_lead` to compare the two results. A line `design change needed: <variant>: <why>`
+  from any team goes to the `design_lead` the same way.
 - Never loosen the case: no requirement dropped, no demand cut, no limit widened, no price changed
   to pass. A change of the case that the review reports goes to the user as one question.
 - A change of the case the user already confirmed through the case lead (an assumption with

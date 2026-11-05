@@ -243,3 +243,10 @@ def test_qa_337_a_report_on_several_plant_versions_compares_them_first():
     text = " ".join(ProjectLead().prompt.content.split())
     assert "first asks the design lead for one comparison of every version" in text
     assert "never `current` alone" in text
+
+
+def test_qa_347_could_a_variant_be_simulated_is_a_comparison_for_the_design_lead():
+    """QA-347: 'could the compression option be simulated' went to the analysis lead alone."""
+    text = " ".join(ProjectLead().prompt.content.split())
+    assert "A question that asks whether a variant could be simulated or compared" in text
+    assert "`design change needed: <variant>: <why>`" in text

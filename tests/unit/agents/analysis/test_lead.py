@@ -114,3 +114,11 @@ def test_qa_334_a_unit_is_looked_for_under_its_function_before_it_is_called_miss
 
     text = " ".join(AnalysisLead().prompt.content.split())
     assert "An electric (vapour-compression) chiller is a `HeatPump` in cooling mode" in text
+
+
+def test_qa_347_a_variant_to_simulate_goes_back_as_a_design_change_never_to_support():
+    """QA-347: the analysis lead asked the design lead through support_lead, which reaches none."""
+    text = " ".join(AnalysisLead().prompt.content.split())
+    assert "`design change needed: <the variant>: <why>`" in text
+    assert "never ask for it through `support_lead`" in text
+    assert "Never paste a tool's error into your answer" in text
