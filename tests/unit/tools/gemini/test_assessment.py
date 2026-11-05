@@ -246,3 +246,11 @@ async def test_each_kpi_gap_names_every_missing_value():
     errors = (await without_economics())["errors"]
     expected = {"economics.discount_rate", "economics.energy.electricity"}
     assert all(expected <= set(error["suggestions"]) for error in errors.values())
+
+
+def test_cost_figures_have_five_significant_digits():
+    """QA-099: the answer quoted 23.955885571022524 MEUR."""
+    from geomind.tools.gemini.assessment import rounded
+
+    found = rounded({"capex": {"value": 23.955885571022524, "unit": "MEUR"}, "n": [{"value": 1.0}]})
+    assert found == {"capex": {"value": 23.956, "unit": "MEUR"}, "n": [{"value": 1.0}]}

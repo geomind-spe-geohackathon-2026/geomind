@@ -94,10 +94,10 @@ def compute_kpis(context, reference: str, names: list[str] | None = None):
                 path="names",
             )
     if not names:
-        return found
+        return rounded(found)
     chosen = {name: found[name] for name in names}
     errors = {name: error for name, error in found.get("errors", {}).items() if name in names}
-    return {**chosen, **({"errors": errors} if errors else {})}
+    return rounded({**chosen, **({"errors": errors} if errors else {})})
 
 
 def cost_values(plant, case, results, names=COSTS):
@@ -134,4 +134,28 @@ def estimate_costs(context, reference: str):
             suggestions=first["suggestions"],
         )
     shown = displayed(gm.evaluate.report(plant, case, results), values)
-    return {name: shown[name] if name in shown else {"error": problems[name]} for name in COSTS}
+    return rounded(
+        {name: shown[name] if name in shown else {"error": problems[name]} for name in COSTS}
+    )
+
+
+SIGNIFICANT = 5
+"""Significant digits of a figure the cost tools give: 23.956 MEUR, not 23.955885571022524."""
+
+
+def rounded(found):
+    """Return ``found`` with every float ``value`` to ``SIGNIFICANT`` digits (QA-099).
+
+    The answers quoted 15 to 17 digits, a wall of numbers; five digits keep every figure the
+    economics can support. Values in lists and nested maps are rounded the same way.
+    """
+    if isinstance(found, dict):
+        return {
+            key: float(f"{item:.{SIGNIFICANT}g}")
+            if key == "value" and isinstance(item, float)
+            else rounded(item)
+            for key, item in found.items()
+        }
+    if isinstance(found, list):
+        return [rounded(item) for item in found]
+    return found

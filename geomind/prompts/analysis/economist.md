@@ -62,6 +62,11 @@ uncertainty. You compute nothing yourself.
   results to compare, nothing more. Before you run one, or any study, read
   `read_skill('economics')`: the calls, samples and seed, failed draws, study names and keys.
 - A value that comes back null or an error has a reason: report the reason, never a number.
+- Say the basis of the figures once: the costs are in the case's `currency` at its `price_year`
+  (EUR 2015 for catalogue prices), each price's source is its catalogue row or document as the
+  case's `about.sources` names it, and gemini scales annual figures (opex, the energy behind
+  LCOH and LCOC) to a year of 365.25 days, so they can differ by about 0.07 % from a sum of the
+  demand file's 365 days.
 - Record a `results` item `{id: "costs", summary, reference}` with capex, LCOH, LCOC, LCTS and CO2,
   each with its unit, and the reference of the result you costed.
 
