@@ -905,3 +905,18 @@ def test_run_study_values_belongs_to_a_sample_or_sensitivity():
 
     with pytest.raises(ToolError, match="limits a sample or sensitivity"):
         study_over("s", {}, ({}, {}), {}, "minimize", ["economics.energy.gas"])
+
+
+def test_qa_359_a_search_whose_every_trial_failed_is_an_error_not_a_stored_study():
+    """QA-359: a study with a null best was stored and read as a design."""
+    from types import SimpleNamespace
+
+    from geomind.tools.gemini.study import failed_search
+
+    reason = "every trial failed; the first: ESP flow out of range"
+    failed = failed_search("optimize", {"best": SimpleNamespace(value=None, reason=reason)})
+    assert failed.code == "study_failed" and str(failed) == f"optimize: {reason}"
+    bare = failed_search("run_study", {"best": SimpleNamespace(value=None, reason="no trial ran")})
+    assert str(bare) == "run_study: every trial failed; no trial ran"
+    assert failed_search("optimize", {"best": SimpleNamespace(value=41.3, reason=None)}) is None
+    assert failed_search("run_study", None) is None

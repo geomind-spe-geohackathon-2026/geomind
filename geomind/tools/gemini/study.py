@@ -179,6 +179,9 @@ async def optimize(context, design: str, objective: str, evaluations: int, seed:
         found = await runtime.in_gemini_thread(
             minimize_design, plants[design], build_case(*ran), objective, evaluations, seed
         )
+    failed = failed_search("optimize", found)
+    if failed is not None:
+        raise failed
     best = found["best"]
     result = {
         "best": best.to_dict(),
@@ -197,6 +200,23 @@ async def optimize(context, design: str, objective: str, evaluations: int, seed:
     )
     shown = result | {"study": key} | ({"design": wrote[0]} if wrote else {})
     return figures(shown | sized_from(context, design))
+
+
+def failed_search(tool, found):
+    """Return the ``study_failed`` error of a search whose every trial failed, or ``None``.
+
+    QA-359: gemini's best had no value (every trial failed) and the study was stored with a null
+    result, which the agents then read as a design. gemini 0.6.35 names the first failure in the
+    best's reason; the tool raises it instead of storing the study.
+    """
+    best = found.get("best") if isinstance(found, dict) else None
+    if best is None or getattr(best, "value", 0) is not None:
+        return None
+    reason = getattr(best, "reason", None) or "no reason given"
+    text = (
+        reason if str(reason).startswith("every trial failed") else f"every trial failed; {reason}"
+    )
+    return ToolError(f"{tool}: {text}", code="study_failed")
 
 
 def sized_from(context, design):
@@ -505,6 +525,9 @@ async def run_study(
         study = study_over(name, settings, ran, plants, method, values)
     with range_guidance(plants):
         result = await runtime.in_gemini_thread(study_runs, study)
+    searches = [failed_search("run_study", run.found) for run in result.runs]
+    if method == "minimize" and searches and all(item is not None for item in searches):
+        raise searches[0]
     runs = await store_runs(context, name, result)
     best = {case_name: run and run.plant_name for case_name, run in result.best.items()}
     stored = {item["plant_name"]: item["design"] for item in runs}
