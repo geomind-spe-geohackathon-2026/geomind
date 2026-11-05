@@ -6,6 +6,13 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.136] - 2026-11-05
+
+### Fixed
+- QA-351 a long Knowledge document is read by its contents, then sections, never whole; leads quote the
+  handbook lines a member needs. QA-353 a denied family run is never asked again; QA-352 no raw
+  improvement lines; QA-248 a values restriction holds in every sample path.
+
 ## [0.4.135] - 2026-11-05
 
 ### Fixed
