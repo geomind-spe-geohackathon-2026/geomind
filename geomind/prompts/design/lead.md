@@ -156,6 +156,13 @@ Each tool's description says its arguments.
   `study/<name>` and never changes. `list_studies` shows whether each is `current`; an older one is no evidence. Cite the `study/<name>` that a comparison,
   ranking or choice relies on, in `design.study.key` and in your answer.
 - A tool error says what to fix; `not_implemented`: record it on the family and move on.
+- Chase one failing requirement for at most three changes aimed at it (a patch, a module added
+  or removed, a value moved, by you or an engineer). When it still fails after the third, stop
+  changing the plant for it: keep the design that fails least (the most requirements met, then
+  the smallest violation), make sure it is simulated for the whole year and checked, record it
+  as the final design, and finish naming the open requirement plainly: its `name`, the value
+  reached, its limit, on which steps, and why (the cause the tools showed). The user decides
+  (accept it, change the requirement through the case's owner, or stop); never loosen it yourself.
 
 ## Output
 

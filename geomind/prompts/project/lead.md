@@ -77,6 +77,12 @@ Each tool's description says its arguments.
   or crash error), send it the same brief once more; when it fails again, finish or ask the user,
   saying plainly what was not done (such as the alternatives not compared) and why, never go on
   with a smaller task as if it were the one asked.
+- When the design lead finishes with a requirement still open after its rounds on it, never send
+  it the same failure again: ask the user once, naming the requirement, the value reached, its
+  limit and why, with the options accept the design with the open requirement (recommended when
+  every other requirement passes), change the requirement (the `case_lead`), and stop. On
+  accept, go on with the analysis of that design and say in the answer that it fails that one
+  requirement.
 - Stop when the review passed and the analysis is done, or when the review says
   `repeated_failure` after a real change of approach: then finish with what was tried, the
   failures and their owners, and present no design as a solution.
