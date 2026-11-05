@@ -49,8 +49,8 @@ Making a design the project plant:
 - `adopt_design(design, note)` saves a chat design (`design/<name>`) or the design of a run
   (`result/<id>` from `simulate` or a study) as the project's next plant version, in one call with
   one approval card. It never changes or deletes a version; a plant equal to the latest version
-  saves nothing (`saved` false). Returns `{design, plant_version, saved}`. A `design/v<N>` is a
-  version already. Use it when the user asks for it, never on your own.
+  saves nothing (`saved` false). Returns `{design, plant_version, saved}`. An older version
+  (`design/v1` while `v2` is the latest) becomes the next version. Use it when the user asks for it, never on your own.
 
 From a family to a design:
 

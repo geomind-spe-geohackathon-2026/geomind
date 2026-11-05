@@ -997,11 +997,13 @@ def test_values_size_or_the_doublet_design_derive_are_no_missing_values(gm):
     plant = gemini.Plant.from_dict(
         {"format": 1, "kind": "plant", "name": "p", "type": "HeatingPlant"}
     )
-    pump = next(path for path, module in plant.named_modules() if type(module).__name__ == "InjectionPump")
+    pump = next(
+        path for path, module in plant.named_modules() if type(module).__name__ == "InjectionPump"
+    )
     issues = [
         {"path": f"params.{pump}.pressure_setpoint", "message": "missing"},
         {"path": "params.d0.esp.stage_count", "message": "missing"},
-        {"path": "", "message": f"{pump}: supply the pressure_setpoint control or head_coefficients"},
+        {"path": "", "message": f"{pump}: supply the pressure_setpoint control or head curves"},
         {"path": "params.d0.nominal_flow", "message": "missing"},
     ]
     kept, derived = derived_issues(plant, issues)
@@ -1025,8 +1027,15 @@ async def test_adopt_design_saves_a_design_as_the_next_plant_version(gm):
     assert workspace.plant_version("p1", 1)["type"] == "HeatingPlant"
     again = (await call(TOOLS.adopt_design, asked, session, project="p1")).output
     assert again["saved"] is False and again["plant_version"] == 1
-    version = await call(TOOLS.adopt_design, {**asked, "design": "design/v1"}, session, project="p1")
-    assert version.is_error and "plant version 1 already" in version.output["error"]["message"]
+    other = {**start, "name": "other", "plant": {**start["plant"], "type": "HeatingCoolingPlant"}}
+    await call(TOOLS.build_plant, other, session, project="p1")
+    second = {"design": "design/other", "note": "Design other"}
+    adopted = await call(TOOLS.adopt_design, second, session, project="p1")
+    assert adopted.output["plant_version"] == 2
+    old = await call(TOOLS.adopt_design, {**asked, "design": "design/v1"}, session, project="p1")
+    assert old.output["plant_version"] == 3 and old.output["saved"] is True, "QA-330"
+    latest = await call(TOOLS.adopt_design, {**asked, "design": "design/v3"}, session, project="p1")
+    assert latest.output["saved"] is False and latest.output["plant_version"] == 3
 
 
 async def test_adopt_design_without_a_saving_workspace_is_not_allowed(gm):

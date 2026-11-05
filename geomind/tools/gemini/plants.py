@@ -991,15 +991,11 @@ async def adopt_design(context, design: str, note: str):
 
 
 def adopted_plant(context, reference):
-    """Return the plant dict of a ``design/<name>`` or a run ``result/<id>`` to adopt."""
-    name = reference.removeprefix("design/")
-    if reference.startswith("design/") and VERSION_NAME.fullmatch(name):
-        raise ToolError(
-            f"adopt_design: design = {reference!r} is plant version {name[1:]} already; "
-            "nothing to save",
-            code="invalid_input",
-            path="design",
-        )
+    """Return the plant dict of a ``design/<name>`` or a run ``result/<id>`` to adopt.
+
+    An older plant version (``design/v1`` while v2 is the latest) is adopted as the next version;
+    only a plant equal to the latest version saves nothing (QA-330).
+    """
     if reference.startswith(RESULT):
         data = context.session.load_artifact(f"{reference[len(RESULT):]}.plant")
         if data is None:
