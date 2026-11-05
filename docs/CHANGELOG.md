@@ -6,6 +6,11 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.89] - 2026-11-05
+
+### Changed
+- designing-a-plant names the handbook by its new Knowledge name, `handbook-design.md`.
+
 ## [0.4.88] - 2026-11-05
 
 ### Fixed
