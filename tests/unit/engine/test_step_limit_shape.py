@@ -9,9 +9,12 @@ from tests.fixtures.runs import Worker, call, context, engine_for, uses
 
 
 async def test_the_step_limit_question_is_continue_or_stop_with_no_call():
-    """A run at its step limit asks with options exactly continue and stop, from no call."""
+    """A run at its step limit asks with options exactly continue and stop, from no call.
+
+    The run asks: in auto mode it continues by itself (QA-086).
+    """
     script = [uses(call("lookup", f"c{n}", key="k")) for n in range(4)]
-    engine = engine_for(script, permissions=Permissions(mode="ask"))  # auto continues (QA-086)
+    engine = engine_for(script, permissions=Permissions(mode="ask"))
     start = context()
     result = await engine.run(Worker(), start, max_steps=2)
     assert result.status == "waiting"

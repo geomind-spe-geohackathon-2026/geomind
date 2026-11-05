@@ -785,6 +785,9 @@ def approval_message(message, tool_input, tool=None, summary=None):
 
     A plant or case tool's call is said in one sentence first (QA-121); the input follows as
     indented JSON, cut at ``APPROVAL_INPUT_CHARS``; the log redacts secrets.
+
+    A longer list ends with how many values more and how to see them: the card once sent the
+    user to the run log, which holds no pending call (QA-196).
     """
     if not tool_input:
         return message
@@ -793,7 +796,6 @@ def approval_message(message, tool_input, tool=None, summary=None):
     if len(text) > APPROVAL_INPUT_CHARS:
         text = "\n".join(f"{path}: {value}" for path, value in _leaf_values(tool_input))
         if len(text) > APPROVAL_LEAVES_CHARS:
-            # QA-196: the card sent the user to the run log, which holds no pending call.
             shown = text[:APPROVAL_LEAVES_CHARS].rsplit("\n", 1)[0]
             rest = text.count("\n") - shown.count("\n")
             text = f"{shown}\n... and {rest} more values: deny with words to see or change them"

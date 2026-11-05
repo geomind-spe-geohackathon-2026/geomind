@@ -252,6 +252,9 @@ def stop_not_reported(context):
 class CaseLead(Agent):
     """Set the case of a design from the project's files, with assumptions for what they lack.
 
+    NOTE: the case lead always splits the case among up to four geoscientists in one call, and
+    again for what is left, so the single geoscientist tool is gone (QA-140, IMP-025).
+
     NOTE: the case lead owns the case and designs nothing; the design lead reads the case and never
     sets it. The design and compare loops run the case lead once before any design, and again only
     when a round reports that the case must change.
@@ -265,8 +268,6 @@ class CaseLead(Agent):
         self.prompt = Prompt("case/lead", appendix=trees("case_compact"))
 
         # Tools
-        # The case lead always splits the case among up to four geoscientists in one call, and
-        # again for what is left, so the single geoscientist tool is gone (QA-140, IMP-025).
         geoscientist = Delegate(Geoscientist(), max_summary_tokens=FINDINGS_TOKENS)
         geoscientist.keeps_result = "run"
         self.geoscientists = Team(

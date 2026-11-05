@@ -114,8 +114,11 @@ async def test_a_crash_leaves_no_message_on_the_result():
 
 
 async def test_a_step_limit_leaves_its_message_on_the_result():
-    """A stop that is no crash says why, for the parent of a nested run."""
-    ask = Permissions(mode="ask")  # QA-086: in auto mode the run continues by itself
+    """A stop that is no crash says why, for the parent of a nested run.
+
+    The run asks: in auto mode it continues by itself (QA-086).
+    """
+    ask = Permissions(mode="ask")
     engine = engine_for([uses(fixture_call("lookup", key="k"))] * 3, permissions=ask)
     result = await stopped_at_limit(engine, await engine.run(Worker(), context(), max_steps=2))
     assert result.stop_reason == "step_limit" and "2 steps" in result.message
@@ -213,7 +216,9 @@ async def test_a_team_runs_several_instances_of_one_member_by_name():
             await asyncio.sleep(0)
             return RunResult(run_id=instance, status="done", answer=f"{instance}: {task}")
 
-    team = Team("team", "a team", {"geoscientist": Delegate(Helper()), "helper": Delegate(Helper())})
+    team = Team(
+        "team", "a team", {"geoscientist": Delegate(Helper()), "helper": Delegate(Helper())}
+    )
     briefs = [
         {"role": "geoscientist", "task": "subsurface"},
         {"role": "geoscientist", "task": "brine"},
@@ -269,10 +274,22 @@ def test_a_nested_answer_carries_each_user_denial_of_its_run():
 
     events = [
         SimpleNamespace(type="request", call=SimpleNamespace(id="c1", input={"name": "hp"})),
-        SimpleNamespace(type="permission", decision="deny", rule="user", tool="set_ranges",
-                        call_id="c1", reason="Do not change or search the plant."),
-        SimpleNamespace(type="permission", decision="allow", rule="user", tool="simulate",
-                        call_id="c2", reason=None),
+        SimpleNamespace(
+            type="permission",
+            decision="deny",
+            rule="user",
+            tool="set_ranges",
+            call_id="c1",
+            reason="Do not change or search the plant.",
+        ),
+        SimpleNamespace(
+            type="permission",
+            decision="allow",
+            rule="user",
+            tool="simulate",
+            call_id="c2",
+            reason=None,
+        ),
     ]
     answer = with_denials("My pick: 10 MW.", events)
     assert answer.startswith("My pick: 10 MW.")

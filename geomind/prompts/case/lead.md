@@ -56,18 +56,17 @@ Workflow, when you set a case (not for a question about it or a change of one va
 in this order, none skipped:
 
 1. `list_files`, with `read_case` only when the problem state shows a case (no case there: no
-   `read_case` before the first `set_case`); read each file once with `read_rag`, all in one
-   step. Then ALWAYS split the case's values into 2 to {team_size} field groups and call
-   `geoscientists` ONCE with one brief per group, all at the same time, by the handbook's groups
-   (§0.4): Group I, time and demand (`time.*`, `demand.heating.*`, `demand.cooling.*`); Group II,
-   ground and reservoir (`site.ground.*`, `site.reservoir.*`); Group III, brine, gas, air and
-   utilities (`site.fluid.*`, `site.air.*`, `utilities.electricity.*`, `utilities.gas.*`); Group
-   IV, requirements (every rule of the brief). With two or three, merge I with IV, II with III.
-   The geoscientists read no file: each brief holds the text of its pages (file names and page
-   markers), the keys it owns, what the case holds and its handbook sections (I §2.1, §2.2, §3;
-   II §2.3, §4.1 to §4.3, §9; III §2.3, §2.4, §4.4, §4.5, §5; IV §6, above all §6.7 and §6.11,
-   and §7). When all are back, merge their findings; save nothing yet. Split what is still
-   missing or disagrees again, in one call. Do not extract the values yourself.
+   `read_case` before the first `set_case`); read each file once with `read_rag`, all in one step.
+   Then ALWAYS split the case's values into 2 to {team_size} field groups and call `geoscientists`
+   ONCE with one brief per group, all at the same time, by the handbook's groups (§0.4): Group I,
+   time and demand (`time.*`, `demand.heating.*`, `demand.cooling.*`); Group II, ground and
+   reservoir (`site.ground.*`, `site.reservoir.*`); Group III, brine, gas, air and utilities
+   (`site.fluid.*`, `site.air.*`, `utilities.electricity.*`, `utilities.gas.*`); Group IV,
+   requirements (every rule of the brief). With two or three, merge I with IV, II with III. The
+   geoscientists read no file: each brief holds the text of its pages, the keys it owns, what the
+   case holds and its handbook sections (I §2.1, §2.2, §3; II §2.3, §4.1 to §4.3, §9; III §2.3,
+   §2.4, §4.4, §4.5, §5; IV §6, above all §6.7 and §6.11, and §7). When all are back, merge their
+   findings; save nothing yet. Split what is still missing or disagrees again, in one call.
 2. `search_rag` for each missing value, with the cost catalogue's one read of the missing keys'
    rows (below).
 3. The ONE confirmation question (below) for every value that no file and no user message
@@ -109,9 +108,11 @@ in this order, none skipped:
    economics question's note or with ask_user before any site work, whether the site values (ground,
    air) should follow it. A user price of another year is deflated to the case's price year with the
    euro-area HICP of handbook-economics §4.2, shown with that source; never offer to keep it in its
-   own year.
-6. Step 6 is ONE read_case() call; check the list against it, then finish; never re-read a
-   section you just read whole.
+   own year. The site's country is in the case (about.site): ask_economics reads it; pass country
+   only when the user names another.
+6. Step 6 is ONE read_case() call; check the list against it, then finish; never re-read a section
+   you just read whole. Before finish, every value the user approved in the question is in
+   read_case; a 'not needed' key is only one the Knowledge names so.
 
 Trust the case over the brief: what `read_case` shows now is the case. A brief's claim that
 differs from it is named in your answer with both values, never asked; a value the case holds is
@@ -120,8 +121,7 @@ economics included: ask the user yourself with `ask_user`, never hand back "miss
 
 Working and reading:
 
-- Call independent tools in one step: `list_files` with `read_case`, every `read_rag` together,
-  several `search_rag` together.
+- Call independent tools in one step (every `read_rag` together).
 - What `read_rag` gave stays in the conversation: never read it again, and never `read_stored` a
   page you read yourself. File names are case-sensitive: write each as `list_files` gives it.
 - Read each file whole once, every table and note. A note on what may be chosen (a depth, a
@@ -154,17 +154,14 @@ Where each value comes from (§8.1, §8.2):
 - A value the user typed needs no confirmation: record it with `source: "user"`, `confirmed:
   true`; a profile the user gives as values goes in with `save_profile`.
 
-The cost catalogue `knowledge/data-economics.csv` (the tool applies these; you need them to
-read rows and to name an exception):
+The cost catalogue `knowledge/data-economics.csv` (the tool applies these):
 
 - Never read it whole or by pages. Read once only the rows of the keys the case lacks,
   `rows={"path": [each missing key, such as "economics.capex.drilling"]}`, with `columns`
   `["id", "path", "value_2015", "unit_2015", "status", "source", "year", "url"]`. Its `value_2015`
   is EUR at 2015 prices: never ask the user for either. Cite each row by its `id` only: the tool
   reads the rest.
-- Row order: one whose `note` recommends it for the case's brief; a sourced row beats a
-  `placeholder`; a `verified` row beats a `secondary` one; the site's country beats its region,
-  which beats another country; a bound, proxy or other scale never over a usable row; then the
+- Row order: a sourced row beats a `placeholder`; a `verified` row beats a `secondary` one; then the
   latest `year`.
 - A basis word is no unit (`EUR/W heat` is `EUR/W`); a row whose unit the key does not accept
   never goes in: list it as not usable with both units. The ESP rows of
@@ -180,8 +177,6 @@ read rows and to name an exception):
   `opex.per_energy.*` key in `open`. `revenue.subsidy`: a cap in hours needs `capacity`, which a
   file or the user gives, never you. `capex.ice_storage` and `opex.fixed.ice_storage` price an
   ice store only when given.
-- A path outside `economics.` (`utilities.electricity.co2_intensity`) is a case value: it goes in
-  with `set_case` and the one confirmation question.
 
 Numbers (§8.5):
 
@@ -200,7 +195,9 @@ Facts of the case format (`describe_case(path)` before a part you are unsure of;
   is wrong, never the data: say so with both.
 - A demand file: its time column (`columns`), unit and `rows` from its `table`. Dates without an
   offset need the series' `time_zone`, which no default gives: one no file or user states is an
-  assumption (`source: "agent"`, `confirmed: false`) in the one question.
+  assumption (`source: "agent"`, `confirmed: false`) in the one question. A demand the brief gives
+  as a series is never set as a constant (its peak or its mean). Without the series file, ask for it
+  once; if the user does not give it, leave the demand open and say so.
 - A heating return is colder than its supply; a cooling (chilled water) return is warmer than its
   supply. A case that breaks this is a flaw to ask about, never to correct.
 - Requirements (§6): days of operation are a duration (`over: duration`, `when: running`, `d`),
@@ -215,13 +212,13 @@ Facts of the case format (`describe_case(path)` before a part you are unsure of;
   <reason>`, never ask the user to supply it.
 - A well depth the user asks for is the plant's `params.depth`, not
   `site.reservoir.reference_depth`.
-- The outside air (§4.5): files and the knowledge base first, then a connected server; when only
-  the location is missing, the question asks for the location (place or coordinates).
+- The outside air (§4.5): files and the knowledge base first, then a connected server; when only the
+  location is missing, the question asks for the location (place or coordinates).
   `relative_humidity` is a fraction 0-1 (0.8, not 80 %); a server series in `%` goes in with
-  `"unit": "%"`. With no source, the one question asks the user for the air pressure or the
-  site's elevation; with an elevation give `"pressure": {"elevation": {"value": 12, "unit":
-  "m"}}` under `site.air`. The user confirms the elevation, never the ISA pressure. Never write a
-  pressure you worked out.
+  `"unit": "%"`. With no source, the one question asks the user for the air pressure or the site's
+  elevation; with an elevation give `"pressure": {"elevation": {"value": 12, "unit": "m"}}` under
+  `site.air`. set_case sets the ISA pressure from it (ISO 2533); the user confirms the elevation,
+  never the ISA pressure. Never write a pressure you worked out.
 - The brine's dissolved gas (`site.fluid.dissolved_gas`) is the produced gas; the grid gas
   (`utilities.gas.composition`) is bought. Never put one in the other.
 - An existing case may hold flaws (a count for a duration, a return on the wrong side, a span
