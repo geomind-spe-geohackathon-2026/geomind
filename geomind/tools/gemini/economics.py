@@ -1343,18 +1343,23 @@ def approved_economics(values, notes=None):
     return {**patch, "about": {"sources": sources}}
 
 
-def assumption_changes(problem, values, notes=None):
-    """Return the ``update_state`` operations that record each approved value as an assumption."""
+def assumption_changes(problem, values, notes=None, auto=False):
+    """Return the ``update_state`` operations that record each approved value as an assumption.
+
+    ``auto``: Auto-approve answered the question, not the user (QA-339): each value is recorded
+    with source ``auto-approve`` and not confirmed, so the user can still overrule it.
+    """
     known = {item.id for item in problem.assumptions}
+    approver = "Auto-approve" if auto else "the user"
     changes = []
     for item in values:
         key = f"economics.{item.key.removeprefix('economics.')}"
         assumption = {
             "id": key,
-            "text": f"{key} = {_amount(item)}, approved by the user",
+            "text": f"{key} = {_amount(item)}, approved by {approver}",
             "value": {"value": item.value, **({"unit": item.unit} if item.unit else {})},
-            "source": "agent",
-            "confirmed": True,
+            "source": "auto-approve" if auto else "agent",
+            "confirmed": not auto,
             "reason": f"cost catalogue row {item.row}" if item.row else item.source,
             "citation": citation(item, (notes or {}).get(short(item.key))),
         }
@@ -1488,6 +1493,11 @@ def approves_all(text):
     return not any(word in f"{rest} " for word in HOLDS_BACK)
 
 
+def auto_approved(context):
+    """Tell whether Auto-approve answers the pending question now, not the user (QA-339)."""
+    return getattr(getattr(context.session, "engine", None), "auto_answer", None) is not None
+
+
 async def economics_answered(context, tool_input, text):
     """Act on the answer to the economics question; return what the model reads.
 
@@ -1507,7 +1517,7 @@ async def economics_answered(context, tool_input, text):
     open_keys = list(tool_input.get("open") or [])
     sited = {}
     values, open_keys = recommended(context, values, open_keys, tool_input.get("country"), sited)
-    values = with_ranges(context, from_catalogue(context, values))
+    values = with_ranges(context, from_catalogue(context, own_values(context, values)))
     dropped = []
     values, open_keys, notes = prepared(values, open_keys, dropped, sited.get("held") or ())
     try:
@@ -1519,7 +1529,7 @@ async def economics_answered(context, tool_input, text):
             "error": str(error)[:1500],
             "note": NOT_SET_NOTE,
         }
-    changes = assumption_changes(context.problem, values, notes)
+    changes = assumption_changes(context.problem, values, notes, auto_approved(context))
     if changes:
         await context.session.change_state(changes)
     stored = await set_asked_economics(context, approved_economics(values, notes))

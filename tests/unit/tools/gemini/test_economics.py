@@ -906,3 +906,18 @@ async def test_a_value_of_the_agent_s_own_is_refused_and_a_catalogue_value_takes
     refused = await dispatch(ask_economics, asked, context)
     assert refused.is_error
     assert "opex.per_energy.compression_chiller" in refused.output["error"]["message"]
+
+
+def test_values_auto_approve_approved_are_recorded_as_such_and_not_confirmed():
+    """QA-339: with Auto-approve on, the engine answered "approve all", not the user."""
+    from geomind.context import ProblemState
+    from geomind.context.state import Assumption
+    from geomind.tools.gemini.economics import EconomicsValue, assumption_changes
+
+    value = EconomicsValue(key="discount_rate", value=0.05, source="knowledge/x.md")
+    auto = assumption_changes(ProblemState(), [value], auto=True)[0]["value"]
+    assert (auto["source"], auto["confirmed"]) == ("auto-approve", False)
+    assert "approved by Auto-approve" in auto["text"]
+    Assumption.model_validate(auto)
+    user = assumption_changes(ProblemState(), [value])[0]["value"]
+    assert (user["source"], user["confirmed"]) == ("agent", True)
