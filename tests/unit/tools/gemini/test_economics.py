@@ -1014,3 +1014,18 @@ async def test_a_key_the_case_holds_sent_with_no_value_stays_held():
     assert isinstance(request, Request), request
     assert "a source with no value" not in request.message
     assert "Kept as the case has them" in request.message
+
+
+async def test_a_value_the_case_would_refuse_is_refused_before_the_card():
+    """QA-361: opex.fixed values without a unit were shown, approved, then refused by the case."""
+    from tests.fixtures.calls import call
+
+    context = case_document_context(CatalogueWorkspace())
+    values = [
+        *VALUES[2:],
+        {"key": "opex.fixed.drilling", "value": 1, "source": "knowledge/my-case-assumptions.md"},
+    ]
+    result = await call(ask_economics, {"values": values}, context.session, problem=context.problem)
+    message = result.output["error"]["message"]
+    assert result.is_error and message.startswith("ask_economics: the economics have problems")
+    assert "opex.fixed.drilling.unit" in message and "unit is missing" in message

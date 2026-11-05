@@ -1415,6 +1415,7 @@ def ask_economics(
     values = with_ranges(context, screened(context, values, site, opened))
     _, _, moved = whole_per_energy(*given_values(values, list(open_keys)))
     values, open_keys, notes = prepared(values, open_keys, dropped, sited.get("held") or ())
+    approved_economics_checked(context, values, notes, where="ask_economics")
     message = question_text(values, open_keys, note, notes, sited.get("country"))
     if moved:
         message += "\n\n" + per_energy_note(moved)
@@ -1603,7 +1604,7 @@ NOT_SET_NOTE = (
 )
 
 
-def approved_economics_checked(context, values, notes):
+def approved_economics_checked(context, values, notes, where="set_case"):
     """Raise the case's error when the approved economics would not make a valid case (QA-298).
 
     The state's case with the patch is built and checked by gemini, as ``set_case`` does, before
@@ -1629,7 +1630,17 @@ def approved_economics_checked(context, values, notes):
         ]
         if problems:
             shown = "; ".join(f"{item['path']}: {item['message']}" for item in problems[:20])
-            raise ToolError(f"set_case: the economics have problems: {shown}") from error
+            raise ToolError(
+                f"{where}: the economics have problems: {shown}"
+                + (
+                    "; fix each before the user is asked (a value of a fixed operating cost "
+                    "needs its unit, such as %/yr)"
+                    if where == "ask_economics"
+                    else ""
+                ),
+                code="invalid_input",
+                path="values",
+            ) from error
 
 
 HOLDS_BACK = ("except", "but", "without", "apart from", "other than", "not ")
