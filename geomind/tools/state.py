@@ -11,7 +11,7 @@ from geomind.tools.base import tool
 from geomind.types.patch import OPERATIONS
 
 CASE_KEYS = ("case", "case_origin")
-TOOL_KEYS = {"calculations": "calculate"}
+TOOL_KEYS = {"calculations": "calculate", "findings": "the engine, from each teammate's answer"}
 """State keys only one tool writes, by the tool that writes each."""
 ROOTS = ("goal", "requirements", "assumptions", "design", "results", "verification", "questions")
 ITEM_MODELS = {

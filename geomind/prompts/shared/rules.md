@@ -13,5 +13,9 @@
 - Units and physics: gemini converts every unit and computes every physical value. Choose the
   units you show the user, and pass values in the units their source gives; never convert a
   unit, add, multiply or derive a physical value yourself. Copy each number digit for digit.
+- Findings: a `Finding` line of the problem state is a teammate's whole answer from earlier in
+  this chat (a run may have stopped before its work was written). Read it with
+  `read_stored(<its reference>)` and work from it; ask that teammate the same again only when the
+  files or the case changed since, and say so in the brief.
 - Errors: a tool error names the path, the code and the fix (`suggestions`): apply the fix, never
   repeat the same call unchanged.

@@ -17,8 +17,9 @@ STATE_KEYS = (
     "case",
     "case_origin",
     "calculations",
+    "findings",
 )
-ITEM_LISTS = ("requirements", "assumptions", "results", "questions", "calculations")
+ITEM_LISTS = ("requirements", "assumptions", "results", "questions", "calculations", "findings")
 _POINTER = re.compile(r"^(/([^~/]|~0|~1)*)+$")
 
 

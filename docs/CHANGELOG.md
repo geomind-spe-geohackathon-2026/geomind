@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.63] - 2026-11-05
+
+### Added
+
+- QA-047 (second part): every answer of a nested agent (`Delegate`, team members included, also after a pause) is kept as a finding: the whole answer as the chat artifact `finding-<id>`, and a `Finding` item `{id, agent, task, summary, reference}` in the problem state's new `findings` list (the newest eight are shown), which `update_state` cannot write. A run that stops before the work is written (a cancel, a pending approval) leaves it for the next run; the shared rules say to read a finding with `read_stored` before asking that teammate again. The project lead gets `read_stored`.
+
 ## [0.4.62] - 2026-11-05
 
 ### Fixed

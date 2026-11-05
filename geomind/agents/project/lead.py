@@ -76,6 +76,7 @@ class ProjectLead(Agent):
         self.case_changes = tools.gemini.case_changes
         self.accept_case = tools.gemini.accept_case
         self.update_state = tools.update_state
+        self.read_stored = tools.read_stored
         self.ask_user = tools.ask_user
         self.finish = suggestions.finish
 

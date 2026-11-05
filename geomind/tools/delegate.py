@@ -3,6 +3,7 @@
 import asyncio
 import json
 import re
+from uuid import uuid4
 
 from geomind import runtime
 from geomind.errors import ToolError
@@ -55,6 +56,17 @@ def bound(session, limit, where):
     if limit not in limits:
         limits[limit] = asyncio.Semaphore(size)
     return limits[limit]
+
+
+FINDING_TASK = 200
+FINDING_SUMMARY = 400
+"""The characters of the brief and of the answer a finding's line shows."""
+
+
+def _start(text, limit):
+    """Return the start of a text on one line, cut at ``limit`` characters."""
+    line = " ".join(str(text).split())
+    return line if len(line) <= limit else f"{line[:limit].rstrip()} ..."
 
 
 class DelegateInput(Record):
@@ -133,7 +145,36 @@ class Delegate(Tool):
             if attempt == NESTED_RETRIES or not provider_failed(result):
                 break
             task = f"{task}\n\n{RETRY_NOTE}"
-        return self.outcome(result, context.session.child_limit)
+        outcome = self.outcome(result, context.session.child_limit)
+        if result.request is None:
+            await self.record_finding(context.session, task, result)
+        return outcome
+
+    async def record_finding(self, session, task, result):
+        """Keep a nested agent's whole answer as a finding of the problem state (QA-047).
+
+        The answer is saved as the chat artifact ``finding-<id>``, and the state gets one line, so
+        a run that stops before the work is written (a cancel, a pending approval) leaves it for
+        the next run, which reads it instead of asking again. A failure to save it never fails the
+        call: the answer still goes back. The id is random, as team members answer at once.
+        """
+        answer = result.answer if isinstance(result.answer, str) else json.dumps(result.answer)
+        if not answer or not answer.strip():
+            return
+        try:
+            key = uuid4().hex[:8]
+            reference = f"finding-{key}"
+            await session.save_artifact(reference, {"agent": self.name, "task": task, "answer": answer})
+            finding = {
+                "id": f"F{key}",
+                "agent": self.name,
+                "task": _start(task, FINDING_TASK),
+                "summary": _start(answer, FINDING_SUMMARY),
+                "reference": reference,
+            }
+            await session.change_state([{"op": "add", "path": "/findings/-", "value": finding}])
+        except Exception as error:  # a finding is a convenience: never lose the answer for it
+            await session.report_error(error, f"{self.name}: finding")
 
     def outcome(self, result, limit=None):
         """Return the output of a finished nested run, or its request when it waits.

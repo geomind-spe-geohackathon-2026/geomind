@@ -141,6 +141,12 @@ role lacks, with the list. A skill whose `tools` field names only tool names is 
 an agent offered one of them (its own tools and the MCP tools). A tool error points at its skill with `skill_hint` ("read_skill('x') for
 the rules"). Skills: `calculator`, `designing-a-plant`, `gemini-units`, `reading-results`.
 
+## Findings
+
+`Delegate.record_finding` (0.4.63) keeps each nested agent's answer: the chat artifact
+`finding-<id>` (`{agent, task, answer}`) and a `Finding` in the problem state's `findings`
+(random ids, as team members answer at once). `render` shows the newest `SHOWN_FINDINGS`.
+
 ## Calculations
 
 `calculate` (`tools/calculate.py`, effect `compute`) derives a value from references to sourced

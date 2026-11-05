@@ -74,6 +74,21 @@ class Calculation(Record):
     code: str | None = None
 
 
+class Finding(Record):
+    """A teammate's whole answer, kept by reference so a later run never asks it again (QA-047).
+
+    The engine records one when a nested agent answers (``Delegate``): ``agent`` is the tool name,
+    ``task`` the brief's start, ``summary`` the answer's start and ``reference`` the chat artifact
+    (``finding-...``) that ``read_stored`` reads whole.
+    """
+
+    id: str
+    agent: str
+    task: str
+    summary: str
+    reference: str
+
+
 class Compaction(Record):
     """The summary of the first ``turns`` turns of a chat's history."""
 
@@ -185,6 +200,7 @@ class ProblemState(Record):
     verification: dict[str, Any] = {}
     questions: tuple[Question, ...] = ()
     calculations: tuple[Calculation, ...] = ()
+    findings: tuple[Finding, ...] = ()
     case: dict[str, Any] | None = None
     case_origin: dict[str, Any] | None = None
     preferences: dict[str, Any] = {}
@@ -318,6 +334,10 @@ def apply_changes(state, changes):
     return current.model_copy(update={"version": state.version + 1})
 
 
+SHOWN_FINDINGS = 8
+"""How many of the newest findings the rendered state shows; older ones stay in the state."""
+
+
 def _requirement_line(item):
     """Return one requirement as a line."""
     name = item.case_requirement
@@ -380,6 +400,10 @@ def render(state):
     if state.verification:
         lines.append(f"Verification: {json.dumps(state.verification)}")
     lines += [f"Question {item.id}: {item.text}" for item in state.questions]
+    lines += [
+        f"Finding {item.id} ({item.agent}): {item.summary} (whole: read_stored {item.reference})"
+        for item in state.findings[-SHOWN_FINDINGS:]
+    ]
     lines += [
         f"Calculation {item.id}: {item.label} = {json.dumps(item.value)} {item.unit} "
         f"({item.expression})"

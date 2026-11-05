@@ -92,6 +92,9 @@ async def _finish_delegate(session, pending, tool, result):
     if result.request is not None:
         session.waiting_child = result.run_id
         return await session.wait_for_child(outcome, pending.call)
+    task = (pending.call.input or {}).get("task") if isinstance(pending.call.input, dict) else None
+    if hasattr(tool, "record_finding") and task:
+        await tool.record_finding(session, task, result)
     await record_result(session, pending.call, text_result(pending.call, outcome))
     return None
 
