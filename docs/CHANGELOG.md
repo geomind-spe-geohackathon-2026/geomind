@@ -6,6 +6,15 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.79] - 2026-11-05
+
+### Fixed
+
+- QA-091: `set_case` judges a per-step temperature requirement on a heating or cooling supply `when: running` when it was given `always` or no `when`, listed in `converted` with the reason (an idle loop on a zero-demand day is no supply). The case lead writes the brief's fixed supply temperatures `when: running` and adds `heat_delivered` / `cold_delivered` (`unmet_share` at most 0.01, an assumption) over the whole year, as gemini's hackathon sample does.
+- QA-090: the design lead stops after three changes aimed at one failing requirement, keeps the design that fails least (simulated and checked) and reports the open requirement (value, limit, steps, why); the project lead then asks the user once (accept, change the requirement, stop).
+- QA-094: network return temperatures are a design choice of the team with a reason, within the case's limits, proposed in the one question; never a missing case value the design waits for.
+- QA-095: the knowledge row `co2-grid-organisers-2026` (300 g/kWh, the GeoHackathon 2026 organisers' reference value) ships; the case lead recommends first a row whose note recommends it for the case's brief.
+
 ## [0.4.78] - 2026-11-05
 
 ### Fixed
