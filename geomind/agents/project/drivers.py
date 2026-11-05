@@ -251,6 +251,9 @@ class DesignDriver(Agent):
             return stop(context, {**note, "stop": "max_rounds"}, index)
         if should_stop_repeated([*history, failed], design):
             return stop(context, {**note, "stop": "repeated_failure"}, index)
+        stuck = stuck_requirements([*history, failed])
+        if design is not None and stuck:
+            return stop(context, {**note, "stop": "requirement_budget", "stuck": stuck}, index)
         task = routed_task_of(context, round_number + 1, self._max_rounds, design, result, found)
         return act(note, index, "design_lead", task=task)
 
@@ -388,6 +391,22 @@ def should_stop_repeated(history, design):
     goes on to its round limit.
     """
     return design is not None and repeated(history)
+
+
+REQUIREMENT_ROUNDS = 3
+"""Rounds in a row one requirement may fail before the loop stops and reports it (IMP-016)."""
+
+
+def stuck_requirements(history):
+    """Return the requirements that failed in each of the last ``REQUIREMENT_ROUNDS`` rounds.
+
+    QA-090: 18 variants over 2 h 40 chased one rule while the rest changed. A rule that fails
+    round after round, whatever else changes, goes back to the user with what was tried.
+    """
+    if len(history) < REQUIREMENT_ROUNDS:
+        return []
+    last = [set(item) for item in history[-REQUIREMENT_ROUNDS:]]
+    return sorted(set.intersection(*last))
 
 
 HANDOVER_CHARACTERS = 6000
@@ -532,4 +551,11 @@ def stop_answer(note):
         f"No design passed gemini's checks. {MARK}stop: {note['stop']} after round "
         f"{note['round']}. The last design {note['design']} ({note['result']}) failed {failed}. "
         "It is kept under design.rejected and is not presented as a solution."
+        + (
+            f" {', '.join(note['stuck'])} failed in each of the last {REQUIREMENT_ROUNDS} rounds: "
+            "the user decides whether to accept the design with it open, change the requirement, "
+            "or stop."
+            if note.get("stuck")
+            else ""
+        )
     )

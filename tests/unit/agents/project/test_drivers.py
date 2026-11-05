@@ -13,3 +13,14 @@ def test_a_case_change_line_is_found_in_a_team_s_answer():
     """The line a design lead writes for the case's owner."""
     answer = "done\ncase change needed: site.reservoir: no depth\nnext"
     assert case_changes_named(answer) == ["case change needed: site.reservoir: no depth"]
+
+
+def test_a_requirement_failing_three_rounds_in_a_row_stops_the_loop():
+    """IMP-016: one rule failing round after round is reported, not chased."""
+    from geomind.agents.project.drivers import stop_answer, stuck_requirements
+
+    assert stuck_requirements([["a", "b"], ["b"], ["b", "c"]]) == ["b"]
+    assert stuck_requirements([["a"], ["b"]]) == []
+    note = {"stop": "requirement_budget", "round": 3, "design": "design/x", "result": "result/y",
+            "failures": ["b"], "stuck": ["b"]}
+    assert "b failed in each of the last 3 rounds" in stop_answer(note)
