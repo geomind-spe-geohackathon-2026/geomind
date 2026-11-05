@@ -231,6 +231,29 @@ def _nested_changes(events, run_id):
     return changes
 
 
+def _answered_changes(events, run_id):
+    """Return, by (step, call id), the state changes the run's own answered calls logged.
+
+    ``ask_user`` keeps the user's answer in the problem state (QA-009) when the answer comes in;
+    a replay reuses the answered result without that, so the run's later versions came out one
+    lower. The changes logged between the user's answer and the call's result are applied again.
+    A result whose output carries its ``answer`` runs its ``on_answer`` again instead.
+    """
+    found, open_call = {}, None
+    for e in (item for item in events if item.run_id == run_id):
+        if e.type == "permission" and e.decision == "answer" and e.call_id is not None:
+            open_call = (e.index, e.call_id)
+            found[open_call] = []
+        elif e.type == "state.changed" and open_call is not None:
+            found[open_call].append(e.changes)
+        elif e.type == "tool.result" and (e.index, e.call_id) == open_call:
+            output = e.output if isinstance(e.output, dict) else {}
+            if e.source != "answer" or "answer" in output:
+                found.pop(open_call)
+            open_call = None
+    return {key: changes for key, changes in found.items() if changes}
+
+
 def _signature(event):
     """Return what must match: the step, the call and what came back."""
     return event.index, event.tool, event.input, event.output, event.is_error
@@ -331,7 +354,10 @@ def _arm(engine, tree, scripts):
         engine.recorded[parent] = {
             key: event for key, event in scripts[parent].results.items() if key not in children
         }
-        engine.recorded_changes[parent] = _nested_changes(tree, parent)
+        changes = _nested_changes(tree, parent)
+        for key, own in _answered_changes(tree, parent).items():
+            changes[key] = [*changes.get(key, []), *own]
+        engine.recorded_changes[parent] = changes
         engine.recorded_steps[parent] = [
             e.decision
             for e in tree

@@ -850,3 +850,23 @@ async def test_a_log_since_the_case_lead_that_differs_keeps_its_own_message(vers
     ]
     with pytest.raises(ReplayError, match=r"^replay: run .*recorded answer 'other'"):
         await Engine.replay(engine.store, result.run_id)
+
+
+def test_the_state_change_of_an_answered_question_is_applied_again():
+    """QA-009 writes the user's answer into the state; a replay applies that change again."""
+    from types import SimpleNamespace as Event
+
+    from geomind.engine.replay import _answered_changes
+
+    change = [{"op": "add", "path": "/assumptions/-", "value": {"id": "answer.x"}}]
+    events = [
+        Event(run_id="r", type="permission", decision="answer", index=2, call_id="h10"),
+        Event(run_id="r", type="state.changed", changes=change),
+        Event(run_id="r", type="tool.result", index=2, call_id="h10", source="answer",
+              output="0.2 m"),
+        Event(run_id="r", type="state.changed", changes=[{"op": "replace", "path": "/goal"}]),
+    ]
+    assert _answered_changes(events, "r") == {(2, "h10"): [change]}
+    dict_answer = [*events[:2], Event(run_id="r", type="tool.result", index=2, call_id="h10",
+                                      source="answer", output={"answer": "0.2 m"})]
+    assert _answered_changes(dict_answer, "r") == {}
