@@ -6,6 +6,17 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.92] - 2026-11-05
+
+### Fixed
+- QA-140: the case lead always splits the case among 2 to 4 geoscientists in one `geoscientists`
+  call (time and demand, ground and reservoir, brine and utilities, requirements); the single
+  `geoscientist` tool is gone and a gap can be split again.
+
+### Added
+- `search_knowledge` and `read_knowledge`: the global Knowledge base only, for sub-agents
+  (the geoscientist has them); a name outside `knowledge/` is refused.
+
 ## [0.4.91] - 2026-11-05
 
 ### Changed
