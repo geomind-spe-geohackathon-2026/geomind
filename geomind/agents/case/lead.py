@@ -1,6 +1,7 @@
 """The agent that sets the case: demand, site, requirements and time, from the files."""
 
 import ast
+import re
 
 from geomind import tools
 from geomind.agents.agent import Agent, Model
@@ -301,10 +302,89 @@ class CaseLead(Agent):
         self.model = Model(setting="caselead_model", temperature=0)
 
     def answer_problem(self, context):
-        """Refuse once an answer hiding a ``stop``, or skipping ``change some`` or the economics."""
+        """Refuse once a wrong answer.
+
+        One that hides a ``stop``, skips ``change some`` or the economics, or whose case lost a
+        value the user approved (QA-295).
+        """
         return (
             stop_not_reported(context)
             or changes_not_asked(context)
+            or approved_values_differ(context)
             or economics_by_hand(context)
             or economics_missing(context)
         )
+
+
+APPROVE_ALL = "approve all"
+"""The option of the case lead's questions that sets every value the question lists."""
+NOT_STORED = "approved values not stored"
+"""The start of the case lead's one refusal of an answer whose case differs from the approval."""
+APPROVED_LINE = re.compile(
+    r"^\s*[-*]?\s*([a-z_]+(?:\.[A-Za-z0-9_]+)+)\s*=\s*(-?\d+(?:\.\d+)?(?:[eE]-?\d+)?)\s*([^|,(]*)"
+)
+"""A line ``- <path> = <number> <unit> | ...`` of the confirmation question (QA-295)."""
+
+
+def approved_values(messages):
+    """Return ``{path: (number, unit)}`` of the last question the user answered ``approve all``."""
+    replies = {m.tool_call_id: (m.content or "") for m in messages if m.role == "tool"}
+    approved = [
+        call
+        for message in messages
+        if message.role == "assistant"
+        for call in message.tool_calls
+        if call.name == "ask_user" and APPROVE_ALL in replies.get(call.id, "").lower()
+    ]
+    if not approved:
+        return {}
+    lines = str((approved[-1].input or {}).get("question", "")).splitlines()
+    hits = [APPROVED_LINE.match(line) for line in lines]
+    return {
+        hit.group(1): (float(hit.group(2)), " ".join(hit.group(3).split())) for hit in hits if hit
+    }
+
+
+def stored_value(case, path):
+    """Return ``(number, unit)`` of the case at a dotted ``path``, or ``None`` when it has none."""
+    node = case
+    for part in path.split("."):
+        node = node.get(part) if isinstance(node, dict) else None
+    if isinstance(node, dict) and isinstance(node.get("value"), (int, float)):
+        return float(node["value"]), str(node.get("unit") or "")
+    if isinstance(node, (int, float)) and not isinstance(node, bool):
+        return float(node), ""
+    return None
+
+
+def approved_values_differ(context):
+    """Return the refusal of an answer whose case lost a value the user approved, or ``None``.
+
+    QA-295: the user approved gradient 25 °C/km, depth 2000 m, pressure 200 barg and GLR 0.5;
+    the case lead retyped ``set_case`` from memory and stored 30, 2500, 250 and 0.8, a
+    document's values it had read earlier. Each approved ``<path> = <number> <unit>`` line is
+    compared with the case as stored, in the unit the question wrote (another unit is left to
+    gemini's conversion); refused once.
+    """
+    messages = context.messages
+    case = getattr(context.problem, "case", None) if context.problem is not None else None
+    approved = approved_values(messages)
+    if not approved or not isinstance(case, dict):
+        return None
+    if any(NOT_STORED in (message.content or "") for message in messages):
+        return None
+    wrong = []
+    for path, (number, unit) in approved.items():
+        stored = stored_value(case, path)
+        if stored is None:
+            continue
+        value, stored_unit = stored
+        same_unit = not unit or not stored_unit or unit.split()[0] == stored_unit
+        if same_unit and abs(value - number) > 1e-9 * max(1.0, abs(number)):
+            wrong.append(f"{path} approved {number:g} {unit}, stored {value:g} {stored_unit}")
+    if not wrong:
+        return None
+    return (
+        f"{NOT_STORED}: " + "; ".join(wrong) + ". Send set_case with exactly the values the user "
+        "approved, as the question wrote them (never a value from an earlier search), then finish"
+    )

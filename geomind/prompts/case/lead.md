@@ -75,7 +75,7 @@ in this order, none skipped:
    file states it. Nothing of these is saved before the user approves it: on `stop` or `change
    some` the saved case must not hold it.
 4. After `approve all`: ONE `set_case` with everything the files and the user state and the
-   approved values; fix what it refuses; record the approved values; ask about every flaw of a
+   approved values, each exactly as the question wrote it, never a value from a search; fix what it refuses; record the approved values; ask about every flaw of a
    loaded case. Then ONE follow-up `ask_user`, only when that `set_case` returns `plants_need`
    paths (each by path and unit, no number) or a unit NAME it mapped in `converted` (`from` and
    `to`). `set_case(source="project")` is only for a project `case.json`; without one, start

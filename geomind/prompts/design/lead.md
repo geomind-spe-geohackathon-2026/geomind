@@ -124,6 +124,8 @@ stopped), read it with `read_stored` and use it: never ask the same brief again.
   changes only (another doublet within the size range, a larger heat pump share, a module the
   case does not ask for removed), never accepting the failure or changing the requirement.
 - Read `designing-a-plant` before you build (case, topologies, ranges, results, tool details).
+- Load a skill with `read_skill`, never with a dummy call such as `read_web_page` on a
+  placeholder URL.
 - Round 1: record the case's requirements with `update_state` (`case_requirement` is the name) and
   your assumptions, each with value, source and `confirmed: false` unless the user gave it.
 - A card the user denies is their instruction for this request: never send the same write again

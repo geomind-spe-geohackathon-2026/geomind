@@ -7,6 +7,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 ## [Unreleased]
 
 ### Fixed
+- QA-294: list_studies and project_result see the project's results of other chats (the optional
+  project_designs "results" list).
+- QA-298: ask_economics shows case-leaf values as numbers, checks every value's type before the
+  question, and on approve all checks the case before recording, keeping the user's answer.
+- QA-295: the case lead cannot finish while a stored value differs from the one the user approved.
+- QA-296 (prompt): the design lead loads a skill with read_skill, never a dummy call.
 - QA-163: ask_user refuses a question that retypes a long number with other digits than its source.
 - set_case refuses economics other than the values the user approved in ask_economics.
 - QA-268, QA-192 (part 2): ask_economics never asks again for a key the case holds, nor for a price of

@@ -2,6 +2,7 @@
 
 from geomind.tools.base import tool
 from geomind.tools.gemini.references import reference_schema
+from geomind.tools.gemini.study import figures
 from geomind.tools.gemini.stored import case_id, load_study, ran_case, study_index
 
 
@@ -9,12 +10,21 @@ from geomind.tools.gemini.stored import case_id, load_study, ran_case, study_ind
 def list_studies(context):
     """List this chat's studies (what ran, over which designs, whether current) and the project's.
 
-    Skill `comparing-designs`.
+    The project's results of other chats come as ``project_result``, newest first: the newest of
+    a plant is its last result, its kpis and checks as of its case version (QA-294). Skill
+    `comparing-designs`.
     """
     from geomind.tools.gemini.plants import project_designs
+    from geomind.tools.gemini.stored import project_results
 
     now = case_id(ran_case(context)) if context.problem.case is not None else None
     project = [{"project_study": item} for item in project_designs(context)["studies"]]
+    shown = {(item.get("result") or {}).get("id") for item in project_designs(context)["studies"]}
+    project += [
+        {"project_result": item}
+        for item in project_results(context)
+        if item.get("id") not in shown
+    ]
     return project + [
         {
             "study": entry["study"],
@@ -37,8 +47,8 @@ def read_study(context, study: str):
     record = load_study(context, study, "read_study")
     history = (record.get("result") or {}).get("history") if isinstance(record, dict) else None
     if not isinstance(history, list):
-        return record
-    return {"trials": trials_of(history), **record}
+        return figures(record)
+    return figures({"trials": trials_of(history), **record})
 
 
 def _number(entry):

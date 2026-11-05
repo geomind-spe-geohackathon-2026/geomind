@@ -200,3 +200,9 @@ def test_a_failing_requirement_gets_design_changes_never_a_requirement_change():
     """QA-211: the options offered for a failing hard limit are design changes only."""
     text = " ".join(DesignLead().prompt.render().split())
     assert "the options you name are design changes only" in text
+
+
+def test_a_skill_is_loaded_with_read_skill_never_a_dummy_call():
+    """QA-296: no read_web_page on a placeholder URL to load a skill."""
+    text = " ".join(DesignLead().prompt.render().split())
+    assert "Load a skill with `read_skill`, never with a dummy call" in text

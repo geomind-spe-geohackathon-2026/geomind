@@ -569,6 +569,30 @@ def catalogue_basis(values, open_keys, held=()):
     return kept + basis, [key for key in open_keys if key not in CATALOGUE_BASIS]
 
 
+def refuse_shapes(values):
+    """Refuse, all at once, each value whose type its key does not take (QA-298).
+
+    The case's check ran only on approve all, so a value the key cannot take was shown, approved
+    and then failed with every key; now the question is never made with one.
+    """
+    from geomind.tools.gemini.unit_bridge import economics_schema
+
+    wrong = []
+    for item in values:
+        schema = economics_schema(item.key) or {}
+        kind = ((schema.get("properties") or {}).get("value") or {}).get("type")
+        number = isinstance(item.value, (int, float)) and not isinstance(item.value, bool)
+        text = isinstance(item.value, str)
+        if (kind == "number" and not number) or (kind == "string" and not text):
+            wrong.append(f"{short(item.key)} = {item.value!r} (expected a {kind})")
+    if wrong:
+        raise ToolError(
+            "ask_economics: values the keys do not take; fix each: " + "; ".join(wrong),
+            code="invalid_input",
+            path="values",
+        )
+
+
 def fitted_units(values):
     """Return ``(values, notes)``: each value's unit as its key takes it, ``{key: note}``.
 
@@ -696,6 +720,7 @@ def prepared(values, open_keys, dropped=None, held=()):
         dropped += left_out
     values, open_keys = catalogue_basis(values, open_keys, held)
     refuse_percents(values)
+    refuse_shapes(values)
     values, notes = fitted_units(values)
     values, open_keys = mismatched_open(values, open_keys, notes)
     _checked(values, open_keys, held)
@@ -1031,6 +1056,42 @@ def refuse_unapproved(problem, patch, where="set_case"):
         )
 
 
+NOT_SET_NOTE = (
+    "the user approved all, but the case refused the values (error): nothing was set. Fix only "
+    "the values the error names and call ask_economics again with every other value the same; "
+    "never move a key the user approved to open"
+)
+
+
+def approved_economics_checked(context, values, notes):
+    """Raise the case's error when the approved economics would not make a valid case (QA-298).
+
+    The state's case with the patch is built and checked by gemini, as ``set_case`` does, before
+    anything is recorded: a refused write never leaves assumptions behind.
+    """
+    from geomind.tools.gemini.case import checked_case, edited_economics, file_contents
+
+    import copy
+
+    import gemini as gm
+
+    data = copy.deepcopy(getattr(context.problem, "case", None))
+    if not isinstance(data, dict):
+        return
+    supplied = file_contents(context, data, {})
+    files = edited_economics(context, data, supplied, approved_economics(values, notes))
+    try:
+        checked_case(data, files)
+    except gm.errors.ValidationError as error:
+        problems = [
+            item for item in (getattr(error, "problems", None) or ())
+            if str(item.get("path", "")).startswith("economics")
+        ]
+        if problems:
+            shown = "; ".join(f"{item['path']}: {item['message']}" for item in problems[:20])
+            raise ToolError(f"set_case: the economics have problems: {shown}") from error
+
+
 HOLDS_BACK = ("except", "but", "without", "apart from", "other than", "not ")
 """Words after a typed "approve all" that keep part back: then it is a change, not approve all."""
 TYPED_NOTE = (
@@ -1077,6 +1138,15 @@ async def economics_answered(context, tool_input, text):
     values = from_catalogue(context, values)
     dropped = []
     values, open_keys, notes = prepared(values, open_keys, dropped, sited.get("held") or ())
+    try:
+        approved_economics_checked(context, values, notes)
+    except ToolError as error:
+        return {
+            "answer": text,
+            "economics": "not set",
+            "error": str(error)[:1500],
+            "note": NOT_SET_NOTE,
+        }
     changes = assumption_changes(context.problem, values, notes)
     if changes:
         await context.session.change_state(changes)

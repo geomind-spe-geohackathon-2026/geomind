@@ -497,3 +497,46 @@ def test_qa_271_the_prompt_stays_short_and_cites_the_handbook_by_section():
     text = (Path(geomind.__file__).parent / "prompts" / "case" / "lead.md").read_text()
     assert len(text) < 20_000
     assert 'read_rag("knowledge/handbook-case.md", section="<n>")' in " ".join(text.split())
+
+
+def test_qa_295_a_case_that_lost_an_approved_value_is_refused_once():
+    """QA-295: the user approved 25 °C/km and GLR 0.5; set_case stored a document's 30 and 0.8."""
+    from geomind.agents.case.lead import NOT_STORED, approved_values_differ
+    from geomind.context import ProblemState
+    from geomind.engine import Context
+    from geomind.types import Message, ToolCall
+
+    question = (
+        "Nothing is saved yet.\n"
+        "- site.ground.gradient = 25 °C/km | engineering assumption | Norwegian bedrock\n"
+        "- site.reservoir.reference_depth = 2000 m | engineering assumption | depth\n"
+        "- site.fluid.gas_liquid_ratio = 0.5 Nm3/m3 | engineering assumption | modest\n"
+        "- site.ground.surface_temperature = 5 degC | engineering assumption | mean air\n"
+    )
+    ask = ToolCall(id="q", name="ask_user", input={"question": question})
+    messages = [
+        Message(role="assistant", tool_calls=(ask,)),
+        Message(role="tool", content="approve all", tool_call_id="q"),
+    ]
+    stored = {
+        "site": {
+            "ground": {
+                "gradient": {"value": 30, "unit": "°C/km"},
+                "surface_temperature": {"value": 5, "unit": "degC"},
+            },
+            "reservoir": {"reference_depth": {"value": 2000, "unit": "m"}},
+            "fluid": {"gas_liquid_ratio": {"value": 0.8, "unit": "Nm3/m3"}},
+        }
+    }
+    refusal = approved_values_differ(Context(messages=messages, problem=ProblemState(case=stored)))
+    assert refusal.startswith(NOT_STORED)
+    assert "site.ground.gradient approved 25 °C/km, stored 30 °C/km" in refusal
+    assert "gas_liquid_ratio approved 0.5" in refusal and "reference_depth" not in refusal
+    stored["site"]["ground"]["gradient"]["value"] = 25
+    stored["site"]["fluid"]["gas_liquid_ratio"]["value"] = 0.5
+    assert (
+        approved_values_differ(Context(messages=messages, problem=ProblemState(case=stored)))
+        is None
+    )
+    again = [*messages, Message(role="tool", content=f"{NOT_STORED}: ...", tool_call_id="f")]
+    assert approved_values_differ(Context(messages=again, problem=ProblemState(case={}))) is None

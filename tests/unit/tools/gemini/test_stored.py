@@ -169,3 +169,26 @@ async def test_a_dry_precheck_stores_no_design():
 
     await dry_precheck(write)(Context(), name="start")
     assert saved == []
+
+
+def test_a_result_of_another_chat_is_found_by_its_id():
+    """QA-294: a result with no study comes in project_designs' results and is found by id."""
+    from types import SimpleNamespace
+
+    from geomind.tools.gemini.stored import project_result, project_results
+
+    result = {"id": "056533ec-1111-2222", "plant_version": 2, "case_version": 5, "kpis": {}}
+
+    class Workspace:
+        """A project whose one result belongs to no study."""
+
+        def project_designs(self, project_id):
+            """Return no studies and the result in ``results``."""
+            return {"plants": [], "studies": [], "results": [result]}
+
+    context = SimpleNamespace(session=SimpleNamespace(workspace=Workspace()), project="p1")
+    assert project_results(context) == [result]
+    assert project_result(context, "result/056533ec-1111-2222") == ({}, result)
+    assert project_result(context, "unknown") is None
+    bare = SimpleNamespace(session=SimpleNamespace(workspace=object()), project="p1")
+    assert project_results(bare) == []

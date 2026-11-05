@@ -643,3 +643,28 @@ async def test_a_case_with_economics_is_asked_only_the_keys_it_lacks():
     assert not any(line.startswith("economics.capex.heat_exchanger =") for line in lines)
     assert not any(line.startswith("economics.energy.electricity =") for line in lines)
     assert "Kept as the case has them, not asked again" in request.message
+
+
+async def test_a_value_given_as_a_case_leaf_is_shown_as_a_number_and_a_bare_source_is_refused():
+    """QA-298: {value: {value, unit}} was shown as a dict and failed on approve all."""
+    from geomind.tools import dispatch
+    from geomind.types import ToolCall
+
+    base = "knowledge/hackathon-2026-assumptions.md, section 1.4"
+    values = [
+        {"key": "analysis_period", "value": {"value": 25, "unit": "yr"}, "source": base},
+        {"key": "energy.gas", "value": 34.9514563107, "unit": "EUR/MWh", "source": base},
+        {"key": "discount_rate", "value": 0.05, "source": base},
+    ]
+    asked = ToolCall(id="q", name="ask_economics", input={"values": values})
+    request = await dispatch(ask_economics, asked, catalogue_context())
+    assert isinstance(request, Request), request
+    assert "economics.analysis_period = 25 yr | no row" in request.message
+    assert "economics.energy.gas = 34.9515 EUR/MWh" in request.message
+    assert "{'value'" not in request.message
+    bare = [*values[:2], {"key": "discount_rate", "source": base}]
+    result = await call(ask_economics, {"values": bare}, session=catalogue_context().session)
+    assert result.is_error and "have a source and no value" in result.output["error"]["message"]
+    text = [*values[1:], {"key": "analysis_period", "value": "25 years", "source": base}]
+    result = await call(ask_economics, {"values": text}, session=catalogue_context().session)
+    assert result.is_error and "analysis_period = '25 years'" in result.output["error"]["message"]

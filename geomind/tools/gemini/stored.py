@@ -250,8 +250,9 @@ def plain_id(text):
 def project_result(context, reference):
     """Return ``(study, result)`` of the project's Study-page result ``reference`` names, or None.
 
-    ``list_studies`` lists them under ``project_study``; an agent names one by its result id or
-    its study id, with or without ``result/`` and dashes (QA-165).
+    ``list_studies`` lists them under ``project_study``, and a result of another chat under
+    ``project_result`` (QA-294); an agent names one by its result id or its study id, with or
+    without ``result/`` and dashes (QA-165).
     """
     from geomind.tools.gemini.plants import project_designs
 
@@ -262,7 +263,23 @@ def project_result(context, reference):
         result = study.get("result") or {}
         if result and wanted in (plain_id(result.get("id")), plain_id(study.get("id"))):
             return study, result
+    for result in project_results(context):
+        if wanted == plain_id(result.get("id")):
+            return {}, result
     return None
+
+
+def project_results(context):
+    """Return every result of the project the workspace lists, newest first, or ``[]`` (QA-294).
+
+    ``project_designs`` gives a study's newest result under its study; a run of another chat has
+    no study, so it comes only in the optional ``results`` list.
+    """
+    workspace = context.session.workspace
+    read = getattr(workspace, "project_designs", None)
+    if read is None or context.project is None:
+        return []
+    return list((read(context.project) or {}).get("results") or [])
 
 
 def project_run(context, reference, where):

@@ -492,10 +492,12 @@ def test_list_studies_shows_each_study_and_whether_its_case_is_current():
 
 
 def test_read_study_returns_the_stored_artifact_and_refuses_an_unknown_key():
-    """The artifact comes back whole; a key no tool returned is ``unknown_name``."""
+    """The artifact comes back whole, its figures rounded (QA-099); an unknown key is refused."""
+    from geomind.tools.gemini.study import figures
+
     context = slow_calls()["studies"]["shallow_context"]
     stored = asyncio.run(run(studies.read_study, context, {"study": "study/pair"})).output
-    assert stored == context.session.load_artifact("study/pair")
+    assert stored == figures(context.session.load_artifact("study/pair"))
     unknown = asyncio.run(run(studies.read_study, context, {"study": "study/none"}))
     assert unknown.output["error"]["code"] == "unknown_name"
 
@@ -804,3 +806,34 @@ def test_a_sensitivity_of_some_values_names_the_ones_left_out():
     assert "dominant driver" in found["scope"]
     every = ["economics.discount_rate", "economics.electricity.price", "site.gradient"]
     assert left_out(data, files, every) == {} and left_out(data, files, None) == {}
+
+
+def test_a_study_tool_s_figures_have_five_significant_digits():
+    """QA-099: the answers quoted study trials and sensitivity rows with 15 to 17 digits."""
+    from geomind.tools.gemini.study import figures
+
+    found = {"best": {"value": 49.28130562173663}, "rows": [{"effect": 21.664015188167898}]}
+    found["seed"], found["nan"], found["flag"] = 7, float("nan"), True
+    shown = figures(found)
+    assert shown["best"]["value"] == 49.281 and shown["rows"][0]["effect"] == 21.664
+    assert shown["seed"] == 7 and shown["flag"] is True and shown["nan"] != shown["nan"]
+
+
+def test_a_search_s_run_says_what_its_evaluations_count():
+    """QA-179: run_study showed 80 evaluations for 30 asked, with no word on why."""
+    from types import SimpleNamespace
+
+    from geomind.tools.gemini.study import EVALUATIONS_NOTE, run_entry
+
+    report = SimpleNamespace(to_dict=lambda: {"lcts": {"value": 41.3}})
+    run = SimpleNamespace(
+        report=report,
+        to_dict=lambda: {"found": {"evaluations": 60, "history": []}},
+        plant_name="start",
+        metrics=["lcts"],
+        note=None,
+    )
+    run.verdict = type("V", (dict,), {"to_dict": lambda self: dict(self)})(feasible=True)
+    assert run_entry(run, None, "design/a")["evaluations_note"] == EVALUATIONS_NOTE
+    run.to_dict = lambda: {"found": None}
+    assert "evaluations_note" not in run_entry(run, None, "design/a")
