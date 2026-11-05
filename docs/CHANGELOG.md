@@ -6,6 +6,10 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### Changed
+
+- Skill `calculator`: says that `power`'s integer `exponent` is the one plain number given outside the operands (structure, not data; Sahand).
+
 ## [0.4.58] - 2026-11-05
 
 ### Added

@@ -35,7 +35,9 @@ A value from the web, a connector or the user's words enters only after the user
 an assumption with its source; then reference the assumption.
 
 Operations: `add`, `subtract`, `multiply`, `divide` (two operands), `power` (one operand and an
-integer `exponent`), `min`, `max`, `sum`, `mean`.
+integer `exponent`), `min`, `max`, `sum`, `mean`. The exponent is a plain integer in the
+call itself, not an operand: it is structure (a square, a cube), never data, so it needs no
+source and no sourced operand beside it.
 
 Units:
 
