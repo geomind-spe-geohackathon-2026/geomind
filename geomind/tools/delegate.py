@@ -185,7 +185,7 @@ class Delegate(Tool):
                 "reference": reference,
             }
             await session.change_state([{"op": "add", "path": "/findings/-", "value": finding}])
-        except Exception as error:  # a finding is a convenience: never lose the answer for it
+        except Exception as error:
             await session.report_error(error, f"{self.name}: finding")
 
     def outcome(self, result, limit=None):

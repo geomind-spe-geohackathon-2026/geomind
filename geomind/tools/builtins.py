@@ -115,14 +115,17 @@ def answer_change(problem, question, text):
 
 
 async def user_answered(context, tool_input, text):
-    """Keep the user's answer in the problem state and return what the model reads of it."""
+    """Keep the user's answer in the problem state and return what the model reads of it.
+
+    A record the state refuses is left out: the answer still reaches the model.
+    """
     question = str(tool_input.get("question") or "")
     request = Request(kind="question", message=question, options=tool_input.get("options"))
     if question and getattr(context, "problem", None) is not None:
         try:
             await context.session.change_state([answer_change(context.problem, question, text)])
         except ValueError:
-            pass  # the answer still reaches the model; only its record in the state is missing
+            pass
     return typed_answer(request, text)
 
 

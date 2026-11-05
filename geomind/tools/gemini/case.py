@@ -1264,8 +1264,50 @@ async def set_case(
 
     Skill `setting-the-case`.
     """
-    import gemini as gm
+    kept = remembered_call(context, source, changes, requirements, economics, files, columns)
+    previous = context.problem.case
+    source, fallback = project_or_new(context, source, changes or requirements or economics)
+    base, supplied = base_case(context, source)
+    own = {"requirements": requirements, "economics": economics, "files": files, "columns": columns}
+    changes, (requirements, economics, files, columns) = moved_arguments(changes, base, own)
+    if columns:
+        kept.update(copy.deepcopy(columns))
+    columns = kept_columns(columns, kept)
+    changes, files, supplied, converted = await normalized_changes(
+        context, changes, files, columns, supplied
+    )
+    data = merge_patch(base, checked_changes(changes, files))
+    converted += with_requirements(data, requirements)
+    if economics:
+        refuse_changed_economics(context, economics)
+    contents = edited_economics(context, data, supplied, economics) if economics else supplied
+    origin = given_case(context, source, (base, supplied), (data, contents))
+    retry = (supplied, files, columns, changes)
+    version = await stored_case(context, data, contents, origin, base, retry)
+    needs = await runtime.in_gemini_thread(plants_need, context)
+    checks = {
+        "check": moved_reference_depth(base, data),
+        "check_requirements": exact_ratios(data.get("requirements")),
+        "check_approved": missing_approved(context, data),
+        "converted": converted,
+    }
+    return {
+        **({"note_on_source": fallback} if fallback else {}),
+        **loaded_changes(source, previous, data),
+        "case": data,
+        "version": version,
+        "version_is": VERSION_MEANING,
+        **{key: value for key, value in checks.items() if value},
+        **({"plants_need": needs, "note": PLANTS_NEED_NOTE} if needs else {}),
+    }
 
+
+def remembered_call(context, source, changes, requirements, economics, files, columns):
+    """Return the run's kept ``columns`` after noting this call; refuse files alone on no case.
+
+    The session keeps the steps of the calls that held changes (for the files-alone refusal) and
+    the ``columns`` each call gave (QA-222).
+    """
     session_state = getattr(context.session, "__dict__", {})
     calls = session_state.setdefault("case_calls", [])
     kept = session_state.setdefault("case_columns", {})
@@ -1277,14 +1319,15 @@ async def set_case(
     step = getattr(getattr(context.session, "state", None), "step", None)
     if changes and step is not None and not DRY_RUN.get():
         calls.append(step)
-    previous = context.problem.case
-    source, fallback = project_or_new(context, source, changes or requirements or economics)
-    base, supplied = base_case(context, source)
-    own = {"requirements": requirements, "economics": economics, "files": files, "columns": columns}
-    changes, (requirements, economics, files, columns) = moved_arguments(changes, base, own)
-    if columns:
-        kept.update(copy.deepcopy(columns))
-    columns = kept_columns(columns, kept)
+    return kept
+
+
+async def normalized_changes(context, changes, files, columns, supplied):
+    """Return ``(changes, files, supplied, converted)``: the changes as gemini reads them.
+
+    Empty units go, saved case files take their saved names, the project files the changes name
+    are read (time columns renamed), units are bridged and an elevation becomes the ISA pressure.
+    """
     changes, converted = without_empty_units(changes or {})
     changes, files, saved = with_saved_files(context, changes, files)
     converted += saved
@@ -1295,29 +1338,43 @@ async def set_case(
         converted += renamed
         supplied = {**supplied, **given}
     changes, bridged = bridged_units(changes)
-    converted += bridged
     changes, derived = pressure_from_elevation(changes)
-    converted += derived
-    data = merge_patch(base, checked_changes(changes, files))
+    return changes, files, supplied, converted + bridged + derived
+
+
+def with_requirements(data, requirements):
+    """Apply the ``requirements`` argument to the case ``data``; return ``converted`` entries."""
+    converted = []
     if requirements:
         requirements, emptied = without_empty_units(requirements)
         requirements, renamed = bridged_requirements(requirements)
         converted += emptied + renamed
         data["requirements"] = edited_requirements(data.get("requirements"), requirements)
-    converted += judged_requirements(data)
-    moved = moved_reference_depth(base, data)
-    exact = exact_ratios(data.get("requirements"))
-    unstored = missing_approved(context, data)
-    if economics:
-        from geomind.tools.gemini.economics import refuse_unapproved
+    return converted + judged_requirements(data)
 
-        # The session's state holds assumptions ask_economics recorded in this same call.
-        state = getattr(getattr(context.session, "state", None), "problem", None)
-        refuse_unapproved(state or context.problem, economics)
-    contents = edited_economics(context, data, supplied, economics) if economics else supplied
-    origin = given_case(context, source, (base, supplied), (data, contents))
+
+def refuse_changed_economics(context, economics):
+    """Raise when an economics patch changes a value the user approved (QA-279).
+
+    The session's state holds the assumptions ``ask_economics`` recorded in this same call;
+    ``context.problem`` is the state from before it.
+    """
+    from geomind.tools.gemini.economics import refuse_unapproved
+
+    state = getattr(getattr(context.session, "state", None), "problem", None)
+    refuse_unapproved(state or context.problem, economics)
+
+
+async def stored_case(context, data, contents, origin, base, retry):
+    """Store the case and return the version, or raise gemini's refusal with its next calls.
+
+    ``retry`` is ``(supplied, files, columns, changes)`` of the call, for the suggested retries.
+    """
+    import gemini as gm
+
+    supplied, files, columns, changes = retry
     try:
-        version = await store_case(context, data, contents, origin)
+        return await store_case(context, data, contents, origin)
     except ToolError as error:
         if base or error.code != "case_incomplete" or not HEADER & set(error.suggestions or ()):
             raise
@@ -1330,19 +1387,6 @@ async def set_case(
         raise ToolError(
             every_problem(error, paths), code=error.code, path=error.path, suggestions=retries
         ) from error
-    needs = await runtime.in_gemini_thread(plants_need, context)
-    return {
-        **({"note_on_source": fallback} if fallback else {}),
-        **loaded_changes(source, previous, data),
-        "case": data,
-        "version": version,
-        "version_is": VERSION_MEANING,
-        **({"check": moved} if moved else {}),
-        **({"check_requirements": exact} if exact else {}),
-        **({"check_approved": unstored} if unstored else {}),
-        **({"converted": converted} if converted else {}),
-        **({"plants_need": needs, "note": PLANTS_NEED_NOTE} if needs else {}),
-    }
 
 
 def case_leaves(node, prefix=""):
