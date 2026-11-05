@@ -6,6 +6,7 @@ Imports ``stores`` and everything to its left; reaches the engine only through `
 from geomind.tools import gemini
 from geomind.tools.base import EFFECTS, Tool, tool
 from geomind.tools.builtins import ask_user, finish
+from geomind.tools.calculate import calculate
 from geomind.tools.delegate import Delegate
 from geomind.tools.dispatch import dispatch
 from geomind.tools.files import list_files, read_rag
@@ -20,6 +21,7 @@ __all__ = [
     "Delegate",
     "Tool",
     "ask_user",
+    "calculate",
     "dispatch",
     "finish",
     "gemini",

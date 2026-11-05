@@ -131,11 +131,23 @@ log and the store keep everything; compaction sees the shortened text. An event 
 
 ## Skills
 
-`prompts/skills/*.md` hold instructions a model loads on demand. The first paragraph of a file is its
-one line. An agent that has the `read_skill` tool gets the list of names with one line each in its
-system prompt; the rest costs nothing until it is read. `read_skill(name)` returns one skill, and an
-unknown name is an error result with the close match. The skills are `gemini-units` and
-`reading-results`.
+`geomind/skills/<name>/SKILL.md` hold instructions a model loads on demand (since 0.4.56; they were
+`prompts/skills/*.md`, same names). Each starts with frontmatter between `---` lines: `name` (its
+folder), `description` (its one line in the system prompt), `tools` (what it explains) and `roles`
+(`<team>/<name>` of the agents that see it, comma-separated, or `all`). Files beside `SKILL.md` are
+extras, read as `read_skill("<skill>/<file>")`. An agent with the `read_skill` tool gets the skills
+of its role (`Prompt.role`) listed in its system prompt; `read_skill(name)` refuses a skill its
+role lacks, with the list. A tool error points at its skill with `skill_hint` ("read_skill('x') for
+the rules"). Skills: `calculator`, `designing-a-plant`, `gemini-units`, `reading-results`.
+
+## Calculations
+
+`calculate` (`tools/calculate.py`, effect `compute`) derives a value from references to sourced
+values (`case`, confirmed `assumption`, `catalogue` row, `stored` result part, earlier
+`calculation`); a bare number is refused. gemini gives each unit's SI unit, scale and offset;
+geomind only combines dimensions. The result is a `Calculation` (`id` C1, C2 ..., `label`,
+`operation`, `expression`, `value`, `unit`, `operands` each with `reference`, `value`, `unit`,
+`source`) appended to the problem state's `calculations`, which `update_state` cannot write.
 
 ## Context window
 

@@ -6,6 +6,13 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.56] - 2026-11-05
+
+### Added
+
+- Agent tools feature, step 1: skills are folders, `geomind/skills/<name>/SKILL.md`, with frontmatter (`name`, `description`, `tools`, `roles`); an agent's system prompt lists only its role's skills and `read_skill` refuses others; the three skills moved from `prompts/skills/` under the same names. New skill `calculator`.
+- `calculate` (effect `compute`): derives a value from references to sourced values (case field, confirmed assumption, catalogue row, stored result part, earlier calculation), never a typed number; gemini converts every unit. The result is kept as a `Calculation` (C1, C2 ...) in the problem state's new `calculations` list with each operand's source; `update_state` cannot write it. Given to the design lead, process engineer, analysis lead, economist and reviewer.
+
 ## [0.4.55] - 2026-11-05
 
 ### Fixed

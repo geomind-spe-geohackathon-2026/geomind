@@ -1,4 +1,9 @@
-Units gemini accepts and returns, and how to state them.
+---
+name: gemini-units
+description: Units gemini accepts and returns, and how to state them.
+tools: every tool that takes or returns a quantity
+roles: all
+---
 
 gemini works in SI internally, and geomind speaks display units: a value you read comes with its
 unit (MW, MWh, degC, Pa, m3/h, kg/s, EUR/MWh), and a value you give is a quantity.

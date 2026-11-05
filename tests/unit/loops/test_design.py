@@ -543,7 +543,7 @@ def test_the_designer_prompt_asks_instead_of_inventing_a_range():
     """The prompt and the skill say ranges come from the user or the case, and to ask."""
     for text in (
         Path("geomind/prompts/design/lead.md").read_text(),
-        Path("geomind/prompts/skills/designing-a-plant.md").read_text(),
+        Path("geomind/skills/designing-a-plant/SKILL.md").read_text(),
     ):
         assert "ask_user" in text and ("invent" in text or "Never fill a missing one" in text)
 

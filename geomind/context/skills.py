@@ -1,31 +1,95 @@
-"""Instructions a model loads when it needs them, from ``prompts/skills/*.md``.
+"""Instructions a model loads when it needs them, from ``geomind/skills/<name>/SKILL.md``.
 
-The first paragraph of a skill file is its one line in the system prompt.
+A skill file starts with frontmatter between ``---`` lines: ``name``, ``description`` (its one
+line in the system prompt), ``tools`` (the tools it explains) and ``roles`` (the ``<team>/<name>``
+of the agents that see it, comma-separated, or ``all``). The body after it is the how-to. Files
+beside ``SKILL.md`` are extras the skill names, read as ``<skill>/<file>``.
 """
 
+from functools import cache
+from pathlib import Path
+
 from geomind.errors import UnknownNameError
-from geomind.prompts.prompt import FOLDER
-from geomind.utils.strings import did_you_mean, first_paragraph
+from geomind.utils.strings import did_you_mean, join_names
 
-SKILLS = FOLDER / "skills"
-
-
-def skill_names():
-    """Return the names of the skills, sorted."""
-    return sorted(path.stem for path in SKILLS.glob("*.md"))
+SKILLS = Path(__file__).parent.parent / "skills"
+FIELDS = ("name", "description", "tools", "roles")
+ALL = "all"
 
 
-def load_skill(name):
-    """Return the text of one skill; an unknown name raises with the close match."""
-    path = SKILLS / f"{name}.md"
-    if name not in skill_names():
+def _parsed(path):
+    """Return ``(fields, body)`` of one ``SKILL.md``; a file without its frontmatter raises."""
+    text = path.read_text()
+    head, marker, body = text.removeprefix("---\n").partition("\n---\n")
+    if not text.startswith("---\n") or not marker:
+        raise UnknownNameError(f"skills: file = {path}; expected frontmatter between --- lines")
+    fields = {}
+    for line in head.splitlines():
+        key, _, value = line.partition(":")
+        if key.strip():
+            fields[key.strip()] = value.strip()
+    missing = [name for name in FIELDS if not fields.get(name)]
+    if missing or fields["name"] != path.parent.name:
         raise UnknownNameError(
-            f"read_skill: name = {name!r}; expected a skill{did_you_mean(name, skill_names())}"
+            f"skills: file = {path}; expected {', '.join(FIELDS)} and name = its folder"
         )
-    return path.read_text().strip()
+    roles = tuple(role.strip() for role in fields["roles"].split(",") if role.strip())
+    return {**fields, "roles": roles}, body.strip()
 
 
-def skill_listing():
-    """Return what the system prompt says about skills: names with one line each."""
-    lines = [f"- {name}: {first_paragraph(load_skill(name))}" for name in skill_names()]
-    return "\n".join(["Skills you can read with read_skill:", *lines])
+@cache
+def _skills():
+    """Return ``{name: (fields, body)}`` of every skill folder, sorted by name."""
+    return {path.parent.name: _parsed(path) for path in sorted(SKILLS.glob("*/SKILL.md"))}
+
+
+def skill_names(role=None):
+    """Return the names of the skills ``role`` sees (every skill for ``None``), sorted."""
+    return [
+        name
+        for name, (fields, _) in _skills().items()
+        if role is None or ALL in fields["roles"] or role in fields["roles"]
+    ]
+
+
+def load_skill(name, role=None):
+    """Return the text of one skill, or one extra file as ``<skill>/<file>``.
+
+    An unknown name, or a skill ``role`` does not have, raises with the skills it has.
+    """
+    skill, _, extra = name.partition("/")
+    names = skill_names(role)
+    if skill not in names:
+        known = skill in _skills()
+        reason = "is not a skill of this role" if known else "is no skill"
+        raise UnknownNameError(
+            f"read_skill: name = {name!r} {reason}; expected one of {join_names(names)}"
+            f"{'' if known else did_you_mean(skill, names)}"
+        )
+    if not extra:
+        return _skills()[skill][1]
+    files = sorted(
+        path.name for path in (SKILLS / skill).iterdir() if path.is_file() and path.name != "SKILL.md"
+    )
+    if extra not in files:
+        raise UnknownNameError(
+            f"read_skill: name = {name!r}; expected {skill} or one of its files: "
+            f"{join_names(files) if files else 'none'}"
+        )
+    return (SKILLS / skill / extra).read_text().strip()
+
+
+def skill_description(name):
+    """Return the one line of a skill, from its frontmatter."""
+    return _skills()[name][0]["description"]
+
+
+def skill_listing(role=None):
+    """Return what the system prompt says about the skills ``role`` sees: names with one line."""
+    lines = [f"- {name}: {skill_description(name)}" for name in skill_names(role)]
+    return "\n".join(["Skills you can read with read_skill:", *lines]) if lines else ""
+
+
+def skill_hint(name):
+    """Return the words a tool error ends with to point at a skill."""
+    return f"read_skill('{name}') for the rules"

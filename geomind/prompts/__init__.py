@@ -1,4 +1,4 @@
-"""The ``<area>/<role>.md`` prompt files, ``skills/*.md`` and ``Prompt``.
+"""The ``<area>/<role>.md`` prompt files and ``Prompt``; skills are in ``geomind/skills/``.
 
 Imports ``runtime`` and everything to its left.
 """

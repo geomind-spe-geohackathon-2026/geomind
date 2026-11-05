@@ -73,6 +73,7 @@ class Prompt:
         gemini's schema, so the prompt follows gemini without a copy of it.
         """
         self.appendix = appendix
+        self.role = role
         roles = role_files()
         if role not in roles:
             raise UnknownNameError(
@@ -86,6 +87,7 @@ class Prompt:
         prompt = cls.__new__(cls)
         prompt.content = content.strip()
         prompt.appendix = None
+        prompt.role = None
         return prompt
 
     def render(self, memory=True):

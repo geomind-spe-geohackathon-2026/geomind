@@ -1,4 +1,9 @@
-How to read large results: summaries, references and `read_result`.
+---
+name: reading-results
+description: How to read large results: summaries, references and `read_result`.
+tools: read_result, read_stored, check_results
+roles: all
+---
 
 A large result does not come back whole. You get a summary and a `reference` to the stored data.
 

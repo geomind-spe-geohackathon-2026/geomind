@@ -93,7 +93,8 @@ class Context:
         remembers = getattr(self._session, "memory", True) is not None
         prompt = agent.prompt.render(memory=remembers) if agent.prompt else ""
         parts = [prompt, agent.output.instructions()]
-        parts.append(skill_listing() if "read_skill" in agent.tools() else "")
+        role = getattr(agent.prompt, "role", None)
+        parts.append(skill_listing(role) if "read_skill" in agent.tools() else "")
         parts.append(STORED_RESULTS if "read_stored" in agent.tools() else "")
         parts.append(MEMORY if remembers and "search_memory" in agent.tools() else "")
         knows = getattr(self._session, "knows", lambda: True)()

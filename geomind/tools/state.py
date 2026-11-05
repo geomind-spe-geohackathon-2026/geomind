@@ -11,6 +11,8 @@ from geomind.tools.base import tool
 from geomind.types.patch import OPERATIONS
 
 CASE_KEYS = ("case", "case_origin")
+TOOL_KEYS = {"calculations": "calculate"}
+"""State keys only one tool writes, by the tool that writes each."""
 ROOTS = ("goal", "requirements", "assumptions", "design", "results", "verification", "questions")
 ITEM_MODELS = {
     "requirements": Requirement,
@@ -228,6 +230,13 @@ def check_no_case(changes):
             raise ToolError(
                 f"update_state: changes[{position}].path = {path!r}; the case is written only by "
                 "set_case, which gemini validates",
+                code="not_allowed",
+                path=f"changes[{position}].path",
+            )
+        if key in TOOL_KEYS:
+            raise ToolError(
+                f"update_state: changes[{position}].path = {path!r}; {key} are written only by "
+                f"{TOOL_KEYS[key]}, which keeps the source of every operand",
                 code="not_allowed",
                 path=f"changes[{position}].path",
             )

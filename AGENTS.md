@@ -76,7 +76,8 @@ geomind/
 ├── types/            # messages, decisions, results, events, redaction, runlog
 ├── stores/           # RunStore, Workspace and their memory and file implementations
 ├── runtime.py        # context-local settings
-├── prompts/          # <team>/<name>.md role files, skills/*.md and Prompt
+├── prompts/          # <team>/<name>.md role files and Prompt
+├── skills/           # <name>/SKILL.md: skills with frontmatter, read with read_skill
 ├── context/          # problem state, compaction, skills: the deterministic part
 ├── providers/        # LLM protocol, retry layer, OpenRouter, FakeLLM
 ├── mcp/              # a small MCP client: list_tools, McpClient, McpError

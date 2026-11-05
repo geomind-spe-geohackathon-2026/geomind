@@ -56,6 +56,23 @@ class Question(Record):
     text: str
 
 
+class Calculation(Record):
+    """A derived value ``calculate`` stored: its result, the expression and every operand's source.
+
+    ``operands`` holds, per operand, the reference given, its value and unit, and its ``source``
+    (the case path, the catalogue row with its citation, the approved assumption, the stored result
+    or the earlier calculation), so the report can cite the chain.
+    """
+
+    id: str
+    label: str
+    operation: str
+    expression: str
+    value: Any
+    unit: str
+    operands: tuple[dict[str, Any], ...] = ()
+
+
 class Compaction(Record):
     """The summary of the first ``turns`` turns of a chat's history."""
 
@@ -166,6 +183,7 @@ class ProblemState(Record):
     results: tuple[Result, ...] = ()
     verification: dict[str, Any] = {}
     questions: tuple[Question, ...] = ()
+    calculations: tuple[Calculation, ...] = ()
     case: dict[str, Any] | None = None
     case_origin: dict[str, Any] | None = None
     preferences: dict[str, Any] = {}
@@ -361,6 +379,11 @@ def render(state):
     if state.verification:
         lines.append(f"Verification: {json.dumps(state.verification)}")
     lines += [f"Question {item.id}: {item.text}" for item in state.questions]
+    lines += [
+        f"Calculation {item.id}: {item.label} = {json.dumps(item.value)} {item.unit} "
+        f"({item.expression})"
+        for item in state.calculations
+    ]
     if state.case is not None:
         lines.append(_case_line(state.case))
     return "\n".join(lines)

@@ -1,4 +1,9 @@
-How to design a geothermal heating and cooling plant in gemini for any case: reading the case, choosing families, sizing, optimising, and what gemini can run.
+---
+name: designing-a-plant
+description: How to design a geothermal heating and cooling plant in gemini for any case: reading the case, choosing families, sizing, optimising, and what gemini can run.
+tools: read_case, list_modules, describe_module, build_plant, patch_plant, read_plant
+roles: all
+---
 
 Reading the case:
 
