@@ -116,6 +116,15 @@ Where each value comes from:
 - A key that takes a constant or a series (the outside air's temperature and humidity) may take
   a cited constant; say in the confirmation question that it is constant. A series from a
   server goes in as a saved case file (`connectors`).
+- An assumptions document in the knowledge base (or a project file) that covers the case (it
+  names this case's brief or site, or gives the case's values key by key) comes before the cost
+  catalogue: `search_rag` for it first. Each economics value it gives goes in `ask_economics`
+  `values` as `{key, value, unit, source}`, `source` the document (`knowledge/<name>`, with its
+  section or page) and no `row`, so the economics match it in one question; the catalogue fills
+  only the keys it does not give. A value in another currency or price year than EUR 2015 is
+  named so in `note`. Every economics key neither the files nor the knowledge base give (no
+  document, no usable row) goes in `open`: never a value of yours. Any other knowledge document
+  that states a value with its source may be cited the same way.
 - Economics come from the knowledge base's cost catalogue, `knowledge/cost-sources.csv`. Never
   read it whole or by pages: it is too long, and `read_rag` gives only its outline then. Read
   once only the rows of the keys the case lacks, `rows={"path": [each missing key, such as
@@ -169,9 +178,11 @@ Where each value comes from:
 - Three economics parts gemini 0.6.2 added, each with a rule of its own:
   - `opex.per_energy.<kind>`: a variable O&M per MWh each kind produces (`chp` its electricity;
     `boiler`, `electric_boiler`, `heat_pump` their heat; the chillers their cold). Once the map
-    is given, gemini needs a price for every producing kind the plant uses. The catalogue has
-    rows for `boiler`, `electric_boiler`, `heat_pump` and `chp`: put all four in `values`. It
-    has none for the chillers: a case with cooling names `compression_chiller`,
+    is given, gemini needs a price for every producing kind the plant uses. When an assumptions
+    document covers the case and gives no per-energy price, every `opex.per_energy.*` key goes
+    in `open` (no map: a partial one cannot price the plant's chillers). Otherwise: the
+    catalogue has rows for `boiler`, `electric_boiler`, `heat_pump` and `chp`: put all four in
+    `values`. It has none for the chillers: a case with cooling names `compression_chiller`,
     `absorption_chiller` and `adsorption_chiller` in `open`, and `note` says the plant's chillers
     need the user's price, or the per-energy map cannot price a plant that uses one.
   - `revenue.subsidy`: `amount` (per year, or per MWh as SDE++ pays) and `duration` (it earns
@@ -257,7 +268,8 @@ of):
   for: never ask the user to supply it and never stop the case for it. Propose it in the ONE
   question as a line `<path> = <value> <unit> | design choice, the brief leaves it to the team |
   <reason>` (a heating return colder than its supply, a cooling return warmer than its supply,
-  a reason from the source and the limits); on approve, record it with `source: "agent"`,
+  a reason from the source and the limits; a value an assumptions document of the case gives is
+  the one proposed, citing it); on approve, record it with `source: "agent"`,
   `confirmed: true`, `reason: "design choice, approved by the user: <reason>"` and `citation:
   {"origin": "design choice"}`. The design team may move it later with a reason.
 - The outside air (`site.air.temperature`, `relative_humidity`, `pressure`): search the files and

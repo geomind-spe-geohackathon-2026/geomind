@@ -600,8 +600,9 @@ def ask_economics(
     and, for a key whose rows differ, ``others``, the ids of the rows you did not recommend
     (``["drilling-nl-2013-2300m"]``). Send only ids: this tool reads each row's value, unit,
     source, year, url and status from the knowledge base itself, so never copy them (copying
-    every row ran past the output limit). ``value`` with ``source`` is only for a key no row
-    gives, from an MCP result or the user. ``discount_rate`` is a key too, in ``values`` or in
+    every row ran past the output limit). ``value`` with ``source`` (and ``unit``, no ``row``) is
+    for a value a knowledge document or a project file states (an assumptions document of the
+    case: ``source`` ``knowledge/<name>`` with its section), an MCP result or the user. ``discount_rate`` is a key too, in ``values`` or in
     ``open``. A value from a catalogue row is its ``value_2015`` in
     ``unit_2015``, EUR at 2015 prices, so this tool sets ``currency`` EUR and ``price_year`` 2015
     itself: leave both out (without any row, name each in ``values`` or ``open``). A row's unit
