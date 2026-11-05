@@ -58,6 +58,9 @@ never fill a gap with a typical value.
   (`read_knowledge("knowledge/handbook-case.md", section=...)`, the §0.4 table): group I §2.1,
   §2.2, §3; group II §2.3, §4.1 to §4.3, §9; group III §2.3, §2.4, §4.4, §4.5, §5; group IV
   (requirements) §6.7 and §6.11, then the rest of §6 and §7 as needed.
+- Search only for the fields of your group; an economics query is never yours. When the Knowledge
+  base has no source for the site's region after a few searches of a field, stop and put the
+  field in `missing` with why; never search the same field again with other words.
 - Write the requirements from the brief and the assumptions document only: each tolerance row as
   given, and no conditional limit ('only if the design checks it').
 - Requirements (group IV), each rule of the brief as one requirement `{name, on, quantity,
