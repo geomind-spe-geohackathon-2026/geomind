@@ -61,9 +61,10 @@ class StubSession:
         """Keep an internal error."""
         self.errors.append((error, where))
 
-    async def delegate(self, agent, task, max_steps=None):
+    async def delegate(self, agent, task, max_steps=None, beside=False, instance=None):
         """Return the scripted nested result."""
         self.delegated = (agent, task)
+        self.instances = [*getattr(self, "instances", []), instance]
         return self.result
 
     async def before_llm_call(self, agent, messages):

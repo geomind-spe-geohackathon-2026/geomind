@@ -27,6 +27,7 @@ def _run_started(state, event):
     state.project = event.project
     state.agent_class = event.agent_class
     state.agent = event.agent
+    state.instance = event.instance
     state.loop = event.loop
     state.loop_state = dict(event.loop_state)
     state.max_steps = event.max_steps

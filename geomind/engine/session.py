@@ -178,7 +178,8 @@ class RunSession:
     @property
     def fields(self):
         """Return what every event of this run carries."""
-        return dict(run_id=self.state.run_id, agent=self.state.agent, parent=self.state.parent)
+        found = dict(run_id=self.state.run_id, agent=self.state.agent, parent=self.state.parent)
+        return found | ({"instance": self.state.instance} if self.state.instance else {})
 
     async def emit(self, kind, **fields):
         """Save one event, apply it, then tell the callbacks.
@@ -648,13 +649,13 @@ class RunSession:
         """Tell whether this run is a member of a side-by-side team, which cannot pause (QA-016)."""
         return self.__dict__.get("beside", False)
 
-    async def delegate(self, agent, task, max_steps=None, beside=False):
+    async def delegate(self, agent, task, max_steps=None, beside=False, instance=None):
         """Run a nested agent and keep what the parent needs of its result.
 
         ``beside``: a member of a side-by-side team (``Team``) cannot pause for the user, as its
         team mates run on; its approvals are allowed, logged with the rule ``beside:...``.
         """
-        result = await run_child(self, agent, task, max_steps, beside)
+        result = await run_child(self, agent, task, max_steps, beside, instance)
         self.add_child_usage(result.usage)
         if result.request is not None:
             self.waiting_child = result.run_id

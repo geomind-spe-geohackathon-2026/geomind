@@ -138,7 +138,7 @@ async def test_limited_delegates_run_at_most_the_setting_at_once():
     running, most = [0], [0]
 
     class Session(StubSession):
-        async def delegate(self, agent, task, max_steps=None):
+        async def delegate(self, agent, task, max_steps=None, beside=False, instance=None):
             running[0] += 1
             most[0] = max(most[0], running[0])
             await asyncio.sleep(0.01)
@@ -199,3 +199,42 @@ async def test_a_once_delegate_runs_one_time_per_run():
     other = StubSession()
     other.result = session.result
     assert (await dispatch(delegate, call(), Context(session=other))).output == "findings"
+
+
+async def test_a_team_runs_several_instances_of_one_member_by_name():
+    """A list of briefs runs one instance each, named <Role> <Roman>, answers by that name."""
+    import asyncio
+
+    from geomind.tools.delegate import Team
+
+    class Session(StubSession):
+        async def delegate(self, agent, task, max_steps=None, beside=False, instance=None):
+            await asyncio.sleep(0)
+            return RunResult(run_id=instance, status="done", answer=f"{instance}: {task}")
+
+    team = Team("team", "a team", {"geoscientist": Delegate(Helper()), "helper": Delegate(Helper())})
+    briefs = [
+        {"role": "geoscientist", "task": "subsurface"},
+        {"role": "geoscientist", "task": "brine"},
+        {"role": "helper", "task": "demand"},
+    ]
+    result = await dispatch(
+        team, ToolCall(id="t1", name="team", input={"briefs": briefs}), Context(session=Session())
+    )
+    assert result.output == {
+        "Geoscientist I": "Geoscientist I: subsurface",
+        "Geoscientist II": "Geoscientist II: brine",
+        "Helper I": "Helper I: demand",
+    }
+
+
+async def test_a_team_refuses_an_instance_of_an_unknown_member():
+    from geomind.tools.delegate import Team
+
+    team = Team("team", "a team", {"helper": Delegate(Helper())})
+    result = await dispatch(
+        team,
+        ToolCall(id="t1", name="team", input={"briefs": [{"role": "nobody", "task": "x"}]}),
+        Context(session=StubSession()),
+    )
+    assert result.is_error and "nobody" in result.output["error"]["message"]

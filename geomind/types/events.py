@@ -16,7 +16,7 @@ from geomind.types.messages import Completion, Message, Record, ToolCall, Usage
 from geomind.types.patch import operation_problem
 from geomind.types.results import AgentUsage, CallContext, SessionUsage, TotalUsage
 
-BASE_FIELDS = ("run_id", "sequence", "time", "agent", "parent")
+BASE_FIELDS = ("run_id", "sequence", "time", "agent", "parent", "instance")
 LLM_EVENTS = ("llm.completed", "compaction")
 
 
@@ -30,7 +30,12 @@ def public_usage(usage):
 
 
 class Event(Record):
-    """One entry of a run's log; ``parent`` is the parent run id of a nested run."""
+    """One entry of a run's log; ``parent`` is the parent run id of a nested run.
+
+    ``instance`` is the display name of a nested run that is one of several instances a lead
+    runs at once (``Team`` with a list of briefs), such as ``Geoscientist II``; ``None`` for any
+    other run. ``run_id`` stays the key of the run (IMP-025).
+    """
 
     type: ClassVar[str]
     is_public: ClassVar[bool] = False
@@ -41,13 +46,15 @@ class Event(Record):
     time: str = ""
     agent: str = ""
     parent: str | None = None
+    instance: str | None = None
 
     def data(self):
         """Return the JSON of this event; an optional field that is ``None`` is left out."""
         dumped = self.model_dump(mode="json")
         names = self.public_fields if self.is_public else set(dumped) - set(BASE_FIELDS)
         values = {name: dumped[name] for name in names if dumped[name] is not None}
-        return {**values, "agent": self.agent, "parent": self.parent}
+        shown = {"instance": self.instance} if self.instance is not None else {}
+        return {**values, "agent": self.agent, "parent": self.parent, **shown}
 
     def to_dict(self):
         """Return every field with the type, for ``event_from_dict``."""

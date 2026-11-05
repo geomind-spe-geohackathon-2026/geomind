@@ -77,6 +77,7 @@ class RunState:
     project: str | None = None
     agent_class: str = ""
     agent: str = ""
+    instance: str | None = None
     loop: str | None = None
     loop_state: dict[str, Any] = field(default_factory=dict)
     max_steps: int = 0

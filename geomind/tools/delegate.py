@@ -118,31 +118,38 @@ class Delegate(Tool):
         """Return that a nested run is never pure."""
         return False
 
-    async def _delegate(self, context, task, beside=False):
+    async def _delegate(self, context, task, beside=False, instance=None):
         """Run the nested agent through the run of ``context``, within its limit if it has one.
 
         ``beside`` runs it as a member of a ``Team``, which never pauses for an approval; a
         ``runs_beside`` delegate always runs so, as its calls of one step run together and one
-        pause among them never reached the chat (QA-016, run 0cb4b436).
+        pause among them never reached the chat (QA-016, run 0cb4b436). ``instance`` names the
+        nested run when a team runs several instances at once (``Geoscientist II``); ``once``
+        then holds per instance.
         """
         if self.once:
             asked = context.session.__dict__.setdefault("asked_once", set())
-            if self.name in asked:
+            key = instance or self.name
+            if key in asked:
                 raise ToolError(
                     f"{self.name}: already asked in this run; its findings are above in the "
                     "conversation, kept whole for the run: work from them, and ask the user for "
                     "what they lack",
                     code="already_asked",
                 )
-            asked.add(self.name)
+            asked.add(key)
         max_steps = required_setting(self.steps, self.name) if self.steps else None
         beside = beside or self.runs_beside
         for attempt in range(NESTED_RETRIES + 1):
             if self.limit is None:
-                result = await context.session.delegate(self.agent, task, max_steps, beside)
+                result = await context.session.delegate(
+                    self.agent, task, max_steps, beside, instance
+                )
             else:
                 async with bound(context.session, self.limit, self.name):
-                    result = await context.session.delegate(self.agent, task, max_steps, beside)
+                    result = await context.session.delegate(
+                        self.agent, task, max_steps, beside, instance
+                    )
             if attempt == NESTED_RETRIES or not provider_failed(result):
                 break
             task = f"{task}\n\n{RETRY_NOTE}"
@@ -208,10 +215,41 @@ class Delegate(Tool):
         return answer[: tokens * CHARACTERS_PER_TOKEN]
 
 
-class TeamInput(Record):
-    """What the model passes: one brief per member, by the member's tool name."""
+class Brief(Record):
+    """One task for one instance of a member: the member's tool name and the task text."""
 
-    briefs: dict[str, str]
+    role: str
+    task: str
+
+
+class TeamInput(Record):
+    """What the model passes: one brief per member by tool name, or a list of instance briefs."""
+
+    briefs: dict[str, str] | list[Brief]
+
+
+ROMAN = ("I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X")
+"""The numerals of a member's instances, in brief order."""
+MAX_INSTANCES = len(ROMAN)
+
+
+def role_title(name):
+    """Return the display name of a member's tool name: ``reservoir_engineer`` -> ``Reservoir engineer``."""
+    return name.replace("_", " ").capitalize()
+
+
+def instance_names(briefs):
+    """Return the display name of each brief of a list: ``<Role> <Roman numeral>`` (IMP-025).
+
+    The numbers count per role in brief order, so three geoscientist briefs are Geoscientist I,
+    II and III, and a member with one brief is ``<Role> I``.
+    """
+    seen = {}
+    names = []
+    for brief in briefs:
+        seen[brief.role] = seen.get(brief.role, 0) + 1
+        names.append(f"{role_title(brief.role)} {ROMAN[seen[brief.role] - 1]}")
+    return names
 
 
 class Team(Tool):
@@ -222,6 +260,12 @@ class Team(Tool):
     a member that fails gives its error beside the others' answers instead of stopping them.
     A member cannot pause while its team mates run, so its approvals are allowed (QA-016: its
     request came back as output, never reached the chat and its work was lost).
+
+    ``briefs`` is either ``{member: task}``, one run per member, or a list of ``{role, task}``,
+    one run per entry, so several instances of one member run at once (IMP-025): each is named
+    ``<Role> <Roman numeral>`` (``Geoscientist II``), its events carry that ``instance``, and the
+    answers come back by that name. Each instance should own distinct work (the lead's brief
+    says which fields), so their results never clash; the lead merges them.
     """
 
     def __init__(self, name, description, members):
@@ -244,7 +288,9 @@ class Team(Tool):
         return False
 
     async def _run(self, context, briefs):
-        """Run each member on its brief at the same time; return each answer or error by name."""
+        """Run each brief at the same time; return each answer or error by member or instance."""
+        if isinstance(briefs, list):
+            return await self._instances(context, briefs)
         unknown = sorted(set(briefs) - set(self.members))
         if unknown or not briefs:
             raise ToolError(
@@ -257,9 +303,35 @@ class Team(Tool):
         )
         return dict(zip(briefs, answers))
 
-    async def _member(self, context, name, task):
+    async def _instances(self, context, briefs):
+        """Run one instance per brief of a list at the same time; answers by instance name."""
+        briefs = [item if isinstance(item, Brief) else Brief.model_validate(item) for item in briefs]
+        unknown = sorted({item.role for item in briefs} - set(self.members))
+        if unknown or not briefs:
+            raise ToolError(
+                f"{self.name}: roles = {unknown or []}; expected a list of {{role, task}} with "
+                f"role one of {', '.join(self.members)}",
+                path="briefs",
+            )
+        if len(briefs) > MAX_INSTANCES:
+            raise ToolError(
+                f"{self.name}: {len(briefs)} briefs; expected at most {MAX_INSTANCES}",
+                path="briefs",
+            )
+        names = instance_names(briefs)
+        answers = await asyncio.gather(
+            *(
+                self._member(context, item.role, item.task, name)
+                for item, name in zip(briefs, names, strict=True)
+            )
+        )
+        return dict(zip(names, answers, strict=True))
+
+    async def _member(self, context, name, task, instance=None):
         """Return one member's answer, or its error as ``{error: {code, message}}``."""
         try:
-            return await self.members[name]._delegate(context, task, beside=True)
+            return await self.members[name]._delegate(
+                context, task, beside=True, instance=instance
+            )
         except ToolError as error:
             return {"error": {"code": error.code, "message": str(error)}}
