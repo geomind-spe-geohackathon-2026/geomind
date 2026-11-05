@@ -4,6 +4,7 @@ import asyncio
 import inspect
 import json
 import re
+from pathlib import Path
 from time import perf_counter
 
 import pydantic
@@ -249,6 +250,32 @@ def refused_input(tool, tool_input):
     return unknown_arguments_error(tool, unknown) if unknown else None
 
 
+INTERNAL_CHARACTERS = 300
+"""The characters of an unexpected exception's message the model reads."""
+
+
+def internal_message(name, error):
+    """Return what the model reads of an unexpected exception: its class, message and place.
+
+    A bare "internal error" left the agents looping for half an hour (QA-083): the class, the
+    message and the innermost file and line let them change the input or report it.
+    """
+    import traceback
+
+    frames = traceback.extract_tb(error.__traceback__)
+    where = ""
+    if frames:
+        last = frames[-1]
+        where = f" at {Path(last.filename).parent.name}/{Path(last.filename).name}:{last.lineno}"
+    text = str(error) or repr(error)
+    text = text if len(text) <= INTERNAL_CHARACTERS else f"{text[:INTERNAL_CHARACTERS]} ..."
+    return (
+        f"{name}: internal error {type(error).__name__}: {text}{where}; a bug of the tool or "
+        "gemini, reported: change the input (the message may name the part), or go on another way; "
+        "never repeat the same call"
+    )
+
+
 async def dispatch(tool, call, context):
     """Validate, run and time one call.
 
@@ -274,7 +301,7 @@ async def dispatch(tool, call, context):
         if is_reported_error(error):
             return _result(tool, call, started, error_output(error), is_error=True)
         await context.session.report_error(error, where=f"tool {tool.name}")
-        hidden = ToolError(f"{tool.name}: internal error", code="internal")
+        hidden = ToolError(internal_message(tool.name, error), code="internal")
         return _result(tool, call, started, error_output(hidden), is_error=True)
     if isinstance(output, (Request, Finish)):
         return output
