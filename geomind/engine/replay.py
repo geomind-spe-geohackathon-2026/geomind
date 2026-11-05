@@ -477,7 +477,7 @@ async def _replay_run(engine_class, store, run_id, *, replayed=None, workspace=N
     recording = _Recording(scripts)
     engine = engine_class(
         hooks=[recording],
-        permissions=Permissions(mode="auto"),
+        permissions=Permissions(mode="auto", answers_questions=False),
         llm=scripts[run_id].llm,
         workspace=workspace,
         store=_ReplayStore(store, run_id, started.chat or started.root, _remade(tree, scripts)),

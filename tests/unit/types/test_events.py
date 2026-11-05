@@ -211,9 +211,10 @@ def test_every_event_survives_the_store(event):
 
 
 def test_public_types_are_the_ten_of_the_contract_and_the_study_event():
-    """No public type is added or lost: the ten of the contract and ``study.recorded``."""
+    """No public type is added or lost: the ten of the contract, ``study.recorded`` and the
+    auto-answered question of QA-339 (``question.auto_answered``, additive)."""
     public = {name for name, event in EVENT_CLASSES.items() if event.is_public}
-    assert public == CONTRACT_TYPES | {"study.recorded"}
+    assert public == CONTRACT_TYPES | {"study.recorded", "question.auto_answered"}
 
 
 SHARED_CONTRACT = ROOT / "tests" / "fixtures" / "contracts" / "shared.md"

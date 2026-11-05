@@ -344,6 +344,33 @@
     }
   },
   "events": {
+    "question.auto_answered": {
+      "additionalProperties": false,
+      "properties": {
+        "agent": {
+          "default": "",
+          "title": "Agent",
+          "type": "string"
+        },
+        "parent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent"
+        }
+      },
+      "required": [
+        "agent",
+        "parent"
+      ],
+      "type": "object"
+    },
     "request": {
       "additionalProperties": false,
       "properties": {
@@ -398,6 +425,18 @@
               "type": "null"
             }
           ]
+        },
+        "proposed": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Proposed"
         },
         "request": {
           "default": "",

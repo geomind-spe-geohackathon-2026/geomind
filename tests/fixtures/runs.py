@@ -124,7 +124,7 @@ def context(text="go", **options):
 
 def engine_for(completions, **options):
     """Return an engine with a scripted provider and, by default, no permission questions."""
-    options.setdefault("permissions", Permissions(mode="auto"))
+    options.setdefault("permissions", Permissions(mode="auto", answers_questions=False))
     return Engine(llm=FakeLLM(completions), **options)
 
 

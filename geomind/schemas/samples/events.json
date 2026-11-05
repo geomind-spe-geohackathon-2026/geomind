@@ -183,5 +183,19 @@
     "sequence": 1,
     "time": "2026-10-31T12:00:00+00:00",
     "type": "usage"
+  },
+  "question.auto_answered": {
+    "agent": "analyst",
+    "parent": null,
+    "run_id": "run-1",
+    "sequence": 1,
+    "time": "2026-10-31T12:00:00+00:00",
+    "type": "question.auto_answered",
+    "index": 2,
+    "request_id": "request-1",
+    "call_id": "c2",
+    "tool": "ask_user",
+    "point": "tool",
+    "answer": "2000 m"
   }
 }

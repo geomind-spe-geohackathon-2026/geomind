@@ -21,6 +21,7 @@ path below exists.
 | Answers to options | `geomind/types/decisions.py` | `tests/unit/types/test_decisions.py` |
 | `run.finished`'s `suggestions?` `[{label, message}]`, `gd.suggest(problem, files, project=None)` the optional `Workspace.project_state(project_id)` (contract v4, 0.4.22.dev48) and `RunResult.suggestions?`, the same list (contract v5) | `geomind/tools/suggestions.py`, `geomind/engine/engine.py` | `tests/unit/tools/test_suggestions.py` |
 | `study.recorded` as `{run, index, call_id, study, tool, method, designs, best?}` (beyond the shared contract) | `geomind/types/events.py` | `tests/unit/types/test_events.py` |
+| `question.auto_answered` as `{run, index, request_id, call_id, tool, point, answer}`: Auto-approve (`Permissions(mode="auto")`, `answers_questions` true by default) answered a question with `Request.proposed` or its first option, the decision after it has the rule `auto`, the problem state gains an assumption `AUTO-<n>` with source `auto-approve`, and the root answer ends with the list (QA-339) | `geomind/engine/engine.py`, `geomind/types/events.py` | `tests/unit/engine/test_engine.py` |
 | `state.changed` as `{version, changes}` | `geomind/types/events.py` | `tests/unit/types/test_events.py` |
 | The JSON Patch subset | `geomind/types/patch.py` | `tests/unit/types/test_patch.py` |
 | Patches applied, addressed by id, `version` + 1 | `geomind/context/state.py` | `tests/unit/context/test_state.py` |

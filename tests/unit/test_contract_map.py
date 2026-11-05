@@ -30,6 +30,7 @@ PUBLIC_EVENTS = (
     "state.changed",
     "study.recorded",
     "request",
+    "question.auto_answered",
     "usage",
     "run.finished",
 )

@@ -185,7 +185,7 @@
       "title": "Message",
       "type": "object"
     },
-    "Permissions": "(self, mode='ask', allow=(), ask=(), deny=())",
+    "Permissions": "(self, mode='ask', allow=(), ask=(), deny=(), answers_questions=True)",
     "Run": {
       "__init__": "(self, message=None, *, chat=None, project=None, history=(), llm=None, store=None, workspace=None, permissions=None, callbacks=(), hooks=(), agent=None, sandbox=None)",
       "aresume": "(self, request_id=None, answer=None)",
@@ -258,7 +258,7 @@
         },
         "Request": {
           "additionalProperties": false,
-          "description": "A pause for the user; the engine fills in ``id`` when it pauses the run.\n\n``options`` are the fixed choices of a question. Plain strings become options with the same\nvalue and label, which is also how a run stored by S1 holds them.",
+          "description": "A pause for the user; the engine fills in ``id`` when it pauses the run.\n\n``options`` are the fixed choices of a question. Plain strings become options with the same\nvalue and label, which is also how a run stored by S1 holds them. ``proposed`` is the answer\nthe asking tool proposes; with Auto-approve on the engine answers with it (QA-339), else with\nthe first option.",
           "properties": {
             "call_id": {
               "anyOf": [
@@ -303,6 +303,18 @@
               ],
               "default": null,
               "title": "Options"
+            },
+            "proposed": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Proposed"
             }
           },
           "required": [
@@ -781,6 +793,18 @@
         ],
         "is_public": false
       },
+      "question.auto_answered": {
+        "class": "QuestionAutoAnswered",
+        "data": [
+          "answer",
+          "call_id",
+          "index",
+          "point",
+          "request_id",
+          "tool"
+        ],
+        "is_public": true
+      },
       "request": {
         "class": "RequestMade",
         "data": [
@@ -790,6 +814,7 @@
           "message",
           "options",
           "parent",
+          "proposed",
           "request"
         ],
         "is_public": true

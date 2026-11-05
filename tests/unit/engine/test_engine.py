@@ -90,3 +90,64 @@ def test_a_crash_is_its_class_message_and_place():
         text = crash_text(error)
     assert text.startswith("AttributeError: 'str' object has no attribute 'get' at ")
     assert "test_engine.py:" in text
+
+
+async def test_auto_approve_answers_a_question_with_its_proposal_and_lists_it():
+    """QA-339: with Auto-approve on nobody is asked; the proposal is taken, kept and listed."""
+    from geomind.engine import Permissions
+    from geomind.engine.engine import AUTO_HEADING
+    from geomind.engine.recovery import recover
+    from tests.fixtures.runs import Worker, call, context, engine_for, of_type, says, uses
+
+    question = call(
+        "ask_user", "q", question="Approve the case values?", options=["approve all", "stop"]
+    )
+    script = [uses(question), says("done")]
+    engine = engine_for(script, permissions=Permissions(mode="auto"))
+    start = context()
+    result = await engine.run(Worker(), start, max_steps=5)
+    assert result.status == "done" and result.request is None
+    assert result.answer.startswith("done") and AUTO_HEADING in result.answer
+    events = engine.store.load_events(start.run_id)
+    [auto] = of_type(events, "question.auto_answered")
+    assert (auto.tool, auto.answer) == ("ask_user", "approve all")
+    assert [e.rule for e in of_type(events, "permission") if e.call_id == "q"][-1] == "auto"
+    assumptions = recover(events, start.run_id).problem.assumptions
+    [kept] = [item for item in assumptions if item.source == "auto-approve"]
+    assert kept.id == "AUTO-1" and kept.value == "approve all"
+    assert "ask_user: Approve the case values? -> approve all" in result.answer
+
+
+async def test_without_auto_approve_the_question_waits_for_the_user():
+    """Ask mode: the same question pauses the run, as before."""
+    from geomind.engine import Permissions
+    from tests.fixtures.runs import Worker, call, context, engine_for, says, uses
+
+    question = call("ask_user", "q", question="Which?", options=["a", "b"])
+    engine = engine_for([uses(question), says("done")], permissions=Permissions(mode="ask"))
+    result = await engine.run(Worker(), context(), max_steps=5)
+    assert result.status == "waiting" and result.request.kind == "question"
+
+
+def test_the_proposal_is_the_tool_s_then_the_first_option_then_go_on():
+    """``proposed`` wins, else the first option, else the note to go on with one's own proposal."""
+    from geomind.engine.engine import AUTO_TEXT, proposed_answer
+    from geomind.types import Request
+
+    asked = Request(kind="question", message="m", options=["approve all", "stop"])
+    assert proposed_answer(asked) == "approve all"
+    assert proposed_answer(asked.model_copy(update={"proposed": "stop"})) == "stop"
+    assert proposed_answer(Request(kind="question", message="free")) == AUTO_TEXT
+
+
+async def test_a_run_auto_approve_answered_replays():
+    """The auto answer, its assumption and the listed block come back the same in a replay."""
+    from geomind.engine import Engine, Permissions
+    from tests.fixtures.runs import Worker, call, context, engine_for, says, uses
+
+    question = call("ask_user", "q", question="Approve?", options=["approve all", "stop"])
+    engine = engine_for([uses(question), says("done")], permissions=Permissions(mode="auto"))
+    start = context()
+    result = await engine.run(Worker(), start, max_steps=5)
+    replayed = await Engine.replay(engine.store, result.run_id)
+    assert (replayed.status, replayed.answer) == (result.status, result.answer)

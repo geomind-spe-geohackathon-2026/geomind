@@ -356,6 +356,24 @@ class ToolRecorded(Event):
     usage: Usage | None = None
 
 
+class QuestionAutoAnswered(Event):
+    """Auto-approve answered a question with the agents' proposal, so nobody was asked (QA-339).
+
+    ``request_id`` and ``call_id`` name the question, ``tool`` and ``point`` where it was asked,
+    and ``answer`` the text given; the usual decision follows with the rule ``auto``.
+    """
+
+    type: ClassVar[str] = "question.auto_answered"
+    is_public: ClassVar[bool] = True
+
+    index: int
+    request_id: str | None = None
+    call_id: str | None = None
+    tool: str | None = None
+    point: str = "tool"
+    answer: str
+
+
 class PermissionDecided(Event):
     """One decision: ``allow``, ``deny``, ``ask``, ``answer`` or ``wait``, and what made it.
 
@@ -418,6 +436,7 @@ EVENT_CLASSES = {
         Compacted,
         ToolRecorded,
         PermissionDecided,
+        QuestionAutoAnswered,
         Retried,
         ErrorRaised,
     )

@@ -6,6 +6,7 @@ later would touch every layer. ``Run`` is the sync facade.
 """
 
 import asyncio
+from dataclasses import replace
 
 from geomind import runtime
 from geomind.engine.delegation import answer_child, end_left_orphans, end_orphans
@@ -37,8 +38,32 @@ from geomind.stores.usage import usage_report
 from geomind.tools.suggestions import next_steps
 from geomind.types import Request, RunResult, Usage, status_of, validate_answer
 from geomind.types.decisions import typed_answer
-from geomind.types.events import PermissionDecided, RunFinished, ToolRecorded
+from geomind.types.events import (
+    PermissionDecided,
+    QuestionAutoAnswered,
+    RunFinished,
+    ToolRecorded,
+)
 from geomind.utils.hooks import RemovableHandle
+
+AUTO_ANSWERS = 30
+"""The most questions Auto-approve answers in one call of ``run`` or ``resume``; then it asks."""
+AUTO_TEXT = (
+    "Auto-approve is on: the user answers nothing. Go on with your own proposal and record it as "
+    "an assumption with source auto-approve."
+)
+"""The answer of a free-text question with Auto-approve on (QA-339)."""
+AUTO_HEADING = "Answered automatically (Auto-approve on); change any of them in the chat:"
+"""The first line of the block a root answer ends with after Auto-approve answered questions."""
+
+
+def proposed_answer(request):
+    """Return the answer Auto-approve gives a question: the proposal, the first option, or text."""
+    if request.proposed:
+        return request.proposed
+    if request.options:
+        return request.options[0].value
+    return AUTO_TEXT
 
 
 def failure_stop(error, reason):
@@ -183,6 +208,7 @@ class Engine:
         self.reuses_tools = False
         self._sequences = {}
         self._usages = {}
+        self._auto_answer = None
 
     def register_hook(self, hook):
         """Add a hook; the returned handle has ``.remove()``."""
@@ -218,7 +244,47 @@ class Engine:
         """Run ``agent`` from ``context`` until it stops."""
         session = self._root_session(context, agent, loop)
         await session.start(context, max_steps=max_steps or runtime.get("max_steps"))
-        return await self.drive(session)
+        return await self._answer_alone(await self.drive(session), agent, loop)
+
+    @property
+    def auto_answer(self):
+        """The text Auto-approve is answering the pending question with now, else ``None``.
+
+        A tool's ``on_answer`` reads it to record the answer as auto-approved, not as the
+        user's (QA-339).
+        """
+        return self._auto_answer
+
+    async def _answer_alone(self, result, agent, loop):
+        """Answer each question of a run in ``auto`` mode with its proposal, and go on (QA-339).
+
+        With the chat's Auto-approve on nobody is asked anything: a question the run stops on
+        (``ask_user``, the case confirmation, ``ask_economics``, the step limit, a nested run's
+        question) is answered with ``proposed_answer`` through the same path as a user's answer,
+        at most ``AUTO_ANSWERS`` times; an approval is left to the permissions.
+        """
+        permissions = self.permissions
+        if getattr(permissions, "mode", None) != "auto":
+            return result
+        if not getattr(permissions, "answers_questions", True):
+            return result
+        answered = 0
+        while (
+            result.status == "waiting"
+            and result.request is not None
+            and result.request.kind == "question"
+            and answered < AUTO_ANSWERS
+        ):
+            answered += 1
+            text = proposed_answer(result.request)
+            self._auto_answer = text
+            try:
+                result = await self._resumed(
+                    result.run_id, result.request.id, {"text": text}, agent=agent, loop=loop
+                )
+            finally:
+                self._auto_answer = None
+        return result
 
     @classmethod
     async def replay(cls, store, run_id, *, replayed=None, workspace=None):
@@ -294,6 +360,7 @@ class Engine:
         await end_left_orphans(session)
         if is_limit_stop(session, stop):
             stop = await self._answer_from_record(session, stop)
+        stop = with_auto_answers(session, stop)
         status = status_of(stop.reason)
         suggestions = suggestions_of(session, status)
         report = await tree_usage(session)
@@ -323,8 +390,14 @@ class Engine:
 
         With ``request_id`` and ``answer`` it settles the pending request. Without them it
         continues a run whose process died. ``agent`` defaults to a new instance of the stored
-        class, and ``loop`` receives its stored state.
+        class, and ``loop`` receives its stored state. In ``auto`` mode the questions it then
+        stops on are answered alone (``_answer_alone``).
         """
+        result = await self._resumed(run_id, request_id, answer, agent=agent, loop=loop)
+        return await self._answer_alone(result, agent, loop)
+
+    async def _resumed(self, run_id, request_id=None, answer=None, *, agent=None, loop=None):
+        """Continue a run from its events once: ``resume`` without its answers in ``auto`` mode."""
         state = recover(self.store.load_events(run_id), run_id)
         if state.status != "running":
             raise RunError(f"resume: run = {state.run_id}; it already ended as {state.status}")
@@ -370,20 +443,23 @@ class Engine:
                 )
             raise RequestError(f"resume: request = {request_id!r}; expected {pending.request.id!r}")
         answer = validate_answer(pending.request, answer)
+        auto = self._auto_answer is not None and answer.get("text") == self._auto_answer
+        if auto and pending.point != "tool":
+            await self._record_auto(session, pending, answer["text"])
         if pending.point == STEPS_POINT:
             if answer["text"] not in STEP_OPTIONS:
                 raise RequestError(f"answer = {answer!r}; expected one of {list(STEP_OPTIONS)}")
             return await self._take_steps(session, pending, answer["text"])
         fields = dict(
             index=session.state.step,
-            rule="user",
+            rule="auto" if auto else "user",
             point=pending.point,
             call_id=pending.call.id if pending.call else None,
             tool=pending.call.name if pending.call else None,
             request=pending.request,
         )
         if "text" in answer:
-            return await self._take_text(session, pending, answer["text"], fields)
+            return await self._take_text(session, pending, answer["text"], fields, auto)
         if answer["approved"]:
             await session.emit(PermissionDecided, decision="allow", **fields)
             return None
@@ -391,9 +467,37 @@ class Engine:
         await session.emit(PermissionDecided, decision="deny", reason=reason, **fields)
         return await self._take_denial(session, pending, reason)
 
+    async def _record_auto(self, session, pending, text):
+        """Log a question Auto-approve answered and keep it as an assumption of the state."""
+        call = pending.call
+        await session.emit(
+            QuestionAutoAnswered,
+            index=session.state.step,
+            request_id=pending.request.id,
+            call_id=call.id if call else None,
+            tool=call.name if call else None,
+            point=pending.point,
+            answer=text,
+        )
+        taken = [
+            item for item in session.state.problem.assumptions if item.source == "auto-approve"
+        ]
+        question = (pending.request.message or "").strip().splitlines()
+        assumption = {
+            "id": f"AUTO-{len(taken) + 1}",
+            "text": f"{call.name if call else pending.point}: "
+            f"{question[0][:AUTO_QUESTION_CHARACTERS] if question else ''} -> {text}",
+            "value": text,
+            "source": "auto-approve",
+            "confirmed": False,
+            "reason": "Auto-approve on: answered with the agents' proposal",
+        }
+        await session.change_state([{"op": "add", "path": "/assumptions/-", "value": assumption}])
+
     async def _take_steps(self, session, pending, text):
         """Give the run its steps again on ``continue``; on ``stop`` end it at its step limit."""
-        return await self._decide_steps(session, text == STEP_OPTIONS[0], pending.request)
+        rule = "auto" if self._auto_answer is not None else "user"
+        return await self._decide_steps(session, text == STEP_OPTIONS[0], pending.request, rule)
 
     def _continues_alone(self, session):
         """Tell whether a run in ``auto`` mode takes its next steps without asking (QA-086).
@@ -424,10 +528,16 @@ class Engine:
             return None
         return Stop("step_limit", f"stopped after {session.state.step} steps")
 
-    async def _take_text(self, session, pending, text, fields):
-        """Make a user's reply the tool result, or a message at the other points."""
+    async def _take_text(self, session, pending, text, fields, auto=False):
+        """Make a user's reply the tool result, or a message at the other points.
+
+        An answer Auto-approve gave at a tool is recorded between its decision and its result,
+        where a replay applies the logged state changes of an answered call again.
+        """
         decision = "answer" if pending.point == "tool" else "allow"
         await session.emit(PermissionDecided, decision=decision, **fields)
+        if auto and pending.point == "tool":
+            await self._record_auto(session, pending, text)
         if pending.point == "tool":
             tool = session.agent.tools().get(pending.call.name)
             if getattr(tool, "on_answer", None) is not None:
@@ -477,3 +587,22 @@ def suggestions_of(session, status):
     project = method(state.project) if state.project and callable(method) else None
     user = users[-1] if users else ""
     return next_steps(state.problem, files, user, proposed, project=project) or None
+
+
+AUTO_QUESTION_CHARACTERS = 160
+"""The characters of a question an auto-approved assumption keeps."""
+
+
+def with_auto_answers(session, stop):
+    """Return a root run's text answer with the questions Auto-approve answered listed after it.
+
+    Read from the problem state, so a run resumed in another process lists every one; a nested
+    run's answer and a typed answer stay as they are.
+    """
+    if session.state.parent is not None or not isinstance(stop.answer, str):
+        return stop
+    taken = [item for item in session.state.problem.assumptions if item.source == "auto-approve"]
+    if not taken or AUTO_HEADING in stop.answer:
+        return stop
+    lines = "\n".join(f"- {item.text}" for item in taken)
+    return replace(stop, answer=f"{stop.answer}\n\n{AUTO_HEADING}\n{lines}")

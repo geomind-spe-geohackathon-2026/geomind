@@ -35,7 +35,7 @@ class Assumption(Record):
     id: str
     text: str
     value: Any = None
-    source: Literal["user", "agent", "default"] = "agent"
+    source: Literal["user", "agent", "default", "auto-approve"] = "agent"
     confirmed: bool = False
     reason: str | None = None
     citation: dict[str, Any] | None = None

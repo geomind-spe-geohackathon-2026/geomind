@@ -39,8 +39,12 @@ class Permissions:
     run's own notes and an approval for each note would make ``ask`` unusable.
     """
 
-    def __init__(self, mode="ask", allow=(), ask=(), deny=()):
-        """Check the mode and the rules."""
+    def __init__(self, mode="ask", allow=(), ask=(), deny=(), answers_questions=True):
+        """Check the mode and the rules.
+
+        ``answers_questions``: in ``auto`` mode the engine also answers every question itself
+        with its proposal, so nobody is asked (QA-339); ``False`` keeps questions for the user.
+        """
         if mode not in MODES:
             raise UnknownNameError(
                 f"Permissions: mode = {mode!r}; expected one of {join_names(MODES)}"
@@ -49,6 +53,7 @@ class Permissions:
         for rule in (*allow, *ask, *deny):
             _check_rule(rule)
         self.mode = mode
+        self.answers_questions = answers_questions
         self.allow = tuple(allow)
         self.ask = tuple(ask)
         self.deny = tuple(deny)

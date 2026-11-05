@@ -19,7 +19,9 @@ class Request(Record):
     """A pause for the user; the engine fills in ``id`` when it pauses the run.
 
     ``options`` are the fixed choices of a question. Plain strings become options with the same
-    value and label, which is also how a run stored by S1 holds them.
+    value and label, which is also how a run stored by S1 holds them. ``proposed`` is the answer
+    the asking tool proposes; with Auto-approve on the engine answers with it (QA-339), else with
+    the first option.
     """
 
     kind: Literal["approval", "question"]
@@ -27,6 +29,7 @@ class Request(Record):
     id: str = ""
     options: tuple[Option, ...] | None = None
     call_id: str | None = None
+    proposed: str | None = None
 
     @field_validator("options", mode="before")
     @classmethod

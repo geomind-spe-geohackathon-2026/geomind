@@ -22,7 +22,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "A pause for the user; the engine fills in ``id`` when it pauses the run.\n\n``options`` are the fixed choices of a question. Plain strings become options with the same\nvalue and label, which is also how a run stored by S1 holds them.",
+  "description": "A pause for the user; the engine fills in ``id`` when it pauses the run.\n\n``options`` are the fixed choices of a question. Plain strings become options with the same\nvalue and label, which is also how a run stored by S1 holds them. ``proposed`` is the answer\nthe asking tool proposes; with Auto-approve on the engine answers with it (QA-339), else with\nthe first option.",
   "properties": {
     "call_id": {
       "anyOf": [
@@ -67,6 +67,18 @@
       ],
       "default": null,
       "title": "Options"
+    },
+    "proposed": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Proposed"
     }
   },
   "required": [

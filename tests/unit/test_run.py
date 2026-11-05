@@ -128,7 +128,7 @@ def test_resume_of_a_dead_run_continues_from_its_events():
             super().save_event(run_id, event)
 
     store = Dying()
-    permissions = gd.Permissions(mode="auto")
+    permissions = gd.Permissions(mode="auto", answers_questions=False)
     run = run_of([uses(call("ask_user", question="q"))], store=store, permissions=permissions)
     with pytest.raises(SystemExit):
         run.start()
