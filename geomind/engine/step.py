@@ -10,7 +10,7 @@ from geomind import runtime
 from geomind.context.compaction import context_window
 from geomind.engine.compaction import compact_history
 from geomind.engine.questions import answered_paths, asking_new, named_paths, reused_answer
-from geomind.engine.recovery import BLOCKED, call_key
+from geomind.engine.recovery import BLOCKED, call_key, problem_version
 from geomind.engine.state import Stop, is_cancel
 from geomind.context.skills import first_call_skill
 from geomind.errors import OutputError, ToolError, UnknownNameError
@@ -421,14 +421,20 @@ async def _refuse_over_limit(session, call, limit):
     QA-269: two invalid calls of one tool ended a 15-minute run with "internal error" and no
     answer. At the limit the tool is refused for the rest of the run instead (its ``source`` is
     ``blocked``, so a resumed run knows it too), and only a call after that refusal stops the run.
+    Both hold only while the problem state is the one they failed on: after a change (a case
+    saved), the tool runs again (QA-331).
     """
     state = session.state
+    version = problem_version(state)
     if call.name in state.blocked:
-        return Stop(
-            "error", f"{call.name}: called again after it was refused for the rest of the run"
-        )
+        if state.blocked[call.name] == version:
+            return Stop(
+                "error", f"{call.name}: called again after it was refused for the rest of the run"
+            )
+        state.blocked.pop(call.name)
+        return None
     failures = state.failures.get(call.name, 0)
-    if failures < limit:
+    if failures < limit or state.failure_versions.get(call.name) != version:
         return None
     text = BLOCKED_NOTE.format(tool=call.name, failures=failures)
     error = ToolError(text, code="not_allowed")

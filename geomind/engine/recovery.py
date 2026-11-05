@@ -111,9 +111,11 @@ def _count_failure(state, event):
         if state.failure_steps.get(event.tool) != state.step:
             state.failures[event.tool] = state.failures.get(event.tool, 0) + 1
         state.failure_steps[event.tool] = state.step
+        state.failure_versions[event.tool] = problem_version(state)
         return
     state.failures.pop(event.tool, None)
     state.failure_steps.pop(event.tool, None)
+    state.failure_versions.pop(event.tool, None)
 
 
 BLOCKED = "blocked"
@@ -124,10 +126,17 @@ def _count_blocked(state, event):
     """Keep the tools refused for the rest of the run: another call of one ends the run.
 
     QA-269: two invalid calls of one tool ended a 15-minute run with no answer; the tool is
-    refused instead, and the agent answers with what it has.
+    refused instead, and the agent answers with what it has. The block holds the problem
+    state's version: once the state changed (QA-331: the case was saved after ``read_case`` was
+    refused for ``no_case``), the tool runs again.
     """
-    if event.source == BLOCKED and event.tool not in state.blocked:
-        state.blocked.append(event.tool)
+    if event.source == BLOCKED:
+        state.blocked[event.tool] = problem_version(state)
+
+
+def problem_version(state):
+    """Return the version of the run's problem state, which every change of it raises."""
+    return getattr(state.problem, "version", None)
 
 
 def _count_repeat(state, event):

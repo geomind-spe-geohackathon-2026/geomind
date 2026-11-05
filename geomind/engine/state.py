@@ -112,7 +112,8 @@ class RunState:
     pending: PendingAction | None = None
     failures: dict[str, int] = field(default_factory=dict)
     failure_steps: dict[str, int] = field(default_factory=dict)
-    blocked: list[str] = field(default_factory=list)
+    blocked: dict[str, Any] = field(default_factory=dict)
+    failure_versions: dict[str, Any] = field(default_factory=dict)
     output_failures: int = 0
     is_refused: bool = False
     has_answer: bool = False

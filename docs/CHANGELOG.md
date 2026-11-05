@@ -9,6 +9,11 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 ## [0.4.132] - 2026-11-05
 
 ### Fixed
+- QA-331: a blocked tool runs again once the problem state has changed (read_case after the case is
+  saved no longer ends the run).
+- QA-330: adopt_design takes an older plant version as the next version.
+
+### Fixed
 - QA-269: a tool that fails its retry limit is refused for the rest of the run instead of ending
   it with an internal error; only a further call of it stops the run.
 - QA-301: a call refused before its approval card counts toward the repeat limit.

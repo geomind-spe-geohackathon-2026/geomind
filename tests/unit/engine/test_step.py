@@ -453,3 +453,35 @@ async def test_a_read_after_a_failed_call_that_changed_the_state_runs_again():
         agent=agent,
     )
     assert EXECUTED == ["lookup", "lookup"]
+
+
+class Stater(Agent):
+    """The worker's tools and ``update_state``, which changes the problem state."""
+
+    def __init__(self):
+        """Declare the tools."""
+        from geomind.tools import update_state
+        from tests.fixtures.runs import Model, Worker
+
+        super().__init__()
+        self.prompt = Prompt.text("Work.")
+        for name, item in Worker().tools().items():
+            setattr(self, name, item)
+        self.update_state = update_state
+        self.model = Model("fake/model")
+
+
+async def test_a_refused_tool_runs_again_once_the_problem_state_changed():
+    """QA-331: read_case refused for no case stayed refused after the case was saved."""
+    bad = [uses(call("add", name, left=name, right=1)) for name in ("a", "b", "c")]
+    change = {"op": "add", "path": "/goal", "value": "a new goal"}
+    steps = [
+        *bad,
+        uses(call("update_state", "s", changes=[change])),
+        uses(call("add", "d", left=1, right=2)),
+        says("done"),
+    ]
+    result, _, events = await run(steps, agent=Stater())
+    sources = {event.call_id: event.source for event in of_type(events, "tool.result")}
+    assert sources["c"] == "blocked" and sources["d"] == "tool"
+    assert result.status == "done"
