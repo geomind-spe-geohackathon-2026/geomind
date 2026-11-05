@@ -511,15 +511,18 @@ async def _retry_cut(session, agent):
 async def settle_interrupted(session, agent):
     """Handle calls a crash left started and unrecorded.
 
-    An idempotent tool runs again; any other becomes an error result for the model, because
-    nobody knows how far it got.
+    An idempotent tool runs again, and so does a nested agent (``reruns_after_crash``: a
+    ``Delegate`` or ``Team``, whose open nested run ``end_orphans`` ended): it is asked again with
+    the same brief, never failed at once (QA-070). Any other becomes an error result for the
+    model, because nobody knows how far it got.
     """
     state = session.state
     tools = with_old_names(agent.tools())
     for call in state.calls:
         tool = tools.get(call.name)
         is_open = call.id in state.started and call.id not in state.results
-        if is_open and (tool is None or not tool.idempotent):
+        reruns = tool is not None and (tool.idempotent or getattr(tool, "reruns_after_crash", False))
+        if is_open and not reruns:
             error = ToolError(
                 f"{call.name}: interrupted by a crash; it may have run in part", code="internal"
             )

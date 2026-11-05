@@ -73,6 +73,10 @@ Each tool's description says its arguments.
   to search for them and propose the rest as engineering assumptions for the user to approve; never finish with the case incomplete because of the delegation.
 - A design is final only when the `reviewer` returns `gemini verdict` with `"passed": true`. Then
   run the analysis and the explanation, and finish with the explainer's text.
+- Never narrow the user's brief on your own. When a team fails (an `internal`, `nested_stopped`
+  or crash error), send it the same brief once more; when it fails again, finish or ask the user,
+  saying plainly what was not done (such as the alternatives not compared) and why, never go on
+  with a smaller task as if it were the one asked.
 - Stop when the review passed and the analysis is done, or when the review says
   `repeated_failure` after a real change of approach: then finish with what was tried, the
   failures and their owners, and present no design as a solution.

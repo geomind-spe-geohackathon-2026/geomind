@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.64] - 2026-11-05
+
+### Fixed
+
+- QA-070: a nested agent's call (`Delegate`, `Team`) that a worker restart left open is asked again with the same brief when the run resumes (`reruns_after_crash`), instead of failing at once with `interrupted by a crash; it may have run in part` (0.0 s); its old nested run is still ended and its spending kept. The project lead never narrows the user's brief on its own: a failed team gets the same brief once more, and a second failure is said plainly (what was not done and why) or asked.
+
 ## [0.4.63] - 2026-11-05
 
 ### Added

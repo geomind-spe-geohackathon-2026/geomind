@@ -105,6 +105,7 @@ class Delegate(Tool):
             idempotent=False,
             input_model=DelegateInput,
         )
+        self.reruns_after_crash = True
         self.agent = agent
         self.max_summary_tokens = max_summary_tokens
         self.runs_beside = runs_beside
@@ -234,6 +235,7 @@ class Team(Tool):
             idempotent=False,
             input_model=TeamInput,
         )
+        self.reruns_after_crash = True
         self.members = members
 
     @property
