@@ -8,7 +8,7 @@ from geomind import runtime
 from geomind.errors import ToolError
 from geomind.tools.base import tool
 from geomind.tools.gemini.case import CASE_FILE, build_case, case_of
-from geomind.tools.gemini.plants import load_plant
+from geomind.tools.gemini.plants import load_plant, project_designs, version_plant
 from geomind.tools.gemini.references import reference_schema
 from geomind.tools.gemini.stored import ran_case, save_run
 
@@ -443,14 +443,38 @@ def single_choices(plant):
     return notes
 
 
-def run_plant(context, design, changes, start, end):
+def simulated_plant(context, design, plant_version):
+    """Return ``(plant, label)`` of what ``simulate`` runs: a design, a plant version or the latest.
+
+    Without either, the project's plant file is its LATEST plant version; the label says which,
+    so an agent that read version 1 never reports a run of version 2 as version 1 (QA-166).
+    """
+    if design is not None and plant_version is not None:
+        raise ToolError(
+            f"simulate: design = {design!r} and plant_version = {plant_version}; expected one "
+            "of them, not both",
+            path="plant_version",
+        )
+    if plant_version is not None:
+        return version_plant(context, "simulate", plant_version), f"plant version {plant_version}"
+    plant = load_plant(context, design, "simulate")
+    if design is not None:
+        return plant, design
+    versions = [item.get("version") for item in project_designs(context)["plants"]]
+    versions = [item for item in versions if isinstance(item, int)]
+    if not versions:
+        return plant, "project"
+    return plant, f"plant version {max(versions)} (the project's latest)"
+
+
+def run_plant(context, design, changes, start, end, plant_version=None):
     """Simulate a plant on the case; return ``(plant, results, summary, options, ran)``.
 
     ``ran`` is the case dict and files the run read, which ``save_run`` stores.
     """
     import gemini as gm
 
-    plant = load_plant(context, design, "simulate")
+    plant, label = simulated_plant(context, design, plant_version)
     apply_changes(plant, changes)
     filled = single_choices(plant)
     data, files = ran_case(context)
@@ -461,7 +485,7 @@ def run_plant(context, design, changes, start, end):
     ran = (data, files)
     case = build_case(*ran)
     results = gm.simulate(plant, case, plan=plan)
-    summary = run_summary(plant, case, results, design or "project")
+    summary = run_summary(plant, case, results, label)
     if filled and isinstance(summary, dict):
         summary = {**summary, "filled": filled}
     return plant, results, summary, {"start": start, "end": end}, ran
@@ -474,13 +498,16 @@ async def simulate(
     changes: dict[str, dict[str, Any]] | None = None,
     start: str | None = None,
     end: str | None = None,
+    plant_version: int | None = None,
 ):
     """Simulate a plant on the state's case and store the results; return a reference and summary.
 
+    ``design`` a stored design, ``plant_version`` a saved plant version of the project
+    (``list_plants`` project_versions); neither runs the project's latest plant version.
     Skill `simulating-a-plant`.
     """
     plant, results, summary, options, ran = await runtime.in_gemini_thread(
-        run_plant, context, design, changes, start, end
+        run_plant, context, design, changes, start, end, plant_version
     )
     reference = await save_run(context, plant, results, summary, options, ran)
     return {"reference": reference, "summary": summary}

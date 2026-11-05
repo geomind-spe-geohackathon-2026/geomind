@@ -6,6 +6,13 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.106] - 2026-11-05
+
+### Fixed
+- QA-166: `simulate` takes `plant_version` (a saved plant version of the project); without a
+  design or a version it runs the latest version and its summary's `plant` says so ("plant
+  version 2 (the project's latest)"), so a run of v2 is never reported as v1.
+
 ## [0.4.105] - 2026-11-05
 
 ### Fixed

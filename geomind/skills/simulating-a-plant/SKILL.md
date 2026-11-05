@@ -25,7 +25,10 @@ takes longer than 15 minutes comes back as a `timeout` error: ask for fewer eval
 
 Simulate a plant on the state's case and store the results; return a reference and summary.
 
-`design` is a stored design (`design/<name>`), or the project's plant without one.
+`design` is a stored design (`design/<name>`); `plant_version` is a saved plant version of the
+project (`list_plants` project_versions), never with `design`. With neither, it runs the
+project's LATEST plant version, and the summary's `plant` names that version: to report on an
+older version, pass its `plant_version`.
 `changes` holds parameters by module path for this run only, each a `{"value", "unit"}`
 (a dimensionless parameter may be a number); the plant's own options go under `control`
 (`{"control": {"dispatch": {"value": "least_cost"}}}`) or as `backup`. `start` and `end` are ISO 8601 times that cut
