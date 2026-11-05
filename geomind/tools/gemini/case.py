@@ -827,8 +827,8 @@ RANGE_KEYS = ("on", "quantity", "over", "when", "unit")
 def joined_ranges(requirements):
     """Return ``(requirements, converted)`` with a lone ``min`` and a lone ``max`` joined (QA-160).
 
-    The brief's 50 to 300 m3/h became ``min_stable_flow`` (min 50) and ``max_production_flow``
-    (max 300) in one run of two: the same check, two rows of the verdict for one rule. Two
+    A flow range of the brief with both ends became ``min_stable_flow`` and
+    ``max_production_flow`` in one run of two: the same check, two rows of the verdict. Two
     requirements on the same ``on``, ``quantity``, ``over``, ``when`` and ``unit``, one with only
     ``min`` and one with only ``max``, are one requirement ``<quantity>_range`` with both.
     """
@@ -1520,8 +1520,8 @@ def economics_content(data, files):
 def project_case_notice(context, data):
     """Return what ``read_case`` says when the project's saved case differs from the chat's.
 
-    QA-284: the user saved the discount rate 0.07 on the Case page (case version 5); the chat's
-    state kept its own case of version 4, and read_case gave 0.06. The project's latest case is
+    QA-284: the user saved a new discount rate on the Case page; the chat's state kept its own
+    older case, and read_case gave the old rate. The project's latest case is
     compared, economics included; a difference is said with its paths and the call that loads it,
     and nothing is loaded without the user's approval, since the chat's case may hold changes.
     """

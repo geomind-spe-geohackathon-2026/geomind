@@ -49,8 +49,8 @@ def source_numbers(context):
 def retyped_numbers(context, question):
     """Return ``[(written, source)]``: long numbers of ``question`` that differ from their source.
 
-    QA-163: the confirmation question showed N2 ``0.110838972435462335`` where the source and the
-    case hold ``0.11083897243546233``; the user approves what the question shows. A long number
+    QA-163: the confirmation question showed a gas fraction with one digit more than the source
+    and the case hold; the user approves what the question shows. A long number
     the run's messages do not hold, but one with the same first digits, is a retyping.
     """
     if context is None:
