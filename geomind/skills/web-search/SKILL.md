@@ -16,7 +16,7 @@ with a one-line reason in the confirmation question, or name it as a gap, over a
 
 Search only for a value nothing gives yet. A value the user's files, the brief
 or the case already state (a supply temperature the brief fixes) is never searched for, and the
-project, the hackathon or the chat itself is never a query.
+project, the competition or the chat itself is never a query.
 
 Writing a query (`web_search(query, limit)`; the search is English only):
 
@@ -33,7 +33,7 @@ Writing a query (`web_search(query, limit)`; the search is English only):
   Bad: `produced sand concentration geothermal well kg/m3 brine solids removal cyclone
   specification` (two values, eleven words: generic pages came back),
   `Nederland warmtenet ontwerptemperatuur aanvoer` (not English),
-  `GEMINI agentic geothermal design hackathon site location` (the project, not a value),
+  `GEMINI agentic geothermal design challenge site location` (the project, not a value),
   `district heating supply and return temperature 100 C 20 C chilled water return temperature`
   (a pile of terms for two values, one the brief gives).
 - One value per query. For a price, name what is priced and its basis (`EUR/kW`, `per m`).

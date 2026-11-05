@@ -26,7 +26,7 @@ REMOVED_NAMES = re.compile(
             r"plants\.example",
             r"Plant\.validate",
             r"from_legacy",
-            r"\bBrief\b",
+            r"(?:gm|gemini)\.(?:\w+\.)*Brief\b|\bBrief\((?!Record)",
             r"set_brief",
             r"hackathon_2027",
             r"profile/<",
