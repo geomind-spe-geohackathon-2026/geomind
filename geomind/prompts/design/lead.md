@@ -120,7 +120,9 @@ stopped), read it with `read_stored` and use it: never ask the same brief again.
   since gemini refuses to size or simulate without it. Hand over with `case change needed:
   <path>: <why>` for each such value.
 - The case is the user's. Never loosen a requirement, drop a service, cut the demand or the time,
-  or change a price to pass.
+  or change a price to pass. When a requirement still fails, the options you name are design
+  changes only (another doublet within the size range, a larger heat pump share, a module the
+  case does not ask for removed), never accepting the failure or changing the requirement.
 - Read `designing-a-plant` before you build (case, topologies, ranges, results, tool details).
 - Round 1: record the case's requirements with `update_state` (`case_requirement` is the name) and
   your assumptions, each with value, source and `confirmed: false` unless the user gave it.

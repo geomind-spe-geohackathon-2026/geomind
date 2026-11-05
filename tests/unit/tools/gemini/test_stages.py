@@ -41,6 +41,11 @@ async def test_a_class_plant_lists_the_values_of_every_stage_at_once():
     paths = [issue["path"] for issue in found.output["issues"]]
     assert LATER <= set(paths)
     assert len(paths) == len(set(paths))
+    case_values = {"params.d0.permeability", "params.d0.thickness"}
+    assert not case_values & set(paths), "QA-212: the case fills them, no patch may"
+    derived = {item["path"] for item in found.output.get("derived") or ()}
+    assert "params.d0.esp.stage_count" in derived and not derived & set(paths)
+    assert "params.injection_pump.pressure_setpoint" not in paths
 
 
 async def test_without_a_case_no_setpoint_is_named():

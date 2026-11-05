@@ -6,6 +6,10 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### Fixed
+- QA-212: the design lead never patches or asks for a `derived` value; with nothing missing it goes
+  straight to the search.
+
 ## [0.4.130] - 2026-11-05
 
 ### Fixed
