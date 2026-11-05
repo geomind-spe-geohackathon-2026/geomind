@@ -205,7 +205,7 @@ def economics_used(context, reference):
         current = None
     if not isinstance(ran, dict) or current is None:
         return {"same_as_case": None, "note": "the case of this result's run is not known here"}
-    changed = changed_keys(ran.get("economics") or {}, current.get("economics") or {})
+    changed = changed_keys(ran.get("economics"), current.get("economics"))
     if not changed:
         return {"same_as_case": True, "note": "the costs use the economics of the current case"}
     return {
@@ -220,15 +220,16 @@ def economics_used(context, reference):
 
 
 def changed_keys(old, new, prefix="economics"):
-    """Return the dotted keys whose values differ between two economics dicts."""
+    """Return the dotted keys whose values differ between two economics values.
+
+    The economics is a dict or the name of a case file; two values that are not both dicts differ
+    as a whole.
+    """
+    if not (isinstance(old, dict) and isinstance(new, dict)) or "value" in new:
+        return [] if old == new else [prefix]
     found = []
     for key in sorted(set(old) | set(new)):
-        path = f"{prefix}.{key}"
-        before, after = old.get(key), new.get(key)
-        if isinstance(before, dict) and isinstance(after, dict) and "value" not in after:
-            found += changed_keys(before, after, path)
-        elif before != after:
-            found.append(path)
+        found += changed_keys(old.get(key), new.get(key), f"{prefix}.{key}")
     return found
 
 

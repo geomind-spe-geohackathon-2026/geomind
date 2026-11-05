@@ -6,6 +6,19 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.123] - 2026-11-05
+
+### Fixed
+- `estimate_costs` on a case whose economics is a file name raised AttributeError in 0.4.122.
+- QA-258: `estimate_costs` says whether the run's economics are the current case's
+  (`economics.same_as_case`, `changed`); the economist simulates again and costs the new result
+  once, never the old one again.
+- QA-263: for a broad question the economist runs `sensitivity` over every declared uncertainty.
+- QA-251, QA-252: each family of a compare gets up to two repair rounds, and a failed or
+  infeasible family gets another run within the compare's retries.
+- QA-253: `set_ranges` keeps a range on a doublet the search adds (reported under `not_set`) and
+  never narrows the size range; the design lead never narrows a range silently.
+
 ## [0.4.122] - 2026-11-05
 
 ### Fixed

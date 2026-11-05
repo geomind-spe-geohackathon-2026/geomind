@@ -478,8 +478,9 @@ async def test_a_rejected_family_is_designed_again_with_the_verifier_s_reason(mo
     result = await CompareLoop(DesignLead(), Reviewer(), retries=1).run(engine, start)
     events = engine.store.load_events(start.run_id)
     tasks = [e.messages[0].content for e in of_type(events, "run.started") if is_family_run(e)]
-    assert len(tasks) == 4 and "unmet: 2 MW against 0 MW" in tasks[3]
+    assert len(tasks) == 5 and "unmet: 2 MW against 0 MW" in tasks[3]
     assert "alpha_r1_" in tasks[3]
+    assert "_r1_" in tasks[4] and "alpha" not in tasks[4].split("Design one alternative")[1][:30]
     verdict = {item["family"]: item["verdict"] for item in alternatives(events)}
     assert verdict["alpha"] == "verified" and result.status == "done"
 
@@ -496,7 +497,10 @@ async def test_without_retries_a_rejected_family_stays_rejected(monkeypatch):
 
 
 async def test_retries_are_bounded(monkeypatch):
-    """A family rejected every time runs once more per retry, then stays rejected."""
+    """A family rejected every time runs once more per retry, then stays rejected.
+
+    The infeasible family runs once more too (QA-251): 3 runs, alpha's retry and its repair.
+    """
     monkeypatch.setattr(
         "geomind.agents.project.comparison.verify_design",
         lambda found: (
@@ -508,7 +512,7 @@ async def test_retries_are_bounded(monkeypatch):
     start = context("Compare alternatives for the case.", problem=ProblemState(case=CASE))
     await CompareLoop(DesignLead(), Reviewer(), retries=1).run(engine, start)
     events = engine.store.load_events(start.run_id)
-    assert sum(is_family_run(e) for e in of_type(events, "run.started")) == 4
+    assert sum(is_family_run(e) for e in of_type(events, "run.started")) == 5
     alpha = next(item for item in alternatives(events) if item["family"] == "alpha")
     assert alpha["verdict"] == "rejected"
 

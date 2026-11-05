@@ -145,6 +145,9 @@ stopped), read it with `read_stored` and use it: never ask the same brief again.
 - A project plant or plant version is a stored design already (`read_plant` gives its
   reference, such as `design/v3`): size, range, patch, simulate and optimise it by that
   reference. `build_plant` only for a new family; never type a stored plant again.
+- Never narrow a range the user or the case gave. When `set_ranges` or another tool refuses a
+  path, keep the range, drop or replace only that path, and say in your answer what the search
+  covered and what it left out.
 - Reuse stored plants: to compare or rank plant versions, pass `design/v<N>` (or
   `plant_version`) to `simulate`, `size_plant`, `optimize` or `run_study`; never re-type a
   stored plant with `build_plant` (QA-221).

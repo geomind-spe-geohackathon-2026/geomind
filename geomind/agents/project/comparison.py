@@ -356,9 +356,6 @@ class ComparisonDriver(DesignDriver):
         pending = [item for item in open_families(design) if item.get("id") not in done]
         if pending:
             return self.batch(context, pending, note, index)
-        repair = self.repair(context, design, note, index)
-        if repair is not None:
-            return repair
         return self.check_next(context, calls, design, note, index)
 
     def repair(self, context, design, note, index):
@@ -415,6 +412,9 @@ class ComparisonDriver(DesignDriver):
         last = notes(context.messages)[-1]
         waiting = with_verdict(design, FEASIBLE)
         if not waiting:
+            repair = self.repair(context, design, note, index)
+            if repair is not None:
+                return repair
             return self.conclude(context, calls, design, note, index)
         item = waiting[0]
         family = item["family"]

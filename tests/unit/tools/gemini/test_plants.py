@@ -554,6 +554,35 @@ async def test_a_class_extended_with_from_class_keeps_the_size_it_is_given(gm):
     assert "d1" in session.artifacts["design/ext"]["modules"]
 
 
+async def test_a_range_on_a_doublet_a_search_adds_is_named_not_refused(gm):
+    """QA-253: d2.nominal_flow on 2 doublets sized 1-3 is said back; size.doublets keeps 3."""
+    session = StubSession()
+    start = {
+        "name": "two",
+        "plant": {
+            "format": 1, "kind": "plant", "name": "p", "type": "HeatingPlant",
+            "size": {"doublets": {"value": 2}},
+        },
+    }
+    assert not (await call(TOOLS.build_plant, start, session)).is_error
+    flow = {"min": {"value": 50, "unit": "m3/h"}, "max": {"value": 300, "unit": "m3/h"}}
+    ranges = {
+        "size.doublets": {"min": 1, "max": 3},
+        **{f"d{index}.nominal_flow": flow for index in range(3)},
+    }
+    step = {"design": "design/two", "ranges": ranges, "name": "ranged"}
+    result = await call(TOOLS.set_ranges, step, session)
+    assert not result.is_error
+    stored = gemini.Plant.from_dict(session.artifacts["design/ranged"])
+    from geomind.tools.gemini.plants import shown_ranges
+
+    assert shown_ranges(stored)["size.doublets"] == {"min": 1, "max": 3}
+    assert "d1.nominal_flow" in shown_ranges(stored)
+    far = {**ranges, "d3.nominal_flow": flow}
+    beyond = await call(TOOLS.set_ranges, {**step, "ranges": far, "name": "far"}, session)
+    assert beyond.is_error
+
+
 async def test_a_version_alias_is_no_new_design_name(gm):
     """QA-221: design/v<N> is a project plant version; a new design may not take that name."""
     start = {

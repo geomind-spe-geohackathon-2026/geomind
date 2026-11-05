@@ -850,14 +850,53 @@ async def set_ranges(
 
     Skill `designing-a-plant`.
     """
+    import gemini as gm
+
     plant = load_design(context, design, "set_ranges")
-    for path, bounds in ranges.items():
-        plant.set_range(
-            path, min=as_quantity(bounds.get("min")), max=as_quantity(bounds.get("max"))
-        )
+    later = []
+    for path, bounds in sorted(ranges.items(), key=lambda item: not item[0].startswith("size.")):
+        try:
+            plant.set_range(
+                path, min=as_quantity(bounds.get("min")), max=as_quantity(bounds.get("max"))
+            )
+        except gm.errors.ValidationError as error:
+            later.append(later_doublet(plant, path, error))
     for path, values in (options or {}).items():
         plant.set_options(path, [as_quantity(value) for value in values])
-    return {"design": await save_design(context, name, plant), **plant_view(plant)}
+    stored = {"design": await save_design(context, name, plant), **plant_view(plant)}
+    return {**stored, "not_set": later} if later else stored
+
+
+DOUBLET_PATH = re.compile(r"d(?P<index>\d+)\.")
+"""A path on one doublet of a plant: ``d2.nominal_flow`` is on its third doublet."""
+
+
+def later_doublet(plant, path, error):
+    """Return why a range on a doublet the plant does not have yet was not set, or raise.
+
+    QA-253: ``d2.nominal_flow`` on a plant of 2 doublets with ``size.doublets`` 1-3 was refused,
+    and the lead narrowed the size range to 2 to get it through. A doublet a search adds takes
+    d0's values and range, so the range is named here, never dropped in silence; any other
+    refusal is gemini's.
+    """
+    found = DOUBLET_PATH.match(path)
+    doublets = (getattr(plant, "size", None) or {}).get("doublets")
+    most = (shown_ranges(plant).get("size.doublets") or {}).get("max")
+    if found is None or doublets is None or most is None:
+        raise error
+    index = int(found["index"])
+    if index < doublets or index >= most:
+        raise error
+    shared = f"d0{path[found.end() - 1:]}"
+    return {
+        "path": path,
+        "reason": (
+            f"the plant has {doublets} doublet(s) now; d{index} exists only once the search "
+            f"sizes it to {index + 1} or more, and then takes d0's values and the range of "
+            f"{shared}: set {shared} to the range every doublet may use. size.doublets keeps "
+            f"its range up to {most}; say in your answer what the search covered"
+        ),
+    }
 
 
 build_plant.precheck = dry_precheck(build_plant.function)

@@ -135,7 +135,9 @@ async def test_costs_are_gemini_s_values_of_the_case_in_display_units():
     assert output["capex"]["value"] == pytest.approx(
         gm.evaluate.capex(plant, case).to("MEUR").value, rel=1e-4
     )
-    assert {key: item["unit"] for key, item in output.items()} == {
+    assert output["economics"]["same_as_case"] is True
+    costs = {key: item for key, item in output.items() if key != "economics"}
+    assert {key: item["unit"] for key, item in costs.items()} == {
         "capex": "MEUR",
         "opex": "MEUR/yr",
         "annualised_cost": "MEUR/yr",
@@ -273,3 +275,14 @@ async def test_a_cost_asked_of_compute_kpis_points_to_estimate_costs():
     assert result.output["error"]["code"] == "unknown_name"
     assert "costs is a cost metric" in message and "estimate_costs" in message
     assert "read_study" in message
+
+
+def test_costs_of_a_result_say_when_the_case_economics_changed_since_its_run():
+    """QA-258: costing the old result after a price change says to simulate again."""
+    context, _, result = variant_run("hackathon_2026", "base")
+    assert gd.tools.gemini.assessment.economics_used(context, result)["same_as_case"] is True
+    old = {"discount_rate": {"value": 0.08, "unit": "-"}, "prices": {"co2": {"value": 60}}}
+    new = {"discount_rate": {"value": 0.06, "unit": "-"}, "prices": {"co2": {"value": 80}}}
+    changed = gd.tools.gemini.assessment.changed_keys(old, new)
+    assert changed == ["economics.discount_rate", "economics.prices.co2"]
+    assert gd.tools.gemini.assessment.changed_keys("economics.json", "other.json") == ["economics"]
