@@ -6,6 +6,16 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.76] - 2026-11-05
+
+### Fixed
+
+- QA-079 (the UTC question asked twice): a shared rule says an item the user approved in an answer ("approve A and B") is settled: recorded confirmed at once and never asked again; a follow-up asks only what is new (a value gemini derived from the answer).
+
+### Changed
+
+- gemini request 35 is closed by gemini 0.6.11 (the ESP's out_of_range names the negative curve windows).
+
 ## [0.4.75] - 2026-11-05
 
 ### Fixed

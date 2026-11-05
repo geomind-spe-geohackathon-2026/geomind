@@ -559,7 +559,7 @@ the list):
     `ValidationError.problems` (gemini's `units/inputs.py` `_unit_issue` builds both, then drops them),
     so geomind need not read "a unit of money per volume or money per energy" from the message text
     (`explain.quantities` splits it on " or " meanwhile).
-35. (E2E-15, open, not sent: for Sahand) The ESP's `out_of_range` row names one flow ("flow =
+35. (E2E-15, closed by gemini 0.6.11, 2026-11-05: the message names the negative curve windows) The ESP's `out_of_range` row names one flow ("flow =
     0.0097 m3/s gives head = -4.2e10 Pa"), not where the curve is valid: asked, the message or
     the problem names the flow range from zero to `maximum_flow` where the head or power curve is
     below zero. geomind computes it from `ESP.head_function`/`power_function` meanwhile
