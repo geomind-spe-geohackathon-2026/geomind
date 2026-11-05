@@ -6,6 +6,19 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.82] - 2026-11-05
+
+### Changed
+
+- Every tool is explained in exactly one skill (`tools:` in its frontmatter), with the usage its docstring held; a tool's description is its one-line purpose and its skill's name. New skills: `setting-the-case`, `simulating-a-plant`, `finding-sources`, `memory`, `working-in-a-team`. `ask_user` and `ask_economics`, whose calls are questions, carry their own skill section in their description. A test fails on a tool in no skill or in two. The `memory` skill is not listed when the memory is off.
+
+### Fixed
+
+- IMP-018: `build_plant`, `patch_plant` and `merge_designs` are checked whole before the user is asked to approve them; nothing is stored by the check.
+- IMP-014: a `not_allowed` patch names the engineer's own parts; an engineer's plant issues list its own first and mark each other one with its owner.
+- IMP-015: a tool error that repeats the tool's previous error (same code and path) carries `repeated`: change the call or hand back.
+- QA-116: a tool the user denied is not asked again in the same request, by any agent of the run; an explanation request is answered in text.
+
 ## [0.4.81] - 2026-11-05
 
 ### Added
