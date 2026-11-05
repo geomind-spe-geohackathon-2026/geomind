@@ -137,6 +137,37 @@ def earlier_answer_repeated(context):
     )
 
 
+ADOPT = "adopt-first-plant"
+"""The id of the call that saves a verified design as an empty project's first plant (QA-355)."""
+
+
+def unsaved_design(context):
+    """Return the verified design to save as the project's first plant version, or ``None``.
+
+    QA-355: an agent designed, sized and verified a plant in a project with no plant, and the
+    project stayed without one: the design lived only in the run store. Only an empty project
+    (no plant file, no plant version) gets its first plant by rule, once per request; a project
+    that has a plant keeps it, and the answer offers the design as a next step instead.
+    """
+    from geomind.tools.gemini.plants import project_designs
+
+    problem = context.problem
+    design = (problem.design or {}).get("reference")
+    verification = problem.verification or {}
+    workspace = context.session.workspace
+    if not design or verification.get("passed") is not True or not verification.get("result"):
+        return None
+    if workspace is None or context.project is None or not hasattr(workspace, "plants"):
+        return None
+    if workspace.plants(context.project) or project_designs(context)["plants"]:
+        return None
+    if any(
+        call.name == "adopt_design" for message in context.messages for call in message.tool_calls
+    ):
+        return None
+    return design
+
+
 DENIALS = "Denied by the user in this request"
 """The start of the note that tells the project lead each card the user denied (QA-288)."""
 
@@ -229,6 +260,7 @@ class ProjectLead(Agent):
         self.list_files = tools.list_files
         self.read_case = tools.gemini.read_case
         self.set_case = tools.gemini.set_case
+        self.adopt_design = tools.gemini.adopt_design
         self.case_changes = tools.gemini.case_changes
         self.accept_case = tools.gemini.accept_case
         self.update_state = tools.update_state
@@ -251,6 +283,14 @@ class ProjectLead(Agent):
             call = ToolCall(id=STOP_CASE, name="finish", input={"answer": stopped})
             return Action(text="", tool_calls=(call,))
         if not context.messages or context.messages[-1].role != "user":
+            first = unsaved_design(context)
+            if first is not None:
+                result = (context.problem.verification or {}).get("result")
+                note = f"Agent design {first}, verified on {result}"
+                call = ToolCall(
+                    id=ADOPT, name="adopt_design", input={"design": first, "note": note}
+                )
+                return Action(text="", tool_calls=(call,))
             note = denials_note(request_denials(context))
             if note is None:
                 return await super().forward(context)

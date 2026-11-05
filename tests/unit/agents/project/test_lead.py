@@ -11,26 +11,27 @@ from tests.fixtures.runs import call, context, engine_for, of_type, run, says, u
 from tests.unit.agents.structure import check_complete
 
 TOOLS = [
-            "case_lead",
-            "design_lead",
-            "reviewer",
-            "analysis_lead",
-            "explainer",
-            "support_lead",
-            "comparison",
-            "list_plants",
-            "list_studies",
-            "list_files",
-            "read_case",
-            "set_case",
-            "case_changes",
-            "accept_case",
-            "update_state",
-            "read_stored",
-            "read_knowledge",
-            "ask_user",
-            "finish",
-        ]
+    "case_lead",
+    "design_lead",
+    "reviewer",
+    "analysis_lead",
+    "explainer",
+    "support_lead",
+    "comparison",
+    "list_plants",
+    "list_studies",
+    "list_files",
+    "read_case",
+    "set_case",
+    "adopt_design",
+    "case_changes",
+    "accept_case",
+    "update_state",
+    "read_stored",
+    "read_knowledge",
+    "ask_user",
+    "finish",
+]
 
 
 def test_it_is_complete():
@@ -272,3 +273,45 @@ def test_qa_351_a_brief_quotes_the_handbook_lines_it_needs():
     """QA-351: members re-read handbook sections their lead had already read."""
     text = " ".join(ProjectLead().prompt.content.split())
     assert "Quote the handbook lines a member needs in its brief, with their section number" in text
+
+
+async def test_qa_355_an_empty_project_gets_its_verified_design_as_first_plant():
+    """QA-355: a designed and verified plant stayed in the run store; the project had none."""
+
+    from geomind.agents.project.lead import ADOPT, unsaved_design
+    from geomind.context import ProblemState
+    from geomind.engine import Context
+    from geomind.types import Message, ToolCall
+    from tests.fixtures.sessions import StubSession
+
+    class Empty:
+        """A project with no plant file and no plant version."""
+
+        def __init__(self, plants=None):
+            self._plants = plants or {}
+
+        def plants(self, project_id):
+            return self._plants
+
+        def project_designs(self, project_id):
+            return {"plants": [], "studies": []}
+
+    problem = ProblemState(
+        design={"reference": "design/best", "result": "result/r1"},
+        verification={"result": "result/r1", "passed": True},
+    )
+    reviewed = [Message(role="user", content="Design a plant")]
+
+    def context(workspace, messages=reviewed, state=problem):
+        return Context(
+            project="p1", session=StubSession(workspace=workspace), problem=state, messages=messages
+        )
+
+    assert unsaved_design(context(Empty())) == "design/best"
+    assert unsaved_design(context(Empty({"Plant": {}}))) is None
+    failed = ProblemState(design=problem.design, verification={"result": "r", "passed": False})
+    assert unsaved_design(context(Empty(), state=failed)) is None
+    adopted = ToolCall(id=ADOPT, name="adopt_design", input={})
+    done = [*reviewed, Message(role="assistant", tool_calls=(adopted,))]
+    assert unsaved_design(context(Empty(), messages=done)) is None
+    assert "adopt_design" in ProjectLead().tools()

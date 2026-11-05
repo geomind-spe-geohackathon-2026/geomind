@@ -95,7 +95,8 @@ the plant, a profile or a finding once and never again unless you wrote it since
    with builds or patches: a new plant version is not a search. Then `simulate` the best for the
    whole year and `check_results`. Never wait for a perfect plant: the failures tell you what to
    fix. After `size_plant`, patch every value its `issues` name in ONE `patch_plant`; a closed
-   cooler loop's `loop_pressure` and flow come from the case's assumptions document or the user
+   cooler loop's `loop_pressure` and flow come from the case's assumptions document, its
+   design-values section (read by section, from its contents), or the user
    (ask once), never invented (QA-343).
 6. Fix only what `check_results` or a run reports, all in ONE `patch_plant` per round (0.5):
    read the worst step, then give the failure, gemini's message and
@@ -141,7 +142,9 @@ stopped), read it with `read_stored` and use it: never ask the same brief again.
   from a superstructure: `size_plant` once, then ONE `evolve_structure` on `lcts` and `co2`, and
   read its front; never hand-optimise a structure the evolve already ranked.
 - When the user asks to make a design or result the project plant, call `adopt_design` once
-  with it and its note; never search how. Never adopt a design the user did not ask for.
+  with it and its note; never search how. Never adopt a design the user did not ask for: a
+  project with no plant gets its first plant from the project lead, by rule, after your verified
+  design.
 - Load a skill with `read_skill`, never with a dummy call such as `read_web_page` on a
   placeholder URL.
 - Round 1: record the case's requirements with `update_state` (`case_requirement` is the name) and

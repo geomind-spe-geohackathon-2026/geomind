@@ -30,6 +30,7 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
 - `list_files`: the project's uploaded files.
 - `read_case`: the case as it stands; never while the problem state shows no case (nothing to
   read: brief the `case_lead`).
+- `adopt_design`: save a verified design as the project's next plant version.
 - `set_case`: load the project's case file (`source: "project"`) or restore the user's case.
 - `case_changes`: what changed in the case since the user gave it.
 - `accept_case`: accept a changed case the user approved.
@@ -150,6 +151,10 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
   typical value). A team's own decision is never a question for the user. When the user
   delegates open case values to the agents ("use your own assumptions"), brief the `case_lead`
   to search for them and propose the rest as engineering assumptions for the user to approve; never finish with the case incomplete because of the delegation.
+- A project with no plant gets the verified design as its first plant version by rule
+  (`adopt_design`, one card): say in the answer that it was saved, or, when the user denied it,
+  that it was not. A project that already has a plant keeps it: offer the new design with the
+  next step `adopt_design` in `suggestions`, never save it over the plant yourself.
 - A request to make a design or result the project plant goes to the design lead as one
   `adopt_design` call; no other work.
 - A question that asks to explain or justify a stored design or result (how much, why this unit,

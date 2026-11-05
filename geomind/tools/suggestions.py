@@ -93,6 +93,9 @@ STEPS = {
             "Check the design against another case: a colder year or other prices.",
         ),
     },
+    "adopt_design": {
+        "en": ("Use this design as the plant", "Use this design as the project plant."),
+    },
     "finish_item": {
         "en": ("Finish the {label}", "Finish the {label}."),
     },

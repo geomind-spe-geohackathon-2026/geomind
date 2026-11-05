@@ -67,9 +67,13 @@ def test_every_step_fits_the_limits():
         for label, message in texts.values():
             assert 0 < len(label) <= MAX_LABEL and 0 < len(message) <= MAX_MESSAGE
     staged = {step for steps in suggestions.STAGES.values() for step in steps}
-    assert staged | {"rerun_study", "wait_study", "finish_item", "set_economics"} == set(
-        suggestions.STEPS
-    )
+    assert staged | {
+        "rerun_study",
+        "wait_study",
+        "finish_item",
+        "set_economics",
+        "adopt_design",
+    } == set(suggestions.STEPS)
 
 
 def test_the_lead_may_reword_and_reorder():
