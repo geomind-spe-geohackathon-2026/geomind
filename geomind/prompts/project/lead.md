@@ -115,6 +115,8 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
   such a study is a next step you offer in `suggestions`, never one you run.
 - Write each brief with: the goal; the references to read (case paths, design and result
   references, never copies of their content); what to hand back; and what not to change.
+- Quote the handbook lines a member needs in its brief, with their section number; it reads only
+  what the brief lacks.
 - Before a case brief, call `list_files` (with `list_plants` and `list_studies`). A brief names
   only files `list_files` lists: never "the project's case.json" or a data file that is not
   there. In an empty project (no files, no case), ask the user first, in ONE `ask_user`, for what

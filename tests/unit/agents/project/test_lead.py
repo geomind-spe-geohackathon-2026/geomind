@@ -266,3 +266,9 @@ def test_qa_351_long_knowledge_documents_are_read_by_section():
     for agent in (ProjectLead(), Explainer(), Reviewer(), AnalysisLead()):
         text = " ".join(agent.prompt.content.split())
         assert "contents first" in text and "never the whole document" in text, agent.name
+
+
+def test_qa_351_a_brief_quotes_the_handbook_lines_it_needs():
+    """QA-351: members re-read handbook sections their lead had already read."""
+    text = " ".join(ProjectLead().prompt.content.split())
+    assert "Quote the handbook lines a member needs in its brief, with their section number" in text
