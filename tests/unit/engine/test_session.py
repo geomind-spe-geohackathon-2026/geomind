@@ -257,3 +257,52 @@ def test_a_tool_the_user_denied_is_not_asked_again_in_the_request():
     assert earlier_denial(events, "build_plant") == "text only"
     assert earlier_denial(events, "simulate") is None
     assert "answer in text" in denied_again("build_plant", "text only")
+    assert "answer in text" in denied_again("build_plant", "denied by the user")
+
+
+def test_a_denial_with_a_change_lets_a_revised_call_be_asked():
+    """QA-230: Deny with words asks for a change: a revised set_case is asked, the same is not."""
+    from types import SimpleNamespace
+
+    from geomind.engine.session import earlier_denial
+
+    first = {"changes": {"demand": {"return_temperature": {"value": 60, "unit": "degC"}}}}
+    revised = {"changes": {"demand": {"return_temperature": {"value": 55, "unit": "degC"}}}}
+    events = [
+        SimpleNamespace(type="request", call=SimpleNamespace(id="c1", input=first)),
+        SimpleNamespace(type="permission", decision="deny", rule="user", tool="set_case",
+                        call_id="c1", reason="Change: return temperature 55 instead of 60"),
+    ]
+    assert earlier_denial(events, "set_case", revised) is None
+    reason = "Change: return temperature 55 instead of 60"
+    assert earlier_denial(events, "set_case", first) == reason
+    plain = [*events[:1], SimpleNamespace(type="permission", decision="deny", rule="user",
+                                          tool="set_case", call_id="c1",
+                                          reason="denied by the user")]
+    assert earlier_denial(plain, "set_case", revised) == "denied by the user"
+
+
+def test_a_set_case_from_the_project_names_its_version_and_changes():
+    """QA-224: the card of set_case(source='project') says which version and what changes."""
+    from types import SimpleNamespace
+
+    from geomind.engine.session import approval_message, call_summary, project_case_summary
+
+    saved = {"site": {"reservoir": {"permeability": {"value": 150, "unit": "mD"}}}}
+    chat = {"site": {"reservoir": {"permeability": {"value": 200, "unit": "mD"}}}}
+    workspace = SimpleNamespace(
+        case=lambda project: (saved, {}), project_state=lambda project: {"case_version": 4}
+    )
+    session = SimpleNamespace(
+        engine=SimpleNamespace(workspace=workspace),
+        state=SimpleNamespace(project="p1", problem=SimpleNamespace(case=chat)),
+    )
+    text = project_case_summary(session, {"source": "project"})
+    assert text == (
+        "Load the project's saved case, version 4: "
+        "site.reservoir.permeability 200 mD -> 150 mD."
+    )
+    assert text in approval_message("Allow set_case (write)?", {"source": "project"},
+                                     "set_case", text)
+    assert call_summary("set_case", {"source": "project"}) == "Load the project's saved case."
+    assert project_case_summary(session, {"changes": {}}) is None

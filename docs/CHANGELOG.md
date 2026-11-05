@@ -6,6 +6,14 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.113] - 2026-11-05
+
+### Fixed
+- QA-230: a denial with the user's words blocks only an identical retry; a revised call (another
+  input) is asked again with a new card. A plain denial still holds for the request (QA-116).
+- QA-224: the approval card of `set_case(source="project")` names the project case's version and
+  what it changes.
+
 ## [0.4.112] - 2026-11-05
 
 ### Fixed

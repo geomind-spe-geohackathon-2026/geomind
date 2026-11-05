@@ -505,13 +505,7 @@ class RunSession:
             if self.never_waits and isinstance(decision, Request) and decision.kind == "approval":
                 decision, rule = Allow(), f"beside:{rule}"
             elif isinstance(decision, Request) and decision.kind == "approval":
-                refused = earlier_denial(self.engine.store.load_events(self.state.root), tool.name)
-                if refused is not None:
-                    decision, rule = Deny(reason=denied_again(tool.name, refused)), "user:earlier"
-                else:
-                    decision = decision.model_copy(
-                        update={"message": approval_message(decision.message, call.input, call.name)}
-                    )
+                decision, rule = self._approval(decision, rule, tool, call)
         else:
             rule = f"hook:{rule}"
         await self.emit(
@@ -525,6 +519,17 @@ class RunSession:
             input=changed,
         )
         return decision
+
+    def _approval(self, decision, rule, tool, call):
+        """Return the approval to ask, with what the call writes, or the refusal of a denial."""
+        refused = earlier_denial(
+            self.engine.store.load_events(self.state.root), tool.name, call.input
+        )
+        if refused is not None:
+            return Deny(reason=denied_again(tool.name, refused)), "user:earlier"
+        summary = project_case_summary(self, call.input) if tool.name == "set_case" else None
+        message = approval_message(decision.message, call.input, call.name, summary)
+        return decision.model_copy(update={"message": message}), rule
 
     async def pause(self, request, point, call=None):
         """Log the pending action, so an answer finds it, and stop."""
@@ -758,16 +763,83 @@ def call_summary(tool, tool_input):
         text += _listed(parts) or "none"
         return text + (f"; ranges removed: {_listed(dropped)}" if dropped else "") + "."
     if tool == "set_case":
-        changed = _leaves(item.get("changes") or {}) + [
-            f"economics.{path}" for path in _leaves(item.get("economics") or {})
-        ]
-        files = item.get("files") or []
-        text = f"Change the case: {_listed(changed)}" if changed else "Set the case"
-        return text + (f"; files {_listed(files)}" if files else "") + "."
+        return _case_summary(item)
     return None
 
 
-def approval_message(message, tool_input, tool=None):
+def _case_summary(item):
+    """Return the sentence of a ``set_case`` call: where the case comes from and what changes."""
+    changed = _leaves(item.get("changes") or {}) + [
+        f"economics.{path}" for path in _leaves(item.get("economics") or {})
+    ]
+    files = item.get("files") or []
+    if item.get("source") in SOURCE_WORDS:
+        text = SOURCE_WORDS[item["source"]]
+        text += f", then change {_listed(changed)}" if changed else ""
+    else:
+        text = f"Change the case: {_listed(changed)}" if changed else "Set the case"
+    return text + (f"; files {_listed(files)}" if files else "") + "."
+
+
+SOURCE_WORDS = {
+    "project": "Load the project's saved case",
+    "origin": "Start again from the case the user or the project gave",
+}
+
+
+def _differing(old, new, prefix=""):
+    """Return the dotted paths where two case dicts differ, a ``{value, unit}`` one leaf."""
+    nested = isinstance(old, dict) and isinstance(new, dict)
+    if nested and "value" not in old and "value" not in new:
+        found = []
+        for key in sorted(set(old) | set(new), key=str):
+            path = f"{prefix}.{key}" if prefix else str(key)
+            found += _differing(old.get(key), new.get(key), path)
+        return found
+    return [] if old == new else [prefix or "case"]
+
+
+def _leaf(node, path):
+    """Return the value at a dotted path of a case dict as short text, or ``none``."""
+    for key in path.split("."):
+        node = node.get(key) if isinstance(node, dict) else None
+    if isinstance(node, dict) and "value" in node:
+        return f"{node.get('value')} {node.get('unit') or ''}".strip()
+    if node is None or isinstance(node, (dict, list)):
+        return "none" if node is None else "..."
+    return str(node)
+
+
+def project_case_summary(session, tool_input):
+    """Return the set_case sentence for ``source: project``: version and changes (QA-224), or None.
+
+    The card said only "Set the case": the user could not see which case or change they approve.
+    """
+    if (tool_input or {}).get("source") != "project":
+        return None
+    workspace = getattr(session.engine, "workspace", None)
+    project = getattr(session.state, "project", None)
+    if workspace is None or project is None:
+        return None
+    found = workspace.case(project)
+    status = workspace.project_state(project) if hasattr(workspace, "project_state") else None
+    version = (status or {}).get("case_version")
+    text = "Load the project's saved case" + (f", version {version}" if version else "")
+    current = session.state.problem.case
+    if found is not None and current is not None:
+        paths = _differing(current, found[0])
+        if paths:
+            listed = [f"{path} {_leaf(current, path)} -> {_leaf(found[0], path)}" for path in paths]
+            text += f": {_listed(listed, most=4)}"
+        else:
+            text += ": the same as the chat's case"
+    changed = call_summary("set_case", {**tool_input, "source": None}) or ""
+    if changed.startswith("Change the case: "):
+        text += f"; then change {changed.removeprefix('Change the case: ').rstrip('.')}"
+    return text + "."
+
+
+def approval_message(message, tool_input, tool=None, summary=None):
     """Return an approval's message with what the call would write, so the user sees it (QA-026).
 
     A plant or case tool's call is said in one sentence first (QA-121); the input follows as
@@ -775,7 +847,7 @@ def approval_message(message, tool_input, tool=None):
     """
     if not tool_input:
         return message
-    summary = call_summary(tool, tool_input)
+    summary = summary or call_summary(tool, tool_input)
     text = json.dumps(tool_input, indent=2, ensure_ascii=False, default=str)
     if len(text) > APPROVAL_INPUT_CHARS:
         text = text[:APPROVAL_INPUT_CHARS] + "\n... (cut; the whole input is in the run log)"
@@ -783,26 +855,50 @@ def approval_message(message, tool_input, tool=None):
     return f"{head}\n\nWhat the call sends:\n{text}"
 
 
-def earlier_denial(events, tool):
-    """Return the reason of the user's last denial of ``tool`` in this request's run tree, or None.
+def earlier_denial(events, tool, tool_input=None):
+    """Return the reason of the user's denial of ``tool`` that holds in this request, or None.
 
-    QA-116: an explanation request asked three times to build a plant after two denials. A
-    denial holds for the rest of the request, for every agent of the tree.
+    QA-116: an explanation request asked three times to build a plant after two denials. A plain
+    denial (no words from the user) holds for the rest of the request, for every agent of the tree.
+    QA-230: a denial with the user's words is "change this and propose again" (the approval card's
+    only way to change a value): it refuses only the same call again, with the same input; a
+    revised call is asked as usual.
     """
+    inputs = {}
     reason = None
     for event in events:
+        call = getattr(event, "call", None)
+        if event.type == "request" and call is not None:
+            inputs[call.id] = call.input
         if (
             event.type == "permission"
             and event.decision == "deny"
             and event.rule == "user"
             and event.tool == tool
         ):
-            reason = event.reason or "denied by the user"
+            words = event.reason if event.reason and event.reason != DENIED_BY_USER else None
+            denied = inputs.get(getattr(event, "call_id", None), _UNKNOWN)
+            if words is None or denied is _UNKNOWN or denied == tool_input:
+                reason = words or DENIED_BY_USER
     return reason
 
 
+DENIED_BY_USER = "denied by the user"
+_UNKNOWN = object()
+
+
 def denied_again(tool, reason):
-    """Return what a model reads when a tool the user denied in this request is called again."""
+    """Return what a model reads when a tool the user denied in this request is called again.
+
+    A denial with the user's words refuses only the same input again (QA-230): the model is told
+    to make the change they asked for and propose again.
+    """
+    if reason != DENIED_BY_USER:
+        return (
+            f"{tool}: the user denied this same call earlier in this request with the words "
+            f"{reason!r}, so it is not asked again: make the change they asked for and call "
+            f"{tool} again with the changed input, or answer in text if their words say no"
+        )
     return (
         f"{tool}: the user denied this tool earlier in this request ({reason!r}), so it is not "
         "asked again: do what the user asked without it, and answer in text with what you have"
