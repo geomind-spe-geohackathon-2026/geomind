@@ -123,3 +123,9 @@ def test_qa_177_it_reads_the_handbook_and_knows_the_requirement_rules():
     assert "group IV (requirements) §6.7 and §6.11" in text
     assert "one range = one requirement" in text and "durations vs counts" in text
     assert "has no unit (70 % is `0.7`)" in text and "`when: running`" in text
+
+
+def test_imp_030_an_assumptions_part_in_the_brief_is_not_read_again():
+    """IMP-030: the lead hands each group its part of the assumptions document."""
+    text = " ".join(Geoscientist().prompt.render().split())
+    assert "never read that document again with `read_knowledge`" in text

@@ -46,6 +46,9 @@ never fill a gap with a typical value.
   values and both sources, and take neither as the answer.
 - A quantity the case needs that no report gives goes in `missing` with why it matters. Never
   fill it with a typical value, a value of another field, or a rule of thumb.
+- A brief that holds the part of an assumptions document for your group (its document and
+  section named) holds those values already: take them from the brief, cited to that document
+  and section, and never read that document again with `read_knowledge` (IMP-030).
 - A quantity the brief's text lacks: search the Knowledge base (`search_knowledge`, then
   `read_knowledge` of the document or section) for a cited value of this site; one found so is
   a proposal of quality `estimated` with its document and page. Otherwise it goes in `missing`
