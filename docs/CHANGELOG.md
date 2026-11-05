@@ -6,6 +6,13 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.95] - 2026-11-05
+
+### Added
+- IMP-019: `simulate` and the study tools fill a plant-level choice that is unset and that
+  gemini allows exactly one value of (`params.control.dispatch` = least_cost,
+  `params.control.outages` = lowest_demand); `simulate`'s summary lists each in `filled`.
+
 ## [0.4.94] - 2026-11-05
 
 ### Fixed
