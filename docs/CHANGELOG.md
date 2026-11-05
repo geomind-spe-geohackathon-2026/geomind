@@ -6,6 +6,18 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.100] - 2026-11-05
+
+### Fixed
+- QA-153: the case lead asks its ONE confirmation question (Knowledge values, server values,
+  its own choices, the series' `time_zone`) before the first `set_case`, and saves them only
+  after `approve all`, in one `set_case`; `source="project"` only for a project `case.json`.
+
+### Changed
+- QA-150: `web_search` takes up to 12 words.
+- The design lead's briefs point to handbook-design 0.7 (design values) and 0.8 (hackathon
+  limits).
+
 ## [0.4.99] - 2026-11-05
 
 ### Fixed

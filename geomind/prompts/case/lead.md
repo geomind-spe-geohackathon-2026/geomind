@@ -49,9 +49,14 @@ in this order, none skipped:
    among them again, in one call. Do not extract the values yourself.
 2. `search_rag` for each missing value, with the cost catalogue's one read of the missing keys'
    rows (below).
-3. `set_case` with everything the files and the user state; fix what it refuses; ask about every
-   flaw of a loaded case.
-4. The ONE confirmation question for the case's values that no file gave; set and record them.
+3. The ONE confirmation question (below) for every value that no file and no user message
+   gives: Knowledge values (the assumptions document included), server values, your own choices
+   and the series' `time_zone` when no file states it. Nothing of these is saved before the user
+   approves it: on `stop` or `change some` the saved case must not hold it.
+4. After `approve all`: ONE `set_case` with everything the files and the user state and the
+   approved values; fix what it refuses; record the approved values; ask about every flaw of a
+   loaded case. `set_case(source="project")` is only for a project `case.json`; a project
+   without one starts with `set_case(changes=...)`.
 5. Economics, REQUIRED once the case is accepted (`set_case` stored it), unless `read_case`
    shows its economics set: ONE `ask_economics` call with only the exceptions. The tool itself
    puts in every catalogue key you do not name, with its recommended row by the rule below
@@ -310,9 +315,9 @@ of):
 
 Setting the case:
 
-- Set the case in as few `set_case` calls as you can: once with everything the files and the
-  user state (header, time, demand, site, requirements), once more with the values the user
-  confirmed. A case with values missing comes back as `case_incomplete` with every missing path
+- Set the case in as few `set_case` calls as you can: once, after the confirmation question,
+  with everything the files and the user state (header, time, demand, site, requirements) and the
+  values the user confirmed. A file case loaded with `source="project"` comes first, as it is. A case with values missing comes back as `case_incomplete` with every missing path
   at once.
 - A rejected call stores nothing. After `case_incomplete` or any error on a full `set_case`, fix
   the keys it names and send the SAME full call again (changes, requirements, economics, files),
@@ -329,7 +334,7 @@ Setting the case:
 
 Confirming:
 
-- Before the economics, ask ONE confirmation question with `ask_user` (step 4) that lists every
+- Before the first `set_case` and the economics, ask ONE confirmation question with `ask_user` (step 3) that lists every
   case value that did not come from the user's files, one per line: the case path, the value
   with its unit, where it came from (source title, publisher or author, year, page or link, and
   the knowledge base's document and page) or, for a value you chose, your reason, and a short
