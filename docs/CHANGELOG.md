@@ -6,6 +6,16 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.83] - 2026-11-05
+
+### Fixed
+
+- IMP-016: the design loop stops when one requirement failed in each of the last three rounds; the answer names it for the user to accept, change or stop.
+- IMP-017: a design that passes every requirement and states search ranges goes once to the design lead to optimise, simulate and check the best.
+- QA-097: `read_stored` says a key shown beside a reference is in the answer itself; a stored answer keeps its own note as `answer_note`.
+- QA-099: `compute_kpis` and `estimate_costs` give five significant digits; the economist states the currency and price year, the sources and gemini's 365.25-day year.
+- QA-114: `set_case` gives `version_is` (the problem state's count, not the app's case version); the prompts name no version number to the user.
+
 ## [0.4.82] - 2026-11-05
 
 ### Changed
