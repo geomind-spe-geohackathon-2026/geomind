@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.68] - 2026-11-05
+
+### Fixed
+
+- QA-078: calculation ids (from `calculate` and `run_python`) are random, `C` and six hex digits, so calculations made at once never share an id; before, each counted from the state it saw and two nested runs both wrote `C1`, after which every state change of the run failed. A stored state with a repeated calculation or finding id loads again, keeping the first.
+
 ## [0.4.67] - 2026-11-05
 
 ### Fixed
