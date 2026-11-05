@@ -37,6 +37,7 @@ class Economist(Agent):
         self.search_memory = tools.search_memory
         self.read_memory = tools.read_memory
         self.search_rag = tools.search_rag
+        self.read_knowledge = tools.read_knowledge
         self.finish = tools.finish
 
         # Model

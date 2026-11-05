@@ -19,3 +19,6 @@ case.
   requirement's `passed`, or a count of passed checks, is never the plant's verdict: a plant that
   gives no cooling can pass every requirement and still be infeasible. Write "feasible" or
   "infeasible" from `feasible`, with its reasons (QA-162).
+
+How a study's table enters the report's `Decisions` (decision record, comparison table):
+`read_knowledge(name="knowledge/handbook-report.md", section="7")` and `section="6.3"`.

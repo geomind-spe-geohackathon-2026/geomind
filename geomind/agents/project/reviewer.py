@@ -36,6 +36,7 @@ class Reviewer(Agent):
         self.read_web_page = tools.read_web_page
         self.read_stored = tools.read_stored
         self.search_rag = tools.search_rag
+        self.read_knowledge = tools.read_knowledge
         self.finish = tools.finish
 
         # Model

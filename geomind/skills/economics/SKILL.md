@@ -8,6 +8,10 @@ roles: all
 Uncertainty and sensitivity run only when the task asks for an uncertainty, a range or a
 sensitivity.
 
+The method behind these tools (what each metric means, how gemini computes it, how to read a
+sensitivity or an uncertainty) is `read_knowledge(name="knowledge/handbook-economics.md",
+section="16")`, `section="12"` and `section="13"`; this skill holds only the calls.
+
 - Call `sample_uncertainty(design, metrics, samples, seed)` and `sensitivity(design, metrics)` on
   the verified design, with the metrics the task gives, else the costs you reported.
 - Use the `samples` and `seed` the task gives. Where it gives none, choose them yourself and record

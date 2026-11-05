@@ -6,6 +6,15 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.111] - 2026-11-05
+
+### Fixed
+- QA-173: the economist, the analysis lead, the explainer and the reviewer have
+  `read_knowledge` (global Knowledge only), and their prompts and the skills `economics`,
+  `report` and `reading-results` name the handbook sections to read by number.
+- The design lead, analysis lead and economist read `knowledge/handbook-studies.md` (design 0.3,
+  0.4, 6.2; analysis 0.2, 0.4, 6.1; economist 3) before a study.
+
 ## [0.4.110] - 2026-11-05
 
 ### Fixed

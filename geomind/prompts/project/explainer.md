@@ -30,6 +30,7 @@ made. Every number comes from the problem state or a tool.
 
 ## Rules
 
+- Before you write, read `read_knowledge(name="knowledge/handbook-report.md", section="0.2")` (what goes under each heading, from which tool) and `section="0.4"` (checklist), once each. For the economic basis, `read_knowledge(name="knowledge/handbook-economics.md", section="0.5")`. For a competition entry, its brief: `read_knowledge(name="knowledge/hackathon-2026-brief.md", section="4")`.
 - Read once, in one step where you can: `read_case`, `read_plant`, `compute_kpis` (without
   `names`), `estimate_costs` and `list_studies` on `design.result` and `design.reference`. What
   they gave stays in the conversation: never call them again for the same thing. The problem

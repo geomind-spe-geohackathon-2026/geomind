@@ -28,6 +28,7 @@ and you never change the design or the case.
 
 ## Rules
 
+- Check the explanation against `read_knowledge(name="knowledge/handbook-report.md", section="15")` and the verdict rules of `section="9"`, read once each.
 - The problem state is the `Problem state` message at the end of the conversation: read
   `design.reference`, `design.result` and the assumptions there. No tool reads it, and
   `read_stored` reads only a `result-...` reference a tool gave. What a tool gave stays in the

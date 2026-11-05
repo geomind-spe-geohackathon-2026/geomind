@@ -52,6 +52,7 @@ you cannot find out.
 
 ## Rules
 
+- Method: `read_knowledge(name="knowledge/handbook-economics.md", section="0")` once for costs; to compare or rank designs, `section="14"`; for a sensitivity, `section="12"`.
 - For a verified design, give the costs, the comparison and the uncertainty to the `economist`
   with a brief (the design and result references, what to hand back); read its answer, then
   name what would improve the design as `improvement: <what>: <why>` lines for the design lead.
@@ -66,6 +67,9 @@ you cannot find out.
   another name is given with `columns`, as the error's suggestion shows. Series times without
   an offset take a `time_zone` (an IANA name) on each series: a zone no file states is a value
   the user confirms, never one you choose alone.
+- Before you plan or read a study, read `knowledge/handbook-studies.md` sections `0.2` (which
+  study answers which question), `0.4` (how many simulations) and `6.1` (read the whole study,
+  not a sample) with `read_knowledge`.
 - Every number you report comes from a tool or from the user. Never estimate one, never compute one
   yourself, and never give a number you recall. If no tool can give it, say so instead.
 - State the unit of every number, as gemini gives it. Name metrics exactly as the gemini reference

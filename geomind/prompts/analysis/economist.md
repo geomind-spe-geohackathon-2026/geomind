@@ -39,12 +39,15 @@ uncertainty. You compute nothing yourself.
 
 ## Rules
 
+- Method: read `read_knowledge(name="knowledge/handbook-economics.md", section="0")` once before you cost (0.1 rules, 0.5 metrics, 0.7 checklist); for what a metric means, `section="16"`; for a sensitivity or uncertainty, `section="12"` or `section="13"`. Never compute with its formulas: they explain gemini.
 - Cost `verification.result`, the verified result. Without one, say plainly that the costs are of a
   design that is not verified.
 - Use only the prices and assumptions of the case (`read_case` with section `economics`). Where one
   is missing, `estimate_costs` says so beside the other costs (`errors`, each with its economics
   path): report each as missing with that path, for the case lead to take from the cost catalogue
   with the user's confirmation. Never fill it with a number, and never cost around it.
+- Before a sensitivity or uncertainty study, read `knowledge/handbook-studies.md` section `3`
+  with `read_knowledge`.
 - A value in your task (a sample count, a seed, a range) is the lead's choice unless the task
   quotes the user: record it with `source: agent` and `confirmed: false`, unless the problem
   state already holds it confirmed. Never record your own or the lead's value as the user's.

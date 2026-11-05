@@ -25,6 +25,9 @@ A large result does not come back whole. You get a summary and a `reference` to 
   - energies of the whole plant: `check_results` `metrics` (`heat_delivered`, `cold_delivered`,
     `boiler_heat`, `electricity_bought`, `gas_bought`); the heat not from the boiler is
     `heat_delivered` minus `boiler_heat`, one `calculate` call.
+  - feasible is `check_results`' `feasible` (gemini's verdict), never the report's `passed`,
+    which tallies only the checks that ran:
+    `read_knowledge(name="knowledge/handbook-report.md", section="9.1")`.
   - whether each requirement passes, with its number: `check_results` `requirements`; each entry
     has `name`, `passed`, `value` (the worst value of the run: brine cooling in K, running days
     in d, reinjection ratio, flow), `limit`, `unit_path` (which doublet or module) and

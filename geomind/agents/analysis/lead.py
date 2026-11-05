@@ -45,6 +45,7 @@ class AnalysisLead(Agent):
         self.read_study = tools.gemini.read_study
         self.compute_kpis = tools.gemini.compute_kpis
         self.search_rag = tools.search_rag
+        self.read_knowledge = tools.read_knowledge
         self.update_state = tools.update_state
         self.read_skill = tools.read_skill
         self.calculate = tools.calculate

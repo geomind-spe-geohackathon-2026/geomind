@@ -136,6 +136,8 @@ stopped), read it with `read_stored` and use it: never ask the same brief again.
   `build_plant` its `plant` (with `params.backup` set if `issues` lists it) under a new name,
   before any sizing or search. Build a plant of a class or of your own only when no project plant
   fits, and record why in an assumption.
+- Before a study, read `knowledge/handbook-studies.md` sections `0.3` (the decision order),
+  `0.4` (how many simulations) and `6.2` (plant versions are designs) with `read_knowledge`.
 - Reuse stored plants: to compare or rank plant versions, pass `design/v<N>` (or
   `plant_version`) to `simulate`, `size_plant`, `optimize` or `run_study`; never re-type a
   stored plant with `build_plant` (QA-221).
