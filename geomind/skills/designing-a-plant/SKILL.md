@@ -58,6 +58,18 @@ From a family to a design:
   numbers. A leaf is the path in the plant file without `params.`: `size.doublets`, `depth`,
   `heat_pump.capacity`, `d0.nominal_flow`. `options={leaf: [values]}` offers a list instead of a
   range. An unknown leaf is an error that lists the valid ones. Without ranges nothing is searched.
+- The doublet count is searched with `size.doublets` (1 to 3). A plant class takes it; a plant
+  built from modules and connections takes it when it has exactly one doublet, `d0` (no `d1`):
+  the search then copies `d0` and joins the copies in parallel. So build a free plant with one
+  doublet `d0` when the number of doublets is to be searched; `d0`'s values hold for every copy.
+- A range the user approved that `set_ranges` refuses is never dropped in silence: fix the path
+  from the error's list and call again; if it still cannot be set, tell the user in your answer
+  which range was not searched and why, and ask before you optimise without it.
+- How to design, size and optimise for any case: the handbook `knowledge/handbook-plant-design.md`
+  in the Knowledge base, read by section with `read_rag(name, section=...)` (`outline=true`
+  lists them): "10 Sizing and optimisation" (10.1 what to fix and what to search, 10.2 search
+  ranges, 10.6 staying out of infeasible regions) and "11 Designing in gemini" (11.6 the good
+  path, 11.8 common failures and their fixes).
 - Ranges and options come only from the user or the case (the ranges a plant file states). Never
   fill a missing one with a typical value. When `size_plant` or `optimize` reports one missing,
   record the question in the state's `questions`, call `ask_user` with the values you propose and
