@@ -286,3 +286,17 @@ def test_costs_of_a_result_say_when_the_case_economics_changed_since_its_run():
     changed = gd.tools.gemini.assessment.changed_keys(old, new)
     assert changed == ["economics.discount_rate", "economics.prices.co2"]
     assert gd.tools.gemini.assessment.changed_keys("economics.json", "other.json") == ["economics"]
+
+
+def test_an_economics_file_and_a_dict_with_its_values_compare_by_content():
+    """QA-275: a case naming economics.json and one with the same values as a dict are the same."""
+    assessment = gd.tools.gemini.assessment
+    values = {"discount_rate": {"value": 0.08, "unit": "-"}}
+    files = {"economics.json": json.dumps(values).encode()}
+    read = assessment.sheet("economics.json", lambda: files)
+    assert assessment.changed_keys(read, values) == []
+    assert assessment.changed_keys(read, {"discount_rate": {"value": 0.06, "unit": "-"}}) == [
+        "economics.discount_rate"
+    ]
+    assert assessment.sheet("missing.json", lambda: files) == "missing.json"
+    assert assessment.sheet(values, lambda: files) is values

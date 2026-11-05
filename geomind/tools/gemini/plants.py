@@ -587,7 +587,53 @@ async def build_plant(context, plant: dict[str, Any], name: str, from_class: str
             suggestions=[*error.suggestions, json.dumps(plant_skeleton())],
         ) from error
     design = await save_design(context, name, built)
-    return {"design": design, **await runtime.in_gemini_thread(plant_issues, context, built)}
+    found = await runtime.in_gemini_thread(plant_issues, context, built)
+    twins = await runtime.in_gemini_thread(stored_twins, context, built)
+    return {"design": design, **found, **twins}
+
+
+def stored_plants(context):
+    """Yield ``(reference, plant)`` for each project plant file and plant version (QA-278)."""
+    import gemini as gm
+
+    workspace = context.session.workspace
+    if workspace is None or context.project is None:
+        return
+    files = getattr(workspace, "plants", None)
+    for name, data in sorted(((files(context.project) if files else None) or {}).items()):
+        yield f"design/{name}", lambda data=data: gm.Plant.from_dict(data)
+    for item in project_designs(context)["plants"]:
+        version = item.get("version")
+        yield f"design/v{version}", lambda version=version: version_plant(
+            context, "build_plant", version
+        )
+
+
+def stored_twins(context, built):
+    """Return ``{stored_as, warning}`` when ``built`` is of a project plant's class (QA-278).
+
+    A project plant re-typed by hand is another plant: the run optimised a re-built
+    HeatingFullCoolingPlant to 52.5 EUR/MWh, the stored one to 32.4. The warning names the stored
+    plant to work on and whether the built one differs from it.
+    """
+    kind = built.to_dict().get("type")
+    if not kind:
+        return {}
+    shown = built.to_dict(structure=True)
+    same, other = [], []
+    for reference, load in stored_plants(context):
+        try:
+            plant = load()
+        except Exception:  # noqa: BLE001 - a stored plant gemini cannot read is no twin
+            continue
+        if plant.to_dict().get("type") != kind:
+            continue
+        (same if plant.to_dict(structure=True) == shown else other).append(reference)
+    if not same and not other:
+        return {}
+    told = "is a stored plant" if same else f"differs from the stored {kind}"
+    warning = f"{told} (stored_as): work on that design; never build a stored plant again"
+    return {"stored_as": same or other, "warning": warning}
 
 
 def foreign_modules(gm, plant):

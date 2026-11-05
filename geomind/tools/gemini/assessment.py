@@ -1,5 +1,7 @@
 """The tools that judge a stored run with gemini: checks, KPIs and costs on its own case."""
 
+import json
+
 from geomind.errors import ToolError
 from geomind.tools.base import tool
 from geomind.tools.gemini.explain import explained
@@ -61,19 +63,20 @@ def coverage_split(plant, case, results):
     Summed from gemini's ``daily_coverage``, the figures the Results page shows: for heating
     ``geothermal_heat``, ``backup_heat`` (the boilers, the CHP and an electric boiler),
     ``unmet_heat`` [J] and ``geothermal_heat_share`` (geothermal over the demand, -); the same
-    with ``cold`` for cooling, where a compression chiller is backup. Geothermal heat of a heat
-    pump plant holds the compressor work too. A service the plant has no consumer for is left out.
+    with ``cold`` for cooling, where a compression chiller is backup. With gemini 0.6.22 the heat
+    pumps' compressor work is ``heat_pump_electricity`` and ``geothermal_heat`` the brine's heat
+    alone (QA-270). A service the plant has no consumer for is left out.
     """
     import gemini as gm
 
     found = {}
     for service, days in gm.evaluate.daily_coverage(plant, case, results).items():
         word = SPLIT[service]
-        sums = {
-            key: sum(day[key].si for day in days)
-            for key in ("demand", "geothermal", "backup", "short")
-        }
+        keys = ("demand", "geothermal", "electricity", "backup", "short")
+        sums = {key: sum(day[key].si for day in days if key in day) for key in keys}
         found[f"geothermal_{word}"] = gm.units.Quantity(sums["geothermal"], "J")
+        if service == "heating" and any("electricity" in day for day in days):
+            found["heat_pump_electricity"] = gm.units.Quantity(sums["electricity"], "J")
         found[f"backup_{word}"] = gm.units.Quantity(sums["backup"], "J")
         found[f"unmet_{word}"] = gm.units.Quantity(sums["short"], "J")
         share = sums["geothermal"] / sums["demand"] if sums["demand"] > 0 else None
@@ -194,8 +197,8 @@ def economics_used(context, reference):
     result four times to find the new prices. The answer says it at once: ``same_as_case`` and,
     when it is false, the ``changed`` keys and the call that gives the new costs.
     """
-    from geomind.tools.gemini.case import state_case
-    from geomind.tools.gemini.stored import RESULT, unquoted
+    from geomind.tools.gemini.case import file_contents, state_case
+    from geomind.tools.gemini.stored import RESULT, run_files, unquoted
 
     identifier = unquoted(reference).removeprefix(RESULT)
     ran = context.session.load_artifact(f"{identifier}.case") if identifier else None
@@ -205,7 +208,10 @@ def economics_used(context, reference):
         current = None
     if not isinstance(ran, dict) or current is None:
         return {"same_as_case": None, "note": "the case of this result's run is not known here"}
-    changed = changed_keys(ran.get("economics"), current.get("economics"))
+    changed = changed_keys(
+        sheet(ran.get("economics"), lambda: run_files(context, identifier)),
+        sheet(current.get("economics"), lambda: file_contents(context, current, {})),
+    )
     if not changed:
         return {"same_as_case": True, "note": "the costs use the economics of the current case"}
     return {
@@ -217,6 +223,22 @@ def economics_used(context, reference):
             "result; costing this result again gives the same numbers"
         ),
     }
+
+
+def sheet(economics, files):
+    """Return the economics dict of a case's ``economics``: a dict, or a file's content read.
+
+    A case may name its economics as a file (``"economics.json"``) and the same values may be a
+    dict in the other case (QA-275): the two are compared by content. ``files`` gives
+    ``{name: bytes}`` when called; a file that cannot be read keeps its name.
+    """
+    if not isinstance(economics, str):
+        return economics
+    try:
+        content = files().get(economics)
+        return json.loads(content) if content is not None else economics
+    except (ToolError, OSError, ValueError):
+        return economics
 
 
 def changed_keys(old, new, prefix="economics"):

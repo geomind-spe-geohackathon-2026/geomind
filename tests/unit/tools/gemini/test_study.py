@@ -789,3 +789,18 @@ async def test_evolve_structure_runs_gemini_s_search_on_a_superstructure():
     ]
     assert stored["explanation"].startswith("Objectives: lcts")
     assert stored["table"]["rows"] and json.dumps(stored)
+
+
+def test_a_sensitivity_of_some_values_names_the_ones_left_out():
+    """QA-263: a tornado over a subset lists the declared values it did not vary."""
+    from geomind.tools.gemini.study import left_out
+
+    uncertain = {"value": 1, "uncertainty": {"kind": "uniform", "min": 0, "max": 2}}
+    sheet = {"discount_rate": uncertain, "electricity": {"price": uncertain}}
+    data = {"site": {"gradient": uncertain}, "economics": "prices.json"}
+    files = {"prices.json": json.dumps(sheet).encode()}
+    found = left_out(data, files, ["case.economics.discount_rate"])
+    assert found["left_out"] == ["site.gradient", "economics.electricity.price"]
+    assert "dominant driver" in found["scope"]
+    every = ["economics.discount_rate", "economics.electricity.price", "site.gradient"]
+    assert left_out(data, files, every) == {} and left_out(data, files, None) == {}

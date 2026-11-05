@@ -247,7 +247,39 @@ async def sensitivity(
     result = to_plain(tornado.to_dict())
     found = (study.to_dict(), result)
     key = await save_study(context, name, "sensitivity", found, ([design], []), None, case)
-    return {"study": key, **result}
+    return {"study": key, **result, **left_out(ran[0], ran[1], values)}
+
+
+def left_out(data, files, values):
+    """Return ``{left_out, scope}`` when ``values`` names only some declared uncertainties.
+
+    A tornado over a subset ranks that subset only (QA-263): the values it left out may move the
+    metric more, so no value of it is the dominant driver of the case.
+    """
+    if not values:
+        return {}
+    names = {str(item).removeprefix("case.") for item in values}
+    rest = [item for item in case_uncertainty(data, files) if item not in names]
+    if not rest:
+        return {}
+    scope = (
+        "this ranks only the named values; the case declares more uncertain values, listed in "
+        "left_out, that were not varied: never call one of the named values the case's dominant "
+        "driver; run sensitivity without values for the whole ranking"
+    )
+    return {"left_out": rest, "scope": scope}
+
+
+def case_uncertainty(data, files):
+    """Return the dotted paths of every value the case declares an ``uncertainty`` for."""
+    economics = data.get("economics") if isinstance(data, dict) else None
+    sheet = None
+    if isinstance(economics, str) and economics in (files or {}):
+        sheet = json.loads((files or {})[economics])
+    elif isinstance(economics, dict):
+        sheet = economics
+    rest = {k: v for k, v in (data or {}).items() if k != "economics"}
+    return declared_uncertainty(rest) + declared_uncertainty(sheet or {}, "economics.")
 
 
 def declared_uncertainty(data, prefix=""):

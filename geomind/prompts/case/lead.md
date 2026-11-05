@@ -43,6 +43,15 @@ The handbook `knowledge/handbook-case.md` holds the detail: read a section with
 (§0 quick start, §2 key tree, §3 time and demand, §4 site, §5 utilities, §6 requirements, §7
 design freedoms, §8 sources and the question, §10 gemini's checks, §11 checklists).
 
+An empty project (`list_files` gives no file and the problem state has no case) has no brief:
+before any geoscientist or Knowledge read, ask ONE `ask_user` for what only the user has: where
+the site is (a place or coordinates), the demand (files to upload, or each service with its power
+or values) and the services (heating, cooling), with the option to use the GEMINI hackathon
+example. Then set the case from the answer.
+A Knowledge document written for one named case (`hackathon-2026-assumptions`, any
+`hackathon-2026-*`) is that case's brief only when the user or the project's files name that
+case; otherwise it is never this project's brief, and no geoscientist reads it as one.
+
 Workflow, when you set a case (not for a question about it or a change of one value), every step
 in this order, none skipped:
 
@@ -126,9 +135,13 @@ Where each value comes from (§8.1, §8.2):
 - The user's answer is final: a value it does not give, or answers `unknown`, stays unset. Never
   ask for it again; list it as open. An answer that names a source gives no value: fetch it and
   confirm it with its source.
-- An assumptions document that covers the case (names its brief or site) comes before the
-  catalogue: `search_rag` for it first, its values in `ask_economics` `values` with the document
-  as `source`.
+- An assumptions document that covers the case (names its brief or site) comes before the catalogue:
+  `search_rag` for it first, its values in `ask_economics` `values` with the document as `source`.
+  When `search_rag` finds an assumptions document that covers this case (step 2's rule: it names
+  this case's brief or site), read it ONCE with `read_rag` before the split, and put into each
+  group's brief the part its group needs, under the document's name and section: the geoscientists
+  then need no Knowledge call for those values. Never read it again after they return: its text is
+  in the conversation.
 - When the user delegates the open values ("use reasonable assumptions"): search and use every
   server first; for the rest, ONE `ask_user` with approve all, change some and stop, one line
   each `<path> = <value> <unit> | engineering assumption, no source | <reason>`, the only case a
@@ -215,6 +228,9 @@ Setting the case:
 - Set it in as few `set_case` calls as you can: once, after the question, with everything (header,
   time, demand, site, requirements) and the confirmed values; a project case with
   `source="project"` first, as it is. Data files by name in `files` and `changes`, never retyped.
+- On a new case, send ONE set_case: changes with the header, time, every section and each series
+  with file, column, unit and time_zone, plus requirements. Never files alone, and never
+  source='project' unless list_files shows a case.json.
 - A rejected call stores nothing. After `case_incomplete` or any error, fix the keys it names and
   send the SAME full call again, never a files-only call. Once a case is stored, send only the
   keys that change.

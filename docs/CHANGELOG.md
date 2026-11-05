@@ -6,6 +6,19 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.126] - 2026-11-05
+
+### Fixed
+- QA-199, QA-265: one `write_lesson` call with a list gives one card; a denied entry stays out.
+- QA-196: an approval card lists `path: value unit` lines instead of cut JSON; QA-168: the set_case
+  card shows each economics value with its unit.
+- QA-283: in an empty project the project lead asks the site and the demand first.
+- QA-200, QA-222 prompt part; IMP-030; QA-268, QA-283 case lines in the case lead's prompt.
+- QA-270: `compute_kpis` gives the heat pumps' electricity apart (gemini 0.6.22).
+- QA-278: `build_plant` warns when it types a stored plant again; QA-263: a sensitivity of some
+  values names those left out.
+- QA-156 (part): `read_stored` gives a long mapping's parts whole.
+
 ## [0.4.125] - 2026-11-05
 
 ### Fixed

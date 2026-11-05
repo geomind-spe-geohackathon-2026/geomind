@@ -954,3 +954,38 @@ def test_plant_writes_are_checked_before_the_approval():
 
     assert all(callable(item.precheck) for item in (build_plant, patch_plant, merge_designs))
     assert DRY_DESIGNS.get() is False
+
+
+class VersionWorkspace:
+    """A project with one saved plant version: a HeatingPlant of two doublets (QA-278)."""
+
+    PLANT = {
+        "format": 1, "kind": "plant", "name": "p", "type": "HeatingPlant",
+        "size": {"doublets": {"value": 2}},
+    }
+
+    def project_designs(self, project_id):
+        """Return version 1."""
+        return {"plants": [{"version": 1, "name": "p"}], "studies": []}
+
+    def plant_version(self, project_id, version):
+        """Return the plant dict as version 1."""
+        return dict(self.PLANT) if version == 1 else None
+
+    def plants(self, project_id):
+        """No named plants."""
+        return {}
+
+
+async def test_build_plant_warns_when_it_types_a_stored_plant_again(gm):
+    """QA-278: a plant of a stored plant's class names the stored one, same or different."""
+    session = StubSession(workspace=VersionWorkspace())
+    same = {"name": "again", "plant": dict(VersionWorkspace.PLANT)}
+    output = (await call(TOOLS.build_plant, same, session, project="p1")).output
+    assert output["stored_as"] == ["design/v1"] and "is a stored plant" in output["warning"]
+    other = {**VersionWorkspace.PLANT, "size": {"doublets": {"value": 3}}}
+    output = await call(TOOLS.build_plant, {"name": "f1", "plant": other}, session, project="p1")
+    assert output.output["stored_as"] == ["design/v1"]
+    assert "differs from the stored HeatingPlant" in output.output["warning"]
+    alone = await call(TOOLS.build_plant, {"name": "f2", "plant": other}, StubSession())
+    assert "warning" not in alone.output
