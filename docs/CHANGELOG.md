@@ -6,6 +6,13 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.61] - 2026-11-05
+
+### Changed
+
+- Agent tools feature, step 4 (move only how-to a role needs sometimes; core workflows stay in the prompts): new skills `connectors` (the case lead's server how-to), `economics` (the economist's uncertainty, sensitivity and study rules), `report` (quoting a structure search; the explainer gets `read_skill`) and `comparing-designs` (the design lead's superstructure and family comparison), each with a `read_skill('<name>') before ...` pointer where the text was.
+- A skill whose `tools` names only tool names is listed only to an agent offered one of them (MCP tools count); `read_skill` still reads it.
+
 ## [0.4.60] - 2026-11-05
 
 ### Fixed

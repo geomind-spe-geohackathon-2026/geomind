@@ -137,7 +137,8 @@ folder), `description` (its one line in the system prompt), `tools` (what it exp
 (`<team>/<name>` of the agents that see it, comma-separated, or `all`). Files beside `SKILL.md` are
 extras, read as `read_skill("<skill>/<file>")`. An agent with the `read_skill` tool gets the skills
 of its role (`Prompt.role`) listed in its system prompt; `read_skill(name)` refuses a skill its
-role lacks, with the list. A tool error points at its skill with `skill_hint` ("read_skill('x') for
+role lacks, with the list. A skill whose `tools` field names only tool names is listed only to
+an agent offered one of them (its own tools and the MCP tools). A tool error points at its skill with `skill_hint` ("read_skill('x') for
 the rules"). Skills: `calculator`, `designing-a-plant`, `gemini-units`, `reading-results`.
 
 ## Calculations
