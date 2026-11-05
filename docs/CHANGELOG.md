@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.66] - 2026-11-05
+
+### Fixed
+
+- QA-072: no agent attributes to the user what the user did not write: a shared rule names a rule of geomind or gemini (dates without an offset are read as UTC), a file or the agent's own choice as what it is; the case lead's time-zone line says UTC is gemini's reading, and a zone no file or user message states is an assumption to confirm, never "the user's instruction".
+
 ## [0.4.65] - 2026-11-05
 
 ### Fixed

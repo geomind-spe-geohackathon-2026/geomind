@@ -9,6 +9,10 @@
 - Server answers: an origin with `future: true` is a forecast or a projection, never measured
   data: say so, and the data's dates, wherever you cite it. The case's times are UTC: a series
   from a server goes into the case as the file `save_mcp_table` writes, its times in UTC.
+- The user's words: say "the user said" or "the user's instruction" only for what the user wrote
+  in this chat. A rule of geomind or gemini (dates without an offset are read as UTC), a file, the
+  knowledge base or your own choice is named as what it is, never as the user's; a choice of yours
+  is an assumption to confirm.
 - No defaults: a value nothing gives stays unset and is named as missing; never fill it in.
 - Units and physics: gemini converts every unit and computes every physical value. Choose the
   units you show the user, and pass values in the units their source gives; never convert a
