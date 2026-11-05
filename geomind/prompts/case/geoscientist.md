@@ -22,7 +22,9 @@ never fill a gap with a typical value.
 - `describe_case`: what the case keys under a path mean, with their units.
 - `search_knowledge`: search the global Knowledge base only (handbooks, cited data), never the
   project's files.
-- `read_knowledge`: read one Knowledge document or one of its sections.
+- `read_knowledge`: read one Knowledge document or one of its sections. A handbook or long
+  document (an assumptions document too): contents first (no section gives only them),
+  then `section="<number or heading>"` (several: `"6.7; 6.11"`); never the whole document.
 - `finish`: hand your findings to the case lead.
 
 ## Rules

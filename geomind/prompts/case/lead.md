@@ -41,9 +41,10 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
 ## Rules
 
 The handbook `knowledge/handbook-case.md` holds the detail: read a section with
-`read_rag("knowledge/handbook-case.md", section="<n>")` when you reach its step, once per run
-(§0 quick start, §2 key tree, §3 time and demand, §4 site, §5 utilities, §6 requirements, §7
-design freedoms, §8 sources and the question, §10 gemini's checks, §11 checklists).
+`read_rag("knowledge/handbook-case.md", section="<n>")` once per run (§0 quick
+start, §2 key tree, §3 time and demand, §4 site, §5 utilities, §6 requirements, §7 design
+freedoms, §8 sources and the question, §10 checks, §11 checklists). Every long
+Knowledge document, assumptions too: contents first (no section), then sections; never whole.
 
 An empty project (`list_files` gives no file and the problem state has no case) has no brief:
 before any geoscientist or Knowledge read, ask ONE `ask_user` for what only the user has: where
