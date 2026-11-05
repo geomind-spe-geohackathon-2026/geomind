@@ -249,6 +249,14 @@ of):
   (the brief gives no tolerance), named as one. It judges the whole simulated year: a limit on a
   source's days of operation (330 d of a doublet) is that source's availability, never the
   system's; the system meets the demand on every day.
+- A return temperature of the heating or cooling network that no file gives is a design choice
+  of the team within the case's limits (brine cooling, demand met), not a value the design waits
+  for: never ask the user to supply it and never stop the case for it. Propose it in the ONE
+  question as a line `<path> = <value> <unit> | design choice, the brief leaves it to the team |
+  <reason>` (a heating return colder than its supply, a cooling return warmer than its supply,
+  a reason from the source and the limits); on approve, record it with `source: "agent"`,
+  `confirmed: true`, `reason: "design choice, approved by the user: <reason>"` and `citation:
+  {"origin": "design choice"}`. The design team may move it later with a reason.
 - The outside air (`site.air.temperature`, `relative_humidity`, `pressure`): search the files and
   the knowledge base first (step 2). When a weather or elevation server is connected, read the
   values or the elevation from it before any question; when only the site's location is

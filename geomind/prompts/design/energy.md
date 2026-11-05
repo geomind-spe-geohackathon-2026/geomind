@@ -62,7 +62,10 @@ Do and don't (from earlier runs):
   `evaluate_module`, giving every stream inlet (`source_in`, `sink_in`) with its fluid, `T`, `p`
   and `m_dot`; a machine the plant file gives and the case does not change needs no evaluation.
 - The exchanger's approach and the network's losses follow from the temperatures and the flow;
-  a return temperature the case lacks is a case change, never a typical value.
+  a network return temperature is a design choice of the team within the case's limits: when
+  the case lacks it, or another one suits the plant better, propose the value with its reason
+  (the source, the brine cooling limit, the demand met) as a design choice for the case's
+  owner to record; never stop the design to wait for it.
 - An equipment value no file gives (an efficiency, a fraction) is your assumption with a reason,
   named as one.
 - The case's economics may price a kind by another size: a heat exchanger per W of

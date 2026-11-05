@@ -15,8 +15,10 @@ Reading the case:
   numbers of one case for another.
 - A requirement is a named limit of the case (`name`, `on`, `quantity`, `min`/`max`). A limit the
   case does not state is not checked; do not invent one. A case value the design needs and the
-  case lacks (a return temperature, a price) is a change of the case: name it, with why, for the
-  case's owner, who records it as an assumption or asks the user.
+  case lacks (a price) is a change of the case: name it, with why, for the case's owner, who
+  records it as an assumption or asks the user. A network return temperature is a design choice
+  of the team within the case's limits: propose a value with its reason for the case's owner to
+  record; never stop the design to wait for one.
 - Tools worth knowing: `list_modules`, `describe_module` and `evaluate_module` (a module's
   parameters, ports, units; run one at one point, every inlet with its fluid); `list_profiles`,
   `read_profile`; `read_result`; `read_study`. A model gemini lacks makes its family
