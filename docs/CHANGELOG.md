@@ -6,6 +6,18 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.86] - 2026-11-05
+
+### Fixed
+- QA-125: `read_result` of a series carries `summary` (max and min with their time, mean,
+  active steps and days, first and last active step); `read_result` of a module path carries
+  `operation` (steps, operating steps and days, gemini's energy per output in MWh). The
+  reading-results skill maps each result question to one call; run_python only beyond them.
+- QA-124: reading-results points to `check_results` `requirements` for every requirement's
+  value, limit, module and day.
+- QA-123: with gemini 0.6.14, a module rated by conductance is no longer reported as unused; the
+  skill says a module without an energy output was not idle.
+
 ## [0.4.85] - 2026-11-05
 
 ### Fixed
