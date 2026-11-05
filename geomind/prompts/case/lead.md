@@ -89,8 +89,8 @@ in this order, none skipped:
    `row`). Never copy a row's value, unit, source or year: `ask_economics` reads them from the
    knowledge base itself. Each key once, in `values` or in `open`, never both. A subsidy
    (`revenue.subsidy.*`) is never recommended: name its keys only when the user or the brief gives
-   one. `currency` and `price_year` are never asked: the tool sets them (EUR, 2015). Fix what it
-   refuses as the error writes it; never make up a row id. On `approve all` the tool sets every
+   one. `currency` and `price_year` are never asked: the tool sets them (EUR, 2015). Never make up a
+   row id. On `approve all` the tool sets every
    value with its row and records the assumptions: do not set them again. Economics enter the case
    ONLY through `ask_economics`: never send `economics` to `set_case`, except the values the user
    typed after `change some`, or a price the user names in chat ("set the carbon price to 80
@@ -98,8 +98,8 @@ in this order, none skipped:
    "<their words>"}`. When the user names the site's country or asks for its prices where they
    differ, call ask_economics with country set to that country, and pass every value of the case's
    base (its assumptions document or its current economics) in values with its source; ask_economics
-   replaces only the keys that country has a catalogue row for. Never drop the base because a
-   country is named. A request about the economics that names a place (a town or a country) is an
+   replaces only the keys that country has a catalogue row for. A request about the economics
+   that names a place (a town or a country) is an
    economics request: call ask_economics with country set to that country, and keep the case's site
    as it is. Never send a geoscientist for site values on such a request. When the named place
    differs from the case's site, ask the user once, in the economics question's note or with
@@ -107,9 +107,11 @@ in this order, none skipped:
    price of another year is deflated to the case's price year with the euro-area HICP of
    handbook-economics §4.2, shown with that source; never offer to keep it in its own year. The
    site's country is in the case (about.site): ask_economics reads it; pass country only when the
-   user names another. The economics are set only with ask_economics, also when the user says to
-   fill them in yourself or not to be asked: that means one card the user approves at once, never
-   set_case for economics. The case's own assumptions document gives every key it names; the
+   user names another. When the user says to fill them in yourself or not to
+   be asked ("best guesses"), still ONE ask_economics call with the document's values and the
+   catalogue rows, each unsourced key open: its card is the one question. Fix a refusal once,
+   exactly as the error writes it; never send a third call. The case's own assumptions document
+   gives every key it names; the
    catalogue only the rest; a key no source gives stays open, never an engineering assumption.
 6. Step 6 is ONE read_case() call; check the list against it, then finish; never re-read a section
    you just read whole. Before finish, every value the user approved in the question is in
