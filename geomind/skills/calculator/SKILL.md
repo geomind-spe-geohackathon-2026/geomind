@@ -27,7 +27,8 @@ Beside them, and never alone:
   Only for a fact that needs no source (hours in a day, a count you were told, a factor of a
   formula); never for a price, a property or a site value: those need a source. Leave out `unit`
   for a dimensionless number.
-- `{"constant": "pi"}` or `{"constant": "e"}`.
+- `{"constant": "pi"}`, `{"constant": "e"}` or `{"constant": "g"}`, the standard gravity
+  9.80665 m/s2 (a hydrostatic pressure is density × g × depth).
 
 A calculation whose operands are all plain numbers or constants is refused.
 

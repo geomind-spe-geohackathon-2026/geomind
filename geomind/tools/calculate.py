@@ -27,8 +27,9 @@ SAME_DIMENSION = ("add", "subtract", "min", "max", "sum", "mean")
 SOURCED_KINDS = ("case", "assumption", "catalogue", "stored", "calculation")
 """Operands with a source; every calculation needs one at least."""
 REFERENCE_KINDS = (*SOURCED_KINDS, "constant", "number")
-CONSTANTS = {"pi": math.pi, "e": math.e}
-"""Named mathematical constants an operand may be (dimensionless; they are not sourced)."""
+CONSTANTS = {"pi": (math.pi, "-"), "e": (math.e, "-"), "g": (9.80665, "m/s2")}
+"""Named constants an operand may be, ``(value, unit)``: pi, e and the standard gravity ``g``
+(9.80665 m/s2, the CGPM's defined value); they are not sourced (QA-074: rho * g * h)."""
 DERIVED = {
     "W": {"kg": 1, "m": 2, "s": -3},
     "J": {"kg": 1, "m": 2, "s": -2},
@@ -119,7 +120,12 @@ def _unit_dimensions(unit, path):
 
     si = gm.units.si_unit(unit)
     if si is None:
-        raise _error(f"unit = {unit!r} is not a unit gemini knows", path, "invalid_unit")
+        import difflib
+
+        known = [member.value for member in gm.units.Unit]
+        near = difflib.get_close_matches(unit, known, n=5, cutoff=0.5)
+        hint = f"; the nearest it knows: {', '.join(near)}" if near else ""
+        raise _error(f"unit = {unit!r} is not a unit gemini knows{hint}", path, "invalid_unit")
     found, scale = dimensions(si)
     gemini_scale, offset = gm.units.si_conversion(unit)
     return found, scale, gemini_scale, offset
@@ -254,7 +260,8 @@ def _constant(context, reference, path):
     name = reference["constant"]
     if name not in CONSTANTS:
         raise _error(f"constant = {name!r}; expected one of {', '.join(CONSTANTS)}", path)
-    return CONSTANTS[name], "-", {"kind": "constant", "name": name}
+    value, unit = CONSTANTS[name]
+    return value, unit, {"kind": "constant", "name": name}
 
 
 def _number(context, reference, path):
@@ -310,7 +317,7 @@ def _name(operand):
     if kind == "number":
         return f"{operand['value']:g} {operand['unit']} (plain)"
     if kind == "constant":
-        return reference["constant"]
+        return f"{reference['constant']} [{operand['value']:g} {operand['unit']}]" if operand["unit"] != "-" else reference["constant"]
     suffix = f".{reference['path']}" if kind == "stored" else ""
     return f"{kind}:{reference[kind]}{suffix} [{operand['value']:g} {operand['unit']}]"
 
