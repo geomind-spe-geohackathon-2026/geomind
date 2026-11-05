@@ -129,3 +129,25 @@ def test_qa_352_no_answer_to_the_user_starts_a_line_with_the_improvement_tag():
     text = " ".join(AnalysisLead().prompt.content.split())
     assert "The tag `improvement:` is only for the design lead inside the design loop" in text
     assert "(costs, a comparison, a sensitivity, an uncertainty, a what-if)" in text
+
+
+def test_qa_352_the_raw_improvement_tag_refuses_an_answer_to_the_user_once():
+    """QA-352: the code guard behind the prompt rule; a nested run keeps the tag."""
+    from types import SimpleNamespace
+
+    from geomind.agents.analysis.lead import TAGGED, raw_improvements
+    from geomind.types import Message, ToolCall
+
+    def context(answer, parent=None, earlier=()):
+        call = ToolCall(id="f", name="finish", input={"answer": answer})
+        messages = [*earlier, Message(role="assistant", tool_calls=(call,))]
+        state = SimpleNamespace(parent=parent)
+        return SimpleNamespace(session=SimpleNamespace(state=state), messages=messages)
+
+    tagged = "Costs ...\n\nWhat could improve it\n- improvement: smaller heat pump: lower capex"
+    assert raw_improvements(context(tagged)).startswith(TAGGED)
+    assert raw_improvements(context(tagged, parent="run-1")) is None
+    plain = "What could improve it\n- A smaller heat pump would lower the capex."
+    assert raw_improvements(context(plain)) is None
+    refused = Message(role="tool", content=f"{TAGGED}: ...", tool_call_id="f")
+    assert raw_improvements(context(tagged, earlier=(refused,))) is None

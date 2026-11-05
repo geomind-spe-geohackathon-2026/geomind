@@ -1,5 +1,7 @@
 """The sample agent: the reference for how an agent is built."""
 
+import re
+
 from geomind import tools
 from geomind.agents.agent import Agent, Model, Output
 from geomind.agents.analysis.economist import Economist
@@ -12,6 +14,46 @@ ECONOMIST_TOKENS = 2000
 """The most tokens of the economist's answer the analysis lead reads back."""
 SUPPORT_TOKENS = 1500
 """The most tokens of the support lead's answer a lead reads back."""
+
+
+RAW_IMPROVEMENT = re.compile(r"^\s*(?:[-*]\s*)?improvement:", re.IGNORECASE | re.MULTILINE)
+"""A line of an answer that starts with the design loop's ``improvement:`` tag."""
+TAGGED = "improvement tag in the answer"
+"""The start of the analysis lead's one refusal of an answer to the user with the raw tag."""
+
+
+def proposed(messages):
+    """Return the answer the last assistant message proposes: its finish, else its text."""
+    for message in reversed(messages):
+        if message.role != "assistant":
+            continue
+        for call in message.tool_calls:
+            if call.name == "finish":
+                return str((call.input or {}).get("answer", ""))
+        return message.content or ""
+    return ""
+
+
+def raw_improvements(context):
+    """Return the refusal of an answer to the user with ``improvement:`` lines, or ``None``.
+
+    QA-300, QA-352: answers on costs, sensitivity and uncertainty ended with the design loop's
+    raw tag. Only a run the user reads (no parent) is checked; a nested run hands its lines to
+    the design lead, which reads the tag. Refused once.
+    """
+    state = getattr(context.session, "state", None)
+    if getattr(state, "parent", None) is not None:
+        return None
+    messages = context.messages
+    if any(TAGGED in (message.content or "") for message in messages):
+        return None
+    if not RAW_IMPROVEMENT.search(proposed(messages)):
+        return None
+    return (
+        f"{TAGGED}: the user reads this answer, so write each improvement as a plain sentence "
+        "in a short list headed 'What could improve it', never a line that starts with "
+        "'improvement:'; then finish with the same answer otherwise"
+    )
 
 
 class AnalysisLead(Agent):
@@ -34,6 +76,10 @@ class AnalysisLead(Agent):
 
         # Model
         self.model = Model(setting="analysislead_model", temperature=0)
+
+    def answer_problem(self, context):
+        """Refuse once an answer to the user with the raw ``improvement:`` tag (QA-352)."""
+        return raw_improvements(context)
 
     def _declare_gemini_tools(self):
         """Declare the tools over files, the case, the modules, plants, runs and studies."""
