@@ -53,12 +53,11 @@ def list_plants(context, plant_class: str | None = None, with_schema: bool = Fal
     """
     import gemini as gm
 
+    versions = project_designs(context)["plants"]
     shown = {
         "project_plants": project_plant_names(context),
-        "project_versions": [
-            {**item, "design": f"design/v{item['version']}"}
-            for item in project_designs(context)["plants"]
-        ],
+        "project_versions": [{**item, "design": f"design/v{item['version']}"} for item in versions],
+        **current_version(versions),
         "plants": [
             {"name": name, "summary": gm.plants.get(name).describe()["summary"]}
             for name in gm.plants.names()
@@ -69,6 +68,16 @@ def list_plants(context, plant_class: str | None = None, with_schema: bool = Fal
     if with_schema:
         shown["schema"] = gm.plants.schema()
     return shown
+
+
+def current_version(versions):
+    """Return ``{current}``: the project plant, its latest version, as a design (QA-276, QA-330).
+
+    A run called an older version "the current project plant" while the Plant page showed the
+    latest; ``current`` names the one to call so.
+    """
+    latest = [item for item in versions if item.get("latest")] or versions[-1:]
+    return {"current": f"design/v{latest[-1]['version']}"} if latest else {}
 
 
 def class_capabilities(gm, plant_class):

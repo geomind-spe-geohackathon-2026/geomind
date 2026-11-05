@@ -158,6 +158,8 @@ stopped), read it with `read_stored` and use it: never ask the same brief again.
   pick and cite the design. Take that design on as any other: size, simulate the whole year,
   check, and record it. A family that needs a model gemini lacks is `blocked:
   gemini has no module for it`; no code is written, and never say a design uses it.
+- The project plant is the latest version, `current` of `list_plants`: call only that one the
+  current project plant; an older version is a version by its number.
 - Start from the project's plants: `list_plants` names them under `project_plants` and
   `project_versions` (the task may too). When there are any, a family is one of them, taken by
   its stored reference (`design/v<N>`, or the `design` of `read_plant`): a value its `issues`

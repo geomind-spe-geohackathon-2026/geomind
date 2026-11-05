@@ -1054,3 +1054,13 @@ def test_a_file_workspace_writes_plant_versions(tmp_path):
     assert workspace.save_plant_version("p1", plant, "same") == {"version": 1, "saved": False}
     assert FileWorkspace(tmp_path).plant_version("p1", 1) == plant
     assert workspace.project_designs("p1")["plants"][0]["note"] == "first"
+
+
+def test_the_current_project_plant_is_the_latest_version():
+    """QA-276, QA-330: list_plants names the latest version as current, never an older one."""
+    from geomind.tools.gemini.plants import current_version
+
+    versions = [{"version": 1, "latest": False}, {"version": 2, "latest": True}]
+    assert current_version(versions) == {"current": "design/v2"}
+    assert current_version([{"version": 1}, {"version": 3}]) == {"current": "design/v3"}
+    assert current_version([]) == {}
