@@ -173,11 +173,15 @@ def test_a_gemini_error_passes_through_its_own_problem(gemini_errors):
 
 
 async def test_bug_is_reported_and_hidden_from_the_model(session, context):
-    """A bug goes to ``on_error``, and the model reads only that it happened."""
+    """A bug goes to ``on_error``; the model reads its class, message and place (QA-083).
+
+    A bare "internal error" left the agent no way to change its call.
+    """
     result = await dispatch(raises_bug, call(), context)
-    assert result.is_error and "internal error" in result.output["error"]["message"]
+    message = result.output["error"]["message"]
+    assert result.is_error and "internal error" in message
     assert result.output["error"]["code"] == "internal"
-    assert "secret detail" not in str(result.output)
+    assert "ZeroDivisionError" in message and "test_dispatch.py:" in message
     assert isinstance(session.errors[0][0], ZeroDivisionError)
 
 

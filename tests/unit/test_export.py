@@ -2,7 +2,7 @@
 
 import asyncio
 
-from geomind.engine import Context, Engine, replay
+from geomind.engine import Context, Engine, Permissions, replay
 from geomind.export import models_by_agent, render_export
 from geomind.types import Message, Usage
 from tests.fixtures.runs import (
@@ -152,8 +152,12 @@ def test_the_export_of_a_replayed_run_equals_the_original(monkeypatch):
 
 
 def test_a_run_that_a_limit_stopped_exports_its_reason_and_partial_answer():
-    """The export shows the stop and the answer built from the record; an answered run has none."""
-    engine = engine_for([uses(call("lookup", key="x")), uses(call("lookup", "c2", key="x"))])
+    """The export shows the stop and the answer built from the record; an answered run has none.
+
+    The run is in ask mode: in auto mode it takes its steps again by itself (QA-086).
+    """
+    script = [uses(call("lookup", key="x")), uses(call("lookup", "c2", key="x"))]
+    engine = engine_for(script, permissions=Permissions(mode="ask"))
     start = context("What is x?")
     asyncio.run(stopped_at_limit(engine, asyncio.run(engine.run(Worker(), start, max_steps=1))))
     text = render_export(engine.store.load_events(start.run_id))

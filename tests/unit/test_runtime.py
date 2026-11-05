@@ -45,12 +45,15 @@ def test_every_role_has_its_own_variable():
 
 
 def test_a_stored_state_with_removed_settings_still_loads():
-    """A run stored with the sandbox and default model settings resumes without them."""
-    stored = {**runtime.state(), "default_model": "x/y", "sandbox_cpu": 1}
+    """A run stored with removed settings (the default model, a former role's) resumes without them.
+
+    ``sandbox_cpu`` is a setting again (run_python's sandbox), so the test uses a removed role.
+    """
+    stored = {**runtime.state(), "default_model": "x/y", "analyst_model": "x/z"}
 
     async def load():
         runtime.load_state(stored)
-        return "sandbox_cpu" in runtime.state()
+        return "analyst_model" in runtime.state() or "default_model" in runtime.state()
 
     assert asyncio.run(load()) is False
 
