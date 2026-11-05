@@ -6,6 +6,18 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.90] - 2026-11-05
+
+### Added
+- IMP-025: a `Team` takes `briefs` as a list of `{role, task}` and runs one instance per entry at
+  the same time, named `<Role> <Roman numeral>` (Geoscientist I, II, ...); every event of an
+  instance's run carries the new optional field `instance`. The case lead's `geoscientists`
+  team splits the subsurface work by field group in one call; skill working-in-a-team,
+  "Parallel instances".
+
+### Changed
+- The cost catalogue is `knowledge/data-economics.csv` and `.md` (was cost-sources.*).
+
 ## [0.4.89] - 2026-11-05
 
 ### Changed
