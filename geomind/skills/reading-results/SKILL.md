@@ -12,6 +12,21 @@ A large result does not come back whole. You get a summary and a `reference` to 
 - When you need the values themselves, call `read_result(reference, path, field, start, end)`. `path`
   is the module path, `field` the field name, and `start` and `end` are ISO times of the case. Leave
   them out for the whole series, and prefer a short window.
+- A question about a stored result is one `read_result` call, never code:
+  - the peak or the lowest value and its day, the days or steps a value is not zero: the series
+    of that field, `read_result(reference, path, field)`; its `summary` gives `max` and `min`
+    with their `time`, `mean`, `active_steps`, `active_days`, `first_active` and `last_active`.
+    Example: the peak heat delivered and its day is the summary's `max` of the heat field.
+  - how many days a module ran (a doublet's pump, a boiler) and the energy it used:
+    `read_result(reference, path)`; its `operation` gives `operating_days` and
+    `operating_steps` (days with flow) of `steps`, and `energy_whole_run` per energy output in
+    MWh. A module without an energy output (a heat exchanger) has no `energy_whole_run`: that
+    does not mean it was unused; its `operating_days` and its duty series say how it ran.
+  - energies of the whole plant: `check_results` `metrics` (`heat_delivered`, `cold_delivered`,
+    `boiler_heat`, `electricity_bought`, `gas_bought`); the heat not from the boiler is
+    `heat_delivered` minus `boiler_heat`, one `calculate` call.
+  Use `run_python` only for what none of these gives, and never to sum a power series into an
+  energy: the energies come from gemini in MWh.
 - A wrong `path` or `field` is an error result that lists what exists, so read it and try again.
 - Keep the reference of a result you record with `update_state`, so that it can be read again later.
 - `check_results` of a result returns `feasible` (gemini's verdict), `reasons` (each with a `kind`
@@ -39,8 +54,11 @@ requirement of the case: set it with `set_case`.
 Return one series of a stored run, or a summary of the run or of one module path.
 
 `reference` is what simulate returned. With `path` and `field` it returns the series
-`{time, value, unit}`; `start` and `end` are ISO 8601 times, both inclusive. With only
-`path` it returns min, max and mean of each field of that module, and with neither of the
+`{time, value, unit, summary}`, `summary` being `{steps, unit, max: {value, unit, time}, min:
+{value, unit, time}, mean, active_steps, active_days, first_active, last_active}` (active: not
+zero; days are UTC calendar days); `start` and `end` are ISO 8601 times, both inclusive. With
+only `path` it returns `{<path>: {field: {min, max, mean}}, operation: {steps, operating_steps,
+operating_days, energy_whole_run}}`, and with neither min, max and mean of every module of the
 whole run. Power is in MW, temperature in degC, pressure in bar, flows in m3/h or kg/s.
 
 ### `read_stored`

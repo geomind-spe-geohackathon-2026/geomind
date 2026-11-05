@@ -7,6 +7,8 @@ roles: all
 
 Use `run_python` for work one `calculate` call cannot do: a loop over a profile, a fit, a table,
 a search over options. For one operation on a few values, use `calculate` (`calculator`).
+A question about a stored result (a peak and its day, days running, an energy) is a
+`read_result` or `check_results` call, not code (`reading-results`).
 
 The sandbox: Python 3.11 with gemini (`import gemini as gm`) and numpy, no network, a time and
 memory limit, a small working folder that is gone after the call. Every call starts fresh.

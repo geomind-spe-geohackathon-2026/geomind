@@ -41,12 +41,14 @@ async def test_a_run_summary_reads_in_readable_units(name):
 
 @example_names
 async def test_a_path_summarises_that_module_only(name):
-    """The module asked for, each field min, max and mean."""
+    """The module asked for, each field min, max and mean, and how long it ran."""
     session, problem, reference = await ran(name)
     path = MODULES[name]
     arguments = {"reference": reference, "path": path}
     result = await call(TOOLS.read_result, arguments, session, problem=problem)
-    assert set(result.output) == {path}
+    assert set(result.output) == {path, "operation"}
+    operation = result.output["operation"]
+    assert 0 < operation["operating_days"] <= operation["steps"]
 
 
 @example_names
@@ -68,6 +70,10 @@ async def test_a_series_has_times_values_and_a_readable_unit(name):
     )
     assert whole["unit"] == "MW" and len(whole["time"]) == len(whole["value"])
     assert len(windowed.output["value"]) == 1
+    summary = whole["summary"]
+    assert summary["max"]["value"] == max(whole["value"])
+    assert summary["max"]["time"] == whole["time"][whole["value"].index(max(whole["value"]))]
+    assert summary["active_steps"] == sum(1 for number in whole["value"] if number)
 
 
 async def test_a_field_needs_a_path():

@@ -52,10 +52,75 @@ def read_result(
     if path is None and field is not None:
         raise ToolError(f"read_result: field = {field!r}; expected a path too", path="path")
     _, _, results = load_run(context, reference, "read_result")
-    if field is None:
-        return results.summary(path=path, units=READ_UNITS)
     first, last = parse_time(start, "start", "read_result"), parse_time(end, "end", "read_result")
-    return results.get(path, field, start=first, end=last, units=READ_UNITS)
+    if field is None:
+        summary = results.summary(path=path, start=first, end=last, units=READ_UNITS)
+        if path is None:
+            return summary
+        return {**summary, "operation": operation(results, path, first, last)}
+    read = results.get(path, field, start=first, end=last, units=READ_UNITS)
+    return {**read, "summary": series_summary(read)}
+
+
+ENERGY_UNITS = {**READ_UNITS, "energy": "MWh", "duration": "h"}
+"""The units of the energy report a module summary carries: energy in MWh, time in hours."""
+
+
+def series_summary(read):
+    """Return the facts of one series a question asks for, so no code has to count them.
+
+    ``max`` and ``min`` carry the time of their first step, ``active_steps`` and ``active_days``
+    count the steps and the calendar days (UTC) with a value other than zero, ``steps`` all steps.
+    (QA-125: peaks, their days and active days took dozens of run_python steps.)
+    """
+    pairs = [
+        (time, number)
+        for time, number in zip(read["time"], read["value"])
+        if isinstance(number, (int, float)) and not isinstance(number, bool)
+    ]
+    unit = read["unit"]
+    summary = {"steps": len(read["time"]), "unit": unit}
+    if not pairs:
+        return {**summary, "note": "no numeric value in this window"}
+    high = max(pairs, key=lambda pair: pair[1])
+    low = min(pairs, key=lambda pair: pair[1])
+    active = [time for time, number in pairs if number != 0]
+    return {
+        **summary,
+        "max": {"value": high[1], "unit": unit, "time": high[0]},
+        "min": {"value": low[1], "unit": unit, "time": low[0]},
+        "mean": {"value": sum(number for _, number in pairs) / len(pairs), "unit": unit},
+        "active_steps": len(active),
+        "active_days": len({time[:10] for time in active}),
+        "first_active": active[0] if active else None,
+        "last_active": active[-1] if active else None,
+    }
+
+
+def operation(results, path, start, end):
+    """Return how long one module ran and the energy of each of its energy outputs.
+
+    ``operating_steps`` and ``operating_days`` count the steps and calendar days (UTC) with
+    gemini's ``operating`` flag set (the module carried flow); ``energy`` is gemini's energy
+    report per output (e.g. ``power_in``, ``fuel``) over the whole run, in MWh, without the
+    module's empty entry: a module without an energy output (a heat exchanger) has none, which
+    is not "unused" (QA-125, QA-123).
+    """
+    names = results.names().get(path, [])
+    facts = {}
+    if "operating" in names:
+        read = results.get(path, "operating", start=start, end=end)
+        steps = [time for time, flag in zip(read["time"], read["value"]) if flag]
+        facts.update(
+            steps=len(read["time"]),
+            operating_steps=len(steps),
+            operating_days=len({time[:10] for time in steps}),
+        )
+    report = results.energy_report(units=ENERGY_UNITS).get(path, {})
+    energy = {port: entry["energy"] for port, entry in report.items() if port}
+    if energy:
+        facts["energy_whole_run"] = energy
+    return facts
 
 
 @tool(effect="read", keeps_result=True)
