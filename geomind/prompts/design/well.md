@@ -58,6 +58,10 @@ Do and don't (from earlier runs):
   case gives.
 - An equipment value no file gives (a roughness, a pump efficiency) is an `assumption` with a
   reason.
+- The case's maximum flow (a requirement) is not the ESP's limit: give the ESP's maximum flow
+  a margin above the case's maximum flow, from gemini's pump design values or a named source,
+  so the operating flow stays inside it. Give the injection pump its `pressure_setpoint`
+  (QA-250).
 - You never give an ESP's curves (`esp.head_coefficients`, `esp.power_coefficients`,
   `esp.stage_count`): gemini derives them from the doublet's pump design values (flow, pump
   efficiency, wellhead pressure), or they come from a source the brief or the Knowledge names.

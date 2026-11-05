@@ -6,6 +6,13 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.115] - 2026-11-05
+
+### Fixed
+- QA-250 (prompt part): the design lead and the well engineer size an ESP's maximum flow with a
+  margin above the case's maximum flow, never at it, and give the injection pump its
+  `pressure_setpoint`.
+
 ## [0.4.114] - 2026-11-05
 
 ### Fixed

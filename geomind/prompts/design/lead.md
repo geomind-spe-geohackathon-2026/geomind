@@ -177,6 +177,11 @@ stopped), read it with `read_stored` and use it: never ask the same brief again.
 - A pipe or network length is never a design value: it comes from the case or the Knowledge
   base with its source. When neither gives it, hand over `case change needed: <path>: the
   length of <pipe>` so the case lead asks the user; never invent one, as an assumption or not.
+- A flow limit of the case (a requirement's maximum) is never an equipment limit: an ESP's or
+  pump's maximum flow is sized with a margin above the case's maximum flow, and the operating
+  flow stays below the pump's maximum. An injection pump needs its `pressure_setpoint`. A
+  first whole-year run that fails every step on a pump's flow range goes back to the well
+  engineer with that rule (QA-250).
 - Check that pump heads fit the hydrostatic column before you write them: an injection pump's
   `nominal_head` far above the reservoir's overpressure (the injector's water column already
   gives the hydrostatic pressure; tens of bar, not hundreds) goes back to the well engineer with
