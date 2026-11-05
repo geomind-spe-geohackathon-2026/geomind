@@ -152,3 +152,11 @@ still has one.
 - Still without a row: `opex.per_energy` of the chillers, `opex.fixed.adsorption_chiller`,
   `revenue.subsidy.capacity` (a project value, not a price).
 - Rows: 153 (74 verified, 79 secondary, 0 placeholder).
+
+## Additions (2026-11-05)
+
+- Added (QA-095): `co2-grid-organisers-2026`, 300 g/kWh for `utilities.electricity.co2_intensity`,
+  the GEMINI GeoHackathon 2026 organisers' reference value (Discord #technical-q-and-a,
+  2026-11-04 15:08: "electricity_emission_factor: 0.3 #kg/kWh"). Recommended for the challenge
+  cases; Ember `co2-grid-eu-2025` (209.21 g/kWh) is the alternative.
+- Rows: 154 (75 verified, 79 secondary, 0 placeholder).
