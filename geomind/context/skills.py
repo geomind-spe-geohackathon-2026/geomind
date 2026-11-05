@@ -84,9 +84,25 @@ def skill_description(name):
     return _skills()[name][0]["description"]
 
 
-def skill_listing(role=None):
-    """Return what the system prompt says about the skills ``role`` sees: names with one line."""
-    lines = [f"- {name}: {skill_description(name)}" for name in skill_names(role)]
+def _explains(fields, tools):
+    """Tell whether a skill is for an agent with ``tools``: its ``tools`` field names one of them.
+
+    A ``tools`` field in words (``every tool that takes a quantity``) fits every agent.
+    """
+    named = [item.strip() for item in fields["tools"].split(",") if item.strip()]
+    if tools is None or not all(item.isidentifier() for item in named):
+        return True
+    return any(item in tools for item in named)
+
+
+def skill_listing(role=None, tools=None):
+    """Return what the system prompt says about the skills ``role`` sees: names with one line.
+
+    With ``tools`` (the names an agent is offered), a skill that names only tools the agent lacks
+    is left out of the list; ``read_skill`` still reads it.
+    """
+    names = [name for name in skill_names(role) if _explains(_skills()[name][0], tools)]
+    lines = [f"- {name}: {skill_description(name)}" for name in names]
     return "\n".join(["Skills you can read with read_skill:", *lines]) if lines else ""
 
 

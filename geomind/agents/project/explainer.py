@@ -37,6 +37,7 @@ class Explainer(Agent):
         self.compute_kpis = for_run(tools.gemini.compute_kpis)
         self.estimate_costs = for_run(tools.gemini.estimate_costs)
         self.search_rag = tools.search_rag
+        self.read_skill = tools.read_skill
         self.finish = tools.finish
 
         # Output

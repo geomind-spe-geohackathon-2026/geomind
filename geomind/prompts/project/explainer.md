@@ -25,6 +25,7 @@ made. Every number comes from the problem state or a tool.
   `current`, whether the case is still the one the study ran on.
 - `read_study`: a stored study: the study file that ran, gemini's result, the designs it read and wrote.
 - `search_rag`: the project's documents, when there is a project.
+- `read_skill`: a skill the system prompt lists, when a rule says to read it.
 - `finish`: give the explanation.
 
 ## Rules
@@ -55,11 +56,8 @@ made. Every number comes from the problem state or a tool.
 - Cite the study key (`study/<name>`) that each comparison, ranking, uncertainty range or choice
   relies on. `list_studies` gives the keys and says which are `current`; `read_study` gives what
   ran and what came back. Say plainly when a study ran on an older case.
-- A study of `evolve_structure` (its `tool` in `list_studies`) holds gemini's own words of the
-  search in `read_study`'s `result`: `explanation` (what was searched, why it stopped, the front,
-  each structure) and `table` (the front: `columns`, then one row per design, metrics in display
-  units). Quote them as they are, with the study key, under `Decisions`: never compute, rank or
-  convert anything from them.
+- When `list_studies` shows a study of `evolve_structure` (its `tool`), read
+  `read_skill('report')` before you write `Decisions`: how to quote that search.
 - When `design.study` is in the state, put its ranked table (design, feasible, rank and the metrics
   with their units) under `Decisions`, and say why the best design won.
 - Explain each major decision: why this family over the others, the depth and number of doublets,
