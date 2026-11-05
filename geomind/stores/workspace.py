@@ -1,5 +1,7 @@
 """The plants, case and documents of a project."""
 
+import copy
+import json
 import mimetypes
 import re
 from pathlib import Path
@@ -63,6 +65,14 @@ class Workspace(Protocol):
     def plant_version(self, project_id, version):
         """Return a saved plant version of the project as a plant file dict, or ``None``."""
 
+    def save_plant_version(self, project_id, plant, note):
+        """Save ``plant`` as the project's next plant version; return ``{version, saved}``.
+
+        Optional (QA-312). ``plant`` is a plant file as gemini's ``Plant.to_dict()`` writes it and
+        ``note`` the version's note. A plant equal to the latest version saves nothing and returns
+        ``{"version": <latest>, "saved": False}``. A version is never changed or deleted.
+        """
+
     def project_state(self, project_id):
         """Return how far a project's work is, for the next-step suggestions, or ``None``.
 
@@ -113,6 +123,26 @@ def search(documents, query):
     return sorted(found, key=lambda item: item["score"], reverse=True)
 
 
+def added_version(versions, plant, note):
+    """Append ``{plant, note}`` to ``versions`` unless the latest is that plant; return the row.
+
+    ``{"version": number, "saved": bool}``, versions numbered from one.
+    """
+    if versions and versions[-1]["plant"] == plant:
+        return {"version": len(versions), "saved": False}
+    versions.append({"plant": copy.deepcopy(plant), "note": note})
+    return {"version": len(versions), "saved": True}
+
+
+def version_rows(versions):
+    """Return the plant versions as ``project_designs`` lists them, oldest first."""
+    last = len(versions)
+    return [
+        {"version": number, "name": f"v{number}", "note": item["note"], "latest": number == last}
+        for number, item in enumerate(versions, 1)
+    ]
+
+
 def read_bytes(path):
     """Return the bytes of a file, or ``None`` when it does not exist."""
     return path.read_bytes() if path.is_file() else None
@@ -133,6 +163,21 @@ class MemoryWorkspace:
         self.cases = dict(cases or {})
         self.project_documents = dict(documents or {})
         self.project_files = dict(files or {})
+        self.versions = {}
+
+    def save_plant_version(self, project_id, plant, note):
+        """Keep ``plant`` as the next plant version (QA-312); return ``{version, saved}``."""
+        return added_version(self.versions.setdefault(project_id, []), plant, note)
+
+    def plant_version(self, project_id, version):
+        """Return a kept plant version as a plant file dict, or ``None``."""
+        versions = self.versions.get(project_id, [])
+        found = versions[version - 1] if 0 < version <= len(versions) else None
+        return copy.deepcopy(found["plant"]) if found else None
+
+    def project_designs(self, project_id):
+        """Return the kept plant versions and no studies."""
+        return {"plants": version_rows(self.versions.get(project_id, [])), "studies": []}
 
     def plants(self, project_id):
         """Return the plant files of a project, ``{}`` without any."""
@@ -184,6 +229,30 @@ class FileWorkspace:
         self.root = Path(root)
         self.knowledge = knowledge
         self.servers = list(mcp)
+
+    def versions_of(self, project_id):
+        """Return the plant versions kept in ``versions.json``, ``[]`` without it."""
+        path = self.root / project_id / "versions.json"
+        return read_json(path) if path.exists() else []
+
+    def save_plant_version(self, project_id, plant, note):
+        """Write ``plant`` as the next plant version (QA-312); return ``{version, saved}``."""
+        versions = self.versions_of(project_id)
+        found = added_version(versions, plant, note)
+        if found["saved"]:
+            path = self.root / project_id / "versions.json"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(versions, indent=2))
+        return found
+
+    def plant_version(self, project_id, version):
+        """Return a written plant version as a plant file dict, or ``None``."""
+        versions = self.versions_of(project_id)
+        return versions[version - 1]["plant"] if 0 < version <= len(versions) else None
+
+    def project_designs(self, project_id):
+        """Return the written plant versions and no studies."""
+        return {"plants": version_rows(self.versions_of(project_id)), "studies": []}
 
     def plants(self, project_id):
         """Return ``{file stem: plant file dict}`` of ``plants/*.json``, ``{}`` without any."""

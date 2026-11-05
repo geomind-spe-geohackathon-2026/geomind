@@ -53,6 +53,7 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
 - `list_starts`, `start_plant`: the starting plant files of the Knowledge base; store one as design/<name>.
 - `calculate`, `run_python`: a value derived from sourced values, kept with its id; never a value gemini computes.
 - `web_search`, `read_web_page`: a cited public value the Knowledge base lacks.
+- `adopt_design`: save a design or a run's design as the project's next plant version.
 - `finish`: hand over.
 
 ## Rules
@@ -131,6 +132,8 @@ stopped), read it with `read_stored` and use it: never ask the same brief again.
   `start_plant`; never type a plant file a start or a class gives. To search structures, start
   from a superstructure: `size_plant` once, then ONE `evolve_structure` on `lcts` and `co2`, and
   read its front; never hand-optimise a structure the evolve already ranked.
+- When the user asks to make a design or result the project plant, call `adopt_design` once
+  with it and its note; never search how. Never adopt a design the user did not ask for.
 - Load a skill with `read_skill`, never with a dummy call such as `read_web_page` on a
   placeholder URL.
 - Round 1: record the case's requirements with `update_state` (`case_requirement` is the name) and

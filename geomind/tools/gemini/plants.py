@@ -12,7 +12,7 @@ from geomind.tools.gemini.case import case_of
 from geomind.tools.gemini.explain import shown_message
 from geomind.tools.gemini.references import reference_schema
 from geomind.tools.gemini.skeleton import plant_skeleton
-from geomind.tools.gemini.stored import dry_precheck, load_design, save_design
+from geomind.tools.gemini.stored import RESULT, dry_precheck, load_design, save_design, unquoted
 from geomind.utils.strings import did_you_mean, join_names
 
 
@@ -961,3 +961,51 @@ def later_doublet(plant, path, error):
 build_plant.precheck = dry_precheck(build_plant.function)
 patch_plant.precheck = dry_precheck(patch_plant.function)
 merge_designs.precheck = dry_precheck(merge_designs.function)
+
+
+@tool(effect="write")
+async def adopt_design(context, design: str, note: str):
+    """Save a design or a run's design as the project's next plant version (QA-312).
+
+    Skill `designing-a-plant`.
+    """
+    import gemini as gm
+
+    save = getattr(context.session.workspace, "save_plant_version", None)
+    if save is None or context.project is None:
+        raise ToolError(
+            "adopt_design: this run's workspace cannot save plant versions; say so in your "
+            "answer: the user adopts a result on the Results page",
+            code="not_allowed",
+            path="design",
+        )
+    if not isinstance(note, str) or not note.strip():
+        raise ToolError("adopt_design: note is empty; expected the version's note", path="note")
+    reference = unquoted(design)
+    data = adopted_plant(context, reference)
+    plant = await runtime.in_gemini_thread(gm.Plant.from_dict, data)
+    saved = await runtime.in_gemini_thread(save, context.project, plant.to_dict(), note.strip())
+    return {"design": reference, "plant_version": saved["version"], "saved": saved["saved"]}
+
+
+def adopted_plant(context, reference):
+    """Return the plant dict of a ``design/<name>`` or a run ``result/<id>`` to adopt."""
+    name = reference.removeprefix("design/")
+    if reference.startswith("design/") and VERSION_NAME.fullmatch(name):
+        raise ToolError(
+            f"adopt_design: design = {reference!r} is plant version {name[1:]} already; "
+            "nothing to save",
+            code="invalid_input",
+            path="design",
+        )
+    if reference.startswith(RESULT):
+        data = context.session.load_artifact(f"{reference[len(RESULT):]}.plant")
+        if data is None:
+            raise ToolError(
+                f"adopt_design: design = {reference!r}; no run of this chat has that result: "
+                "expected design/<name> or a result/<id> simulate or a study gave",
+                code="unknown_name",
+                path="design",
+            )
+        return data
+    return load_design(context, reference, "adopt_design").to_dict()

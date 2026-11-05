@@ -1008,3 +1008,40 @@ def test_values_size_or_the_doublet_design_derive_are_no_missing_values(gm):
     assert [item["path"] for item in kept] == ["params.d0.nominal_flow"]
     by = {item["path"]: item["derived_by"] for item in derived}
     assert by == {f"params.{pump}.pressure_setpoint": "size", "params.d0.esp.stage_count": "design"}
+
+
+async def test_adopt_design_saves_a_design_as_the_next_plant_version(gm):
+    """QA-312: a chat design becomes plant version 1; the same plant again saves nothing."""
+    workspace = MemoryWorkspace()
+    session = StubSession(workspace=workspace)
+    start = {
+        "name": "best",
+        "plant": {"format": 1, "kind": "plant", "name": "p", "type": "HeatingPlant"},
+    }
+    await call(TOOLS.build_plant, start, session, project="p1")
+    asked = {"design": "design/best", "note": "Design best from the chat"}
+    output = (await call(TOOLS.adopt_design, asked, session, project="p1")).output
+    assert output == {"design": "design/best", "plant_version": 1, "saved": True}
+    assert workspace.plant_version("p1", 1)["type"] == "HeatingPlant"
+    again = (await call(TOOLS.adopt_design, asked, session, project="p1")).output
+    assert again["saved"] is False and again["plant_version"] == 1
+    version = await call(TOOLS.adopt_design, {**asked, "design": "design/v1"}, session, project="p1")
+    assert version.is_error and "plant version 1 already" in version.output["error"]["message"]
+
+
+async def test_adopt_design_without_a_saving_workspace_is_not_allowed(gm):
+    """A workspace that cannot save versions refuses; nothing is written."""
+    session = StubSession(workspace=VersionWorkspace())
+    asked = {"design": "design/v1", "note": "n"}
+    result = await call(TOOLS.adopt_design, asked, session, project="p1")
+    assert result.is_error and result.output["error"]["code"] == "not_allowed"
+
+
+def test_a_file_workspace_writes_plant_versions(tmp_path):
+    """FileWorkspace keeps versions in versions.json, numbered from one."""
+    workspace = FileWorkspace(tmp_path)
+    plant = {"format": 1, "kind": "plant", "name": "p", "type": "HeatingPlant"}
+    assert workspace.save_plant_version("p1", plant, "first") == {"version": 1, "saved": True}
+    assert workspace.save_plant_version("p1", plant, "same") == {"version": 1, "saved": False}
+    assert FileWorkspace(tmp_path).plant_version("p1", 1) == plant
+    assert workspace.project_designs("p1")["plants"][0]["note"] == "first"

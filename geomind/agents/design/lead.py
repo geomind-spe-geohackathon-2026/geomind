@@ -23,6 +23,7 @@ GEMINI_TOOLS = (
     "describe_module",
     "evaluate_module",
     "build_plant",
+    "adopt_design",
     "patch_plant",
     "set_ranges",
     "size_plant",

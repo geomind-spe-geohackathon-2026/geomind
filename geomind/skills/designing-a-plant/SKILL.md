@@ -1,7 +1,7 @@
 ---
 name: designing-a-plant
 description: How to design a geothermal heating and cooling plant in gemini for any case: reading the case, choosing families, sizing, optimising, and what gemini can run.
-tools: build_plant, patch_plant, read_plant, merge_designs, list_plants, set_ranges, list_starts, start_plant
+tools: build_plant, patch_plant, read_plant, merge_designs, list_plants, set_ranges, list_starts, start_plant, adopt_design
 roles: all
 ---
 
@@ -43,6 +43,14 @@ Choosing families:
   again, since a re-typed plant is another plant (QA-278). Take a class or write a plant only
   when no project plant fits, and say why in an assumption. Build only the families the project
   has no plant for.
+
+Making a design the project plant:
+
+- `adopt_design(design, note)` saves a chat design (`design/<name>`) or the design of a run
+  (`result/<id>` from `simulate` or a study) as the project's next plant version, in one call with
+  one approval card. It never changes or deletes a version; a plant equal to the latest version
+  saves nothing (`saved` false). Returns `{design, plant_version, saved}`. A `design/v<N>` is a
+  version already. Use it when the user asks for it, never on your own.
 
 From a family to a design:
 

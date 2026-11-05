@@ -14,6 +14,7 @@ from geomind.tools.gemini.catalogue import describe_module, evaluate_module, lis
 from geomind.tools.gemini.economics import ask_economics
 from geomind.tools.gemini.origin import accept_case, case_changes
 from geomind.tools.gemini.plants import (
+    adopt_design,
     build_plant,
     list_plants,
     merge_designs,
@@ -38,6 +39,7 @@ from geomind.tools.gemini.study import (
 
 __all__ = [
     "accept_case",
+    "adopt_design",
     "ask_economics",
     "build_plant",
     "patch_plant",

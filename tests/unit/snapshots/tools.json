@@ -35,6 +35,32 @@
       "late_schemas": [],
       "name": "accept_case"
     },
+    "adopt_design": {
+      "description": "Save a design or a run's design as the project's next plant version (QA-312).",
+      "effect": "write",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "design": {
+            "title": "Design",
+            "type": "string"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "design",
+          "note"
+        ],
+        "title": "adopt_design_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "adopt_design"
+    },
     "ask_economics": {
       "description": "Ask the user the ONE economics question from the rows you chose, and set what they approve.",
       "effect": "read",

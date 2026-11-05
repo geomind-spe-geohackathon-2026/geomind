@@ -989,7 +989,8 @@
         "plants": "(self, project_id)",
         "project_designs": "(self, project_id)",
         "project_state": "(self, project_id)",
-        "rag": "(self, project_id, query)"
+        "rag": "(self, project_id, query)",
+        "save_plant_version": "(self, project_id, plant, note)"
       }
     },
     "runlog": {
