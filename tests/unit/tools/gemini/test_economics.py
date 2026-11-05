@@ -6,6 +6,7 @@ import pytest
 
 from geomind.errors import ToolError
 from geomind.tools.gemini.economics import (
+    TYPED_NOTE,
     EconomicsValue,
     approved_economics,
     ask_economics,
@@ -83,6 +84,7 @@ async def test_a_question_without_the_currency_or_with_an_unknown_key_is_refused
     wrong = [*VALUES, {"key": "capex.heatpump", "value": 1, "source": "x"}]
     result = await call(ask_economics, {"values": wrong})
     assert result.output["error"]["code"] == "unknown_name"
+    assert "did you mean 'capex.heat_pump'" in result.output["error"]["message"]
 
 
 def test_the_approved_patch_holds_every_value_and_its_row():
@@ -120,10 +122,16 @@ async def test_another_answer_sets_nothing_and_typed_text_is_marked():
     """``change some`` comes back as it is; text that is no option is the user's typed answer."""
     context = await case_context("hackathon_2026")
     assert await economics_answered(context, {"values": VALUES}, "change some") == {
-        "answer": "change some"
+        "answer": "change some",
+        "economics": "not set",
     }
     typed = await economics_answered(context, {"values": VALUES}, "drilling 2000 EUR/m")
-    assert typed == {"answer": "drilling 2000 EUR/m", "typed": True}
+    assert typed == {
+        "answer": "drilling 2000 EUR/m",
+        "economics": "not set",
+        "typed": True,
+        "note": TYPED_NOTE,
+    }
     assert context.session.changes == []
 
 
@@ -521,9 +529,18 @@ async def test_the_catalogue_value_wins_over_a_typed_one_and_is_set_on_approve_a
     """A value the model typed for a named row is the row's; approve all sets the row's value."""
     from tests.fixtures.sessions import StubSession
 
+    from geomind.context import ProblemState
+    from geomind.engine import Context
+    from tests.fixtures.cases import example_case
+
     typed = [{**IDS[0], "value": 9.99, "unit": "EUR/kW"}, *IDS[1:]]
     session = StubSession(workspace=CatalogueWorkspace())
-    context = await case_context("hackathon_2026", session=session)
+    data, files = example_case("hackathon_2026")
+    data.pop("economics")
+    for file, content in files.items():
+        if file != "economics.json":
+            await session.save_artifact(f"case/{file}", content)
+    context = Context(session=session, problem=ProblemState(case=data))
     answer = await economics_answered(context, {"values": typed}, "approve all")
     assert answer["economics"] == "set"
     [assumptions, _] = session.changes
@@ -668,3 +685,94 @@ async def test_a_value_given_as_a_case_leaf_is_shown_as_a_number_and_a_bare_sour
     text = [*values[1:], {"key": "analysis_period", "value": "25 years", "source": base}]
     result = await call(ask_economics, {"values": text}, session=catalogue_context().session)
     assert result.is_error and "analysis_period = '25 years'" in result.output["error"]["message"]
+
+
+async def test_a_named_row_of_a_key_the_case_holds_is_not_proposed_again():
+    """QA-268: after an applied change, the forced question named rows over the case's values."""
+    from geomind.tools import dispatch
+    from geomind.types import ToolCall
+    from tests.fixtures.sessions import StubSession
+
+    session = StubSession(workspace=CatalogueWorkspace())
+    context = await case_context("hackathon_2026", session=session)
+    values = [
+        {
+            "key": "accounting.allocation.heat_cost_share",
+            "row": "heat-cost-share-pes-fiaschi-2021-high",
+        },
+        {"key": "discount_rate", "value": 0.06, "source": "user: discount rate 6 %"},
+    ]
+    asked = ToolCall(id="q", name="ask_economics", input={"values": values})
+    request = await dispatch(ask_economics, asked, context)
+    assert isinstance(request, Request), request
+    assert "heat_cost_share" not in request.message
+    assert "economics.discount_rate = 0.06 | no row | user" in request.message
+
+
+async def test_the_country_of_the_case_site_picks_the_rows_without_being_named():
+    """QA-085: about.site 'Trondheim, Norway' and the question still recommended Dutch rows."""
+    from geomind.context import ProblemState
+    from geomind.engine import Context
+    from geomind.tools import dispatch
+    from geomind.types import ToolCall
+    from tests.fixtures.cases import example_case
+    from tests.fixtures.sessions import StubSession
+
+    data, _ = example_case("hackathon_2026")
+    data.pop("economics")
+    data["about"] = {**(data.get("about") or {}), "site": "Trondheim, Norway"}
+    context = Context(
+        session=StubSession(workspace=CatalogueWorkspace()), problem=ProblemState(case=data)
+    )
+    asked = ToolCall(id="q", name="ask_economics", input={"values": []})
+    request = await dispatch(ask_economics, asked, context)
+    assert isinstance(request, Request), request
+    shown = [line.split(" (recommended")[0] for line in request.message.splitlines()]
+    assert not any("prices of the Netherlands" in line for line in shown)
+    assert "The site is in Norway" in request.message
+    assert "name the site's country" not in request.message
+
+
+class AssumptionsWorkspace(CatalogueWorkspace):
+    """The catalogue and an assumptions document with an uncertainty table."""
+
+    DOCUMENT = (
+        "## Uncertainty ranges (studies only)\n\n| Key | `uncertainty` |\n|---|---|\n"
+        '| `economics.discount_rate` | '
+        '`{"kind": "normal", "std": 0.01, "min": 0.02, "max": 0.08}` |\n'
+        '| `economics.energy.gas` | `{"kind": "triangular", "min": 25, "max": 70}` (EUR/MWh) |\n'
+    )
+
+    def knowledge_files(self):
+        """Name the catalogue and the document."""
+        return [*super().knowledge_files(), {"name": "assumptions.md"}]
+
+    def knowledge_file(self, name):
+        """Return the document's text, else the catalogue's bytes."""
+        return self.DOCUMENT.encode() if name == "assumptions.md" else super().knowledge_file(name)
+
+
+async def test_the_source_documents_ranges_go_in_as_uncertainty():
+    """QA-259: the document's uncertainty table never reached the case."""
+    from geomind.engine import Context
+    from geomind.tools import dispatch
+    from geomind.types import ToolCall
+    from tests.fixtures.sessions import StubSession
+
+    source = "knowledge/assumptions.md, section 1.4"
+    values = [
+        {"key": "discount_rate", "value": 0.05, "source": source},
+        {"key": "energy.gas", "value": 39.92, "unit": "EUR/MWh", "source": source},
+        {"key": "energy.electricity", "value": 105.75, "unit": "EUR/MWh", "source": source},
+    ]
+    context = Context(session=StubSession(workspace=AssumptionsWorkspace()))
+    asked = ToolCall(id="q", name="ask_economics", input={"values": values})
+    request = await dispatch(ask_economics, asked, context)
+    assert isinstance(request, Request), request
+    gas = "economics.energy.gas = 39.92 EUR/MWh (uncertainty triangular 25 to 70)"
+    assert gas in request.message
+    assert "(uncertainty normal std 0.01 0.02 to 0.08)" in request.message
+    electricity = next(
+        line for line in request.message.splitlines() if line.startswith("economics.energy.elec")
+    )
+    assert "uncertainty" not in electricity

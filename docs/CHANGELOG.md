@@ -7,6 +7,9 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 ## [Unreleased]
 
 ### Fixed (QA-296)
+- QA-268, QA-085, QA-259: ask_economics re-proposes no held key, takes the site's country from the
+  case, and fills each value's uncertainty from its source document's range table; a misspelt
+  economics key is refused with a suggestion.
 - write_lesson takes the old flat form (id, kind, role, text, source) again beside `lessons`;
   no argument is required (the 0.4.12x list form had broken the frozen tool API).
 - QA-304: a set_case whose case leaves out a value the user approved returns `check_approved`.

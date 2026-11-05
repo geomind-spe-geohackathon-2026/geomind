@@ -13,6 +13,8 @@ every refused one named at once, and a basis word after a row's unit is shown (E
 """
 
 import functools
+import json
+import re
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -119,33 +121,33 @@ class EconomicsValue(BaseModel):
     def _row_by_id(cls, data):
         """Read a row object by its ``id`` (``row_by_id``) and a value given as a case leaf."""
         read, refusal = row_by_id(data)
+        if refusal is None:
+            read, refusal = unwrapped(read)
         if refusal:
             raise ValueError(refusal)
-        return unwrapped(read)
+        return read
 
 
 def unwrapped(data):
-    """Return an entry whose ``value`` is a case leaf ``{value, unit}`` as its number and unit.
+    """Return ``(entry, refusal)``: a ``value`` given as a case leaf as its number and unit.
 
     QA-298: a lead sent ``{"value": {"value": 25, "unit": "yr"}}``; the question showed the dict
     and approve all failed at every key. The leaf's ``unit`` and ``uncertainty`` fill the entry's
     when it gives none; a leaf with another unit than the entry's is refused.
     """
     if not isinstance(data, dict) or not isinstance(data.get("value"), dict):
-        return data
+        return data, None
     leaf = data["value"]
     if "value" not in leaf:
-        raise ValueError(
-            f"value = {leaf!r}; expected a number (or text), or a case leaf with its value"
-        )
+        return data, f"value = {leaf!r}; expected a number (or text), or a case leaf with its value"
     unit = leaf.get("unit")
     if unit and data.get("unit") and unit != data["unit"]:
-        raise ValueError(f"value has unit {unit!r} and the entry unit {data['unit']!r}; give one")
+        return data, f"value has unit {unit!r} and the entry unit {data['unit']!r}; give one"
     read = {**data, "value": leaf["value"]}
     for name in ("unit", "uncertainty"):
         if leaf.get(name) is not None and read.get(name) is None:
             read[name] = leaf[name]
-    return read
+    return read, None
 
 
 CATALOGUE = "knowledge/data-economics.csv"
@@ -308,6 +310,38 @@ def site_country(country):
     return str(country).strip()
 
 
+def texts(node):
+    """Return every text of a case part, at any depth."""
+    if isinstance(node, str):
+        return [node]
+    if isinstance(node, dict):
+        return [text for child in node.values() for text in texts(child)]
+    if isinstance(node, list):
+        return [text for child in node for text in texts(child)]
+    return []
+
+
+def case_country(context):
+    """Return the one country the case's ``about`` or site names (``Trondheim, Norway``), or None.
+
+    QA-085: the case held ``about.site: "Trondheim, Norway"`` and the question still recommended
+    Dutch rows, telling the user to name the country. Only whole country names count; two
+    countries named is no answer.
+    """
+    data = getattr(getattr(context, "problem", None), "case", None)
+    if not isinstance(data, dict):
+        return None
+    site = data.get("site") if isinstance(data.get("site"), dict) else {}
+    named = {key: site.get(key) for key in ("name", "location")}
+    words = " ".join(texts(data.get("about")) + texts(named))
+    found = {
+        name
+        for name in COUNTRIES.values()
+        if re.search(rf"\b{re.escape(name.removeprefix('the '))}\b", words, re.IGNORECASE)
+    }
+    return found.pop() if len(found) == 1 else None
+
+
 def fits_site(row_id, country):
     """Tell whether a row's prices fit the site: a general row, or one of the site's country."""
     region = row_region(row_id)
@@ -380,9 +414,66 @@ def is_kind_key(key):
     return any(key.startswith(group) and "." not in key[len(group):] for group in KIND_GROUPS)
 
 
+def not_reproposed(values, held, country, kept):
+    """Return ``values`` without those that would only re-propose a value the case holds.
+
+    QA-268: after an applied change of two values, the forced question named catalogue rows for
+    keys the case held (heat_cost_share 0.76 over the case's 0.8). A named row of a held key is
+    left out, unless it is a row of the site's ``country``; so is a value equal to the case's.
+    A new value from the user or a document stays. Each left out key goes in ``kept``.
+    """
+    found = []
+    for item in values:
+        key = short(item.key)
+        leaf = held.get(key)
+        if leaf is None:
+            found.append(item)
+            continue
+        own = country is not None and row_region(item.row) == country
+        same_value = item.value is not None and equal(item.value, leaf.get("value"))
+        if (item.row and not own) or (same_value and (item.unit or None) == leaf.get("unit")):
+            kept.append(key)
+            continue
+        found.append(item)
+    return found
+
+
+def held_replaced(rows, key, held, country, replaced):
+    """Return the row of the site's country that replaces a key the case holds, or ``None``."""
+    own = country_rows(rows, key, country) if country and key in held else []
+    if not own:
+        return None
+    base = held[key]
+    unit = f" {base['unit']}" if base.get("unit") else ""
+    replaced.append(f"economics.{key}: {base.get('value')}{unit} (the case) -> row {own[0]['id']}")
+    return row_value(key, own)
+
+
 def held_by_case(key, held):
     """Tell whether the case holds ``key`` or a value under it (a per-energy map)."""
     return key in held or any(item.startswith(f"{key}.") for item in held)
+
+
+def ranked_rows(found, key, country):
+    """Return the usable sourced rows of ``key``, best first; with ``country``, the site's first.
+
+    General rows and rows of the site's country come before rows of other countries (QA-279).
+    """
+    usable = (
+        row
+        for row in found
+        if row.get("status") in STATUS_RANK
+        and _usable(key, row)
+        and not any(word in row.get("id", "") for word in REFERENCE_ONLY)
+    )
+    return sorted(
+        usable,
+        key=lambda row: (
+            not fits_site(row["id"], country),
+            country is not None and row_region(row["id"]) != country,
+            *_rank(row),
+        ),
+    )
 
 
 def recommended(context, values, open_keys, country=None, notes=None):
@@ -408,35 +499,24 @@ def recommended(context, values, open_keys, country=None, notes=None):
     rows = catalogue_rows(context)
     if rows is None:
         return values, open_keys
-    country = site_country(country)
+    country = site_country(country) or case_country(context)
     notes = {} if notes is None else notes
+    notes["country"] = country
     replaced, foreign = notes.setdefault("replaced", []), notes.setdefault("foreign", [])
     values = kept_base(rows, values, country, replaced)
     held = case_values(context)
     notes["held"] = held
     kept, later = notes.setdefault("kept", []), notes.setdefault("later", [])
+    values = not_reproposed(values, held, country, kept)
     named = {short(item.key) for item in values} | {short(key) for key in open_keys}
-    by_key = {}
-    for row in rows.values():
-        key = short(row.get("path") or "")
-        if row.get("path", "").startswith("economics.") and key not in named and is_economics(key):
-            by_key.setdefault(key, []).append(row)
     added, opened = [], []
-    for key, found in sorted(by_key.items()):
+    for key, found in catalogue_keys(rows, named):
         if key in CATALOGUE_BASIS:
             continue
         if held_by_case(key, held):
-            own = country_rows(rows, key, country) if country and key in held else []
-            if not own:
-                kept.append(key)
-                continue
-            base = held[key]
-            unit = f" {base['unit']}" if base.get("unit") else ""
-            shown = f"{base.get('value')}{unit} (the case)"
-            replaced.append(f"economics.{key}: {shown} -> row {own[0]['id']}")
-            others = [{"row": row["id"]} for row in own[1:]]
-            item = {"key": key, "row": own[0]["id"], **({"others": others} if others else {})}
-            added.append(EconomicsValue.model_validate(item))
+            item = held_replaced(rows, key, held, country, replaced)
+            added += [item] if item else []
+            kept += [] if item else [key]
             continue
         if held and is_kind_key(key):
             later.append(key)
@@ -444,20 +524,7 @@ def recommended(context, values, open_keys, country=None, notes=None):
         if key.startswith(POLICY_KEYS):
             opened.append(key)
             continue
-        sourced = sorted(
-            (
-                row
-                for row in found
-                if row.get("status") in STATUS_RANK
-                and _usable(key, row)
-                and not any(word in row.get("id", "") for word in REFERENCE_ONLY)
-            ),
-            key=lambda row: (
-                not fits_site(row["id"], country),
-                country is not None and row_region(row["id"]) != country,
-                *_rank(row),
-            ),
-        )
+        sourced = ranked_rows(found, key, country)
         if not sourced:
             opened.append(key)
             continue
@@ -466,10 +533,25 @@ def recommended(context, values, open_keys, country=None, notes=None):
             foreign.append(f"economics.{key} (rows only of {', '.join(regions)})")
             opened.append(key)
             continue
-        others = [{"row": row["id"]} for row in sourced[1:]]
-        item = {"key": key, "row": sourced[0]["id"], **({"others": others} if others else {})}
-        added.append(EconomicsValue.model_validate(item))
+        added.append(row_value(key, sourced))
     return [*values, *added], [*open_keys, *opened]
+
+
+def catalogue_keys(rows, named):
+    """Return ``[(key, rows)]`` of each economics key of the catalogue not ``named``, sorted."""
+    by_key = {}
+    for row in rows.values():
+        key = short(row.get("path") or "")
+        if row.get("path", "").startswith("economics.") and key not in named and is_economics(key):
+            by_key.setdefault(key, []).append(row)
+    return sorted(by_key.items())
+
+
+def row_value(key, ranked):
+    """Return the value of ``key`` from its best row, its other rows in ``others``."""
+    others = [{"row": row["id"]} for row in ranked[1:]]
+    item = {"key": key, "row": ranked[0]["id"], **({"others": others} if others else {})}
+    return EconomicsValue.model_validate(item)
 
 
 def from_catalogue(context, values, skipped=None):
@@ -500,6 +582,50 @@ def from_catalogue(context, values, skipped=None):
             update["others"] = others
         read.append(item.model_copy(update=update))
     return read
+
+
+DOCUMENT = re.compile(r"knowledge/[\w./-]+\.md")
+"""A Knowledge document a value's source names (``knowledge/hackathon-2026-assumptions.md``)."""
+RANGE_ROW = re.compile(r"^\|\s*`economics\.([\w.]+)`\s*\|\s*`(\{[^`]*\})`", re.MULTILINE)
+"""A row of a document's uncertainty table: ``| `economics.<key>` | `{"kind": ...}` |``."""
+
+
+def document_ranges(context, name, cache):
+    """Return ``{key: uncertainty}`` of the uncertainty table of Knowledge document ``name``."""
+    from geomind.tools.knowledge import knowledge_file
+
+    if name not in cache:
+        try:
+            content = knowledge_file(context, "ask_economics", name)
+        except ToolError:
+            content = None
+        text = content.decode("utf-8") if isinstance(content, bytes) else str(content or "")
+        found = {}
+        for key, data in RANGE_ROW.findall(text):
+            try:
+                found[key] = json.loads(data)
+            except ValueError:
+                continue
+        cache[name] = found
+    return cache[name]
+
+
+def with_ranges(context, values):
+    """Return ``values`` with the uncertainty their source document gives each (QA-259).
+
+    The assumptions document puts the ranges in their own table ("Uncertainty ranges"); the
+    leads passed the values without them, so the case had no uncertainty and a later sensitivity
+    had nothing to move. A value whose source names a Knowledge document takes the range that
+    document's table gives its key, unless the lead gave one.
+    """
+    cache = {}
+    found = []
+    for item in values:
+        name = DOCUMENT.search(item.source or "") if item.uncertainty is None else None
+        ranges = document_ranges(context, name.group(0), cache) if name else {}
+        uncertainty = ranges.get(short(item.key))
+        found.append(item.model_copy(update={"uncertainty": uncertainty}) if uncertainty else item)
+    return found
 
 
 def given_values(values, open_keys):
@@ -638,10 +764,36 @@ def not_economics(values, open_keys):
     note instead of refusing the whole question, which the case lead retried again and again
     (QA-007); it is set with ``set_case`` at its own path.
     """
+    refuse_misspelt([short(item.key) for item in values] + [short(key) for key in open_keys])
     dropped = [short(item.key) for item in values if not is_economics(item.key)]
     dropped += [short(key) for key in open_keys if not is_economics(key)]
     kept = [item for item in values if is_economics(item.key)]
     return kept, [key for key in open_keys if is_economics(key)], list(dict.fromkeys(dropped))
+
+
+def refuse_misspelt(keys):
+    """Refuse a key under an economics group that is no key of it (``capex.heatpump``).
+
+    A case value (``utilities.electricity.co2_intensity``) is left out with a note (QA-007), but a
+    key whose group is the economics' own is a misspelt economics key: left out, its value was lost.
+    """
+    import gemini as gm
+
+    from geomind.utils.strings import did_you_mean
+
+    groups = gm.case.Economics.schema().get("properties") or {}
+    for key in keys:
+        group, dot, _ = key.partition(".")
+        if not dot or group not in groups or is_economics(key):
+            continue
+        names = (groups[group] or {}).get("properties") or {}
+        raise ToolError(
+            f"ask_economics: key = {key!r} is no key of economics.{group}"
+            + did_you_mean(key, [f"{group}.{name}" for name in names if name != "about"])
+            + "; describe_case(path='economics') lists the keys",
+            code="unknown_name",
+            path="values",
+        )
 
 
 def dropped_note(dropped):
@@ -832,7 +984,8 @@ def value_line(item, note=None):
     cited += [note] if note else []
     region = row_region(item.row)
     cited += [f"prices of {region}"] if region else []
-    line = f"economics.{key} = {_amount(item)} | {' | '.join(cited)}"
+    spread = f" (uncertainty {uncertainty_text(item.uncertainty)})" if item.uncertainty else ""
+    line = f"economics.{key} = {_amount(item)}{spread} | {' | '.join(cited)}"
     if item.others:
         others = "; ".join(
             f"{_amount(other)} [{', '.join(part for part in (other.row, other.status) if part)}]"
@@ -842,13 +995,25 @@ def value_line(item, note=None):
     return line
 
 
+def uncertainty_text(spread):
+    """Return an uncertainty as the question shows it: ``triangular 25 to 70``."""
+    if not isinstance(spread, dict):
+        return str(spread)
+    parts = [str(spread.get("kind") or "range")]
+    if spread.get("std") is not None:
+        parts.append(f"std {spread['std']}")
+    if spread.get("min") is not None or spread.get("max") is not None:
+        parts.append(f"{spread.get('min')} to {spread.get('max')}")
+    return " ".join(parts)
+
+
 def open_line(key, note=None):
     """Return the line of an open key, with the note of a row left out for its basis."""
     line = f"economics.{key.removeprefix('economics.')}"
     return f"{line} ({note})" if note else line
 
 
-def question_text(values, open_keys, note=None, notes=None):
+def question_text(values, open_keys, note=None, notes=None, country=None):
     """Return the one economics question, every value on its own line, the required keys first."""
     first = sorted(values, key=lambda item: short(item.key) not in REQUIRED)
     lines = ["Economics of the case, from the cost catalogue."]
@@ -856,7 +1021,9 @@ def question_text(values, open_keys, note=None, notes=None):
     lines += ["", "Values (approve all sets each, with its row):"]
     lines += [value_line(item, (notes or {}).get(short(item.key))) for item in first]
     regions = sorted({row_region(item.row) for item in first} - {None})
-    if regions:
+    if country is not None:
+        lines += ["", f"The site is in {country}: rows of {country} first, else general rows."]
+    elif regions:
         lines += [
             "",
             f"Rows marked 'prices of ...' are prices of {', '.join(regions)}: they fit only a site "
@@ -882,18 +1049,18 @@ def ask_economics(
     """
     dropped, skipped, sited = [], [], {}
     values, open_keys = recommended(context, list(values), list(open or []), country, sited)
-    values = from_catalogue(context, values, skipped)
+    values = with_ranges(context, from_catalogue(context, values, skipped))
     _, _, moved = whole_per_energy(*given_values(values, list(open_keys)))
     values, open_keys, notes = prepared(values, open_keys, dropped, sited.get("held") or ())
-    message = question_text(values, open_keys, note, notes)
+    message = question_text(values, open_keys, note, notes, sited.get("country"))
     if moved:
         message += "\n\n" + per_energy_note(moved)
     if dropped:
         message += "\n\n" + dropped_note(dropped)
     if skipped:
         message += "\n\n" + skipped_note(skipped)
-    if country:
-        message += "\n\n" + country_note(site_country(country), sited)
+    if sited.get("country"):
+        message += "\n\n" + country_note(sited["country"], sited)
     message += held_note(sited, values)
     return Request(kind="question", message=message, options=list(OPTIONS))
 
@@ -1135,7 +1302,7 @@ async def economics_answered(context, tool_input, text):
     open_keys = list(tool_input.get("open") or [])
     sited = {}
     values, open_keys = recommended(context, values, open_keys, tool_input.get("country"), sited)
-    values = from_catalogue(context, values)
+    values = with_ranges(context, from_catalogue(context, values))
     dropped = []
     values, open_keys, notes = prepared(values, open_keys, dropped, sited.get("held") or ())
     try:
