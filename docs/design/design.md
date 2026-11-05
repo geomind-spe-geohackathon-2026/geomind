@@ -276,6 +276,6 @@ Plant templates (`list_plants`, `configure_plant`) wait for gemini's templates a
 
 ### 12.8 Fixes carried over from S1b
 
-- Replace the hidden `"swarm" + "ax.core."` string with an explicit, documented exception list in the name test.
+- Replace the hidden split string of the old package name with an explicit, documented exception list in the name test.
 - `step.finished` carries `text` (the step's full assistant text); stop saving `text.delta` events (stream-only; full text is in `llm.completed` and `step.finished`), export `gd.event_from_dict`, and give tools the workspace through `context.session`.
 - Load plants through gemini's public loader (registry names), never by import path; old plant files go through `gm.plants.migrate(old_dict)` first (gemini step 4 stores registry names plus a `format` version).

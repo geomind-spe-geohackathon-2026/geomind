@@ -42,7 +42,7 @@ The contract (Version 9) drops checkpoints; a second path to the same state brea
 - Delete `engine/checkpoint.py`, the `checkpoint` internal event, `CheckpointSaved`, `CheckpointError` if nothing else raises it, and every `save_checkpoint`/`load_checkpoint` in stores, conformance checks, callbacks, loops and `run.py`.
 - Everything a checkpoint held must already be in events; move what is not (loop state: record it on `step.finished` as an internal field, or as a `loop.state` internal event; pick one and say which).
 - `Run.load`, `Engine.resume`, `Engine.replay` and crash recovery all read `store.load_events(run_id)` and `recover(events)` only. Keep the tests that kill a run mid-step and resume it without a second LLM call.
-- The class of the root agent is stored in `run.started` as today. Drop support for runs recorded before the rename (there is no production data): delete `FORMER_PREFIX`, the `"swarm" + "ax.core."` string and the stored S1 run fixture, and remove the matching exemption from the name test. The name test then exempts only `CHANGELOG.md`.
+- The class of the root agent is stored in `run.started` as today. Drop support for runs recorded before the rename (there is no production data): delete `FORMER_PREFIX`, the split old-package-name string and the stored S1 run fixture, and remove the matching exemption from the name test. The name test then exempts only `CHANGELOG.md`.
 - Update `events.md`, `engine.md`, `contracts.md` in `.claude/docs/`.
 
 ### Step 3: no metaclass on `Agent`

@@ -39,7 +39,7 @@
 2. **Check every doc against the code.** Correct it in place wherever it is stale:
    - the contract version numbers: `.claude/docs/contracts.md` still says file version 15 and interface 2.5, so set them to the current ones;
    - gemini names that no longer exist;
-   - "swarmax" as a Python package;
+   - the first package name as a Python package;
    - references to phases or files that do not exist;
    - commands and options that differ from `cli.py`;
    - tables of shipped agents and tools.

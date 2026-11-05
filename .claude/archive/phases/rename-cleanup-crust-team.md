@@ -2,9 +2,9 @@
 
 Prompt for Claude Code, run in `/Users/sahand/Desktop/crust-team`.
 
-The agent Python package is `geomind` (`import geomind as gd`). Remove every reference to the old **Python package** `swarmax` (imports, `import swarmax as sx`, the `sx.` alias, `SwarmaxError`, the dependency in `pyproject.toml`, editable paths such as `../swarmax`, and text that describes the package).
+The agent Python package is `geomind` (`import geomind as gd`). Remove every reference to the old **Python package** (its imports and short alias, its root error class, the dependency in `pyproject.toml`, editable paths, and text that describes the package).
 
-**Do not touch infrastructure or runtime names:** app name, Postgres database, MinIO bucket, InfluxDB org and bucket, container, network and volume names, environment variables of services, compose files, `infrastructure/` and the `swarmax.xyz` domain all stay exactly as they are. When unsure whether a hit is the package or a runtime name, leave it and list it.
+**Do not touch infrastructure or runtime names:** app name, Postgres database, MinIO bucket, InfluxDB org and bucket, container, network and volume names, environment variables of services, compose files, `infrastructure/` and the old domain all stay exactly as they are. When unsure whether a hit is the package or a runtime name, leave it and list it.
 
 ## Rules
 
@@ -15,9 +15,9 @@ The agent Python package is `geomind` (`import geomind as gd`). Remove every ref
 
 ## Steps
 
-1. **Find:** `grep -rIn -i "swarmax\|\bsx\.\|\bsx\b"` in every folder of `crust-team` except `.git/`, `.venv/`, `node_modules/` and build outputs. Write the hits to `.tmp/rename-findings.md`, each marked **package** (to change) or **runtime/infrastructure** (to keep).
-2. **Change the package hits** in `docs/`, `geomind/`, `backend/` and `frontend/`: `swarmax` → `geomind`, `sx` → `gd`, `swarmax-design.md` → `geomind-design.md`, `phases/swarmax/` → `phases/geomind/`. Delete sentences that only say the package was renamed, and the `CHANGELOG.md` rename line in `geomind/`.
-3. **Old prompt copies:** list `swarmax-s1-run.md` and `swarmax-s1-prompt.md` in `crust-team/` and on the Desktop, then delete them.
+1. **Find:** `grep -rIn -i` for the old package name and its alias in every folder of `crust-team` except `.git/`, `.venv/`, `node_modules/` and build outputs. Write the hits to `.tmp/rename-findings.md`, each marked **package** (to change) or **runtime/infrastructure** (to keep).
+2. **Change the package hits** in `docs/`, `geomind/`, `backend/` and `frontend/`: old package name → `geomind`, old alias → `gd`, the old design file → `geomind-design.md`, the old phases folder → `phases/geomind/`. Delete sentences that only say the package was renamed, and the `CHANGELOG.md` rename line in `geomind/`.
+3. **Old prompt copies:** list the old S1 run and prompt files in `crust-team/` and on the Desktop, then delete them.
 4. **Check:** rerun the grep; every remaining hit must be a runtime or infrastructure name or inside `gemini/`.
 
 ## Report back

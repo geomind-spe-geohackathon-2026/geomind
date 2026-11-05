@@ -1,4 +1,4 @@
-# geomind S1b: rename swarmax to geomind, remove `core/`, contract 2.2
+# geomind S1b: rename the package to geomind, remove `core/`, contract 2.2
 
 Prompt for Claude Code, run in `/Users/sahand/Desktop/crust-team` (the parent folder, because the package folder itself is renamed).
 
@@ -7,20 +7,20 @@ Prompt for Claude Code, run in `/Users/sahand/Desktop/crust-team` (the parent fo
 Three changes to the agent package built in S1, in this order, each its own commit:
 
 1. Remove the `core/` folder: its packages move to the top level of the package.
-2. Rename the package `swarmax` to `geomind` (`import geomind as gd`), everywhere.
+2. Rename the package to `geomind` (`import geomind as gd`), everywhere.
 3. Bring the code up to the contract in Appendix A (interfaces section version 2.2): `RunStore.load_events`, the internal `error` event, `Callback.on_event`, `model` on `step.started`, the `options` shape, the `state.changed` shape.
 
 No behaviour changes beyond item 3. All tests stay green after every commit.
 
 ## 0. Read first
 
-- `swarmax/AGENTS.md` and every file in `swarmax/.claude/docs/`, then `swarmax/swarmax/__init__.py`.
+- `geomind/AGENTS.md` and every file in `geomind/.claude/docs/`, then `geomind/geomind/__init__.py`.
 - Write Appendix A verbatim to `docs/contracts.md` (overwrite; it replaces the older copy), then read its sections 2 and 3.
 - If anything here contradicts the code in a way this prompt does not explain, stop and say so.
 
 ## 1. Rules (unchanged from S1)
 
-- Follow `swarmax/.claude/docs/conventions.md` and `testing.md` exactly: code quality, no comments in code, `NOTE:` decisions in docstrings, `errors` classes, the framework-name rule.
+- Follow `geomind/.claude/docs/conventions.md` and `testing.md` exactly: code quality, no comments in code, `NOTE:` decisions in docstrings, `errors` classes, the framework-name rule.
 - Tests: while working run only the tests of changed files and their importers (`scripts/test_changed.py`, parallel); before each commit run the full fast suite in parallel. Never the network.
 - Temporary files in `.tmp/`. Subagents use lighter models (Sonnet or Haiku).
 - Update `AGENTS.md` and `.claude/docs/` in the same commit as each change.
@@ -29,10 +29,10 @@ No behaviour changes beyond item 3. All tests stay green after every commit.
 
 ## 2. Step 1: remove `core/`
 
-Move every package inside `swarmax/core/` one level up (`git mv`, so history follows):
+Move every package inside `geomind/core/` one level up (`git mv`, so history follows):
 
 ```text
-swarmax/
+geomind/
 ├── __init__.py  __main__.py  cli.py  run.py  stores.py
 ├── utils/  errors/
 ├── types/  runtime.py  prompts/
@@ -49,14 +49,14 @@ swarmax/
 
 ## 3. Step 2: rename to `geomind`
 
-- `git mv swarmax/swarmax swarmax/geomind`, then rename the repository folder: `mv swarmax geomind` (run from `crust-team/`). The git history stays.
-- Everywhere: package name in `pyproject.toml` (`name = "geomind"`), imports, the curated `__init__`, docs, examples, tests, CI, Makefile, the CLI command (`geomind run|replay|show`, entry point and `python -m geomind`), the root error class (`SwarmaxError` → `GeomindError`), the environment variable (`SWARMAX_MODEL` → `GEOMIND_MODEL`), log and event texts.
-- The import alias in all docs and examples is `gd` (`import geomind as gd`), replacing `sx`. `NOTE:` not `gm`, which is gemini's alias.
+- `git mv` the package folder to `geomind/geomind`, then rename the repository folder to `geomind` (run from `crust-team/`). The git history stays.
+- Everywhere: package name in `pyproject.toml` (`name = "geomind"`), imports, the curated `__init__`, docs, examples, tests, CI, Makefile, the CLI command (`geomind run|replay|show`, entry point and `python -m geomind`), the root error class (→ `GeomindError`), the environment variable (→ `GEOMIND_MODEL`), log and event texts.
+- The import alias in all docs and examples is `gd` (`import geomind as gd`), replacing the old alias. `NOTE:` not `gm`, which is gemini's alias.
 - PyPI: the name `geomind` is taken by an unrelated, abandoned package. Keep `name = "geomind"` in `pyproject.toml` for local and editable installs; do not publish. Write this in `AGENTS.md`.
 - Keep `.runs/` as the run folder name. Files written by S1 runs keep loading (event and checkpoint formats do not change); add a test with one stored S1 run as a fixture.
-- Add a test that fails if `swarmax` or `sx.` appears in any tracked file, except `CHANGELOG.md` if you add one, with one line saying the package was renamed from `swarmax`.
-- In `crust-team/docs/`: rename `swarmax-design.md` to `geomind-design.md` and replace the package name and the `sx.` alias inside it, `contracts.md` already uses the new name in its rename note; do not touch other files there.
-- Report every place outside the package that still says `swarmax` (for example `backend/`, which you must not change).
+- Add a test that fails if the old package name or its alias appears in any tracked file.
+- In `crust-team/docs/`: rename the old design file to `geomind-design.md` and replace the package name and the alias inside it, `contracts.md` already uses the new name in its rename note; do not touch other files there.
+- Report every place outside the package that still has the old name (for example `backend/`, which you must not change).
 
 ## 4. Step 3: contract 2.2
 
@@ -74,13 +74,13 @@ The contract-JSON test pins every public event against the new table. Update `.c
 
 ## Done when
 
-- No `core/`, no `swarmax`, no `sx.` left (tests enforce it); `import geomind as gd` works; `geomind run`, `replay` and `show` work with `FakeLLM`.
+- No `core/`, no old package name or alias left (tests enforce it); `import geomind as gd` works; `geomind run`, `replay` and `show` work with `FakeLLM`.
 - Every item of Appendix A sections 2 and 3 is implemented, exported and tested.
 - The full fast suite passes, Flake8, Black and isort are clean; three commits on `main`, not pushed.
 
 ## Report back
 
-What changed; any deep `gemini.core` import found; every file outside the package that still says `swarmax`; anything in the contract that should change.
+What changed; any deep `gemini.core` import found; every file outside the package that still has the old name; anything in the contract that should change.
 
 ---
 
@@ -91,7 +91,7 @@ Write it exactly, between the marker lines (markers excluded). The prompt ends a
 <<<<<<<<<< BEGIN docs/contracts.md
 # Contracts between the repos
 
-Version 6 (2026-10-30). Version 6: the agent package `swarmax` is being renamed `geomind` (`import geomind as gd`), see section 3. File version, raised on every change: section 1 from the backend design (refresh, `active`, project owner and plant version, run request and error, chat edit and delete, error codes, `?cursor=`, validation details); sections 2 and 3 from the swarmax design (section 3 keeps its own interface version, now 2.2). Covers steps 1 and 2 of every repo. Later steps add their routes here before they start.
+Version 6 (2026-10-30). Version 6: the agent package is being renamed `geomind` (`import geomind as gd`), see section 3. File version, raised on every change: section 1 from the backend design (refresh, `active`, project owner and plant version, run request and error, chat edit and delete, error codes, `?cursor=`, validation details); sections 2 and 3 from the geomind design (section 3 keeps its own interface version, now 2.2). Covers steps 1 and 2 of every repo. Later steps add their routes here before they start.
 
 ## 1. HTTP API (frontend ↔ backend)
 
@@ -158,7 +158,7 @@ Export zip: `project.json` (`{format: 1, name, exported}`) and `plant/<number>.j
 
 `run = {id, chat, status, loop, started, ended, usage, request, error}`, `status` is `queued`, `running`, `waiting`, `done`, `failed` or `cancelled`. `request` is the pending request (as in the `request` event) while `waiting`, else `null`; `error` is `{code, message}` when `failed`, else `null`. Answering a run that is not waiting is `409 run_not_waiting`. `usage = {input_tokens, output_tokens, cost}`.
 
-`runlog = {run, steps: [{index, agent, parent, llm_calls: [...], tool_calls: [...]}]}`, with `llm_call = {model, messages, answer, input_tokens, output_tokens, cost, duration}` and `tool_call = {call_id, tool, input, output, duration, error?}`. `agent` is the dotted agent path (`coordinator.designer`); `parent` is the parent step of a delegated (nested) run, or `null`. swarmax builds this object: `sx.runlog(events)`.
+`runlog = {run, steps: [{index, agent, parent, llm_calls: [...], tool_calls: [...]}]}`, with `llm_call = {model, messages, answer, input_tokens, output_tokens, cost, duration}` and `tool_call = {call_id, tool, input, output, duration, error?}`. `agent` is the dotted agent path (`coordinator.designer`); `parent` is the parent step of a delegated (nested) run, or `null`. geomind builds this object: `gd.runlog(events)`.
 
 ## 2. Live run events (backend → frontend, SSE)
 
@@ -187,17 +187,17 @@ Each event: `event: <type>`, `data: <json>`, `id: <sequence number>`. The stream
 ]}
 ```
 
-`op` is `add`, `replace` or `remove`; `path` is a JSON Pointer. Lists of items with an `id` (`requirements`, `assumptions`, `results`, `questions`) are addressed by id, not index; `-` appends. The document's top-level keys are `goal`, `requirements`, `assumptions`, `design`, `results`, `verification`, `questions` (shape in `../docs/swarmax-design.md` section 3). A client that missed a version reloads the full state (route added with B2 if needed).
+`op` is `add`, `replace` or `remove`; `path` is a JSON Pointer. Lists of items with an `id` (`requirements`, `assumptions`, `results`, `questions`) are addressed by id, not index; `-` appends. The document's top-level keys are `goal`, `requirements`, `assumptions`, `design`, `results`, `verification`, `questions` (shape in `../docs/geomind-design.md` section 3). A client that missed a version reloads the full state (route added with B2 if needed).
 
 **Answers to options.** For a question with `options`, the answer is `{"text": <value>}`; approvals keep `{"approved": true}` or `{"approved": false, "reason": ...}`.
 
-These are the swarmax callback events with `event.is_public` true, forwarded as they are: `event.type` and `event.data()` (JSON-safe). swarmax also emits internal events (`llm.completed`, `tool.result`, `permission`, `retry`, `sandbox.provisioned`, `sandbox.closed`, `checkpoint`, `error`); the backend saves every event through `RunStore.save_event` but streams only public ones. The internal events are the run's source of truth, used for recovery and the full log. `Callback.on_event(engine, event)` receives every event, so a publisher needs one method. The backend adds no event types of its own.
+These are the geomind callback events with `event.is_public` true, forwarded as they are: `event.type` and `event.data()` (JSON-safe). geomind also emits internal events (`llm.completed`, `tool.result`, `permission`, `retry`, `sandbox.provisioned`, `sandbox.closed`, `checkpoint`, `error`); the backend saves every event through `RunStore.save_event` but streams only public ones. The internal events are the run's source of truth, used for recovery and the full log. `Callback.on_event(engine, event)` receives every event, so a publisher needs one method. The backend adds no event types of its own.
 
-## 3. swarmax interfaces (backend ↔ swarmax)
+## 3. geomind interfaces (backend ↔ geomind)
 
-**Rename:** the package `swarmax` becomes `geomind`, imported as `import geomind as gd` (not `gm`, which is gemini), in the next agent-package prompt (together with removing its `core/` folder). Every `sx.` below then reads `gd.`; names after the prefix do not change. Until that prompt has run, the installed package is still `swarmax`.
+**Rename:** the package becomes `geomind`, imported as `import geomind as gd` (not `gm`, which is gemini), in the next agent-package prompt (together with removing its `core/` folder). Names after the `gd.` prefix do not change.
 
-Version 2.2 (2026-10-30: `load_events`, the `error` event and `on_event` added after swarmax S1; `model` on `step.started`, `options` shape and `state.changed` shape for the frontend). The backend implements `RunStore` and `Workspace` and passes them in; swarmax ships a file and a memory implementation of each, the `OpenRouter` provider (the backend may use it directly instead of its own `LLM`), and `FakeLLM` for tests. All of it exists after swarmax S1, so the backend never waits for later swarmax phases.
+Version 2.2 (2026-10-30: `load_events`, the `error` event and `on_event` added after geomind S1; `model` on `step.started`, `options` shape and `state.changed` shape for the frontend). The backend implements `RunStore` and `Workspace` and passes them in; geomind ships a file and a memory implementation of each, the `OpenRouter` provider (the backend may use it directly instead of its own `LLM`), and `FakeLLM` for tests. All of it exists after geomind S1, so the backend never waits for later geomind phases.
 
 ```python
 class LLM(Protocol):
@@ -216,43 +216,43 @@ class RunStore(Protocol):
     def load_artifact(self, run_id, key): ...
     def load_events(self, run_id) -> list[Event]: ...   # in sequence order; recovery and replay
 
-# RunStore and Workspace are sync; swarmax calls them from a worker thread.
+# RunStore and Workspace are sync; geomind calls them from a worker thread.
 
 class Workspace(Protocol):
     def plant(self, project_id): ...            # the stored plant as a gemini plant
     def documents(self, project_id, query): ... # document search: [{id, title, text, score}]
 
-class SandboxProvider(Protocol):               # optional; swarmax ships LocalSandbox and DockerSandbox
+class SandboxProvider(Protocol):               # optional; geomind ships LocalSandbox and DockerSandbox
     async def provision(self, manifest) -> Sandbox: ...
 ```
 
 Entry point used by the backend:
 
 ```python
-import swarmax as sx
+import geomind as gd
 
-run = sx.Run(
+run = gd.Run(
     message=content, chat=chat_id, project=project_id,
     history=store.load_history(chat_id),
     llm=llm, store=store, workspace=workspace,
-    sandbox=sx.sandbox.DockerSandbox(), permissions=sx.Permissions(mode="ask"),
+    sandbox=gd.sandbox.DockerSandbox(), permissions=gd.Permissions(mode="ask"),
     callbacks=[publisher],
-    hooks=[sx.hooks.TokenBudget(...), sx.hooks.RequireApproval(...),
-           sx.hooks.Cancellation(is_cancelled)],
+    hooks=[gd.hooks.TokenBudget(...), gd.hooks.RequireApproval(...),
+           gd.hooks.Cancellation(is_cancelled)],
 )
 result = run.start()                  # or await run.astart(); RunResult: run_id, status, answer, request, usage, stop_reason
 
-run = sx.Run.load(run_id, llm=llm, store=store, workspace=workspace, sandbox=...,
+run = gd.Run.load(run_id, llm=llm, store=store, workspace=workspace, sandbox=...,
                   permissions=..., callbacks=[publisher], hooks=[...])
 result = run.resume(request_id, answer)   # or await run.aresume(...); in another process; hooks and callbacks are passed again
 result = run.resume()                     # continue a run whose process died while running
 
-run.cancel()                          # same process; across processes use sx.hooks.Cancellation
+run.cancel()                          # same process; across processes use gd.hooks.Cancellation
 ```
 
 `answer` is `{"approved": true}`, `{"approved": false, "reason": "..."}` or `{"text": "..."}` for a question. `status` values are those of `run` in section 1. A `Message` is `{role, content, tool_calls?, tool_call_id?}` with `role` `user`, `assistant`, `tool` or `system`; `load_history` returns only `user` and `assistant` messages.
 
-The backend never chooses the loop or the agents; swarmax's coordinator does.
+The backend never chooses the loop or the agents; geomind's coordinator does.
 >>>>>>>>>> END docs/contracts.md
 
 <!-- END OF PROMPT -->
