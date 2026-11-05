@@ -77,7 +77,12 @@ def current_version(versions):
     latest; ``current`` names the one to call so.
     """
     latest = [item for item in versions if item.get("latest")] or versions[-1:]
-    return {"current": f"design/v{latest[-1]['version']}"} if latest else {}
+    if not latest:
+        return {}
+    shown = {"current": f"design/v{latest[-1]['version']}"}
+    if len(versions) > 1:
+        shown["compare"] = "a recommendation compares every version in one run_study (QA-337)"
+    return shown
 
 
 def class_capabilities(gm, plant_class):

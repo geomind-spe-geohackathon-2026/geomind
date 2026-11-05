@@ -221,3 +221,9 @@ def test_a_skill_is_loaded_with_read_skill_never_a_dummy_call():
     """QA-296: no read_web_page on a placeholder URL to load a skill."""
     text = " ".join(DesignLead().prompt.render().split())
     assert "Load a skill with `read_skill`, never with a dummy call" in text
+
+
+def test_a_report_on_several_plant_versions_compares_them_all():
+    """QA-337: a recommendation or report runs one study over every version, not current alone."""
+    text = " ".join(DesignLead().prompt.render().split())
+    assert "is a comparison: run ONE `run_study` over every version" in text

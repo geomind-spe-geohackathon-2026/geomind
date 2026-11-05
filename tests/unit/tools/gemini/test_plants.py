@@ -1061,6 +1061,7 @@ def test_the_current_project_plant_is_the_latest_version():
     from geomind.tools.gemini.plants import current_version
 
     versions = [{"version": 1, "latest": False}, {"version": 2, "latest": True}]
-    assert current_version(versions) == {"current": "design/v2"}
-    assert current_version([{"version": 1}, {"version": 3}]) == {"current": "design/v3"}
+    assert current_version(versions)["current"] == "design/v2"
+    assert "every version" in current_version(versions)["compare"], "QA-337"
+    assert current_version([{"version": 3}]) == {"current": "design/v3"}
     assert current_version([]) == {}

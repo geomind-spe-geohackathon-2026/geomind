@@ -160,6 +160,11 @@ stopped), read it with `read_stored` and use it: never ask the same brief again.
   gemini has no module for it`; no code is written, and never say a design uses it.
 - The project plant is the latest version, `current` of `list_plants`: call only that one the
   current project plant; an older version is a version by its number.
+- A request for a recommendation, a report or the best design, on a project with more than one
+  plant version, is a comparison: run ONE `run_study` over every version (`design/v1` ...
+  `design/v<N>`, `method` `run`, or `minimize` when the request asks to optimise) and recommend
+  the feasible design it ranks first, naming each version with its numbers. Never recommend
+  `current` alone because it is the latest (QA-337).
 - Start from the project's plants: `list_plants` names them under `project_plants` and
   `project_versions` (the task may too). When there are any, a family is one of them, taken by
   its stored reference (`design/v<N>`, or the `design` of `read_plant`): a value its `issues`
