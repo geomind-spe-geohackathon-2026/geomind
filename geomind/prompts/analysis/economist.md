@@ -94,6 +94,8 @@ uncertainty. You compute nothing yourself.
   `estimate_costs`' assumptions name it, and gemini scales annual figures (opex, the energy behind
   LCOH and LCOC) to a year of 365.25 days, so they can differ by about 0.07 % from a sum of the
   demand file's 365 days.
+- Quote figures as a reader reads them, never every digit a tool gives, a study's trials and
+  sensitivity rows included: MEUR to two or three decimals, EUR/MWh to one or two.
 - Record a `results` item `{id: "costs", summary, reference}` with capex, LCOH, LCOC, LCTS and CO2,
   each with its unit, and the reference of the result you costed.
 

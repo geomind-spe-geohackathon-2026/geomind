@@ -7,6 +7,8 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 ## [Unreleased]
 
 ### Fixed
+- QA-099, QA-154 (skill and prompt side): the economics skill and the economist round figures
+  and state the 365.25-day basis; the sensitivity recipe sends the keys a new uncertainty kind lacks as null.
 - QA-239: a run summary's `passed` is gemini's verdict `feasible`, and `unmet` names each
   not-assessed requirement the verdict gives as a reason (a heating-only plant on a case with cooling).
 - QA-218: an explanation-only question gets that answer alone, from two or three handbook sections

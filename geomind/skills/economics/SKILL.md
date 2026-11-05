@@ -31,11 +31,26 @@ section="16")`, `section="12"` and `section="13"`; this skill holds only the cal
      ranges: `set_case(economics={"discount_rate": {"uncertainty": {"kind": "uniform", "min":
      0.03, "max": 0.08}}, "capex": {"drilling": {"uncertainty": {"kind": "uniform", "min": 1000,
      "max": 1600}}}})`; the values and their sources stay. Bounds are in the value's own unit.
+     A merge patch keeps every key it does not name: where the case already declares another
+     kind (`read_case` shows it), send each key the new kind lacks as null, or the call is
+     refused (a `normal` has `std`, a `uniform` has none): `{"discount_rate": {"uncertainty":
+     {"kind": "uniform", "min": 0.02, "max": 0.08, "std": null}}}`. The refusal's `unknown_name`
+     names the key to send as null.
   2. `sensitivity(design, metrics=["lcts"], name, values=["economics.discount_rate",
      "economics.capex.drilling", ...])` moves only the named values, each to its low and high
      end; without `values` every declared uncertainty moves.
   3. Report each row: the driver, `low`/`high`, `at_low`/`at_high` and `effect` of the metric.
   Never use `run_python` for a sensitivity: it cannot load a stored design, case or result.
+
+Figures in the answer:
+
+- Quote each figure as a reader reads it, never with every digit a tool gives: MEUR to two or
+  three decimals, EUR/MWh to one or two, kt CO2 to one, a percentage to one; the same for the
+  trials, the ranks and the sensitivity rows of a study (`lcts 49.28 EUR/MWh`, never
+  `49.28130562173663`).
+- Say the energy basis once: gemini scales annual figures (opex, the energy behind LCOH, LCOC
+  and LCTS) to a year of 365.25 days, so they differ by about 0.07 % from a sum of the demand
+  file's 365 days; the costs are in the case's `currency` at its `price_year`.
 
 Studies:
 
