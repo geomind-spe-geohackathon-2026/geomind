@@ -133,8 +133,9 @@ async def _admit(session, agent, tool, call):
     if isinstance(decision, Request) and decision.kind == "approval":
         refused = await _prechecked(session, tool, call)
         if refused is not None:
+            remember_failure(session, call, refused)
             await record_result(session, call, with_skill(refused, session.state.messages))
-            return None
+            return _over_retries(session, tool)
     if isinstance(decision, Request):
         return await session.pause(decision, "tool", call)
     if is_cancel(decision):

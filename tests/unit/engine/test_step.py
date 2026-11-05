@@ -346,3 +346,48 @@ async def test_a_call_identical_to_a_failed_one_is_not_run_again():
     assert result.status == "done" and FAILS == [2, 1]
     second = next(e for e in of_type(events, "tool.result") if e.call_id == "b")
     assert second.output["error"]["code"] == "failed_before"
+
+
+@tool(effect="write")
+async def refused_write(text: str):
+    """Write a note; its precheck always refuses."""
+    return f"wrote {text}"
+
+
+async def _always_refused(context, **arguments):
+    """Refuse every call, as set_case's dry run refused the same case (QA-301)."""
+    from geomind.errors import ToolError
+
+    raise ToolError("refused_write: file 'x.csv' not found", code="missing_value")
+
+
+refused_write.precheck = _always_refused
+
+
+class Refused(Agent):
+    """Has one write tool its precheck refuses."""
+
+    def __init__(self):
+        """Declare the tool."""
+        super().__init__()
+
+        # Prompt
+        self.prompt = Prompt.text("Write.")
+
+        # Tools
+        self.refused_write = refused_write
+        self.finish = finish
+
+
+async def test_the_same_call_refused_before_its_card_stops_the_run():
+    """QA-301: twelve identical set_case calls refused by the precheck never stopped the run."""
+    from geomind.engine.permissions import Permissions
+    from tests.fixtures.runs import Model
+
+    agent = Refused()
+    agent.model = Model("fake/model")
+    steps = [uses(call("refused_write", f"c{n}", text="a")) for n in range(6)] + [says()]
+    result, _, events = await run(steps, agent=agent, permissions=Permissions(mode="ask"))
+    assert (result.status, result.stop_reason) == ("failed", "error")
+    assert "failed 3 times in a row" in result.message
+    assert len(of_type(events, "tool.result")) == 3
