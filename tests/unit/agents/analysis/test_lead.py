@@ -106,3 +106,11 @@ def test_an_answer_to_the_user_has_no_raw_improvement_lines_or_ids():
     assert "In an answer to the user, write them as a short list" in text
     assert "Never print an internal id" in text
     assert "HICP" in text
+
+
+def test_qa_334_a_unit_is_looked_for_under_its_function_before_it_is_called_missing():
+    """QA-334: list_modules(category='cooling') was read as 'no compression chiller'."""
+    from geomind.agents import AnalysisLead
+
+    text = " ".join(AnalysisLead().prompt.content.split())
+    assert "An electric (vapour-compression) chiller is a `HeatPump` in cooling mode" in text

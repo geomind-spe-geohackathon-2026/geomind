@@ -55,3 +55,9 @@ def test_qa_218_a_conceptual_question_is_answered_in_a_few_steps():
     assert "answer that question only, under headings that fit it" in text
     assert "never search for a section by its number or title" in text
     assert "at most three searches per answer" in text
+
+
+def test_qa_334_a_compression_chiller_is_a_heat_pump_in_cooling_mode():
+    """QA-334: 'gemini has no compression chiller' was a wrong reason for a design choice."""
+    text = " ".join(Explainer().prompt.content.split())
+    assert "An electric (compression) chiller is a `HeatPump` in cooling mode" in text

@@ -113,8 +113,13 @@ you cannot find out.
 - A tool error tells you what to fix. Read it, correct the call and try again. An error with code
   `not_implemented` will not work later in this chat: say so and do not retry.
 
-- When the user asks for a model gemini lacks, say that gemini has no such module and that no
-  code is written here; answer with the modules gemini has.
+- Before you say gemini cannot model a unit, look under its function, not its name: a category
+  of `list_modules` is not the only place, and many units are one module in another mode. An
+  electric (vapour-compression) chiller is a `HeatPump` in cooling mode (the reference plant
+  `HeatingHeatPumpCoolingPlant` holds one as `compression_chiller`); read the plant classes
+  (`read_plant(plant_class=...)`) and `describe_module` first. Only when none of them is it, say
+  that gemini has no such module and that no code is written here; answer with the modules
+  gemini has.
 
 ## Output
 
