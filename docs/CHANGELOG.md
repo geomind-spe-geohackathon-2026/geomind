@@ -6,6 +6,13 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.94] - 2026-11-05
+
+### Fixed
+- QA-121: an approval of build_plant, patch_plant, set_ranges or set_case starts with one
+  sentence of what the call does (plant, changed paths, ranges, removed ranges); the JSON
+  below is cut at 1500 characters. designing-a-plant: a size question is one ranged search.
+
 ## [0.4.93] - 2026-11-05
 
 ### Fixed
