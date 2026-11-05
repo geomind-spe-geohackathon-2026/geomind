@@ -402,6 +402,29 @@ def explained_report(report):
     return {**report, "requirements": items}
 
 
+def judged_report(report):
+    """Return the report keys a summary shows, ``passed`` being gemini's verdict (QA-239).
+
+    gemini's report counts a requirement it could not assess (no unit of the role) as no failure,
+    so a heating-only plant on a case with cooling read ``passed: true``; only the verdict is
+    feasible or not.
+    """
+    shown = {key: report[key] for key in REPORT_KEYS if key in report}
+    if "passed" in shown:
+        shown["passed"] = bool(report["verdict"]["feasible"])
+    return shown
+
+
+def unmet_requirements(report):
+    """Return the failed requirements, and each one not assessed that the verdict names (QA-239)."""
+    named = {item.get("name") for item in report["verdict"].get("reasons") or ()}
+    return [
+        item
+        for item in report["requirements"]
+        if item["passed"] is False or (item["passed"] is None and item.get("name") in named)
+    ]
+
+
 def run_summary(plant, case, results, label):
     """Return what the model reads of a run: steps, failures, totals in display units.
 
@@ -426,9 +449,9 @@ def run_summary(plant, case, results, label):
         "steps": len(times),
         "failed_steps": failures["total"],
         "failures": [with_curve(plant, group) for group in failures["groups"][:SHOWN_GROUPS]],
-        "report": {key: report[key] for key in REPORT_KEYS if key in report},
+        "report": judged_report(report),
         "verdict": report["verdict"],
-        "unmet": [item for item in report["requirements"] if item["passed"] is False],
+        "unmet": unmet_requirements(report),
         "coverage": {key: totals[key].to_dict() for key in COVERAGE_KEYS if key in totals},
         "useful": displayed(report_of, {key: totals[key] for key in USEFUL_KEYS if key in totals}),
         "sources": displayed(report_of, coverage_split(plant, case, results)),

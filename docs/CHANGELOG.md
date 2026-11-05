@@ -7,6 +7,8 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 ## [Unreleased]
 
 ### Fixed
+- QA-239: a run summary's `passed` is gemini's verdict `feasible`, and `unmet` names each
+  not-assessed requirement the verdict gives as a reason (a heating-only plant on a case with cooling).
 - QA-218: an explanation-only question gets that answer alone, from two or three handbook sections
   read by name with read_knowledge, and at most three Knowledge searches.
 - QA-224: the project lead never loads a hand-saved case again when the run has loaded it or the

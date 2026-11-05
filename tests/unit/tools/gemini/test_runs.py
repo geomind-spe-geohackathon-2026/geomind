@@ -353,6 +353,24 @@ def gas_run(gas):
     return asyncio.run(run())
 
 
+def test_a_heating_only_plant_on_a_case_with_cooling_is_not_passed():
+    """QA-239: gemini's report passes a cooling it cannot assess; the summary shows the verdict."""
+    from geomind.tools.gemini.runs import judged_report, unmet_requirements
+
+    verdict = {"feasible": False, "reasons": [{"kind": "requirement", "name": "cold_delivered"}]}
+    report = {
+        "passed": True,
+        "verdict": verdict,
+        "requirements": [
+            {"name": "heat_delivered", "passed": True},
+            {"name": "cold_delivered", "passed": None},
+            {"name": "cooling_supply_temperature", "passed": None},
+        ],
+    }
+    assert judged_report(report)["passed"] is False
+    assert [item["name"] for item in unmet_requirements(report)] == ["cold_delivered"]
+
+
 def test_a_brine_gas_with_h2s_simulates_and_its_h2s_forms_no_co2():
     """B3 (gemini 0.6.4): H2S in the dissolved gas failed the plant's build; it runs now.
 
