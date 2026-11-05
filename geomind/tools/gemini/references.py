@@ -114,6 +114,8 @@ def unknown_reference(context, kind, given, where, field):
     listing = join_names(stored) if stored else f"none stored yet in this chat for {kind}"
     likely = f"{kind}/{given}"
     hint = f"; did you mean {likely!r}?" if likely in stored else ""
+    if kind == "result":
+        hint += project_result_hint(context, given)
     if kind == "design":
         hint += (
             "; a plant of the project (Plant page, earlier chat) is design/<its name> or "
@@ -124,4 +126,31 @@ def unknown_reference(context, kind, given, where, field):
         f"'{example}' ({origin}); stored {kind} references: {listing}{hint}",
         code="unknown_name",
         path=field,
+    )
+
+
+def project_result_hint(context, given):
+    """Return how to use a result of the project's Study page, which no result tool reads (QA-165).
+
+    ``list_studies`` lists such a result under ``project_study`` with its ``kpis`` and
+    ``checks``; its series are only in a new run of its plant version.
+    """
+    workspace = context.session.workspace
+    read = getattr(workspace, "project_designs", None)
+    if read is None or context.project is None:
+        return ""
+    found = read(context.project) or {}
+    wanted = str(given).removeprefix("result/")
+    for study in found.get("studies") or []:
+        result = study.get("result") or {}
+        if str(result.get("id")) == wanted:
+            version = result.get("plant_version") or study.get("plant_version")
+            return (
+                f"; {given!r} is a result of the project's study {study.get('name')!r}, not of "
+                "this chat: quote its `kpis` and `checks` from list_studies (project_study), and "
+                f"for its series or a new check simulate design/v{version} and read that result"
+            )
+    return (
+        "; a result listed by list_studies under project_study is not readable by the result "
+        "tools: quote its kpis and checks, or simulate its plant (design/v<plant_version>)"
     )

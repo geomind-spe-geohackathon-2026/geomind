@@ -6,6 +6,13 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.102] - 2026-11-05
+
+### Fixed
+- QA-165: a result tool sent a result of the project's Study page (listed by `list_studies`
+  under `project_study`) says so and what to do: quote its `kpis` and `checks`, or simulate
+  `design/v<plant_version>` for its series; the skill `comparing-designs` says the same.
+
 ## [0.4.101] - 2026-11-05
 
 ### Fixed
