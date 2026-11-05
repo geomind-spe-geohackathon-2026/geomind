@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.77] - 2026-11-05
+
+### Added
+
+- QA-088: a study record (`study/<name>`) of `run_study`, `size_plant`, `optimize` and `evolve_structure` holds `runs`, one per run: `{plant_name, case_name, design, result, report, run}` with gemini's evaluate report (`report.to_dict()`, display units), the run record (`run.to_dict()`, `null` for a study that ends with a design) and `result/<id>`, the run kept as `simulate` keeps it (series, plant, case). size, optimize and evolve simulate their stored design once for it; a design that does not run gives `{design, error: {code, message}}`. Additive: the other keys are unchanged.
+
 ## [0.4.76] - 2026-11-05
 
 ### Fixed
