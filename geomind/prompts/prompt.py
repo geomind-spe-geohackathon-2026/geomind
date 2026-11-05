@@ -3,12 +3,15 @@
 import re
 from pathlib import Path
 
-from geomind.errors import UnknownNameError
+from geomind import runtime
+from geomind.errors import RunError, UnknownNameError
 from geomind.utils.strings import did_you_mean
 
 FOLDER = Path(__file__).parent
 MEMORY_BLOCK = re.compile(r"^<!-- memory -->\n(.*?)^<!-- /memory -->\n", re.DOTALL | re.MULTILINE)
 """A part of a role file that only a run with the memory on reads (B4)."""
+TEAM_SIZE = "{team_size}"
+"""The mark in a role file for ``GEOMIND_TEAM_SIZE``, the most sub-agents a lead runs (QA-201)."""
 SHARED_RULES = FOLDER / "shared" / "rules.md"
 """The rules every role prompt ends with: sources, no defaults, units, errors."""
 SHARED_TOOLS = ("read_stored", "search_memory", "read_memory")
@@ -98,6 +101,16 @@ class Prompt:
         true keeps them without the marks.
         """
         content = MEMORY_BLOCK.sub(r"\1" if memory else "", self.content)
+        if TEAM_SIZE in content:
+            content = content.replace(TEAM_SIZE, str(team_size()))
         if self.appendix is None:
             return content
         return f"{content}\n\n{self.appendix()}"
+
+
+def team_size():
+    """Return ``GEOMIND_TEAM_SIZE``; a prompt that names it cannot be made without it."""
+    size = runtime.get("team_size")
+    if size is None:
+        raise RunError("prompt: team_size = None; expected GEOMIND_TEAM_SIZE")
+    return size

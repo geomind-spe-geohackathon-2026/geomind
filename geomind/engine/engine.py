@@ -8,7 +8,7 @@ later would touch every layer. ``Run`` is the sync facade.
 import asyncio
 
 from geomind import runtime
-from geomind.engine.delegation import answer_child, end_orphans
+from geomind.engine.delegation import answer_child, end_left_orphans, end_orphans
 from geomind.engine.log import RunLog
 from geomind.engine.partial import is_limit_stop, partial_answer
 from geomind.engine.permissions import Permissions
@@ -271,6 +271,7 @@ class Engine:
         await session.log.flush()
         if stop.reason == "request":
             return run_result(session, stop)
+        await end_left_orphans(session)
         if is_limit_stop(session, stop):
             stop = await self._answer_from_record(session, stop)
         status = status_of(stop.reason)

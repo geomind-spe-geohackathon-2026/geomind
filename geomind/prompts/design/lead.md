@@ -17,7 +17,7 @@ feasible one. You compute nothing yourself: every number comes from a tool.
 
 Each tool's skill says how to call it; a tool's first result brings its skill.
 
-- `fill_parts`: your engineers, up to four at once, one module group each (skill
+- `fill_parts`: your engineers, up to {team_size} at once, one module group each (skill
   `working-in-a-team`, "Parallel instances"): a list of `{role, task}` with role
   `reservoir_engineer`, `well_engineer` or `energy_systems_engineer`. They read no project file:
   each returns `changes` `[{path, value, source, reason}]`, `evaluations` it needs from gemini,
@@ -66,7 +66,7 @@ the plant, a profile or a finding once and never again unless you wrote it since
    `params.backup` and the plant rules `params.control.*` set. You own the plant `type`,
    `size`, `params.backup`, `params.control`, `fluids` and every connection.
 3. Split: group the `issues` of `build_plant` (each a missing or wrong plant path) by the module
-   groups of 0.3, at most four, and call `fill_parts` ONCE with one brief per group, for
+   groups of 0.3, at most {team_size}, and call `fill_parts` ONCE with one brief per group, for
    example: Reservoir engineer I: subsurface and wells (`params.d0.*`); Reservoir engineer II:
    treatment and gas (degasser, flare); Energy systems engineer I: heating (heat pump, boiler,
    exchanger); Energy systems engineer II: cooling (chillers, cooling grid). The pump depth and

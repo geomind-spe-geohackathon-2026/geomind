@@ -230,8 +230,19 @@ class TeamInput(Record):
 
 ROMAN = ("I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X")
 """The numerals of a member's instances, in brief order."""
-MAX_INSTANCES = 4
-"""The most briefs one team call runs: a lead splits its task into at most four (user rule)."""
+
+
+def team_size(name):
+    """Return the most briefs one team call runs, ``GEOMIND_TEAM_SIZE`` (QA-201); no default."""
+    size = runtime.get("team_size")
+    if size is None:
+        raise ToolError(
+            f"{name}: team_size = None; expected GEOMIND_TEAM_SIZE, the most sub-agents a lead "
+            "runs at once"
+        )
+    if not 1 <= size <= len(ROMAN):
+        raise ToolError(f"{name}: team_size = {size}; expected 1 to {len(ROMAN)}")
+    return size
 
 
 def role_title(name):
@@ -299,9 +310,10 @@ class Team(Tool):
                 f"{', '.join(self.members)} that has work",
                 path="briefs",
             )
-        if len(briefs) > MAX_INSTANCES:
+        size = team_size(self.name)
+        if len(briefs) > size:
             raise ToolError(
-                f"{self.name}: {len(briefs)} briefs; expected at most {MAX_INSTANCES}: merge "
+                f"{self.name}: {len(briefs)} briefs; expected at most {size}: merge "
                 "the smallest tasks",
                 path="briefs",
             )
@@ -320,9 +332,10 @@ class Team(Tool):
                 f"role one of {', '.join(self.members)}",
                 path="briefs",
             )
-        if len(briefs) > MAX_INSTANCES:
+        size = team_size(self.name)
+        if len(briefs) > size:
             raise ToolError(
-                f"{self.name}: {len(briefs)} briefs; expected at most {MAX_INSTANCES}: merge "
+                f"{self.name}: {len(briefs)} briefs; expected at most {size}: merge "
                 "the smallest tasks",
                 path="briefs",
             )

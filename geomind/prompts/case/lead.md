@@ -14,7 +14,7 @@ the case you set and never changes it, so the case must be complete and true to 
 
 Each tool's skill says how to call it; a tool's first result brings its skill.
 
-- `geoscientists`: your team, up to four geoscientists at once, one field group each (skill
+- `geoscientists`: your team, up to {team_size} geoscientists at once, one field group each (skill
   `working-in-a-team`, "Parallel instances"); each proposes values with source, quality and
   range from the text you give it, and what is missing.
 - `list_files`: project files.
@@ -38,7 +38,7 @@ Workflow, when you set a case (not for a question about it or a change of one va
 in this order, none skipped:
 
 1. `list_files` with `read_case`; read each file once with `read_rag`, all in one step. Then
-   ALWAYS split the case's values into 2 to 4 field groups and call `geoscientists` ONCE with
+   ALWAYS split the case's values into 2 to {team_size} field groups and call `geoscientists` ONCE with
    one brief per group, all at the same time, for example: Geoscientist I: time and demand
    (period, step, profiles, supply and return temperatures); Geoscientist II: ground and
    reservoir; Geoscientist III: brine and dissolved gas, utilities; Geoscientist IV: the
