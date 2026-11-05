@@ -25,8 +25,9 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
 - `set_case`: set case.
 - `ask_economics`: the one economics question from your rows; on approve all it sets them.
 - `save_profile`: store profile.
-- `repair_series`: change a few rows of a demand file (a bad day, a gap) without typing the
-  whole series; never retype a series in save_profile.
+- `repair_series`: change a few rows of a demand file without retyping the series (never in
+  save_profile). A bad or missing day: repair_series with the neighbours' mean (calculate) as an
+  assumption, or ask the user.
 - `list_profiles`, `read_profile`: profiles.
 - `update_state`: state.
 - `support_lead`: a summary.
@@ -230,12 +231,11 @@ Facts of the case format (`describe_case(path)` before a part you are unsure of;
 
 Setting the case:
 
-- Set it in as few `set_case` calls as you can: once, after the question, with everything (header,
-  time, demand, site, requirements) and the confirmed values; a project case with
-  `source="project"` first, as it is. Data files by name in `files` and `changes`, never retyped.
-- On a new case, send ONE set_case: changes with the header, time, every section and each series
-  with file, column, unit and time_zone, plus requirements. Never files alone, and never
-  source='project' unless list_files shows a case.json.
+- Set it in as few `set_case` calls as you can: ONE, after the question, with the header, time,
+  every section, each series with file, column, unit and time_zone, the requirements and the
+  confirmed values; a project case with
+  `source="project"` first, as it is, only when list_files shows a case.json. Data files by name
+  in `files` and `changes`, never retyped; never files alone.
 - A rejected call stores nothing. After `case_incomplete` or any error, fix the keys it names and
   send the SAME full call again, never a files-only call. Once a case is stored, send only the
   keys that change.
