@@ -6,6 +6,13 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.135] - 2026-11-05
+
+### Fixed
+- QA-349 ask_economics leaves unsourced keys open in one question; QA-347 a simulate-it question goes to
+  the design team; QA-346 older findings are marked for re-check; QA-318 repair_series adds missing
+  days and round-trips into set_case.
+
 ## [0.4.134] - 2026-11-05
 
 ### Added
