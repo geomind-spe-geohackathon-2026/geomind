@@ -510,7 +510,7 @@ class RunSession:
                     decision, rule = Deny(reason=denied_again(tool.name, refused)), "user:earlier"
                 else:
                     decision = decision.model_copy(
-                        update={"message": approval_message(decision.message, call.input)}
+                        update={"message": approval_message(decision.message, call.input, call.name)}
                     )
         else:
             rule = f"hook:{rule}"
@@ -694,21 +694,88 @@ class RunSession:
         return usage
 
 
-APPROVAL_INPUT_CHARS = 4000
-"""How much of a call's input an approval shows."""
+APPROVAL_INPUT_CHARS = 1500
+"""How much of a call's input an approval shows, after its one-line summary (QA-121)."""
 
 
-def approval_message(message, tool_input):
+def _leaves(node, prefix=""):
+    """Return the dotted paths of the leaves of a nested change, a ``{value, unit}`` one leaf."""
+    if not isinstance(node, dict) or not node or "value" in node:
+        return [prefix] if prefix else []
+    found = []
+    for key, child in node.items():
+        found += _leaves(child, f"{prefix}.{key}" if prefix else str(key))
+    return found
+
+
+def _bound(side):
+    """Return one range bound as text: ``300 m3/h`` or a plain number."""
+    if isinstance(side, dict):
+        return f"{side.get('value')} {side.get('unit') or ''}".strip()
+    return str(side)
+
+
+def _listed(items, most=6):
+    """Return up to ``most`` items joined, with how many more."""
+    items = list(items)
+    shown = ", ".join(items[:most])
+    return f"{shown} and {len(items) - most} more" if len(items) > most else shown
+
+
+def call_summary(tool, tool_input):
+    """Return one plain sentence of what a call does, for its approval card, or ``None``.
+
+    The plant tools sent hundreds of lines of JSON to approve with no word on what changes.
+    """
+    item = tool_input or {}
+    if tool == "build_plant":
+        plant = item.get("plant") or {}
+        modules = plant.get("modules") or {}
+        kind = plant.get("type") or item.get("from_class")
+        what = f"of class {kind}" if kind else f"with {len(modules)} modules"
+        links = len(plant.get("connections") or [])
+        tail = f" and {links} connections" if links else ""
+        return f"Build plant '{item.get('name')}' {what}{tail}."
+    if tool == "patch_plant":
+        paths = _leaves(item.get("changes") or {})
+        return (
+            f"Change {len(paths)} value(s) of {item.get('design')} and save it as "
+            f"'{item.get('name')}': {_listed(paths)}."
+        )
+    if tool == "set_ranges":
+        parts = [
+            f"{path} {_bound(bounds.get('min'))} to {_bound(bounds.get('max'))}"
+            for path, bounds in (item.get("ranges") or {}).items()
+            if isinstance(bounds, dict) and bounds
+        ]
+        dropped = [p for p, b in (item.get("ranges") or {}).items() if not b]
+        text = f"Search ranges on {item.get('design')}, saved as '{item.get('name')}': "
+        text += _listed(parts) or "none"
+        return text + (f"; ranges removed: {_listed(dropped)}" if dropped else "") + "."
+    if tool == "set_case":
+        changed = _leaves(item.get("changes") or {}) + [
+            f"economics.{path}" for path in _leaves(item.get("economics") or {})
+        ]
+        files = item.get("files") or []
+        text = f"Change the case: {_listed(changed)}" if changed else "Set the case"
+        return text + (f"; files {_listed(files)}" if files else "") + "."
+    return None
+
+
+def approval_message(message, tool_input, tool=None):
     """Return an approval's message with what the call would write, so the user sees it (QA-026).
 
-    The input is shown as indented JSON, cut at ``APPROVAL_INPUT_CHARS``; the log redacts secrets.
+    A plant or case tool's call is said in one sentence first (QA-121); the input follows as
+    indented JSON, cut at ``APPROVAL_INPUT_CHARS``; the log redacts secrets.
     """
     if not tool_input:
         return message
+    summary = call_summary(tool, tool_input)
     text = json.dumps(tool_input, indent=2, ensure_ascii=False, default=str)
     if len(text) > APPROVAL_INPUT_CHARS:
         text = text[:APPROVAL_INPUT_CHARS] + "\n... (cut; the whole input is in the run log)"
-    return f"{message}\n\nWhat the call sends:\n{text}"
+    head = f"{message}\n\n{summary}" if summary else message
+    return f"{head}\n\nWhat the call sends:\n{text}"
 
 
 def earlier_denial(events, tool):

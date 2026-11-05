@@ -62,6 +62,11 @@ From a family to a design:
   built from modules and connections takes it when it has exactly one doublet, `d0` (no `d1`):
   the search then copies `d0` and joins the copies in parallel. So build a free plant with one
   doublet `d0` when the number of doublets is to be searched; `d0`'s values hold for every copy.
+- A question over sizes (the fewest doublets, the lowest flow, the smallest unit that still
+  meets the case) is ONE search, never plants built one by one: `set_ranges` once on the
+  design with every range the question names (e.g. `size.doublets` 1 to 3, `d0.nominal_flow`
+  50 to 300 m3/h), then one `optimize` with the objective it asks for (or `size_plant`), and
+  answer from that study. Each hand-built variant is another approval for the user.
 - A range the user approved that `set_ranges` refuses is never dropped in silence: fix the path
   from the error's list and call again; if it still cannot be set, tell the user in your answer
   which range was not searched and why, and ask before you optimise without it.
