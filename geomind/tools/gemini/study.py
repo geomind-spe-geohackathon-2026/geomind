@@ -65,7 +65,11 @@ def prepared(context, tool_name, name, designs, settings, written):
     it would store are free, before anything long runs.
     """
     ran = ran_case(context)
+    from geomind.tools.gemini.runs import single_choices
+
     plants = {design: load_design(context, design, tool_name) for design in designs}
+    for plant in plants.values():
+        single_choices(plant)
     dicts = {design: plant.to_dict(structure=True) for design, plant in plants.items()}
     study = study_of(name, settings, ran, dicts)
     case = case_id(ran)

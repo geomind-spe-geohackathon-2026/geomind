@@ -418,6 +418,31 @@ def run_summary(plant, case, results, label):
     }
 
 
+def single_choices(plant):
+    """Fill each plant-level choice that is unset and that gemini allows exactly one value of.
+
+    Returns the notes, one per value set. IMP-019 (user-approved): such a value is no choice and
+    no default, gemini allows nothing else (``params.control.dispatch`` = ``least_cost``,
+    ``params.control.outages`` = ``lowest_demand``). When gemini allows more than one, nothing is
+    filled and the agent must choose.
+    """
+    from gemini.modules._utils import description
+    from gemini.plants._utils.form import file_path
+
+    notes = []
+    for name, declaration in plant.named_parameters():
+        if "." in name or getattr(plant, name, None) is not None:
+            continue
+        options = [item for item in (description._enum(declaration) or []) if item is not None]
+        if len(options) == 1:
+            plant.set_params("", {name: options[0]})
+            notes.append(
+                f"params.{file_path(name)} was unset; set to {options[0]!r}, the only value "
+                "gemini allows"
+            )
+    return notes
+
+
 def run_plant(context, design, changes, start, end):
     """Simulate a plant on the case; return ``(plant, results, summary, options, ran)``.
 
@@ -427,6 +452,7 @@ def run_plant(context, design, changes, start, end):
 
     plant = load_plant(context, design, "simulate")
     apply_changes(plant, changes)
+    filled = single_choices(plant)
     data, files = ran_case(context)
     whole = build_case(data, files)
     plan = planned(plant, whole, start, end)
@@ -436,6 +462,8 @@ def run_plant(context, design, changes, start, end):
     case = build_case(*ran)
     results = gm.simulate(plant, case, plan=plan)
     summary = run_summary(plant, case, results, design or "project")
+    if filled and isinstance(summary, dict):
+        summary = {**summary, "filled": filled}
     return plant, results, summary, {"start": start, "end": end}, ran
 
 
