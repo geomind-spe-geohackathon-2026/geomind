@@ -88,6 +88,7 @@ class RunStarted(Event):
     loop_state: dict[str, Any] = {}
     versions: dict[str, str] = {}
     models: dict[str, str | None] = {}
+    permission_mode: str | None = None
 
 
 class StepStarted(Event):

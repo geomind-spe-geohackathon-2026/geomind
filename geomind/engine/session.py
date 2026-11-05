@@ -233,6 +233,7 @@ class RunSession:
             loop_state=self.loop_state(),
             versions=current_versions(),
             models=runtime.role_models(),
+            permission_mode=getattr(self.engine.permissions, "mode", None),
         )
 
     async def _require_models(self):
@@ -573,7 +574,11 @@ class RunSession:
             again = repeated_denial(events, call.input)
             if again is not None:
                 return Deny(reason=again), "user:earlier"
-        summary = project_case_summary(self, call.input) if tool.name == "set_case" else None
+        summary = (
+            project_case_summary(self, call.input)
+            if tool.name == "set_case"
+            else tool.card_summary(call.input)
+        )
         message = approval_message(decision.message, call.input, call.name, summary)
         return decision.model_copy(update={"message": message}), rule
 

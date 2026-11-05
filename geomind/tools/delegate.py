@@ -1,6 +1,7 @@
 """A tool that runs another agent in a nested run."""
 
 import asyncio
+import copy
 import json
 import re
 from uuid import uuid4
@@ -120,6 +121,27 @@ class Delegate(Tool):
         """Return that a nested run is never pure."""
         return False
 
+    def for_call(self, session, tool_input):
+        """Return a ``write`` copy of a ``runs_beside`` delegate whose agent writes (QA-329).
+
+        A nested run beside never waits, so its writes are allowed without a card; with the
+        chat's Auto-approve off, the call itself then asks once, before the run starts.
+        """
+        if not self.runs_beside or not agent_writes(self.agent):
+            return self
+        found = copy.copy(self)
+        found.effect = "write"
+        return found
+
+    def card_summary(self, tool_input):
+        """Return the card of a delegate that runs beside: who runs and that its writes ask none."""
+        task = str((tool_input or {}).get("task") or "").strip().splitlines()
+        what = f" for: {task[0][:CARD_TASK_CHARACTERS]}" if task and task[0] else ""
+        return (
+            f"Run {self.name}{what}; its writes (designs, ranges, studies) run without a card "
+            "of their own."
+        )
+
     async def _delegate(self, context, task, beside=False, instance=None):
         """Run the nested agent through the run of ``context``, within its limit if it has one.
 
@@ -176,7 +198,9 @@ class Delegate(Tool):
         try:
             key = uuid4().hex[:8]
             reference = f"finding-{key}"
-            await session.save_artifact(reference, {"agent": self.name, "task": task, "answer": answer})
+            await session.save_artifact(
+                reference, {"agent": self.name, "task": task, "answer": answer}
+            )
             finding = {
                 "id": f"F{key}",
                 "agent": self.name,
@@ -244,11 +268,7 @@ def with_denials(answer, events):
         call = getattr(event, "call", None)
         if event.type == "request" and call is not None:
             inputs[call.id] = call.input
-        if (
-            event.type == "permission"
-            and event.decision == "deny"
-            and event.rule == "user"
-        ):
+        if event.type == "permission" and event.decision == "deny" and event.rule == "user":
             sent = json.dumps(inputs.get(getattr(event, "call_id", None)), default=str)
             words = f": {event.reason!r}" if event.reason else ""
             lines.append(
@@ -344,6 +364,23 @@ class Team(Tool):
         """Return that nested runs are never pure."""
         return False
 
+    def for_call(self, session, tool_input):
+        """Return a ``write`` copy of a team whose members write, so a card asks once (QA-329)."""
+        if not any(agent_writes(member.agent) for member in self.members.values()):
+            return self
+        found = copy.copy(self)
+        found.effect = "write"
+        return found
+
+    def card_summary(self, tool_input):
+        """Return the card of a team call: how many runs side by side and that they ask none."""
+        briefs = (tool_input or {}).get("briefs") or {}
+        count = len(briefs)
+        return (
+            f"Run {count} member(s) of {self.name} side by side; their writes (designs, ranges, "
+            "studies) run without a card of their own."
+        )
+
     @property
     def result_limit(self):
         """Return the most characters of a team result the lead reads whole, not outlined.
@@ -388,7 +425,9 @@ class Team(Tool):
 
     async def _instances(self, context, briefs):
         """Run one instance per brief of a list at the same time; answers by instance name."""
-        briefs = [item if isinstance(item, Brief) else Brief.model_validate(item) for item in briefs]
+        briefs = [
+            item if isinstance(item, Brief) else Brief.model_validate(item) for item in briefs
+        ]
         unknown = sorted({item.role for item in briefs} - set(self.members))
         if unknown or not briefs:
             raise ToolError(
@@ -415,8 +454,24 @@ class Team(Tool):
     async def _member(self, context, name, task, instance=None):
         """Return one member's answer, or its error as ``{error: {code, message}}``."""
         try:
-            return await self.members[name]._delegate(
-                context, task, beside=True, instance=instance
-            )
+            return await self.members[name]._delegate(context, task, beside=True, instance=instance)
         except ToolError as error:
             return {"error": {"code": error.code, "message": str(error)}}
+
+
+CARD_TASK_CHARACTERS = 120
+"""The characters of a delegate's task its approval card shows."""
+QUIET_EFFECTS = ("read", "compute")
+"""The effects that need no approval: an agent whose tools have only these writes nothing."""
+
+
+def agent_writes(agent, depth=0):
+    """Tell whether ``agent`` or an agent it delegates to has a tool that needs an approval."""
+    for tool in agent.tools().values():
+        if tool.effect not in QUIET_EFFECTS:
+            return True
+        nested = [tool.agent] if isinstance(tool, Delegate) else []
+        nested += [m.agent for m in tool.members.values()] if isinstance(tool, Team) else []
+        if depth < 2 and any(agent_writes(item, depth + 1) for item in nested):
+            return True
+    return False

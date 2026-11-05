@@ -151,6 +151,10 @@ class Tool:
         """
         return self
 
+    def card_summary(self, tool_input):
+        """Return the sentence an approval card of this call says, or ``None`` for the default."""
+        return None
+
     def kept(self):
         """Return a copy whose results stay whole for a few turns (``keeps_result``).
 

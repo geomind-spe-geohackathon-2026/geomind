@@ -297,3 +297,65 @@ def test_a_nested_answer_carries_each_user_denial_of_its_run():
     assert "The user denied set_ranges" in answer and "Do not change or search" in answer
     assert "simulate" not in answer
     assert with_denials("My pick.", events[2:]) == "My pick."
+
+
+class BesideLead(gd.Agent):
+    """Runs a worker that writes, beside, as the compare loop runs a family's design lead."""
+
+    def __init__(self):
+        """Declare the worker beside."""
+        super().__init__()
+        self.helper = Delegate(Worker(), runs_beside=True)
+        self.model = gd.Model("fake/model")
+
+
+def beside_script():
+    """Return the lead's call, the worker's two writes and the two answers."""
+    from tests.fixtures.runs import says
+
+    return [
+        uses(fixture_call("helper", "h", task="Build the 2-doublet design")),
+        uses(fixture_call("save_note", "n1", text="a")),
+        uses(fixture_call("save_note", "n2", text="b")),
+        says("worker done"),
+        says("lead done"),
+    ]
+
+
+async def test_a_writing_team_member_asks_once_before_it_runs_when_auto_approve_is_off():
+    """QA-329: compare families ran ~20 writes with no card; now one card asks for the run."""
+    from tests.fixtures.runs import of_type
+
+    engine = engine_for(beside_script(), permissions=Permissions(mode="ask"))
+    start = context()
+    paused = await engine.run(BesideLead(), start, max_steps=10)
+    assert paused.status == "waiting" and paused.request.kind == "approval"
+    assert "Run helper for: Build the 2-doublet design" in paused.request.message
+    assert "without a card of their own" in paused.request.message
+    result = await engine.resume(paused.run_id, paused.request.id, {"approved": True})
+    assert result.status == "done" and result.answer == "lead done"
+    events = engine.store.load_events(start.run_id)
+    assert len(of_type(events, "request")) == 1
+    started = of_type(events, "run.started")[0]
+    assert started.permission_mode == "ask"
+
+
+async def test_a_writing_team_member_asks_nothing_in_auto_mode():
+    """Auto-approve on: no card at all, as before."""
+    from tests.fixtures.runs import of_type
+
+    engine = engine_for(beside_script(), permissions=Permissions(mode="auto"))
+    start = context()
+    result = await engine.run(BesideLead(), start, max_steps=10)
+    assert (
+        result.status == "done" and of_type(engine.store.load_events(start.run_id), "request") == []
+    )
+
+
+def test_a_team_member_that_writes_nothing_asks_nothing():
+    """The geoscientists only read: their team call needs no card."""
+    from geomind.agents.case.geoscientist import Geoscientist
+    from geomind.tools.delegate import agent_writes
+
+    assert not agent_writes(Geoscientist())
+    assert agent_writes(Worker())
