@@ -801,3 +801,14 @@ async def test_a_series_without_its_column_names_the_columns_of_its_file():
     assert "demand.heating.power.column: a column of demand.csv: 'heat_mw'" in "".join(
         result.output["error"]["suggestions"]
     )
+
+
+def test_a_reference_depth_moved_without_its_pressure_is_flagged():
+    """QA-119: reference depth 2500 to 3000 m with 250 bar(g) kept."""
+    from geomind.tools.gemini.case import moved_reference_depth
+
+    reservoir = {"reference_depth": {"value": 2500, "unit": "m"}, "pressure": {"value": 250}}
+    moved = {**reservoir, "reference_depth": {"value": 3000, "unit": "m"}}
+    warning = moved_reference_depth({"site": {"reservoir": reservoir}}, {"site": {"reservoir": moved}})
+    assert "params.depth" in warning and "pressure" in warning
+    assert moved_reference_depth({"site": {"reservoir": reservoir}}, {"site": {"reservoir": reservoir}}) is None

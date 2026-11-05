@@ -714,6 +714,29 @@ def period_requirements(requirements):
     return converted
 
 
+def moved_reference_depth(base, data):
+    """Return the warning of a reference depth changed while its pressure or temperature stay.
+
+    QA-119: "reservoir at 3000 m" moved ``site.reservoir.reference_depth`` and kept 250 bar(g)
+    of 2500 m. The reference depth is where the given values hold, so moving it alone moves them;
+    a well depth is the plant's ``params.depth``, where gemini derives both.
+    """
+    before = ((base or {}).get("site") or {}).get("reservoir") or {}
+    after = ((data or {}).get("site") or {}).get("reservoir") or {}
+    if before.get("reference_depth") == after.get("reference_depth") or not before:
+        return None
+    kept = [key for key in ("pressure", "temperature") if key in after and after[key] == before.get(key)]
+    if not kept:
+        return None
+    return (
+        f"site.reservoir.reference_depth changed while {' and '.join(kept)} stayed: they are the "
+        "values AT the reference depth, so the case now states them at the new depth. A depth "
+        "the user or the design chooses for the wells is the plant's params.depth (gemini derives "
+        "the pressure and the temperature there from the reference values, the gradient and "
+        "the brine); ask the user which is meant before going on"
+    )
+
+
 def judged_requirements(data):
     """Return ``converted`` of the case's requirements written as gemini judges them (copied)."""
     if not data.get("requirements"):
@@ -868,6 +891,7 @@ async def set_case(
         converted += renamed
         data["requirements"] = edited_requirements(data.get("requirements"), requirements)
     converted += judged_requirements(data)
+    moved = moved_reference_depth(base, data)
     contents = edited_economics(context, data, supplied, economics) if economics else supplied
     origin = given_case(context, source, (base, supplied), (data, contents))
     try:
@@ -885,6 +909,7 @@ async def set_case(
         "case": data,
         "version": version,
         "version_is": VERSION_MEANING,
+        **({"check": moved} if moved else {}),
         **({"converted": converted} if converted else {}),
         **({"plants_need": needs, "note": PLANTS_NEED_NOTE} if needs else {}),
     }

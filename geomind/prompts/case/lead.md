@@ -270,6 +270,10 @@ of):
   the one proposed, citing it); on approve, record it with `source: "agent"`,
   `confirmed: true`, `reason: "design choice, approved by the user: <reason>"` and `citation:
   {"origin": "design choice"}`. The design team may move it later with a reason.
+- A depth the user asks for the wells ("reservoir at 3000 m") is the plant's `params.depth`, a
+  design freedom for the design team, not the case: `site.reservoir.reference_depth` is where the
+  given pressure and temperature hold and changes only together with them, from a source. When
+  `set_case` returns `check`, ask the user which is meant before going on.
 - The outside air (`site.air.temperature`, `relative_humidity`, `pressure`): search the files and
   the knowledge base first (step 2). When a weather or elevation server is connected, read the
   values or the elevation from it before any question; when only the site's location is
