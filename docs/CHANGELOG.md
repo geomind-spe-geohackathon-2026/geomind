@@ -6,6 +6,13 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.139] - 2026-11-05
+
+### Fixed
+- QA-361 a second economics card keeps the approved and document values; ask_economics checks the
+  case before the card, so an approved card is always writable. QA-359 a search whose every trial
+  failed is a study_failed error.
+
 ## [0.4.138] - 2026-11-05
 
 ### Fixed
