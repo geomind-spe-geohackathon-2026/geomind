@@ -259,12 +259,16 @@ def test_cost_figures_have_five_significant_digits():
 
 @example_names
 def test_the_kpis_split_each_service_into_geothermal_backup_and_unmet(name):
-    """QA-228: the geothermal heat is gemini's coverage, never delivered heat less boiler heat."""
+    """QA-228: the geothermal heat is gemini's coverage, never delivered heat less boiler heat.
+
+    Since gemini 0.6.22 the heat pumps' compressor work is its own part (QA-270).
+    """
     everything = assessed("compute_kpis", name, "base")
     parts = [everything[f"{part}_heat"] for part in ("geothermal", "backup", "unmet")]
     assert {item["unit"] for item in parts} == {"MWh"}
     share = everything["geothermal_heat_share"]["value"]
-    demand = sum(item["value"] for item in parts)
+    work = everything.get("heat_pump_electricity", {"value": 0.0})["value"]
+    demand = sum(item["value"] for item in parts) + work
     assert share == pytest.approx(parts[0]["value"] / demand, rel=1e-3)
 
 

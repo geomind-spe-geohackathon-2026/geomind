@@ -209,6 +209,7 @@ def test_qa_178_the_groups_of_handbook_design_0_3_own_their_modules():
     from geomind.tools.gemini.ownership import type_disciplines
 
     assert type_disciplines("InjectionPump") == frozenset({"well"})
-    for name in ("InhibitorDosing", "Blowdown", "Degasser", "BoreholeField"):
+    for name in ("InhibitorDosing", "Blowdown", "Degasser", "BoreholeField", "GasCompressor"):
         assert type_disciplines(name) == frozenset({"reservoir"})
+    assert type_disciplines("GasMakeup") == frozenset({"reservoir"})
     assert type_disciplines("IceStorage") == frozenset({"energy"})

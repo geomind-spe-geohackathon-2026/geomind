@@ -41,6 +41,8 @@ OWNED_MODULES = {
         "Blowdown",
         "BoreholeField",
         "DownholeHeatExchanger",
+        "GasCompressor",
+        "GasMakeup",
     ),
     "well": ("Doublet", "ProductionWell", "InjectionWell", "ESP", "LineShaftPump", "InjectionPump"),
     "energy": (

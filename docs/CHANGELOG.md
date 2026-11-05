@@ -6,7 +6,11 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.129] - 2026-11-05
+
 ### Fixed
+- QA-178 follow-up: the gas compressor and make-up belong to the reservoir engineer.
+- test_assessment's coverage split sums the heat pumps' electricity (QA-270).
 - QA-279: ask_economics takes an optional `country`: the site's country rows replace only the
   keys they cover, the base stays, and another country's rows are never recommended. Approved
   economics are recorded before set_case writes them.
