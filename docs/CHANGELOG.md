@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.70] - 2026-11-05
+
+### Fixed
+
+- QA-082: `simulate`'s `changes` set the plant's own options: `{"control": {"dispatch": ..., "outages": ...}}`, `{"params": {...}}` or `{"backup": {"value": ...}}`; before, they were read as module paths and refused. With gemini 0.6.9 the check names a doublet's missing depth first, with why.
+
 ## [0.4.69] - 2026-11-05
 
 ### Fixed
