@@ -52,6 +52,12 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
 - A case the problem state already holds, which gemini accepted, needs no case step: start with
   the design. Give the `case_lead` a brief only for a case that is missing, or for a `case change
   needed` line a team reported.
+- A run that starts with a saved case loaded by rule (the task says the saved case differs) has a
+  stored verification of the older case, and your answer is refused until the design is checked
+  on the loaded case. So decide first, before any explainer: brief the design team to simulate
+  and check the current design on it, then the reviewer, then the explainer ONCE for what the
+  user asked (a summary included), saying the case changed. Never brief the explainer twice with
+  the same brief: its first answer stands.
 - A case the user saved by hand (an app event, or a message that says they saved the case form)
   is the user's own and approved. The run loads a saved case that differs from the chat's by
   rule before your first step; never call `set_case(source: "project")` again for it, and never

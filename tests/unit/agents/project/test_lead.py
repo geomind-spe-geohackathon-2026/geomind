@@ -222,3 +222,10 @@ def test_qa_312_making_a_design_the_project_plant_is_one_adopt_design():
     """QA-312: the design lead adopts it with one call and does nothing else."""
     text = " ".join(ProjectLead().prompt.content.split())
     assert "goes to the design lead as one `adopt_design` call; no other work" in text
+
+
+def test_qa_333_a_case_loaded_by_rule_is_checked_before_one_explainer_call():
+    """QA-333: three explainer runs and a late re-simulate for a five-bullet summary."""
+    text = " ".join(ProjectLead().prompt.content.split())
+    assert "So decide first, before any explainer" in text
+    assert "Never brief the explainer twice with the same brief" in text
