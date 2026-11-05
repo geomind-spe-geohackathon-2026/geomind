@@ -549,3 +549,18 @@ async def test_an_unknown_row_or_a_row_of_another_key_is_refused():
     )
     assert result.is_error
     assert "is for economics.capex.heat_pump" in result.output["error"]["message"]
+
+
+def test_a_per_energy_map_with_an_open_kind_is_open_as_a_whole():
+    """QA-105: a map with the chillers open gave no cost metric; every kind goes open."""
+    from geomind.tools.gemini.economics import EconomicsValue, whole_per_energy
+
+    values = [
+        EconomicsValue(key="opex.per_energy.boiler", value=1, unit="EUR/MWh", source="s"),
+        EconomicsValue(key="capex.boiler", value=2, unit="EUR/W", source="s"),
+    ]
+    kept, open_keys, moved = whole_per_energy(values, ["opex.per_energy.compression_chiller"])
+    assert [item.key for item in kept] == ["capex.boiler"]
+    assert set(open_keys) == {"opex.per_energy.compression_chiller", "opex.per_energy.boiler"}
+    assert moved == ["opex.per_energy.boiler"]
+    assert whole_per_energy(values, [])[2] == []

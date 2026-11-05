@@ -177,13 +177,12 @@ Where each value comes from:
 - Three economics parts gemini 0.6.2 added, each with a rule of its own:
   - `opex.per_energy.<kind>`: a variable O&M per MWh each kind produces (`chp` its electricity;
     `boiler`, `electric_boiler`, `heat_pump` their heat; the chillers their cold). Once the map
-    is given, gemini needs a price for every producing kind the plant uses. When an assumptions
-    document covers the case and gives no per-energy price, every `opex.per_energy.*` key goes
-    in `open` (no map: a partial one cannot price the plant's chillers). Otherwise: the
-    catalogue has rows for `boiler`, `electric_boiler`, `heat_pump` and `chp`: put all four in
-    `values`. It has none for the chillers: a case with cooling names `compression_chiller`,
-    `absorption_chiller` and `adsorption_chiller` in `open`, and `note` says the plant's chillers
-    need the user's price, or the per-energy map cannot price a plant that uses one.
+    is given, gemini needs a price for every producing kind the plant uses, so the map is all
+    or nothing: a partial map gives no cost metric at all. The catalogue has rows for `boiler`,
+    `electric_boiler`, `heat_pump` and `chp` and none for the chillers. A case with cooling, or
+    an assumptions document that gives no per-energy price, puts every `opex.per_energy.*` key
+    in `open` (no map; `ask_economics` opens them all when one is open). A heating-only case
+    puts the four rows in `values`.
   - `revenue.subsidy`: `amount` (per year, or per MWh as SDE++ pays) and `duration` (it earns
     nothing without both); `cap` limits the heat it is paid on, in `MWh/yr` or in full-load
     hours (`h/yr`), and a cap in hours needs `capacity`, the MW the subsidy is granted for: a

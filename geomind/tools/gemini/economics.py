@@ -456,12 +456,40 @@ def dropped_note(dropped):
     )
 
 
+PER_ENERGY = "opex.per_energy."
+
+
+def whole_per_energy(values, open_keys):
+    """Return ``(values, open keys, moved keys)`` with the per-energy map all given or all open.
+
+    Once one ``opex.per_energy`` price is set, gemini needs one for every producing kind the
+    plant uses, so a map with a kind left open (the chillers, which no row prices) gave no cost
+    metric at all (QA-105). With any kind open, every kind goes to ``open``: no map, and the
+    plant is costed without per-energy O&M.
+    """
+    if not any(short(key).startswith(PER_ENERGY) for key in open_keys):
+        return values, open_keys, []
+    moved = [short(item.key) for item in values if short(item.key).startswith(PER_ENERGY)]
+    kept = [item for item in values if not short(item.key).startswith(PER_ENERGY)]
+    return kept, list(dict.fromkeys([*open_keys, *moved])), moved
+
+
+def per_energy_note(moved):
+    """Return the line of the question that says why the per-energy prices are all open."""
+    return (
+        f"Open as a whole: {', '.join(moved)}. A per-energy map needs a price for every kind "
+        "the plant runs, and the chillers have none, so no map is set; give every kind's price "
+        "with change some to set one."
+    )
+
+
 def prepared(values, open_keys, dropped=None):
     """Return ``(values, open keys, notes)`` of the question, or raise what the model must fix.
 
     ``dropped``, a list, gets the keys left out as not economics keys (``not_economics``).
     """
     values, open_keys = given_values(values, open_keys)
+    values, open_keys, _ = whole_per_energy(values, open_keys)
     values, open_keys, left_out = not_economics(values, open_keys)
     if dropped is not None:
         dropped += left_out
@@ -617,10 +645,12 @@ def ask_economics(
     """
     dropped, skipped = [], []
     values, open_keys = recommended(context, list(values), list(open or []))
-    values, open_keys, notes = prepared(
-        from_catalogue(context, values, skipped), open_keys, dropped
-    )
+    values = from_catalogue(context, values, skipped)
+    _, _, moved = whole_per_energy(*given_values(values, list(open_keys)))
+    values, open_keys, notes = prepared(values, open_keys, dropped)
     message = question_text(values, open_keys, note, notes)
+    if moved:
+        message += "\n\n" + per_energy_note(moved)
     if dropped:
         message += "\n\n" + dropped_note(dropped)
     if skipped:
