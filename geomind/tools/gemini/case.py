@@ -478,6 +478,8 @@ def case_of(context):
     return readable_case(data, file_contents(context, data, {}))
 
 
+ASKED_ECONOMICS = contextvars.ContextVar("geomind_asked_economics", default=False)
+"""Set while ``ask_economics`` sets what the user approved with set_case (QA-320)."""
 DRY_RUN = contextvars.ContextVar("geomind_case_dry_run", default=False)
 """Set while ``set_case`` only checks its call before an approval: nothing is stored (QA-037)."""
 
@@ -1200,12 +1202,19 @@ def file_facts(context, names, columns):
     return lines
 
 
-def files_alone_error(context, files, kept, calls):
+ALONE_LIMIT = 2
+"""Files-alone refusals of one run after which the refusal says to stop and hand back (QA-326)."""
+
+
+def files_alone_error(context, files, kept, calls, refused=1):
     """Return the refusal of ``files`` alone on no case, naming every fix of the next call at once.
 
     QA-200, QA-222: a files-only call came first in every run. The refusal keeps its ``columns``
     for the next call and says what that call needs: the header, the time, and per file its
-    columns and time zone, so the full call is right the first time.
+    columns and time zone, so the full call is right the first time. QA-326: one case lead sent
+    the same files-only call 19 times, read as a first step of two ("the columns are kept for that
+    call"); the refusal now says the next call holds ``changes``, counts the refusals of the run,
+    and past ``ALONE_LIMIT`` says to stop and hand back.
     """
     earlier = (
         f" Your set_case of step {calls[-1]} held the whole case: send that call again, "
@@ -1214,14 +1223,21 @@ def files_alone_error(context, files, kept, calls):
         if calls
         else ""
     )
-    shown = f" The columns {kept!r} are kept for that call." if kept else ""
+    shown = f" Its columns {kept!r} are kept: the next call need not repeat them." if kept else ""
     facts = file_facts(context, files, kept or None)
+    count = f" Refusal {refused} of files alone in this run." if refused > 1 else ""
+    stop = (
+        " Do not call set_case again in this run: finish now and hand back that the case is not "
+        "set because set_case got files without changes."
+        if refused > ALONE_LIMIT
+        else " Never send files or columns alone again: the next set_case holds `changes`."
+    )
     return ToolError(
-        f"set_case: files = {files!r} and nothing else; nothing is stored. Send ONE call with "
-        "changes that hold the whole case (header, time, site, demand, utilities) and name each "
-        "file as the `file` of its series, with requirements and economics in the same call: "
+        f"set_case: files = {files!r} and nothing else; nothing is stored.{count} Send ONE call "
+        "with changes that hold the whole case (header, time, site, demand, utilities) and name "
+        "each file as the `file` of its series, with requirements and economics in the same call: "
         f"set_case loads the project files the changes name, and files alone set no case.{shown}"
-        f"{earlier}",
+        f"{earlier}{stop}",
         code="case_incomplete",
         path="format",
         suggestions=[*facts, *([] if calls else [json.dumps(case_skeleton())])],
@@ -1279,6 +1295,7 @@ async def set_case(
     data = merge_patch(base, checked_changes(changes, files))
     converted += with_requirements(data, requirements)
     if economics:
+        refuse_unasked_economics(context, economics)
         refuse_changed_economics(context, economics)
     contents = edited_economics(context, data, supplied, economics) if economics else supplied
     origin = given_case(context, source, (base, supplied), (data, contents))
@@ -1315,7 +1332,9 @@ def remembered_call(context, source, changes, requirements, economics, files, co
         kept.update(copy.deepcopy(columns))
     alone = files and source is None and not (changes or requirements or economics)
     if alone and context.problem.case is None:
-        raise files_alone_error(context, files, kept, calls)
+        refused = session_state.get("case_alone", 0) + (0 if DRY_RUN.get() else 1)
+        session_state["case_alone"] = refused
+        raise files_alone_error(context, files, kept, calls, refused)
     step = getattr(getattr(context.session, "state", None), "step", None)
     if changes and step is not None and not DRY_RUN.get():
         calls.append(step)
@@ -1351,6 +1370,39 @@ def with_requirements(data, requirements):
         converted += emptied + renamed
         data["requirements"] = edited_requirements(data.get("requirements"), requirements)
     return converted + judged_requirements(data)
+
+
+async def set_asked_economics(context, economics):
+    """Set the economics the user approved with ``ask_economics``: set_case, marked as asked."""
+    token = ASKED_ECONOMICS.set(True)
+    try:
+        return await set_case.function(context, economics=economics)
+    finally:
+        ASKED_ECONOMICS.reset(token)
+
+
+def refuse_unasked_economics(context, economics):
+    """Raise when set_case writes economics values that no ``ask_economics`` approve all gave.
+
+    QA-320: leads wrote prices with set_case, and the user never saw where they came from.
+    Values enter the economics through ``ask_economics``, which reads the catalogue rows and
+    the assumptions document with their sources; its own approved patch passes. ``about`` alone
+    passes, and so does a value the user typed in chat, each key sourced to the user (QA-256).
+    """
+    keys = economics_leaves(economics)
+    if not keys or ASKED_ECONOMICS.get():
+        return
+    about = economics.get("about") if isinstance(economics.get("about"), dict) else {}
+    sources = about.get("sources") if isinstance(about.get("sources"), dict) else {}
+    by_user = [sources.get(key) for key in keys]
+    if all(isinstance(item, dict) and item.get("source") == "user" for item in by_user):
+        return
+    raise ToolError(
+        f"set_case: economics sets {join_names(keys)}; set the economics with ask_economics: it "
+        "takes the case's assumptions document and the catalogue rows with their sources",
+        code="invalid_input",
+        path="economics",
+    )
 
 
 def refuse_changed_economics(context, economics):

@@ -1438,7 +1438,7 @@ async def economics_answered(context, tool_input, text):
     economics other than the approved ones (QA-168), reads the values just approved. ``answer``
     keeps the user's text, which a replay acts on again.
     """
-    from geomind.tools.gemini.case import set_case
+    from geomind.tools.gemini.case import set_asked_economics
 
     approves = approves_all(text)
     if not approves:
@@ -1464,7 +1464,7 @@ async def economics_answered(context, tool_input, text):
     changes = assumption_changes(context.problem, values, notes)
     if changes:
         await context.session.change_state(changes)
-    stored = await set_case.function(context, economics=approved_economics(values, notes))
+    stored = await set_asked_economics(context, approved_economics(values, notes))
     version = stored["version"]
     keys = [item.key.removeprefix("economics.") for item in values]
     extra = text.strip() if text.strip().lower() != APPROVE else ""

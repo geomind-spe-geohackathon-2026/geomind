@@ -18,6 +18,17 @@ from tests.fixtures.cases import example_case, example_names, warm_gemini
 from tests.fixtures.sessions import StubSession
 
 
+@pytest.fixture
+def asked():
+    """Write economics as ``ask_economics`` does after approve all (QA-320)."""
+    from geomind.tools.gemini.case import ASKED_ECONOMICS
+
+    token = ASKED_ECONOMICS.set(True)
+    yield
+    ASKED_ECONOMICS.reset(token)
+
+
+
 @pytest.fixture(scope="module", autouse=True)
 def warmed():
     """Pay for the gemini import and the first case build outside the timed calls."""
@@ -99,6 +110,7 @@ async def test_a_changed_requirement_is_listed_as_changed_and_an_added_one_as_ad
     assert found == {"requirements.doublet_count": "changed", "requirements.extra": "added"}
 
 
+@pytest.mark.usefixtures("asked")
 async def test_a_change_of_the_economics_is_a_change_of_the_case():
     """The economics file is part of the case: the change is listed and verification fails."""
     session, problem = await from_project("shallow_district")
@@ -119,6 +131,7 @@ async def test_a_demand_service_or_a_file_that_changed_is_listed():
     assert paths == {"demand.cooling", "file data/demand.csv"}
 
 
+@pytest.mark.usefixtures("asked")
 async def test_the_first_case_of_a_chat_is_the_origin_and_later_changes_are_not():
     """A case set from the user's words is theirs; a change after it waits for approval."""
     session, problem = await from_project("shallow_district")
@@ -136,6 +149,7 @@ async def test_the_first_case_of_a_chat_is_the_origin_and_later_changes_are_not(
     assert [item["path"] for item in await listed(fresh, problem)] == ["about"]
 
 
+@pytest.mark.usefixtures("asked")
 async def test_the_origin_comes_back_with_its_files():
     """``source="origin"`` restores the case and the file content the user gave."""
     session, problem = await from_project("shallow_district")

@@ -11,6 +11,7 @@ from geomind.engine import Context
 from geomind.errors import ToolError
 from geomind.stores import MemoryWorkspace
 from geomind.tools.gemini.case import (
+    ASKED_ECONOMICS,
     case_of,
     checked_name,
     file_contents,
@@ -306,6 +307,7 @@ async def test_an_efficiency_in_percent_with_no_unit_is_refused_with_its_fractio
     assert result.is_error is False, result.output
 
 
+@pytest.mark.usefixtures("asked")
 async def test_economics_is_a_merge_patch_on_its_file_stored_as_a_new_content():
     """The case keeps its file name and the new content is the patched economics."""
     session, problem = await loaded("shallow_district")
@@ -318,6 +320,7 @@ async def test_economics_is_a_merge_patch_on_its_file_stored_as_a_new_content():
     assert state_after(session, problem).case["economics"] == "economics.json"
 
 
+@pytest.mark.usefixtures("asked")
 async def test_a_rejected_economics_stores_nothing():
     """A unit gemini refuses leaves the old economics file in the run."""
     session, problem = await loaded("shallow_district")
@@ -917,6 +920,7 @@ async def test_read_case_says_when_the_project_s_saved_case_differs():
     assert "set_case(source='project')" in output["project_case"]["note"]
 
 
+@pytest.mark.usefixtures("asked")
 async def test_an_uncertainty_of_another_kind_replaces_the_old_one_whole():
     """QA-154: a uniform over the case's normal kept its ``std`` and gemini refused it."""
     session, problem = await loaded("hackathon_2026")
@@ -928,6 +932,7 @@ async def test_an_uncertainty_of_another_kind_replaces_the_old_one_whole():
     assert stored["discount_rate"]["uncertainty"] == uniform
 
 
+@pytest.mark.usefixtures("asked")
 async def test_economics_other_than_the_approved_values_are_refused():
     """QA-279: set_case wrote another value than the user approved with ask_economics."""
     from geomind.context.state import Assumption
@@ -1007,3 +1012,38 @@ async def test_a_case_change_the_user_approved_on_its_card_is_the_user_s_case():
     assert result.is_error is False, result.output
     accepted = state_after(session, changed)
     assert changes_of(Context(project="p", session=session, problem=accepted)) == []
+
+
+async def test_files_alone_again_and_again_is_counted_and_then_stopped():
+    """QA-326: 19 files-only calls in a row; the refusal counts them and, past two, says stop."""
+    from tests.integration.test_live_regressions import FILES, session_with_files
+
+    session = session_with_files()
+    files = sorted(name for name in FILES if name.endswith(".csv"))[:1]
+    messages = []
+    for _ in range(3):
+        result = await call(set_case, {"files": files}, session, project="p")
+        messages.append(result.output["error"]["message"])
+    assert "the next set_case holds `changes`" in messages[0]
+    assert "kept for that call" not in messages[0]
+    assert "Refusal 2 of files alone" in messages[1]
+    assert "Do not call set_case again in this run" in messages[2]
+
+
+@pytest.fixture
+def asked():
+    """Run set_case as ``ask_economics`` does after approve all (QA-320)."""
+    token = ASKED_ECONOMICS.set(True)
+    yield
+    ASKED_ECONOMICS.reset(token)
+
+
+async def test_economics_values_need_ask_economics_or_the_user_s_own_words():
+    """QA-320: a lead wrote prices with set_case; only ask_economics or a typed price sets them."""
+    session, problem = await loaded("shallow_district")
+    patch = {"analysis_period": {"value": 20, "unit": "yr"}}
+    error = (await edited(session, problem, {"economics": patch})).output["error"]
+    assert "ask_economics" in error["message"] and error["path"] == "economics"
+    typed = {**patch, "about": {"sources": {"analysis_period": {"source": "user"}}}}
+    result = await edited(session, problem, {"economics": typed})
+    assert result.is_error is False, result.output
