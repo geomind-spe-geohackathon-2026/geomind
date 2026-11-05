@@ -107,7 +107,7 @@ async def test_approve_all_sets_every_value_and_records_each_row_as_an_assumptio
     assert stored["currency"]["value"] == "EUR" and stored["price_year"]["value"] == 2015
     assert stored["discount_rate"]["value"] == 0.05
     assert stored["about"]["sources"]["capex.heat_pump"]["row"] == "heat-pump-dea-2025-10mw"
-    [case_change, assumptions] = context.session.changes
+    [assumptions, case_change] = context.session.changes
     assert case_change[0]["path"] == "/case"
     recorded = {change["value"]["id"]: change["value"] for change in assumptions}
     assert set(recorded) == {f"economics.{item['key']}" for item in VALUES}
@@ -526,7 +526,7 @@ async def test_the_catalogue_value_wins_over_a_typed_one_and_is_set_on_approve_a
     context = await case_context("hackathon_2026", session=session)
     answer = await economics_answered(context, {"values": typed}, "approve all")
     assert answer["economics"] == "set"
-    [_, assumptions] = session.changes
+    [assumptions, _] = session.changes
     recorded = {change["value"]["id"]: change["value"] for change in assumptions}
     heat_pump = recorded["economics.capex.heat_pump"]
     assert heat_pump["value"] == {"value": 0.737864, "unit": "EUR/W"}
@@ -599,3 +599,29 @@ def test_a_value_other_than_the_approved_one_is_named_and_refused():
     ]
     with pytest.raises(ToolError, match="call ask_economics"):
         refuse_unapproved(problem, other)
+
+
+async def test_the_site_country_replaces_only_keys_it_has_a_row_for_and_keeps_the_base():
+    """QA-279: 'Norwegian prices where they differ' kept no base value and took Dutch rows."""
+    from geomind.tools import dispatch
+    from geomind.types import ToolCall
+
+    base = "knowledge/hackathon-2026-assumptions.md, section 1.4"
+    values = [
+        {"key": "discount_rate", "value": 0.05, "source": base},
+        {"key": "revenue.cold", "value": 60, "unit": "EUR/MWh", "source": base},
+        {"key": "energy.electricity", "value": 105.75, "unit": "EUR/MWh", "source": base},
+    ]
+    asked = ToolCall(id="q", name="ask_economics", input={"values": values, "country": "NO"})
+    request = await dispatch(ask_economics, asked, catalogue_context())
+    assert isinstance(request, Request), request
+    lines = request.message.splitlines()
+    rate = next(line for line in lines if line.startswith("economics.discount_rate"))
+    assert rate.startswith("economics.discount_rate = 0.05 ") and "no row" in rate
+    cold = next(line for line in lines if line.startswith("economics.revenue.cold"))
+    assert "row cold-price-no-2017" in cold
+    assert "Replaced by a row of Norway: economics.revenue.cold: 60 EUR/MWh" in request.message
+    for line in lines:
+        if line.startswith("economics.") and " = " in line:
+            assert "prices of the Netherlands" not in line.split("(recommended")[0], line
+            assert "prices of France" not in line.split("(recommended")[0], line

@@ -273,7 +273,64 @@ row; open unless the case lead names them because the user or the brief gives a 
 a Dutch SDE++ amount and duration went into a case whose user said no subsidy)."""
 
 
-def recommended(context, values, open_keys):
+def site_country(country):
+    """Return the catalogue's name of a country (``Norway`` for ``no``, ``NO`` or ``norway``)."""
+    if not country:
+        return None
+    text = str(country).strip().lower().removeprefix("the ")
+    for code, name in COUNTRIES.items():
+        if text in (code, name.lower().removeprefix("the ")):
+            return name
+    return str(country).strip()
+
+
+def fits_site(row_id, country):
+    """Tell whether a row's prices fit the site: a general row, or one of the site's country."""
+    region = row_region(row_id)
+    return region is None or country is None or region == country
+
+
+def country_rows(rows, key, country):
+    """Return the usable sourced rows of ``key`` of the site's ``country``, best first."""
+    found = [
+        row
+        for row in rows.values()
+        if row.get("path") == f"economics.{key}"
+        and row.get("status") in STATUS_RANK
+        and row_region(row.get("id")) == country
+        and _usable(key, row)
+        and not any(word in row.get("id", "") for word in REFERENCE_ONLY)
+    ]
+    return sorted(found, key=_rank)
+
+
+def kept_base(rows, values, country, replaced):
+    """Return ``values`` with a base value replaced where the site's country has a row (QA-279).
+
+    "Prices of Norway where they differ": a value the case lead gives from the case's base (an
+    assumptions document, the case's economics, with its ``source`` and no row) stays, unless the
+    catalogue has a row of the site's country for that key; that row replaces it and the base
+    value is named in ``replaced``. A value from the user or with a row the lead chose stays.
+    """
+    if country is None:
+        return values
+    kept = []
+    for item in values:
+        key = short(item.key)
+        given = item.row or item.value is None or str(item.source or "").lower().startswith("user")
+        found = [] if given else country_rows(rows, key, country)
+        if not found:
+            kept.append(item)
+            continue
+        base = f"{_amount(item)} ({item.source})" if item.source else _amount(item)
+        replaced.append(f"economics.{key}: {base} -> row {found[0]['id']}")
+        others = [{"row": row["id"]} for row in found[1:]]
+        update = {"key": key, "row": found[0]["id"], **({"others": others} if others else {})}
+        kept.append(EconomicsValue.model_validate(update))
+    return kept
+
+
+def recommended(context, values, open_keys, country=None, notes=None):
     """Return ``(values, open keys)`` with every catalogue key the case lead did not name (QA-013).
 
     The case lead names only exceptions (another row, a key open, a value from a server or the
@@ -281,10 +338,19 @@ def recommended(context, values, open_keys):
     case lead's rule: a sourced row over a placeholder, verified over secondary, a row whose note
     calls it an upper bound or a proxy last, then the latest year; its other sourced rows in
     ``others``. A key with only placeholder rows is open. Without the catalogue nothing is added.
+
+    With the site's ``country`` (QA-279), a row of another country is never the recommended
+    one: it stays in ``others``, and a key whose usable rows are all of other countries is open,
+    named in ``notes["foreign"]``; a base value the lead gives is replaced only by a row of the
+    site's country, named in ``notes["replaced"]``.
     """
     rows = catalogue_rows(context)
     if rows is None:
         return values, open_keys
+    country = site_country(country)
+    notes = {} if notes is None else notes
+    replaced, foreign = notes.setdefault("replaced", []), notes.setdefault("foreign", [])
+    values = kept_base(rows, values, country, replaced)
     named = {short(item.key) for item in values} | {short(key) for key in open_keys}
     by_key = {}
     for row in rows.values():
@@ -306,9 +372,18 @@ def recommended(context, values, open_keys):
                 and _usable(key, row)
                 and not any(word in row.get("id", "") for word in REFERENCE_ONLY)
             ),
-            key=_rank,
+            key=lambda row: (
+                not fits_site(row["id"], country),
+                country is not None and row_region(row["id"]) != country,
+                *_rank(row),
+            ),
         )
         if not sourced:
+            opened.append(key)
+            continue
+        if not fits_site(sourced[0]["id"], country):
+            regions = sorted({row_region(row["id"]) for row in sourced} - {None})
+            foreign.append(f"economics.{key} (rows only of {', '.join(regions)})")
             opened.append(key)
             continue
         others = [{"row": row["id"]} for row in sourced[1:]]
@@ -678,13 +753,14 @@ def ask_economics(
     values: list[EconomicsValue],
     open: list[str] | None = None,
     note: str | None = None,
+    country: str | None = None,
 ):
     """Ask the user the ONE economics question from the rows you chose, and set what they approve.
 
     Skill `setting-the-case`.
     """
-    dropped, skipped = [], []
-    values, open_keys = recommended(context, list(values), list(open or []))
+    dropped, skipped, sited = [], [], {}
+    values, open_keys = recommended(context, list(values), list(open or []), country, sited)
     values = from_catalogue(context, values, skipped)
     _, _, moved = whole_per_energy(*given_values(values, list(open_keys)))
     values, open_keys, notes = prepared(values, open_keys, dropped)
@@ -695,7 +771,22 @@ def ask_economics(
         message += "\n\n" + dropped_note(dropped)
     if skipped:
         message += "\n\n" + skipped_note(skipped)
+    if country:
+        message += "\n\n" + country_note(site_country(country), sited)
     return Request(kind="question", message=message, options=list(OPTIONS))
+
+
+def country_note(country, sited):
+    """Return the lines that say what the site's country changed: replaced keys, foreign rows."""
+    replaced, foreign = sited.get("replaced") or [], sited.get("foreign") or []
+    lines = [f"Prices of {country} where the catalogue has them; every other value stays."]
+    if replaced:
+        lines.append(f"Replaced by a row of {country}: " + "; ".join(replaced))
+    else:
+        lines.append(f"No value replaced: the catalogue has no row of {country} for these keys.")
+    if foreign:
+        lines.append("Open, the catalogue has rows only of other countries: " + "; ".join(foreign))
+    return "\n".join(lines)
 
 
 def _nested(key, leaf):
@@ -850,8 +941,9 @@ def approves_all(text):
 async def economics_answered(context, tool_input, text):
     """Act on the answer to the economics question; return what the model reads.
 
-    ``approve all`` sets every value and records the assumptions; any other answer comes back as
-    it is, typed text marked so. ``answer`` keeps the user's text, which a replay acts on again.
+    ``approve all`` records the assumptions, then sets every value; any other answer comes back
+    as it is, typed text marked so. The assumptions go first so that ``set_case``, which refuses
+    economics other than the approved ones (QA-168), reads the values just approved. ``answer`` keeps the user's text, which a replay acts on again.
     """
     from geomind.tools.gemini.case import set_case
 
@@ -861,13 +953,16 @@ async def economics_answered(context, tool_input, text):
         note = {"note": TYPED_NOTE} if typed else {}
         return {"answer": text, "economics": "not set", **({"typed": True} if typed else {}), **note}
     values = [EconomicsValue.model_validate(item) for item in tool_input.get("values") or []]
-    values, open_keys = recommended(context, values, list(tool_input.get("open") or []))
+    open_keys = list(tool_input.get("open") or [])
+    values, open_keys = recommended(context, values, open_keys, tool_input.get("country"))
     values = from_catalogue(context, values)
     dropped = []
     values, open_keys, notes = prepared(values, open_keys, dropped)
-    stored = await set_case.function(context, economics=approved_economics(values, notes))
     changes = assumption_changes(context.problem, values, notes)
-    version = await context.session.change_state(changes) if changes else stored["version"]
+    if changes:
+        await context.session.change_state(changes)
+    stored = await set_case.function(context, economics=approved_economics(values, notes))
+    version = stored["version"]
     keys = [item.key.removeprefix("economics.") for item in values]
     extra = text.strip() if text.strip().lower() != APPROVE else ""
     return {

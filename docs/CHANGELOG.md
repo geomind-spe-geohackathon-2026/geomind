@@ -7,6 +7,9 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 ## [Unreleased]
 
 ### Fixed
+- QA-279: ask_economics takes an optional `country`: the site's country rows replace only the
+  keys they cover, the base stays, and another country's rows are never recommended. Approved
+  economics are recorded before set_case writes them.
 - QA-178: the injection pump belongs to the well engineer, treatment modules to the reservoir
   engineer (handbook-design 0.3 groups); the reservoir and well prompts name those groups.
 - QA-099, QA-154 (skill and prompt side): the economics skill and the economist round figures
