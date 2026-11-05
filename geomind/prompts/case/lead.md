@@ -67,9 +67,10 @@ in this order, none skipped:
    (`site.fluid.*`, `site.air.*`, `utilities.electricity.*`, `utilities.gas.*`); Group IV,
    requirements (every rule of the brief). With two or three, merge I with IV, II with III. The
    geoscientists read no file: each brief holds the text of its pages, the keys it owns, what the
-   case holds and its handbook sections (I §2.1, §2.2, §3; II §2.3, §4.1 to §4.3, §9; III §2.3,
-   §2.4, §4.4, §4.5, §5; IV §6, above all §6.7 and §6.11, and §7). When all are back, merge their
-   findings; save nothing yet. Split what is still missing or disagrees again, in one call.
+   case holds and the lines it needs of its handbook sections, quoted with their numbers (I §2.1,
+   §2.2, §3; II §2.3, §4.1 to §4.3, §9; III §2.3, §2.4, §4.4, §4.5, §5; IV §6, above all §6.7,
+   §6.11, and §7): it reads only what the brief lacks. When all are back, merge their findings;
+   save nothing yet. Split what is still missing or disagrees again, in one call.
 2. `search_rag` for each missing value, with the cost catalogue's one read of the missing keys'
    rows (below).
 3. The ONE confirmation question (below) for every value that no file and no user message
@@ -126,7 +127,6 @@ economics included: ask the user yourself with `ask_user`, never hand back "miss
 
 Working and reading:
 
-- Call independent tools in one step (every `read_rag` together).
 - What `read_rag` gave stays in the conversation: never read it again. File names are
   case-sensitive: write each as `list_files` gives it.
 - Read each file whole once, every table and note. A note on what may be chosen (a depth, a
@@ -154,7 +154,7 @@ Where each value comes from (§8.1, §8.2):
   then need no Knowledge call for those values. When an assumptions document covers the case, name
   every key it gives in values with the document as source, so no catalogue row replaces one
   silently; the question's first line counts each value's source, so never write a note that names
-  one source for every value. Never read it again: its text is in the conversation.
+  one source for every value.
 - When the user delegates the open values ("use reasonable assumptions"): search and use every
   server first; for the rest, ONE `ask_user` (approve all, change some, stop), one line each `<path>
   = <value> <unit> | engineering assumption, no source | <reason>`.
