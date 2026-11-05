@@ -24,7 +24,13 @@ from geomind.engine.step import (
     settle_interrupted,
     text_result,
 )
-from geomind.errors import NotImplementedYet, ProviderError, RequestError, RunError
+from geomind.errors import (
+    AlreadyAnsweredError,
+    NotImplementedYet,
+    ProviderError,
+    RequestError,
+    RunError,
+)
 from geomind.providers import with_retries
 from geomind.stores.run import MemoryRunStore
 from geomind.stores.usage import usage_report
@@ -45,6 +51,15 @@ def failure_stop(error, reason):
         prefix = f"{error.code}: " if error.code else ""
         return Stop(reason, f"{prefix}{error}")
     return Stop(reason, str(error), is_crash=reason == "error")
+
+
+def was_asked(session, request_id):
+    """Return whether the run's log holds a request with ``request_id``: it was asked before."""
+    events = session.engine.store.load_events(session.state.root)
+    return any(
+        event.type == "request" and getattr(getattr(event, "request", None), "id", None) == request_id
+        for event in events
+    )
 
 
 def run_result(session, stop, suggestions=None, report=None):
@@ -305,6 +320,10 @@ class Engine:
                 return await self.end(session, stop)
             return await self.drive(session)
         if request_id is not None:
+            if was_asked(session, request_id):
+                raise AlreadyAnsweredError(
+                    f"resume: request = {request_id!r} was already answered; the run goes on"
+                )
             raise RequestError(
                 f"resume: request = {request_id!r}; it is unknown or already answered"
             )
@@ -318,6 +337,11 @@ class Engine:
         if pending.child is not None:
             return await answer_child(session, pending, request_id, answer)
         if request_id != pending.request.id:
+            if was_asked(session, request_id):
+                raise AlreadyAnsweredError(
+                    f"resume: request = {request_id!r} was already answered; the run waits on "
+                    f"{pending.request.id!r}"
+                )
             raise RequestError(f"resume: request = {request_id!r}; expected {pending.request.id!r}")
         answer = validate_answer(pending.request, answer)
         if pending.point == STEPS_POINT:

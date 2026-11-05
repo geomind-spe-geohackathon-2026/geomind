@@ -11,6 +11,14 @@ class RequestError(GeomindError, ValueError):
     """An unknown or already answered request id, or an answer of the wrong shape."""
 
 
+class AlreadyAnsweredError(RequestError):
+    """An answer to a request the run already settled: nothing to do, the run goes on as it is.
+
+    A ``RequestError``, so a caller that catches that still does; a caller that sends one answer
+    twice (an auto-approve beside the page, a retry) treats this one as a no-op (QA-081).
+    """
+
+
 class StateError(GeomindError, ValueError):
     """A change of the problem state is invalid; the message tells the model how to fix it."""
 
