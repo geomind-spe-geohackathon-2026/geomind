@@ -154,13 +154,22 @@ SAME_NOTE = (
 """What a model reads for a call that repeats an earlier successful one (``same_result``)."""
 
 
+def _may_write(tool):
+    """Tell whether a succeeded call of ``tool`` may have changed what a later call reads.
+
+    A tool that is not pure may; so may a question with an ``on_answer``: ``ask_economics`` is a
+    read, but its approve all writes the economics into the case (QA-181).
+    """
+    return not tool.is_pure or getattr(tool, "on_answer", None) is not None
+
+
 def same_result(session, agent, tool, call):
     """Return the note for a call identical to an earlier successful one of the run, or ``None``.
 
     Only a tool that ``repeats_same`` qualifies (a pure tool, or a write that sets its input such
     as ``set_ranges``), and only when no call of a tool that is not pure ran with success since:
     a write, a nested run or a server's tool may change what the call reads, so then it runs
-    again. A design lead sent one ``set_ranges`` call 37 times, 12.7k characters each.
+    again; so does an answered question whose ``on_answer`` may write (``_may_write``). A design lead sent one ``set_ranges`` call 37 times, 12.7k characters each.
     NOTE: a replay takes a recorded call as recorded (``_execute`` asks only without a recorded
     result), so an older log replays as it ran.
     """
@@ -173,7 +182,7 @@ def same_result(session, agent, tool, call):
         return None
     later = {item.tool for item in succeeded[index + 1 :]}
     tools = session.tools_of(agent, sorted(later))
-    if any(name not in tools or not tools[name].is_pure for name in later):
+    if any(name not in tools or _may_write(tools[name]) for name in later):
         return None
     earlier = succeeded[index]
     shown = earlier.outline

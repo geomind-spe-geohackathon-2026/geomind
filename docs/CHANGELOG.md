@@ -6,6 +6,13 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.103] - 2026-11-05
+
+### Fixed
+- QA-181: an answered question whose `on_answer` may write (`ask_economics` approve all sets the
+  economics) counts as a write for the repeat guard, so a later `read_case` or `case_changes`
+  runs again instead of returning the stale result and stopping the run.
+
 ## [0.4.102] - 2026-11-05
 
 ### Fixed
