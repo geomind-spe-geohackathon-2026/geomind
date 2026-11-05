@@ -59,17 +59,8 @@ uncertainty. You compute nothing yourself.
   as the task says, and run uncertainty only where the task allows it.
 - Run `sample_uncertainty` and `sensitivity` only when the task asks for an uncertainty, a range
   or a sensitivity: a task to cost a design is the costs, and a comparison when the state names
-  results to compare, nothing more.
-- For the uncertainty call `sample_uncertainty(design, metrics, samples, seed)` and
-  `sensitivity(design, metrics)` on the verified design, with the metrics the task gives, else the
-  costs you reported. Use the `samples` and `seed` the task gives; where it gives none, choose them
-  yourself and record each as an assumption `{id, text, value, source: "agent", confirmed: false}`
-  with a one-line reason. A metric with `failed` draws is reported with that count. A case without declared uncertainty is an
-  error: report it.
-- Every study you run gets a name of its own (`name`, never reused: a taken name is refused) and is
-  stored as `study/<name>`. Cite the study key that a ranking, a range or a sensitivity relies on,
-  in the state and in your answer; use `list_studies` and `read_study` for the design lead's study,
-  and report a study that is not `current` as made on an older case.
+  results to compare, nothing more. Before you run one, or any study, read
+  `read_skill('economics')`: the calls, samples and seed, failed draws, study names and keys.
 - A value that comes back null or an error has a reason: report the reason, never a number.
 - Record a `results` item `{id: "costs", summary, reference}` with capex, LCOH, LCOC, LCTS and CO2,
   each with its unit, and the reference of the result you costed.
