@@ -151,3 +151,19 @@ async def test_a_run_auto_approve_answered_replays():
     result = await engine.run(Worker(), start, max_steps=5)
     replayed = await Engine.replay(engine.store, result.run_id)
     assert (replayed.status, replayed.answer) == (result.status, result.answer)
+
+
+async def test_a_question_asked_before_a_restart_is_answered_by_a_resume_in_auto_mode():
+    """QA-354: the run waited 11 min on a question asked across a restart; resume answers it."""
+    from geomind.engine import Permissions
+    from tests.fixtures.runs import Worker, call, context, engine_for, says, uses
+
+    question = call("ask_user", "q", question="Approve?", options=["approve all", "stop"])
+    first = engine_for([uses(question)], permissions=Permissions(mode="ask"))
+    start = context()
+    waiting = await first.run(Worker(), start, max_steps=5)
+    assert waiting.status == "waiting"
+    later = engine_for([says("done")], permissions=Permissions(mode="auto"))
+    later.store = first.store
+    result = await later.resume(waiting.run_id, agent=Worker())
+    assert result.status == "done" and "approve all" in result.answer

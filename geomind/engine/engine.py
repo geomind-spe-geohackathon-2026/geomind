@@ -263,10 +263,7 @@ class Engine:
         question) is answered with ``proposed_answer`` through the same path as a user's answer,
         at most ``AUTO_ANSWERS`` times; an approval is left to the permissions.
         """
-        permissions = self.permissions
-        if getattr(permissions, "mode", None) != "auto":
-            return result
-        if not getattr(permissions, "answers_questions", True):
+        if not self._answers_alone():
             return result
         answered = 0
         while (
@@ -393,8 +390,33 @@ class Engine:
         class, and ``loop`` receives its stored state. In ``auto`` mode the questions it then
         stops on are answered alone (``_answer_alone``).
         """
+        if request_id is None and answer is None and self._answers_alone():
+            waiting = self._waiting_question(run_id)
+            if waiting is not None:
+                return await self._answer_alone(waiting, agent, loop)
         result = await self._resumed(run_id, request_id, answer, agent=agent, loop=loop)
         return await self._answer_alone(result, agent, loop)
+
+    def _answers_alone(self):
+        """Tell whether this engine answers questions itself: ``auto`` mode with the switch on."""
+        permissions = self.permissions
+        if getattr(permissions, "mode", None) != "auto":
+            return False
+        return bool(getattr(permissions, "answers_questions", True))
+
+    def _waiting_question(self, run_id):
+        """Return a run that already waits on a question as a waiting result, else ``None``.
+
+        A run that asked before a restart (or before Auto-approve was on) waits for nobody: a
+        ``resume`` without an answer then gives it to ``_answer_alone``, which answers it in
+        ``auto`` mode (QA-354); in another mode ``resume`` refuses a missing answer, as before.
+        """
+        state = recover(self.store.load_events(run_id), run_id)
+        pending = state.pending
+        request = pending.request if pending is not None else None
+        if state.status != "running" or request is None or request.kind != "question":
+            return None
+        return RunResult(run_id=state.run_id, status="waiting", request=request)
 
     async def _resumed(self, run_id, request_id=None, answer=None, *, agent=None, loop=None):
         """Continue a run from its events once: ``resume`` without its answers in ``auto`` mode."""
