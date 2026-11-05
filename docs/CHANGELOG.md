@@ -6,6 +6,16 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.134] - 2026-11-05
+
+### Added
+- QA-339: with Auto-approve on, the engine answers every question itself (question.auto_answered,
+  AUTO-<n> assumptions, an "Answered automatically" list in the answer).
+
+### Fixed
+- QA-337 reports compare every plant version; QA-278 no per-family rounds after one study; QA-336
+  resume continues the highest sequence; QA-343 one patch after size; QA-340 data-equipment catalogue.
+
 ## [0.4.133] - 2026-11-05
 
 ### Fixed
