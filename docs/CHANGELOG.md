@@ -6,6 +6,14 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.117] - 2026-11-05
+
+### Fixed
+- QA-216: an `ask_economics` value takes its `uncertainty` (as the case writes it), which approve
+  all sets with the value.
+- QA-192: a catalogue row on another power basis than its key (EUR/W heat for EUR/W shaft) goes
+  to Open with its note, never into approve all.
+
 ## [0.4.116] - 2026-11-05
 
 ### Fixed

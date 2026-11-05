@@ -106,6 +106,13 @@ class EconomicsValue(BaseModel):
     url: str | None = None
     status: str | None = None
     others: list[OtherRow] | None = None
+    uncertainty: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "the value's uncertainty as the case writes it, e.g. {kind: normal, std, min, max}, "
+            "from the source that gives it; set with the value on approve all (QA-216)"
+        ),
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -526,8 +533,27 @@ def prepared(values, open_keys, dropped=None):
     values, open_keys = catalogue_basis(values, open_keys)
     refuse_percents(values)
     values, notes = fitted_units(values)
+    values, open_keys = mismatched_open(values, open_keys, notes)
     _checked(values, open_keys)
     return values, open_keys, notes
+
+
+MISMATCH = "not converted, the user decides"
+"""The end of a ``fitted_units`` note of a row on another power basis than its key."""
+
+
+def mismatched_open(values, open_keys, notes):
+    """Return ``(values, open keys)`` with each row on another basis than its key moved to open.
+
+    QA-192: approve all set a circulation pump's EUR/W heat as EUR/W shaft; such a row is no value
+    to approve: the key goes to Open with its note, for the user to give a value.
+    """
+    moved = [item for item in values if MISMATCH in (notes.get(short(item.key)) or "")]
+    if not moved:
+        return values, open_keys
+    keys = [short(item.key) for item in moved]
+    kept = [item for item in values if short(item.key) not in keys]
+    return kept, list(open_keys) + [key for key in keys if key not in open_keys]
 
 
 def _checked(values, open_keys):
@@ -620,6 +646,12 @@ def value_line(item, note=None):
     return line
 
 
+def open_line(key, note=None):
+    """Return the line of an open key, with the note of a row left out for its basis."""
+    line = f"economics.{key.removeprefix('economics.')}"
+    return f"{line} ({note})" if note else line
+
+
 def question_text(values, open_keys, note=None, notes=None):
     """Return the one economics question, every value on its own line, the required keys first."""
     first = sorted(values, key=lambda item: short(item.key) not in REQUIRED)
@@ -636,7 +668,7 @@ def question_text(values, open_keys, note=None, notes=None):
         ]
     if open_keys:
         lines += ["", "Open (no usable row; give a value with change some, or leave it open):"]
-        lines += [f"economics.{key.removeprefix('economics.')}" for key in open_keys]
+        lines += [open_line(key, (notes or {}).get(short(key))) for key in open_keys]
     return "\n".join(lines)
 
 
@@ -700,6 +732,7 @@ def approved_economics(values, notes=None):
     for item in values:
         key = item.key.removeprefix("economics.")
         leaf = {"value": item.value, **({"unit": item.unit} if item.unit else {})}
+        leaf = {**leaf, **({"uncertainty": item.uncertainty} if item.uncertainty else {})}
         patch = _merged(patch, _nested(key, leaf))
         sources[key] = citation(item, (notes or {}).get(key))
     return {**patch, "about": {"sources": sources}}
