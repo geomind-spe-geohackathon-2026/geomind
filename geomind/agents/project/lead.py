@@ -24,11 +24,43 @@ STOP_CASE = "finish-on-stop"
 
 
 def has_project_case(context):
-    """Tell whether the run's project holds a case file and the state has no case yet."""
+    """Tell whether the project's case must be loaded: none in the state yet, or a newer one.
+
+    QA-266: the user saved the case form again (150 to 175 mD); the chat's case still held the
+    old value and the run answered from it. A project case that differs from the state's is the
+    user's own saved case, so it is loaded by rule before the first model call.
+    """
     workspace = context.session.workspace
-    if context.problem.case is not None or workspace is None or context.project is None:
+    if workspace is None or context.project is None or not hasattr(workspace, "case"):
         return False
-    return hasattr(workspace, "case") and workspace.case(context.project) is not None
+    found = workspace.case(context.project)
+    if found is None:
+        return False
+    return context.problem.case is None or bool(project_case_changes(context, found))
+
+
+def project_case_changes(context, found=None):
+    """Return ``path old -> new`` lines where the project's saved case differs from the state's.
+
+    ``about`` (notes and sources) is left out: only values count. Empty when either is missing.
+    """
+    from geomind.engine.session import _differing, _leaf
+
+    workspace = context.session.workspace
+    current = context.problem.case
+    if found is None:
+        if workspace is None or context.project is None or not hasattr(workspace, "case"):
+            return []
+        found = workspace.case(context.project)
+    if found is None or not isinstance(current, dict):
+        return []
+    saved = found[0]
+    paths = [
+        path
+        for path in _differing(current, saved)
+        if path != "about" and not path.startswith("about.")
+    ]
+    return [f"{path} {_leaf(current, path)} -> {_leaf(saved, path)}" for path in paths]
 
 
 def case_stopped(messages):
@@ -96,6 +128,7 @@ class ProjectLead(Agent):
         self.comparison = comparison()
         self.list_plants = tools.gemini.list_plants
         self.list_studies = tools.gemini.list_studies
+        self.list_files = tools.list_files
         self.read_case = tools.gemini.read_case
         self.set_case = tools.gemini.set_case
         self.case_changes = tools.gemini.case_changes

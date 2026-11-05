@@ -33,6 +33,9 @@ STEPS = {
     "files_needed": {
         "en": ("Which files do you need?", "Which files should I add so you can set the case?"),
     },
+    "set_economics": {
+        "en": ("Set the economics", "Set up the economics of this case."),
+    },
     "design_plant": {
         "en": ("Design a plant", "Design a plant for this case and check it with gemini."),
     },
@@ -130,9 +133,27 @@ def stage_of(problem):
     return "plant"
 
 
+def economics_unset(problem, project=None):
+    """Tell whether the case is known to have no economics yet (QA-194).
+
+    A project's ``economics`` state, when its workspace gives one, decides; else the chat's case,
+    when it has one, without an ``economics`` section. Unknown is not unset.
+    """
+    if project and project.get("economics") is not None:
+        return state_of(project.get("economics")) not in ("done", "ready")
+    case = _field(problem, "case") if problem is not None else None
+    return isinstance(case, dict) and bool(case) and not case.get("economics")
+
+
 def stage_steps(problem, files):
-    """Return the step names of a chat's stage; without files, no case is built from files."""
-    steps = STAGES[stage_of(problem)]
+    """Return the step names of a chat's stage; without files, no case is built from files.
+
+    A case without economics asks for them first: a cost-based design or study stops on them.
+    """
+    stage = stage_of(problem)
+    steps = STAGES[stage]
+    if stage == "case" and economics_unset(problem):
+        steps = ("set_economics", *steps)
     return tuple(step for step in steps if step != "case_from_files" or files)
 
 
@@ -159,14 +180,17 @@ def project_stage(project):
     return "more"
 
 
-def project_steps(project, files):
+def project_steps(project, files, problem=None):
     """Return the step names a project's state gives, the most urgent first.
 
     A case changed after the study asks for the study again first, an incomplete item to be
-    finished; a running study gives no study chip, but waiting or explaining.
+    finished; a running study gives no study chip, but waiting or explaining. A ready case
+    without economics asks for them before a plant (QA-194).
     """
     stage = project_stage(project)
     steps = [step for step in STAGES[stage] if step != "case_from_files" or files]
+    if stage == "case" and economics_unset(problem, project):
+        steps.insert(0, "set_economics")
     if state_of(project.get("study")) == "running":
         steps = ["wait_study", "explain"] + [step for step in steps if step != "optimise"]
     urgent = ["rerun_study"] if project.get("case_changed_after_study") else []
@@ -224,18 +248,25 @@ def checked(proposed, steps):
 
 
 def next_steps(problem, files, user_text, proposed=None, project=None):
-    """Return the suggestions after an answer: the lead's that fit, else the stage's list.
+    """Return the suggestions after an answer: the lead's that fit first, then the stage's.
 
     ``project`` is ``Workspace.project_state``'s dict: the stage follows the project then, and
-    the chat's problem state only without one. Suggestions are English whatever ``user_text``'s
-    language; the engine still passes it.
+    the chat's problem state only without one. The lead's suggestions reword, reorder or replace
+    the stage's steps; the stage's own steps not named fill the list up to ``MAX_SUGGESTIONS``
+    (QA-204: one proposed step had dropped the other two). Suggestions are English whatever
+    ``user_text``'s language; the engine still passes it.
     """
-    steps = project_steps(project, files) if project else stage_steps(problem, files)
+    steps = project_steps(project, files, problem) if project else stage_steps(problem, files)
     kept = checked(proposed, steps)
-    if kept:
-        return [item for _, item in kept]
     label = incomplete_label(project) if project else ""
-    return [shown(step, label) for step in steps[:MAX_SUGGESTIONS]]
+    taken = {step for step, _ in kept}
+    filled = [item for _, item in kept]
+    for step in steps:
+        if len(filled) >= MAX_SUGGESTIONS:
+            break
+        if step not in taken:
+            filled.append(shown(step, label))
+    return filled
 
 
 def suggest(problem, files, project=None):
@@ -254,13 +285,13 @@ def suggest(problem, files, project=None):
 async def finish(answer: Any, suggestions: list[dict[str, str]] | None = None):
     """End the run with the final answer and, if you want, the next steps you suggest.
 
-    ``suggestions`` are at most three ``{step, label, message}``, in the user's language:
-    ``step`` is one of case_from_files, case_by_questions, files_needed, design_plant,
+    ``suggestions`` are at most three ``{step, label, message}``, in English:
+    ``step`` is one of case_from_files, case_by_questions, files_needed, set_economics, design_plant,
     check_case, compare_options, optimise, economics, check_design, report, sensitivity,
     explain, rerun_study, wait_study, uncertainty, structure_search, other_objective,
     other_case; ``label`` at most 40 characters, ``message`` (what the user sends when they pick
     it) at most 200. Code keeps those that fit, with at most one step that is not of the
-    stage's own (so ``other_case``, a step after the results, rarely), else gives the stage's own
-    steps.
+    stage's own (so ``other_case``, a step after the results, rarely), and fills the rest with the
+    stage's own steps.
     """
     return Finish(answer=answer, suggestions=suggestions)

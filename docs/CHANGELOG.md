@@ -6,6 +6,20 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.125] - 2026-11-05
+
+### Fixed
+- QA-271: the case lead's prompt is cut from 33k to 18k characters and cites handbook-case.
+- QA-219, QA-159: the economist reads once and keeps what it read; a plain costing takes three
+  steps.
+- QA-266: a second hand-saved case change is loaded by rule before the first model call.
+- QA-268: a denied or refused set_case never forces the economics question.
+- QA-189: the project lead plans from the problem state; no tool reads it.
+- QA-278, QA-276: stored plants are ranked in one study and never typed again; an optimise
+  request works on that design only and keeps a better start.
+- QA-194, QA-204: the next-step chips offer "Set the economics" when they are unset, and fill up
+  to three steps.
+
 ## [0.4.124] - 2026-11-05
 
 ### Fixed

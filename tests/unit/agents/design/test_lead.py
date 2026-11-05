@@ -179,3 +179,18 @@ def test_a_handed_design_it_checks_is_recorded_as_the_final_design():
     """#72: the lead checked a complete design, then wrote it to ``results`` only."""
     text = " ".join(DesignLead().prompt.render().split())
     assert "A design handed to you complete that you simulate and check is final too" in text
+
+
+def test_stored_plants_are_ranked_in_one_study_never_typed_again():
+    """QA-278: a stored plant or version goes in by its reference, all in one run_study."""
+    text = " ".join(DesignLead().prompt.render().split())
+    assert "build_plant` its `plant`" not in text
+    assert "ONE `run_study` over all their references" in text
+    assert "never with `build_plant`" in text
+
+
+def test_an_optimise_request_works_on_that_design_only_and_keeps_a_better_start():
+    """QA-276: no unasked family after the optimum; the stored plant wins when it is better."""
+    text = " ".join(DesignLead().prompt.render().split())
+    assert "works on that design only: no other family" in text
+    assert "when the start is as good or better, say so, keep the start" in text

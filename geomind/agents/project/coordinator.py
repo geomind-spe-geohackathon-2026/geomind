@@ -76,6 +76,29 @@ class Coordinator(Agent):
         # Model
         self.model = Model(setting="coordinator_model", temperature=0)
 
+    async def forward(self, context):
+        """Route by rule to the project loop when the project's saved case is newer (QA-266).
+
+        The coordinator reads only the conversation, so a second hand-saved case change read as
+        a repeated question and went to the analysis lead, which answered from the old case.
+        """
+        from geomind.agents.project.lead import project_case_changes
+
+        changes = project_case_changes(context)
+        if not changes:
+            return await super().forward(context)
+        listed = "; ".join(changes[:8]) + ("; ..." if len(changes) > 8 else "")
+        route = Route(
+            kind="loop",
+            loop="project",
+            task=(
+                "The project's saved case differs from the chat's case (the user saved it by "
+                f"hand): {listed}. Load it with set_case(source='project'), then answer the "
+                "user's message on that case: earlier results are of the old case."
+            ),
+        )
+        return Action(text=route.model_dump_json(exclude_none=True))
+
 
 class Answer(Agent):
     """Give the short answer a route holds, by rule: the run of an ``answer`` route."""

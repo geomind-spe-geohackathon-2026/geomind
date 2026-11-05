@@ -45,6 +45,13 @@ uncertainty. You compute nothing yourself.
 ## Rules
 
 - Method: read `read_knowledge(name="knowledge/handbook-economics.md", section="0")` once before you cost (0.1 rules, 0.5 metrics, 0.7 checklist); for what a metric means, `section="16"`; for a sensitivity or uncertainty, `section="12"` or `section="13"`. Never compute with its formulas: they explain gemini.
+- Read once and keep what you read (QA-219, QA-159): `list_studies` at most once per run, and
+  `read_case(section="economics")` once, in the same step as your first `estimate_costs`; their
+  answers stay in the conversation, so never call them again, never `read_stored` an answer you
+  already have (your own `estimate_costs` included), and never `read_case` the whole case or
+  its `about`: the price sources are in `estimate_costs`' assumptions. The problem state
+  (`design.reference`, `design.result`) is the `Problem state` message, not a case section. A
+  plain costing is `estimate_costs`, `update_state`, `finish`: three steps.
 - Cost `verification.result`, the verified result. Without one, say plainly that the costs are of a
   design that is not verified.
 - Use only the prices and assumptions of the case (`read_case` with section `economics`). Where one
@@ -83,8 +90,8 @@ uncertainty. You compute nothing yourself.
   `read_skill('economics')`: the calls, samples and seed, failed draws, study names and keys.
 - A value that comes back null or an error has a reason: report the reason, never a number.
 - Say the basis of the figures once: the costs are in the case's `currency` at its `price_year`
-  (EUR 2015 for catalogue prices), each price's source is its catalogue row or document as the
-  case's `about.sources` names it, and gemini scales annual figures (opex, the energy behind
+  (EUR 2015 for catalogue prices), each price's source is its catalogue row or document as
+  `estimate_costs`' assumptions name it, and gemini scales annual figures (opex, the energy behind
   LCOH and LCOC) to a year of 365.25 days, so they can differ by about 0.07 % from a sum of the
   demand file's 365 days.
 - Record a `results` item `{id: "costs", summary, reference}` with capex, LCOH, LCOC, LCTS and CO2,

@@ -20,6 +20,9 @@ Several families:
 
 - Size each and compare them in one `run_study`: `designs`, `method="minimize"`, `objective`,
   `evaluations`, `seed`, `prepare=["size"]`.
+- Stored plants and plant versions go in by their references (`design/v1`, `design/v2`, ...), all
+  in that one call: never re-type one with `build_plant` and never one design round per plant.
+  A re-typed plant is another plant and ranks wrong (QA-278).
 - Keep the feasible design it ranks first (`best`), `simulate` it for the whole year, take it as
   final.
 - Record the study in `design.study` as returned, and cite its `study/<name>` in

@@ -17,7 +17,7 @@ from geomind.types.events import event_from_dict
 from tests.fixtures.runs import Lead, Worker, call, context, engine_for, of_type, says, uses
 
 OLD_LOG = Path(__file__).parents[2] / "fixtures" / "logs" / "mcp_0_4_22_dev41"
-CASE = {"name": "c"}
+CASE = {"name": "c", "economics": {"discount_rate": 0.05}}
 PLANT = ProblemState(case=CASE, design={"reference": "design/a"})
 RESULT = ProblemState(case=CASE, design={"reference": "design/a", "result": "result/a"})
 
@@ -67,7 +67,7 @@ def test_every_step_fits_the_limits():
         for label, message in texts.values():
             assert 0 < len(label) <= MAX_LABEL and 0 < len(message) <= MAX_MESSAGE
     staged = {step for steps in suggestions.STAGES.values() for step in steps}
-    assert staged | {"rerun_study", "wait_study", "finish_item"} == set(suggestions.STEPS)
+    assert staged | {"rerun_study", "wait_study", "finish_item", "set_economics"} == set(suggestions.STEPS)
 
 
 def test_the_lead_may_reword_and_reorder():
@@ -79,6 +79,7 @@ def test_the_lead_may_reword_and_reorder():
     assert next_steps(PLANT, [], "go", proposed) == [
         {"label": "Check it first", "message": "Check the design now."},
         {"label": "Then optimise", "message": "Optimise the design."},
+        suggestions.shown("economics"),
     ]
 
 
@@ -135,7 +136,8 @@ def test_the_end_to_end_finish_keeps_one_step_from_outside_the_case_stage():
         },
     ]
     found = next_steps(ProblemState(case=CASE), [], "Design a plant", recorded)
-    assert found == [{key: item[key] for key in ("label", "message")} for item in recorded[:2]]
+    kept = [{key: item[key] for key in ("label", "message")} for item in recorded[:2]]
+    assert found == [*kept, suggestions.shown("check_case")]
     assert "other_case" not in suggestions.STAGES["case"]
 
 
@@ -181,7 +183,10 @@ async def test_the_lead_s_finish_suggestions_reach_the_event():
     proposed = [{"step": "files_needed", "label": "Send files", "message": "What files?"}]
     script = [uses(call("finish", answer="Hi", suggestions=proposed))]
     event = await finished(script, Leader())
-    assert event.data()["suggestions"] == [{"label": "Send files", "message": "What files?"}]
+    assert event.data()["suggestions"] == [
+        {"label": "Send files", "message": "What files?"},
+        suggestions.shown("case_by_questions"),
+    ]
 
 
 async def test_a_project_s_files_offer_the_case_from_files():
@@ -385,3 +390,23 @@ async def test_a_run_s_suggestions_follow_the_workspace_s_project_state():
     await engine.run(Worker(), start)
     [event] = of_type(engine.store.load_events(start.run_id), "run.finished")
     assert event.suggestions[0]["label"] == "Design a plant"
+
+
+def test_one_proposed_step_keeps_the_stage_s_others():
+    """QA-204: the lead's one step comes first; the stage's own fill the list to three."""
+    proposed = [{"step": "explain", "label": "Explain it", "message": "Explain the result."}]
+    assert [item["label"] for item in next_steps(RESULT, [], "go", proposed)] == [
+        "Explain it",
+        "Write the report",
+        "Sensitivity analysis",
+    ]
+
+
+def test_a_case_without_economics_asks_for_them_first():
+    """QA-194: a ready case with no economics offers them before a plant, chat or project."""
+    bare = ProblemState(case={"name": "c"})
+    assert next_steps(bare, [], "go")[0]["label"] == "Set the economics"
+    assert next_steps(ProblemState(case=CASE), [], "go")[0]["label"] == "Design a plant"
+    state = project(plant="empty", study="empty", results="empty", economics="empty")
+    assert labels(state)[0] == "Set the economics"
+    assert labels({**state, "economics": "done"})[0] == "Design a plant"

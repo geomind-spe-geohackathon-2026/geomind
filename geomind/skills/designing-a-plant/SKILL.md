@@ -34,9 +34,12 @@ Choosing families:
   pump, a boiler, deeper wells), how cold is made (absorption chiller, compression chiller, heat
   pump) and storage or backup. Mark a family gemini cannot run `blocked`, with the reason.
 - `list_plants` shows the project's plant files (`project_plants`) and the plant classes gemini
-  can build. When the project has plants, start from one: `read_plant(project_plant=...)`, then
-  `build_plant` it. Take a class or write a plant only when no project plant fits, and say why in
-  an assumption. Build the other families to compare them.
+  can build, and the saved versions (`project_versions`, each with its `design` reference). When
+  the project has plants, start from one by its stored reference (`design/v<N>`, or the `design`
+  that `read_plant` gives): patch, size, simulate and search it as it is, never `build_plant` it
+  again, since a re-typed plant is another plant (QA-278). Take a class or write a plant only
+  when no project plant fits, and say why in an assumption. Build only the families the project
+  has no plant for.
 
 From a family to a design:
 

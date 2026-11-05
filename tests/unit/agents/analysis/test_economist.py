@@ -35,3 +35,12 @@ def test_it_is_complete():
             "finish",
         ],
     )
+
+
+def test_qa_219_159_it_reads_once_and_keeps_what_it_read():
+    """QA-219, QA-159: list_studies once, the economics once, no re-read of its own costs."""
+    economist = Economist()
+    for name in ("read_case", "estimate_costs", "list_studies", "read_study"):
+        assert economist.tools()[name].keeps_result
+    text = " ".join(economist.prompt.content.split())
+    assert "`list_studies` at most once per run" in text and "three steps" in text

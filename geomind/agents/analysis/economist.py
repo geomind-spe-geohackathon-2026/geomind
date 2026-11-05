@@ -13,7 +13,9 @@ class Economist(Agent):
         """Declare the prompt, the tools that cost, compare and sample, and the role's model.
 
         ``simulate`` re-runs the stored plant on the current case after its economics changed, so
-        the economist costs the new prices at once instead of the old result again (QA-258).
+        the economist costs the new prices at once instead of the old result again (QA-258). The
+        case, the costs and the studies it reads stay whole for a few turns (``kept``), so it
+        never lists or reads them again (QA-219, QA-159).
         """
         super().__init__()
 
@@ -21,17 +23,17 @@ class Economist(Agent):
         self.prompt = Prompt("analysis/economist", appendix=economist_appendix)
 
         # Tools
-        self.read_case = tools.gemini.read_case
+        self.read_case = tools.gemini.read_case.kept()
         self.compute_kpis = tools.gemini.compute_kpis
-        self.estimate_costs = tools.gemini.estimate_costs
+        self.estimate_costs = tools.gemini.estimate_costs.kept()
         self.simulate = tools.gemini.simulate
         self.compare = tools.gemini.compare
         self.run_study = tools.gemini.run_study
         self.sample_uncertainty = tools.gemini.sample_uncertainty
         self.sensitivity = tools.gemini.sensitivity
         self.read_result = tools.read_result
-        self.list_studies = tools.gemini.list_studies
-        self.read_study = tools.gemini.read_study
+        self.list_studies = tools.gemini.list_studies.kept()
+        self.read_study = tools.gemini.read_study.kept()
         self.update_state = tools.update_state
         self.read_skill = tools.read_skill
         self.calculate = tools.calculate

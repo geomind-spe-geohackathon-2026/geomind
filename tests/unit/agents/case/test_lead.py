@@ -17,6 +17,10 @@ TOOLS = [
     "list_profiles",
     "read_profile",
     "read_stored",
+    "read_skill",
+    "calculate",
+    "web_search",
+    "read_web_page",
     "search_memory",
     "read_memory",
     "update_state",
@@ -82,7 +86,7 @@ def test_it_writes_no_number_it_worked_out():
 def test_a_missing_value_is_searched_before_it_is_asked_for():
     """Sahand: files, then the knowledge base, then MCP, and only then the user."""
     text = " ".join(CaseLead().prompt.content.split())
-    order = ["the project's files", "the knowledge base:", "`read_mcp`", "only when none"]
+    order = ["the project's files", "the knowledge base:", "`list_mcp`", "only when none"]
     assert [text.index(item) for item in order] == sorted(text.index(item) for item in order)
     assert "ALWAYS, also when the files seem complete" in text
     assert '`read_rag("knowledge/data-economics.csv", rows=..., columns=[...])`' in text
@@ -192,13 +196,14 @@ def test_economics_are_a_required_step_after_the_case():
     """#121: nemotron set the project case and no economics; it said it would offer rows "next".
 
     The workflow's numbered step 5 reads the catalogue once, asks one question with each value's
-    row and sets the economics; the checklist and the stop rule name them too.
+    row and sets the economics; the checklist and the stop rule name them too. Since QA-177 the
+    confirmation question (3) comes before the one ``set_case`` (4).
     """
     text = " ".join(CaseLead().prompt.content.split())
-    steps = ["1. `list_files`", "3. `set_case`", "4. The ONE confirmation"]
+    steps = ["1. `list_files`", "3. The ONE confirmation", "4. After `approve all`: ONE `set_case`"]
     steps += ["5. Economics, REQUIRED"]
     assert [text.index(step) for step in steps] == sorted(text.index(step) for step in steps)
-    step = text[text.index("5. Economics") : text.index("6. `read_case`")]
+    step = text[text.index("5. Economics") : text.index("6. Step 6 is ONE read_case()")]
     assert "never twice" in step and "ONE `ask_economics` call" in step
     assert "`discount_rate` too" in step and "the row's `id` only" in step
     assert "`currency` and `price_year` are never asked" in step
@@ -222,11 +227,16 @@ ANSWER = (
 """The delegated case lead's text answer that ended its run with no economics, as recorded."""
 
 
-async def test_a_delegated_case_lead_without_economics_is_sent_back_once():
+async def test_a_delegated_case_lead_without_economics_is_sent_back_once(monkeypatch):
     """#124: a run that set the case with no economics and asked nothing is refused once.
 
     The refusal names step 5, also on a text answer; an answer after the refusal ends the run.
+    The scripted set_case has no gemini case behind it and is refused, which (QA-268) no longer
+    counts as a write, so the test counts every call as the stored case it stands for.
     """
+    from geomind.agents.case import lead
+
+    monkeypatch.setattr(lead, "applied_calls", lead.calls_of)
     from geomind.context import ProblemState
     from geomind.engine import Context
     from geomind.types import Message
@@ -455,3 +465,35 @@ def test_qa_243_economics_written_with_set_case_unasked_are_refused_once():
     assert economics_by_hand(Context(messages=[messages[0], answered, *messages[2:]])) is None
     text = " ".join(CaseLead().prompt.content.split())
     assert "Economics enter the case ONLY through `ask_economics`" in text
+
+
+def test_qa_268_a_denied_or_refused_set_case_never_makes_the_economics_question_due():
+    """QA-268: the user denied a set_case of the analysis period; the guard forced ask_economics."""
+    from geomind.agents.case.lead import economics_by_hand, economics_missing
+    from geomind.context import ProblemState
+    from geomind.engine import Context
+    from geomind.types import Message, ToolCall
+
+    write = ToolCall(id="s", name="set_case", input={"economics": {"analysis_period": 30}})
+    made = Message(role="assistant", tool_calls=(write,))
+
+    def guards(content):
+        messages = [made, Message(role="tool", content=content, tool_call_id="s")]
+        context = Context(messages=messages, problem=ProblemState(case={"name": "c"}))
+        return economics_by_hand(context), economics_missing(context)
+
+    denied = "Do not change the case; just tell me what the NPV would be at 30 years."
+    assert guards(denied) == (None, None)
+    assert guards('{"error": {"code": "case_incomplete"}}') == (None, None)
+    assert all(guards('{"case": {}, "version": 2}'))
+
+
+def test_qa_271_the_prompt_stays_short_and_cites_the_handbook_by_section():
+    """QA-271: the system prompt went to every call at 42-46k characters, a third of the input."""
+    from pathlib import Path
+
+    import geomind
+
+    text = (Path(geomind.__file__).parent / "prompts" / "case" / "lead.md").read_text()
+    assert len(text) < 20_000
+    assert 'read_rag("knowledge/handbook-case.md", section="<n>")' in " ".join(text.split())

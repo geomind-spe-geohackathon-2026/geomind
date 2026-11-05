@@ -31,6 +31,38 @@ def calls_of(messages, name):
     ]
 
 
+def applied_calls(messages, name):
+    """Return the inputs of the calls of ``name`` that took effect: no error, no denial (QA-268).
+
+    A call the user denied comes back as the denial's words, one gemini refused as
+    ``{"error": ...}``; neither wrote anything, so neither makes the economics question due.
+    """
+    results = {
+        message.tool_call_id: message.content or ""
+        for message in messages
+        if message.role == "tool"
+    }
+    applied = []
+    for message in messages:
+        if message.role != "assistant":
+            continue
+        for call in message.tool_calls:
+            text = results.get(call.id)
+            if call.name == name and (text is None or not refused_text(text)):
+                applied.append(call.input)
+    return applied
+
+
+def refused_text(text):
+    """Tell whether a tool result's text is a refusal: an error output or a denial's words.
+
+    A result of a call that ran is a JSON object; an error is ``{"error": ...}``; a denial is
+    the user's words (or the engine's), plain text.
+    """
+    text = text.lstrip()
+    return not text.startswith("{") or text.startswith(("{'error'", '{"error"'))
+
+
 def economics_missing(context):
     """Return the refusal of a case lead's answer that skipped the economics step, or ``None``.
 
@@ -41,7 +73,7 @@ def economics_missing(context):
     """
     case = context.problem.case
     messages = context.messages
-    if not case or case.get("economics") or not calls_of(messages, "set_case"):
+    if not case or case.get("economics") or not applied_calls(messages, "set_case"):
         return None
     if any(NO_ECONOMICS in (message.content or "") for message in messages):
         return None
@@ -93,7 +125,7 @@ def economics_by_hand(context):
     messages = context.messages
     by_hand = [
         call
-        for call in calls_of(messages, "set_case")
+        for call in applied_calls(messages, "set_case")
         if (call.get("economics") or _changes_economics(call)) and not user_sourced(call)
     ]
     if not by_hand or any(BY_HAND in (message.content or "") for message in messages):
