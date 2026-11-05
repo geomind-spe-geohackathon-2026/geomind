@@ -51,16 +51,55 @@ def literal_problems(code):
     except SyntaxError as error:
         return [f"line {error.lineno}: syntax error: {error.msg}"]
     found = []
+    layout = _layout_numbers(tree)
     for node in ast.walk(tree):
         if not isinstance(node, ast.Constant) or isinstance(node.value, (bool, str, bytes)):
             continue
         value = node.value
-        if isinstance(value, int) and abs(value) <= LITERAL_LIMIT:
+        if isinstance(value, int) and (abs(value) <= LITERAL_LIMIT or id(node) in layout):
             continue
         if isinstance(value, float) and value.is_integer() and abs(value) <= LITERAL_LIMIT:
             continue
         if isinstance(value, (int, float, complex)):
             found.append(f"line {node.lineno}: {value!r}")
+    return found
+
+
+LAYOUT_CALLS = frozenset({"ljust", "rjust", "center", "zfill", "head", "tail", "nlargest"})
+"""Methods whose integer argument lays out text or a table, never a value of the problem."""
+
+
+def _integer(node):
+    """Return whether ``node`` is an integer literal, or its negation."""
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub):
+        node = node.operand
+    is_int = isinstance(node, ast.Constant) and isinstance(node.value, int)
+    return is_int and not isinstance(node.value, bool)
+
+
+def _layout_numbers(tree):
+    """Return the ids of integer literals that lay out text, never data (QA-296).
+
+    A slice bound or step (``repr(h)[:300]``), the width of ``ljust(20)`` and its kin, and the
+    digits of ``round(x, 3)`` were refused as data literals after the user approved the code.
+    """
+    found = set()
+
+    def add(node):
+        if _integer(node):
+            found.add(id(node.operand if isinstance(node, ast.UnaryOp) else node))
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Slice):
+            for part in (node.lower, node.upper, node.step):
+                add(part)
+        elif isinstance(node, ast.Call):
+            name = getattr(node.func, "attr", None) or getattr(node.func, "id", None)
+            if name in LAYOUT_CALLS:
+                for argument in node.args:
+                    add(argument)
+            elif name == "round" and len(node.args) == 2:
+                add(node.args[1])
     return found
 
 
@@ -210,6 +249,23 @@ async def run_python(
     files: list[str] | None = None,
 ):
     """Run Python in a sandbox (no network, gemini installed) on sourced inputs. Skill `python`."""
+    sandbox, resolved, content = _checked_call(context, purpose, code, inputs, files)
+    code_id = f"P{uuid4().hex[:8]}"
+    try:
+        result, written, found = await _run(sandbox, code, resolved, content)
+    except SandboxError as error:
+        raise _error(str(error), code="unavailable") from error
+    status = "ok" if result.exit_code == 0 else "timed_out" if result.exit_code == 124 else "failed"
+    return await _answer(context, purpose, code, files, code_id, resolved, result, written, found,
+                         status)
+
+
+def _checked_call(context, purpose, code, inputs, files):
+    """Return ``(sandbox, resolved inputs, files)`` of a call, or raise what refuses it.
+
+    Every check that needs no container: ``run_python.precheck`` runs it before the approval
+    card, so the user never approves code the tool then refuses (QA-296).
+    """
     sandbox = getattr(context.session.engine, "sandbox", None)
     if sandbox is None:
         raise _error(
@@ -231,13 +287,11 @@ async def run_python(
             "project file (plain numbers and constants do not count)",
             "inputs",
         )
-    content = _project_files(context, files)
-    code_id = f"P{uuid4().hex[:8]}"
-    try:
-        result, written, found = await _run(sandbox, code, resolved, content)
-    except SandboxError as error:
-        raise _error(str(error), code="unavailable") from error
-    status = "ok" if result.exit_code == 0 else "timed_out" if result.exit_code == 124 else "failed"
+    return sandbox, resolved, _project_files(context, files)
+
+
+async def _answer(context, purpose, code, files, code_id, resolved, result, written, found, status):
+    """Return the result of a run, keeping the numbers of ``result.json`` as calculations."""
     calculations = (
         _results(found, code_id, resolved, code) if status == "ok" and found is not None else []
     )
@@ -260,3 +314,11 @@ async def run_python(
         "calculations": calculations,
         "version": version,
     }
+
+
+async def run_python_precheck(context, purpose, code, inputs=None, files=None):
+    """Check a ``run_python`` call without running it; raise what the call would refuse."""
+    _checked_call(context, purpose, code, inputs, files)
+
+
+run_python.precheck = run_python_precheck

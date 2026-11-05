@@ -318,3 +318,18 @@ async def read_web_page(url: str, start: int = 0):
         "text": text[start:end],
         "next_start": end if end < len(text) else None,
     }
+
+
+async def read_web_page_precheck(context=None, url="", start=0):
+    """Check a ``read_web_page`` call without fetching; raise what the call would refuse (QA-296).
+
+    The engine runs it before the approval card: a placeholder such as ``example.invalid`` was
+    approved three times and then refused as no public address.
+    """
+    search_url()
+    if start < 0:
+        raise _error("read_web_page", f"start = {start}; expected 0 or more", "start")
+    await _checked(url)
+
+
+read_web_page.precheck = read_web_page_precheck

@@ -6,6 +6,10 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### Fixed (QA-296)
+- run_python and read_web_page check a call before its approval card, so a call they would refuse
+  shows no card; integers that lay out text are not refused as data.
+
 ### Added
 - list_starts and start_plant: a plant file the Knowledge base holds (such as a superstructure)
   is stored as a design without typing it; its next calls are size_plant then one evolve_structure.
