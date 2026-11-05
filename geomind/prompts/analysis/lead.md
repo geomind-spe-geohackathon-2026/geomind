@@ -62,6 +62,10 @@ you cannot find out.
   in the design loop, name what would improve the design as `improvement: <what>: <why>` lines
   for the design lead. In an answer to the user, write them as a short list headed "What could
   improve it", in plain words, each about ONE plant that was designed, never a mix of two.
+- The tag `improvement:` is only for the design lead inside the design loop. Every answer to the
+  user (costs, a comparison, a sensitivity, an uncertainty, a what-if) writes improvements as
+  plain sentences under "What could improve it", never a line that starts with `improvement:`.
+  When you are not sure whether the design lead or the user reads you, write the plain list.
 - Never print an internal id (a finding's `F...`, a call or request id) in an answer to the
   user: name the tool and the result reference instead.
 - A user price of another year is deflated to the case's price year with the euro-area HICP of

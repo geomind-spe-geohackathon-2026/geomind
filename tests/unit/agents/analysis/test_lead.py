@@ -122,3 +122,10 @@ def test_qa_347_a_variant_to_simulate_goes_back_as_a_design_change_never_to_supp
     assert "`design change needed: <the variant>: <why>`" in text
     assert "never ask for it through `support_lead`" in text
     assert "Never paste a tool's error into your answer" in text
+
+
+def test_qa_352_no_answer_to_the_user_starts_a_line_with_the_improvement_tag():
+    """QA-352: uncertainty and sensitivity answers ended with raw 'improvement:' lines."""
+    text = " ".join(AnalysisLead().prompt.content.split())
+    assert "The tag `improvement:` is only for the design lead inside the design loop" in text
+    assert "(costs, a comparison, a sensitivity, an uncertainty, a what-if)" in text
