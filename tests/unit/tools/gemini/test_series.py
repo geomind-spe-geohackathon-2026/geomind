@@ -10,35 +10,51 @@ from tests.fixtures.cases import case_context
 from tests.fixtures.sessions import StubSession
 
 
-async def demand_case():
-    """Return the session and state of the hackathon case, and its heating file and column."""
+async def flawed_case():
+    """Return the session, state, file and column of the hackathon case, its file made flawed.
+
+    The file gets the header ``date`` (QA-318's file), loses its third day (a gap) and its fifth
+    day turns negative.
+    """
     session = StubSession()
     context = await case_context("hackathon_2026", session)
     power = context.problem.case["demand"]["heating"]["power"]
-    return session, context.problem, power["file"], power["column"]
+    key = f"case/{power['file']}"
+    table = pd.read_csv(io.BytesIO(session.artifacts[key]))
+    table.columns = ["date", *table.columns[1:]]
+    gap = str(table.at[2, "date"])
+    table.loc[4, power["column"]] = -table.at[4, power["column"]]
+    table = table.drop(index=2).reset_index(drop=True)
+    session.artifacts[key] = table.to_csv(index=False).encode()
+    return session, context.problem, power, gap
 
 
-async def test_two_days_of_the_case_s_demand_are_changed_and_the_rest_kept():
-    """QA-318: two rows by date and by index; the case names the new file."""
-    session, problem, file, column = await demand_case()
-    original = pd.read_csv(io.BytesIO(session.artifacts[f"case/{file}"]))
-    first_time = str(original.iloc[0, 0])[:10]
-    rows = {first_time: 1.5, "2": 2.5}
-    arguments = {"file": file, "rows": rows, "name": "fixed", "column": column}
+async def test_a_gap_and_a_negative_day_are_repaired_into_a_case_gemini_accepts():
+    """QA-318: a missing day is added, a negative one set, the neighbours shown, the case stored."""
+    session, problem, power, gap = await flawed_case()
+    negative = str(pd.read_csv(io.BytesIO(session.artifacts[f"case/{power['file']}"])).iat[3, 0])
+    table = pd.read_csv(io.BytesIO(session.artifacts[f"case/{power['file']}"]))
+    both = {name: 20.0 for name in table.columns[1:]}
+    rows = {gap: both, negative: 21.0}
+    arguments = {"file": power["file"], "rows": rows, "name": "fixed", "column": power["column"]}
     result = await call(repair_series, arguments, session, problem=problem)
     assert not result.is_error, result.output
-    assert [item["new"] for item in result.output["changed"]] == [1.5, 2.5]
-    case = session.changes[-1][0]["value"]
-    assert case["demand"]["heating"]["power"]["file"] == "data/fixed.csv"
+    added, changed = result.output["changed"][0], result.output["changed"][-1]
+    assert added["added"] and added["old"] is None and len(added["neighbours"]) == 2
+    assert changed["old"] < 0 and changed["new"] == 21.0
+    assert session.changes[-1][0]["value"]["demand"]["heating"]["power"]["file"] == "data/fixed.csv"
     fixed = pd.read_csv(io.BytesIO(session.artifacts["case/data/fixed.csv"]))
-    assert list(fixed[column][[0, 2]]) == [1.5, 2.5]
-    assert fixed[column][3:].tolist() == original[column][3:].astype(float).tolist()
+    assert fixed.columns[0] == "time" and str(fixed.iat[2, 0]) == gap
+    again = {"file": "data/fixed.csv", "rows": {"0": 22.0}, "name": "fixed2"}
+    arguments = {**again, "column": power["column"]}
+    assert not (await call(repair_series, arguments, session, problem=problem)).is_error
 
 
-async def test_a_time_the_file_lacks_is_refused_with_times_near_it():
-    """An unknown row names the times close to it; nothing is stored."""
-    session, problem, file, column = await demand_case()
-    arguments = {"file": file, "rows": {"1999-01-01": 1.0}, "name": "fixed", "column": column}
+async def test_a_row_that_is_no_time_is_refused_with_times_near_it():
+    """A key that is neither a time nor an index names the file's times; nothing is stored."""
+    session, problem, power, _ = await flawed_case()
+    arguments = {"file": power["file"], "rows": {"day-x": 1.0}, "name": "fixed",
+                 "column": power["column"]}
     result = await call(repair_series, arguments, session, problem=problem)
-    assert result.is_error and result.output["error"]["path"] == "rows.1999-01-01"
+    assert result.is_error and result.output["error"]["path"] == "rows.day-x"
     assert "case/data/fixed.csv" not in session.artifacts

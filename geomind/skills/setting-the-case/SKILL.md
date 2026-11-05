@@ -101,13 +101,20 @@ gemini rejects the case otherwise and nothing is stored.
 
 Change a few rows of a series file (a bad day, a gap, a spike) without typing the series again:
 never retype a whole series in `save_profile` to fix some rows. `file` is the case's or the
-project's file, `rows` maps a time of its time column (or a date, or a 0-based row index) to a
-number or `{"calculation": "C..."}`, `column` names the value column of a file with several, and
-the result is stored as `data/<name>.csv`; every other row stays as it is. A file the case names
-is replaced in the case at once; a project file is kept for the next `set_case`, which names
-`data/<name>.csv` as its file. Example: `repair_series(file="data/demand.csv", rows={"2030-01-05":
-8.0, "2030-01-06": {"calculation": "C1a2b3c"}}, name="demand_fixed")`. At most 50 rows: more is a
-corrected file the user gives.
+project's file (or one `repair_series` wrote), `rows` maps a time of its time column (or a date,
+or a 0-based row index) to a number or `{"calculation": "C..."}`; a time the file lacks is added
+in order (a gap). In a file of several series give an added day a value per column:
+`{"<column>": 20.0, "<other column>": 3.1}`; else `column` names the one to change. The result is
+`data/<name>.csv` with the time column `time`; every other row stays as it is. A file the case
+names is replaced in the case at once; a project file is kept for the next `set_case`, which names
+`data/<name>.csv` as its file (no `columns` mapping needed). Example: `repair_series(file=
+"data/demand.csv", rows={"2030-01-05": {"calculation": "C1a2b3c"}}, name="demand_fixed")`.
+
+The value of a repaired row comes from its neighbours or from the user, never a guess: the
+answer's `neighbours` gives the rows before and after each change. For one bad day take the mean
+of its two neighbours with `calculate` and record it as an assumption (`source: "agent"`, the
+reason "mean of the neighbouring days"), or ask the user; never drop a sign or keep the previous
+day without saying so. At most 50 rows: more is a corrected file the user gives.
 
 ### `set_case`
 
