@@ -188,3 +188,17 @@ async def test_a_wrong_path_names_the_paths_and_tables_not_the_long_text():
     error = bad.output["error"]
     assert "'hourly' is no key or index of structured" in error["message"]
     assert error["suggestions"] == ["structured.daily", "structured.timezone"]
+
+
+def test_a_dotted_module_key_is_one_part_of_a_path():
+    """QA-147: ``d0.esp`` is one key of a result; read_stored and calculate split it at its dot."""
+    from geomind.tools.stored import path_keys
+
+    result = {"d0.esp": {"fluid_in": {"volume_flow": 1}}, "d0": {"x": 2}, "rows": [{"a": 3}]}
+    assert list(path_keys(result, "d0.esp.fluid_in.volume_flow")) == [
+        "d0.esp",
+        "fluid_in",
+        "volume_flow",
+    ]
+    assert list(path_keys(result, "d0.x")) == ["d0", "x"]
+    assert list(path_keys(result, "rows.0.a")) == ["rows", "0", "a"]

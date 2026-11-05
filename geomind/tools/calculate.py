@@ -166,8 +166,10 @@ def _quantity(value, path, where):
 
 def _walk(value, dotted, path, where):
     """Return the part of ``value`` at a dotted (or ``/``) path of keys and list indexes."""
+    from geomind.tools.stored import path_keys
+
     walked = []
-    for part in dotted.replace("/", ".").strip(".").split("."):
+    for part in path_keys(value, dotted.replace("/", ".").strip(".")):
         if isinstance(value, dict) and part in value:
             value = value[part]
         elif isinstance(value, list) and part.lstrip("-").isdigit() and abs(int(part)) < len(value):

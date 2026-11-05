@@ -236,6 +236,30 @@ def parts_of(value):
     return []
 
 
+def path_keys(value, path):
+    """Yield the keys of a dotted ``path`` into ``value``, a key that holds a dot kept whole.
+
+    A result's module keys are dotted names such as ``d0.esp`` (QA-147): at each level the
+    longest run of the remaining parts that is a key of the dict there is one key.
+    """
+    parts = [part for part in path.split(".") if part]
+    while parts:
+        count = 1
+        if isinstance(value, dict):
+            count = next(
+                (n for n in range(len(parts), 1, -1) if ".".join(parts[:n]) in value), 1
+            )
+        key = ".".join(parts[:count])
+        yield key
+        parts = parts[count:]
+        if isinstance(value, dict):
+            value = value.get(key)
+        elif isinstance(value, list) and key.lstrip("-").isdigit() and abs(int(key)) < len(value):
+            value = value[int(key)]
+        else:
+            value = None
+
+
 @tool(effect="read", stored_input="reference", keeps_result=True)
 def read_stored(context, reference: str, path: str | None = None):
     """Return a result that was stored by reference, whole or one part of it.
@@ -251,9 +275,9 @@ def read_stored(context, reference: str, path: str | None = None):
         )
     path = (path or "").replace("/", ".").strip(".")
     walked = []
-    for part in path.split("."):
-        stored = _step(stored, part, ".".join(walked)) if part else stored
-        walked += [part] if part else []
+    for part in path_keys(stored, path):
+        stored = _step(stored, part, ".".join(walked))
+        walked.append(part)
     value = to_jsonable(stored)
     if len(json.dumps(value)) <= runtime.get("tool_result_limit"):
         return value

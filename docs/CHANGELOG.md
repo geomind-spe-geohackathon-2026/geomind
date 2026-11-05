@@ -6,6 +6,14 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.98] - 2026-11-05
+
+### Fixed
+- QA-147: `read_stored`, `calculate` and `run_python` read a path through a dotted module key
+  such as `d0.esp.fluid_in.volume_flow`: at each level the longest run of parts that is a key
+  is one key (`stored.path_keys`); before, the path was split at every dot and `d0.esp` could
+  never be reached.
+
 ## [0.4.97] - 2026-11-05
 
 ### Added
