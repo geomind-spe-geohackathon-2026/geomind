@@ -404,7 +404,7 @@ def test_every_study_tool_stores_its_study(call):
     key = studies[call].output["study"]
     context = studies[CONTEXT_OF.get(call, "context")]
     record = context.session.load_artifact(key)
-    assert set(record) == {"study", "result", "designs", "case", "tool", "versions"}
+    assert set(record) - {"runs"} == {"study", "result", "designs", "case", "tool", "versions"}
     assert (record["tool"], record["study"]["method"]) == (tool_name, method)
     assert record["study"]["kind"] == "study" and record["study"]["name"] == key.split("/")[1]
     assert [design.split("/")[1] for design in record["study"]["plants"]] == plants
@@ -837,3 +837,16 @@ def test_a_search_s_run_says_what_its_evaluations_count():
     assert run_entry(run, None, "design/a")["evaluations_note"] == EVALUATIONS_NOTE
     run.to_dict = lambda: {"found": None}
     assert "evaluations_note" not in run_entry(run, None, "design/a")
+
+
+def test_qa_299_sample_uncertainty_passes_the_percentiles_asked_for(monkeypatch):
+    """QA-299: P10 and P90 come from gemini's draws; without them the call is as before."""
+    import gemini as gm
+
+    from geomind.tools.gemini import study as study_module
+
+    calls = []
+    monkeypatch.setattr(gm.study, "sample", lambda *args, **kwargs: calls.append(kwargs))
+    study_module.sample_design("plant", "case", ["lcts"], 4, 0)
+    study_module.sample_design("plant", "case", ["lcts"], 4, 0, [10, 90])
+    assert calls == [{}, {"percentiles": [10, 90]}]

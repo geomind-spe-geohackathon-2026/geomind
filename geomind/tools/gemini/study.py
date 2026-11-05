@@ -197,11 +197,15 @@ async def optimize(context, design: str, objective: str, evaluations: int, seed:
     return figures(result | {"study": key} | ({"design": wrote[0]} if wrote else {}))
 
 
-def sample_design(plant, case, metrics, samples, seed):
-    """Return gemini's sample of the plant over the case's uncertainty."""
+def sample_design(plant, case, metrics, samples, seed, percentiles=None):
+    """Return gemini's sample of the plant over the case's uncertainty.
+
+    ``percentiles`` (gemini 0.6.27) adds ``p<n>`` to the summary; left out when not asked for.
+    """
     import gemini as gm
 
-    return gm.study.sample(plant, case, metrics, samples, seed)
+    extra = {} if not percentiles else {"percentiles": list(percentiles)}
+    return gm.study.sample(plant, case, metrics, samples, seed, **extra)
 
 
 @tool(
@@ -218,12 +222,15 @@ async def sample_uncertainty(
     seed: int,
     name: str,
     values: list[str] | None = None,
+    percentiles: list[float] | None = None,
 ):
     """Sample a design over the case's uncertainty (from the user or the case, never made up).
 
     Skill `economics`.
     """
     settings = {"method": "sample", "metrics": metrics, "samples": samples, "seed": seed}
+    if percentiles:
+        settings["percentiles"] = list(percentiles)
     ran, plants, study, case = prepared(context, "sample_uncertainty", name, [design], settings, [])
     data, files = (
         (ran[0], ran[1])
@@ -231,7 +238,13 @@ async def sample_uncertainty(
         else only_uncertainty(ran[0], ran[1], values, "sample_uncertainty")
     )
     sample = await runtime.in_gemini_thread(
-        sample_design, plants[design], build_case(data, files), metrics, samples, seed
+        sample_design,
+        plants[design],
+        build_case(data, files),
+        metrics,
+        samples,
+        seed,
+        percentiles,
     )
     result = to_plain(sample.to_dict())
     result["varied"] = varied(result)

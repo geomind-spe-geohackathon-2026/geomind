@@ -65,7 +65,7 @@ Do and don't (from earlier runs):
   `esp.stage_count`): gemini derives them from the doublet's pump design values (flow, pump
   efficiency, wellhead pressure), or they come from a source the brief or the Knowledge names.
   With no named pump model and no curve, propose `esp.pump_type` `"unspecified"` and leave the
-  curves unset, as gemini's reference plant (`HackathonPlant`) does: the doublet derives them
+  curves unset, as gemini's reference plant does: the doublet derives them
   once its design values are complete. Never choose a pump model (`ESP-300`) no source names and
   never coefficients of your own. A brief with a failed run on the ESP (`out_of_range`) gives
   the failure's `curve` (the flows where its head or power is negative): fix the source or the
