@@ -35,6 +35,9 @@ MAX_RESULTS = 10
 USER_AGENT = "geomind-web-reader/1.0"
 LANGUAGE = "en"
 """The language of every search: the results and the queries are English (QA-071)."""
+MAX_SEARCHES = 6
+"""The searches one agent makes in one run: about two values at three refined queries each
+(QA-087: 39 searches for one value). Then a labelled assumption or a named gap."""
 MAX_WORDS = 8
 """The most words a query has: a query is a few technical terms, never a sentence."""
 FOREIGN_WORDS = frozenset(
@@ -96,7 +99,7 @@ def query_problem(query):
 
 
 @tool(effect="external")
-async def web_search(query: str, limit: int = 5):
+async def web_search(context, query: str, limit: int = 5):
     """Search the web in English; return results with title, url, snippet, engine and date.
 
     ``query``: one value, 3 to 6 English technical terms (at most 8 words), never a sentence
@@ -114,6 +117,16 @@ async def web_search(query: str, limit: int = 5):
 
     if not isinstance(query, str) or not query.strip():
         raise _error("web_search", "query is empty", "query")
+    searched = context.session.__dict__.setdefault("web_searches", [])
+    if len(searched) >= MAX_SEARCHES:
+        raise _error(
+            "web_search",
+            f"this agent searched {len(searched)} times in this run; no more searches: for each "
+            "value still without a source, propose one labelled engineering assumption with a "
+            "one-line reason in the confirmation question, or name it as a gap",
+            "query",
+            code="not_allowed",
+        )
     problem = query_problem(query.strip())
     if problem is not None:
         raise _error("web_search", f"query = {query.strip()!r}: {problem}", "query")
@@ -144,7 +157,8 @@ async def web_search(query: str, limit: int = 5):
         )
         if len(results) == limit:
             break
-    return {"query": query.strip(), "results": results}
+    searched.append(query.strip())
+    return {"query": query.strip(), "results": results, "searches_left": MAX_SEARCHES - len(searched)}
 
 
 def _is_public(host):

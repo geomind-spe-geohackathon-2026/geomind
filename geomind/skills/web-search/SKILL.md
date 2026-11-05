@@ -39,7 +39,10 @@ Writing a query (`web_search(query, limit)`; the search is English only):
 - One value per query. For a price, name what is priced and its basis (`EUR/kW`, `per m`).
 - Results are weak (no primary source, off topic): try 2 or 3 refined queries: other or narrower
   terms, the technology's exact name, or a primary source's name (`IEA`, `IRENA`, `EU JRC`,
-  `TNO`, a manufacturer). Stop after three and ask the user, naming what you searched.
+  `TNO`, a manufacturer). Stop after three queries for one value: propose a labelled engineering
+  assumption with a one-line reason, or name the value as a gap, and say what you searched.
+- An agent has six searches in a run (`searches_left` in each result); then `web_search` is
+  refused.
 - A result (title, url, snippet, engine, date) is a lead, never a source: a snippet can be cut or
   wrong.
 - Prefer primary sources: agencies (IEA, IRENA, EU JRC, national statistics), operators, standards
