@@ -914,6 +914,7 @@ async def set_case(
     step = getattr(getattr(context.session, "state", None), "step", None)
     if changes and step is not None and not DRY_RUN.get():
         calls.append(step)
+    previous = context.problem.case
     base, supplied = base_case(context, source)
     own = {"requirements": requirements, "economics": economics, "files": files, "columns": columns}
     changes, (requirements, economics, files, columns) = moved_arguments(changes, base, own)
@@ -945,6 +946,7 @@ async def set_case(
         ) from error
     needs = await runtime.in_gemini_thread(plants_need, context)
     return {
+        **loaded_changes(source, previous, data),
         "case": data,
         "version": version,
         "version_is": VERSION_MEANING,
@@ -952,6 +954,36 @@ async def set_case(
         **({"converted": converted} if converted else {}),
         **({"plants_need": needs, "note": PLANTS_NEED_NOTE} if needs else {}),
     }
+
+
+def case_leaves(node, prefix=""):
+    """Return ``{dotted path: value}`` of a case dict, a ``{value, unit}`` one leaf."""
+    if not isinstance(node, dict) or not node or "value" in node:
+        return {prefix: node} if prefix else {}
+    found = {}
+    for key, child in node.items():
+        found.update(case_leaves(child, f"{prefix}.{key}" if prefix else str(key)))
+    return found
+
+
+STALE_NOTE = "every read_case result from before this call is stale: use this case"
+
+
+def loaded_changes(source, previous, data):
+    """Return ``{changed, note}`` of a case loaded from the project, ``{}`` for any other call.
+
+    QA-227: the project lead briefed with a permeability from before the user's saved case; the
+    answer lists each value that differs from the chat's case before, ``[{path, before, after}]``.
+    """
+    if source != "project":
+        return {}
+    before, after = case_leaves(previous or {}), case_leaves(data)
+    changed = [
+        {"path": path, "before": before.get(path), "after": after.get(path)}
+        for path in sorted(set(before) | set(after))
+        if before.get(path) != after.get(path)
+    ]
+    return {"changed": changed[:40], "note_on_reads": STALE_NOTE}
 
 
 VERSION_MEANING = (
