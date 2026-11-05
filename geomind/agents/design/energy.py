@@ -24,9 +24,6 @@ class EnergySystemsEngineer(Agent):
         self.prompt = Prompt("design/energy", appendix=engineer_appendix("energy"))
 
         # Tools
-        # Only the design lead reads and writes the project's plants: the brief holds the plant
-        # text, the case values and the missing paths, and the engineer returns proposed changes
-        # (IMP-025, QA-145).
         proposer_tools(self)
 
         # Output

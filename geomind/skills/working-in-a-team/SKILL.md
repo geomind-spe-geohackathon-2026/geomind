@@ -21,6 +21,14 @@ several instances of one role work at once. Each instance is named `<Role> <Roma
 - Read every answer, merge them and write ONCE; split what is still missing or disagrees among
   the team again, and repeat until done. Then report to your lead.
 
+- The design team (`fill_parts`, roles `reservoir_engineer`, `well_engineer`,
+  `energy_systems_engineer`): one brief per module group, holding the plant paths with gemini's
+  issue text, the plant text of those modules, the case values with units and the settled
+  interface values. Each engineer returns a proposal: `changes` `[{path, value, source,
+  reason}]`, `evaluations` `[{module, point, why}]` (numbers only gemini gives: run them with
+  `evaluate_module`), `case_changes` and `couplings`. Settle the couplings, then put every
+  engineer's `changes` into ONE `patch_plant` (its list form takes them as they are).
+
 Example: `geoscientists(briefs=[{"role": "geoscientist", "task": "Ground and reservoir
 (site.ground.*, site.reservoir.*). Text of report.pdf pages 10-14: ..."}, {"role":
 "geoscientist", "task": "Brine and dissolved gas (utilities.brine.*, utilities.gas.*). Text of

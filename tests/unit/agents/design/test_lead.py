@@ -44,6 +44,16 @@ TOOLS = [
 ]
 
 
+
+def proposed(call_id):
+    """Return an engineer's step that finishes with a one-change proposal."""
+    import json
+
+    from tests.fixtures.runs import call, uses
+
+    change = {"path": "params.d0.depth", "value": {"value": 2500, "unit": "m"}, "source": "case"}
+    return uses(call("finish", call_id, answer=json.dumps({"changes": [change]})))
+
 def test_it_is_complete():
     """Its tools in order, every heading of its prompt filled, and only its tools named."""
     check_complete(DesignLead, "design/lead", TOOLS)
@@ -58,56 +68,51 @@ def test_a_plant_value_no_file_gives_is_the_designer_s_assumption():
     assert "describe_module" in text and "confirmed: false" in text
 
 
-def test_it_leads_the_design_team_in_order():
-    """Process, then integration, then the three disciplines side by side within the limit."""
+def test_the_lead_alone_writes_and_splits_in_one_team_call():
+    """QA-145: the lead builds once, splits into one fill_parts call and patches once."""
     lead = DesignLead()
     tools = lead.tools()
-    side = [
-        tools[name] for name in ("reservoir_engineer", "well_engineer", "energy_systems_engineer")
-    ]
-    assert all(item.runs_beside and item.limit == "design_concurrency" for item in side)
-    assert not tools["process_engineer"].runs_beside
-    assert not tools["integration_engineer"].runs_beside
-    text = lead.prompt.render()
-    assert text.index("`process_engineer` (the modules") < text.index("then `integration_engineer`")
-    assert text.index("then `integration_engineer`") < text.index("then `fill_parts`")
-    assert "Send each problem back to its owner" in text
+    for name in ("reservoir_engineer", "well_engineer", "process_engineer", "integration_engineer"):
+        assert name not in tools
+    members = tools["fill_parts"].members
+    assert set(members) == {"reservoir_engineer", "well_engineer", "energy_systems_engineer"}
+    assert all(item.runs_beside and item.limit == "design_concurrency" for item in members.values())
+    text = " ".join(lead.prompt.render().split())
+    assert text.index("build it ONCE with `build_plant`") < text.index("call `fill_parts` ONCE")
+    assert text.index("call `fill_parts` ONCE") < text.index("ONE `patch_plant`")
+    assert "As soon as `missing` is 0" in text
 
 
-async def test_the_three_disciplines_fill_their_parts_in_one_step():
-    """The lead calls the three engineers in one step; each runs as its own nested run."""
+async def test_two_instances_of_one_engineer_fill_their_groups_in_one_step():
+    """IMP-025: a list of briefs runs one named instance each, at the same time."""
     from geomind import runtime
     from tests.fixtures.runs import call, of_type, run, says, uses
 
-    script = [
-        uses(
-            call("reservoir_engineer", "r", task="Fill the reservoir of design/conn."),
-            call("well_engineer", "w", task="Fill the wells of design/conn."),
-            call("energy_systems_engineer", "e", task="Fill the energy system of design/conn."),
-        ),
-        says("reservoir done"),
-        says("wells done"),
-        says("energy done"),
-        says("merged"),
+    briefs = [
+        {"role": "reservoir_engineer", "task": "Subsurface and wells: params.d0.* ..."},
+        {"role": "reservoir_engineer", "task": "Treatment and gas: degasser ..."},
+        {"role": "energy_systems_engineer", "task": "Heating: heat pump, boiler ..."},
     ]
-    with runtime.settings(design_concurrency=3):
+    script = [
+        uses(call("fill_parts", "f", briefs=briefs)),
+        proposed("f1"),
+        proposed("f2"),
+        proposed("f3"),
+        says("patched"),
+    ]
+    with runtime.settings(design_concurrency=4):
         result, _, events = await run(script, agent=DesignLead())
     assert result.status == "done"
-    nested = sorted(event.agent for event in of_type(events, "run.started"))
-    assert nested == [
-        "design_lead",
-        "energy_systems_engineer",
-        "reservoir_engineer",
-        "well_engineer",
-    ]
+    output = next(e for e in of_type(events, "tool.result") if e.tool == "fill_parts").output
+    assert set(output) == {"Reservoir engineer I", "Reservoir engineer II", "Energy systems engineer I"}
 
 
 def test_a_case_value_is_never_slipped_into_the_plant():
     """#54: the design lead put a made-up grid gas composition under three plant paths."""
-    for name in ("DesignLead", "ProcessEngineer", "ReservoirEngineer", "EnergySystemsEngineer"):
-        import geomind.agents as agents
+    import geomind.agents as agents
 
-        text = getattr(agents, name)().prompt.content
+    for name in ("DesignLead", "ReservoirEngineer", "WellEngineer", "EnergySystemsEngineer"):
+        text = " ".join(getattr(agents, name)().prompt.content.split())
         assert "never put it into the plant under another path" in text
 
 
@@ -125,15 +130,15 @@ async def test_fill_parts_runs_the_three_engineers_at_the_same_time():
     }
     script = [
         uses(call("fill_parts", "f", briefs=briefs)),
-        says("reservoir done"),
-        says("wells done"),
-        says("energy done"),
+        proposed("f1"),
+        proposed("f2"),
+        proposed("f3"),
         says("merged"),
     ]
     with runtime.settings(design_concurrency=3):
         result, _, events = await run(script, agent=DesignLead())
-    nested = sorted(event.agent for event in of_type(events, "run.started"))[1:]
-    assert nested == ["energy_systems_engineer", "reservoir_engineer", "well_engineer"]
+    nested = sorted(event.agent for event in of_type(events, "run.started"))
+    assert nested == ["design_lead", "energy_systems_engineer", "reservoir_engineer", "well_engineer"]
     output = next(e for e in of_type(events, "tool.result") if e.tool == "fill_parts").output
     assert set(output) == set(briefs) and result.answer == "merged"
     assert json.dumps(output)

@@ -584,7 +584,6 @@ async def patch_plant(
     check_ownership(context, changes, "patch_plant", plant)
     patched = merge_patch(plant, changes)
     if patched == plant:
-        # QA-145: patches with `{}` or only a null note each saved a new plant version.
         raise ToolError(
             f"patch_plant: changes = {json.dumps(changes)[:200]}; they change nothing in "
             f"{design}, so nothing was stored. Give each value to change at its plant path, "

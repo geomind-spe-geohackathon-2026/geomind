@@ -7,16 +7,11 @@ from geomind.agents import ReservoirEngineer
 from tests.unit.agents.structure import check_complete
 
 TOOLS = [
-    "read_case",
-    "read_plant",
     "describe_module",
-    "evaluate_module",
-    "read_profile",
-    "patch_plant",
-    "read_stored",
+    "search_knowledge",
+    "read_knowledge",
     "search_memory",
     "read_memory",
-    "search_rag",
     "finish",
 ]
 
@@ -52,7 +47,7 @@ def test_its_model_is_its_own_required_setting(monkeypatch):
 def test_it_computes_nothing_by_hand():
     """#45: no formula or conversion; numbers from the case, gemini, or a named assumption."""
     text = ReservoirEngineer().prompt.content
-    assert "Compute nothing by hand" in text and "names a missing design value alone" in " ".join(
+    assert "Compute nothing by hand" in text and "no derived value in a change" in " ".join(
         text.split()
     )
 
@@ -60,5 +55,5 @@ def test_it_computes_nothing_by_hand():
 def test_it_leaves_the_reservoir_values_to_gemini():
     """Request 11: gemini 0.6.3 gives the case's reservoir values to each doublet itself."""
     text = " ".join(ReservoirEngineer().prompt.content.split())
-    assert "gemini gives them to each doublet, so never set them in the plant" in text
+    assert "The reservoir and brine values are the case's: gemini gives them to each doublet" in text
     assert "Take every reservoir and brine value from the case" not in text

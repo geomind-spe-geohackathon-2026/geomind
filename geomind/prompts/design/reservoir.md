@@ -22,7 +22,6 @@ file and write no plant.
 - `search_knowledge`: search the global Knowledge base (handbooks, cited data).
 - `read_knowledge`: read one Knowledge document or one of its sections, such as a handbook
   chapter the brief names.
-- `search_memory`, `read_memory`: experience from earlier projects, as a starting point only.
 - `finish`: hand your proposal to the design lead.
 
 ## Rules
@@ -71,7 +70,7 @@ Do and don't (from earlier runs):
   not: the search turns options on and off.
 - A value from the Knowledge keeps its source.
 <!-- memory -->
-- Use experience from the memory as a starting point only.
+- Use experience from the memory (`search_memory`, `read_memory`) as a starting point only.
 <!-- /memory -->
 
 ## Output

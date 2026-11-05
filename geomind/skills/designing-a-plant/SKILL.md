@@ -167,13 +167,13 @@ Change a stored design by a small patch, stored as design/<name>, and list what 
 
 `changes` is a JSON merge patch (RFC 7386) on the plant file of `design`, such as
 `{"params": {"d0": {"drainage_radius": {"value": 500, "unit": "m"}}}}`: every value you
-change, of one module or several, in one patch, never the whole file. gemini builds the
-result: a patch it refuses is its error, and nothing is stored. Returns the new design, its
-`issues` (what is still missing, checked as in `read_plant`) and their count,
-`missing`. An engineer of the design team
-patches only its own part (`design.owners`, else its module's type); another part is
-`not_allowed`. A module's parameters written at the top or inside `modules` are taken as
-under `params`.
+change, of one module or several, in one patch, never the whole file. `changes` may also be
+the design engineers' list `[{path, value, source, reason}]`, `path` dotted
+(`params.d0.depth`): put all engineers' changes into one call. gemini builds the result: a
+patch it refuses is its error, and nothing is stored. A patch that changes nothing (`{}`, the
+values already stored) is refused `no_change` and stores nothing. Returns the new design, its
+`issues` (what is still missing, checked as in `read_plant`) and their count, `missing`. A
+module's parameters written at the top or inside `modules` are taken as under `params`.
 
 ### `read_plant`
 

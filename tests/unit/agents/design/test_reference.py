@@ -27,10 +27,12 @@ def test_an_engineer_s_prompt_holds_its_modules_and_its_workflow(discipline):
     text = ENGINEERS[discipline]().prompt.render()
     for name in OWNED_MODULES[discipline]:
         assert f"### {name} (" in text
-    assert "one `patch_plant` call with all your changes" in text
-    assert "Stop when no issue names a path you own" in text
-    assert "give it in the case" in text and "at most twelve lines" in text
+    assert "then finish once with all of them" in text
+    assert "Propose only paths of your group" in text
+    assert "give it in the case" in text and "at most five" in text
     assert "Don't convert a value to show it" in text
+    rules = ENGINEERS[discipline]().prompt.content
+    assert "patch_plant" not in rules and "read_plant" not in rules
 
 
 def test_the_well_engineer_sees_the_section_list_form():

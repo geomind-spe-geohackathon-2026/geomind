@@ -24,9 +24,6 @@ class WellEngineer(Agent):
         self.prompt = Prompt("design/well", appendix=engineer_appendix("well"))
 
         # Tools
-        # Only the design lead reads and writes the project's plants: the brief holds the plant
-        # text, the case values and the missing paths, and the engineer returns proposed changes
-        # (IMP-025, QA-145).
         proposer_tools(self)
 
         # Output

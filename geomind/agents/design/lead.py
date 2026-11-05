@@ -113,7 +113,7 @@ class DesignLead(Agent):
         self.search_memory = tools.search_memory
         self.read_memory = tools.read_memory
         self.search_rag = tools.search_rag
-        self.read_rag = tools.read_rag
+        self.read_knowledge = tools.read_knowledge
         self.support_lead = Delegate(SupportLead(), max_summary_tokens=SUPPORT_TOKENS)
         self.ask_user = tools.ask_user
         self.finish = tools.finish

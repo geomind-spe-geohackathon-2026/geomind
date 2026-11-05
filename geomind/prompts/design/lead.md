@@ -49,13 +49,13 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
 - `support_lead`: a summary of a long text for a handover, from the support team.
 - `ask_user`: ask.
 - `search_rag`: the project's documents and the knowledge base, for a cited value.
-- `read_rag`: a document or one section of it, such as `knowledge/handbook-design.md`.
+- `read_knowledge`: a Knowledge document or one section of it, such as `knowledge/handbook-design.md`.
 - `finish`: hand over.
 
 ## Rules
 
 The design path (the handbook `knowledge/handbook-design.md`, chapter 0 "Design path in gemini":
-read it once with `read_rag(name="knowledge/handbook-design.md", section="0 Design path in
+read it once with `read_knowledge(name="knowledge/handbook-design.md", section="0 Design path in
 gemini")`; it holds the family table, the module groups, the gated order and the failure-to-fix
 table). Few calls: everything a tool returned stays above in the conversation, so read the case,
 the plant, a profile or a finding once and never again unless you wrote it since.
