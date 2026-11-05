@@ -101,6 +101,20 @@
                 "default": null,
                 "title": "Status"
               },
+              "uncertainty": {
+                "anyOf": [
+                  {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "the value's uncertainty as the case writes it, e.g. {kind: normal, std, min, max}, from the source that gives it; set with the value on approve all (QA-216)",
+                "title": "Uncertainty"
+              },
               "unit": {
                 "anyOf": [
                   {
@@ -237,6 +251,18 @@
         },
         "additionalProperties": false,
         "properties": {
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Country"
+          },
           "note": {
             "anyOf": [
               {
@@ -387,6 +413,66 @@
       ],
       "name": "build_plant"
     },
+    "calculate": {
+      "description": "Derive a value from sourced values and keep it as a calculation with an id.",
+      "effect": "compute",
+      "idempotent": false,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "exponent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Exponent"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "operands": {
+            "items": {},
+            "title": "Operands",
+            "type": "array"
+          },
+          "operation": {
+            "enum": [
+              "add",
+              "subtract",
+              "multiply",
+              "divide",
+              "power",
+              "min",
+              "max",
+              "sum",
+              "mean"
+            ],
+            "title": "Operation",
+            "type": "string"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "operation",
+          "operands",
+          "unit"
+        ],
+        "title": "calculate_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "calculate"
+    },
     "case_changes": {
       "description": "List how the state's case differs from the case the user or the project gave.",
       "effect": "read",
@@ -517,7 +603,7 @@
       "name": "describe_case"
     },
     "describe_module": {
-      "description": "Describe one module compactly: parameters and controls one per line, ports and outputs.",
+      "description": "Describe one module type: parameters, controls, ports, outputs.",
       "effect": "read",
       "idempotent": true,
       "input_schema": {
@@ -561,7 +647,7 @@
       "name": "estimate_costs"
     },
     "evaluate_module": {
-      "description": "Run one module at one point in display units; every inlet needs a fluid.",
+      "description": "Run one module at one point in display units.",
       "effect": "compute",
       "idempotent": true,
       "input_schema": {
@@ -579,6 +665,18 @@
             ],
             "default": null,
             "title": "Controls"
+          },
+          "design": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Design"
           },
           "dt": {
             "anyOf": [
@@ -603,6 +701,10 @@
                 "type": "object"
               },
               {
+                "items": {},
+                "type": "array"
+              },
+              {
                 "type": "null"
               }
             ],
@@ -614,9 +716,29 @@
             "type": "string"
           },
           "parameters": {
-            "additionalProperties": true,
-            "title": "Parameters",
-            "type": "object"
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Parameters"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Result"
           },
           "state": {
             "anyOf": [
@@ -630,16 +752,30 @@
             ],
             "default": null,
             "title": "State"
+          },
+          "time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Time"
           }
         },
         "required": [
-          "name",
-          "parameters"
+          "name"
         ],
         "title": "evaluate_module_input",
         "type": "object"
       },
-      "late_schemas": [],
+      "late_schemas": [
+        "design",
+        "result"
+      ],
       "name": "evaluate_module"
     },
     "evolve_structure": {
@@ -679,7 +815,7 @@
       "name": "evolve_structure"
     },
     "finish": {
-      "description": "End the run with the final answer.",
+      "description": "End the run with the final answer. Skill `working-in-a-team`.",
       "effect": "read",
       "idempotent": true,
       "input_schema": {
@@ -712,7 +848,7 @@
       "name": "list_files"
     },
     "list_modules": {
-      "description": "List the modules gemini has, with their name, category and summary.",
+      "description": "List gemini's module types with category and summary.",
       "effect": "read",
       "idempotent": true,
       "input_schema": {
@@ -795,7 +931,7 @@
       "name": "list_starts"
     },
     "list_studies": {
-      "description": "List the studies stored in this chat: what ran, over which designs, and whether current.",
+      "description": "List this chat's studies (what ran, over which designs, whether current) and the project's.",
       "effect": "read",
       "idempotent": true,
       "input_schema": {
@@ -894,9 +1030,20 @@
         "additionalProperties": false,
         "properties": {
           "changes": {
-            "additionalProperties": true,
-            "title": "Changes",
-            "type": "object"
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Changes"
           },
           "design": {
             "title": "Design",
@@ -946,8 +1093,63 @@
       "late_schemas": [],
       "name": "read_case"
     },
+    "read_knowledge": {
+      "description": "Read one document of the Knowledge base, ``knowledge/<name>`` or ``<name>``, as text.",
+      "effect": "read",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "length": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Length"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "outline": {
+            "default": false,
+            "title": "Outline",
+            "type": "boolean"
+          },
+          "section": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Section"
+          },
+          "start": {
+            "default": 0,
+            "title": "Start",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "read_knowledge_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "read_knowledge"
+    },
     "read_memory": {
-      "description": "Return one experience entry by the id ``search_memory`` gave.",
+      "description": "Return one experience entry by the id ``search_memory`` gave. Skill `memory`.",
       "effect": "read",
       "idempotent": true,
       "input_schema": {
@@ -968,7 +1170,7 @@
       "name": "read_memory"
     },
     "read_plant": {
-      "description": "Read a project plant file, a stored design or a plant class: file, ranges, issues.",
+      "description": "Read a project plant file or version, a stored design or a plant class: file, ranges, issues.",
       "effect": "read",
       "idempotent": true,
       "input_schema": {
@@ -997,6 +1199,18 @@
             ],
             "default": null,
             "title": "Plant Class"
+          },
+          "plant_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Plant Version"
           },
           "project_plant": {
             "anyOf": [
@@ -1107,6 +1321,11 @@
             "title": "Name",
             "type": "string"
           },
+          "outline": {
+            "default": false,
+            "title": "Outline",
+            "type": "boolean"
+          },
           "rows": {
             "anyOf": [
               {
@@ -1131,6 +1350,18 @@
             ],
             "default": null,
             "title": "Rows"
+          },
+          "section": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Section"
           },
           "start": {
             "default": 0,
@@ -1242,12 +1473,24 @@
       "name": "read_skill"
     },
     "read_stored": {
-      "description": "Return a result that was stored by reference, whole or one part of it.",
+      "description": "Return a result that was stored by reference, whole or one part of it, or a page of a list.",
       "effect": "read",
       "idempotent": true,
       "input_schema": {
         "additionalProperties": false,
         "properties": {
+          "length": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Length"
+          },
           "path": {
             "anyOf": [
               {
@@ -1263,6 +1506,18 @@
           "reference": {
             "title": "Reference",
             "type": "string"
+          },
+          "start": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Start"
           }
         },
         "required": [
@@ -1296,6 +1551,86 @@
         "study"
       ],
       "name": "read_study"
+    },
+    "read_web_page": {
+      "description": "Read one public web page (HTML or PDF) and return its main text with its source fields.",
+      "effect": "external",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "start": {
+            "default": 0,
+            "title": "Start",
+            "type": "integer"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "title": "read_web_page_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "read_web_page"
+    },
+    "run_python": {
+      "description": "Run Python in a sandbox (no network, gemini installed) on sourced inputs. Skill `python`.",
+      "effect": "execute",
+      "idempotent": false,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "files": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Files"
+          },
+          "inputs": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Inputs"
+          },
+          "purpose": {
+            "title": "Purpose",
+            "type": "string"
+          }
+        },
+        "required": [
+          "purpose",
+          "code"
+        ],
+        "title": "run_python_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "run_python"
     },
     "run_study": {
       "description": "Run one study over several stored designs on the state's case and rank them.",
@@ -1447,6 +1782,21 @@
           "seed": {
             "title": "Seed",
             "type": "integer"
+          },
+          "values": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Values"
           }
         },
         "required": [
@@ -1518,6 +1868,27 @@
       "late_schemas": [],
       "name": "save_profile"
     },
+    "search_knowledge": {
+      "description": "Search the global Knowledge base only; return ``{matches}``, best first.",
+      "effect": "read",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "title": "Query",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "search_knowledge_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "search_knowledge"
+    },
     "search_memory": {
       "description": "Return what the team learned before: designs that passed on alike cases, and lessons.",
       "effect": "read",
@@ -1573,6 +1944,21 @@
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "values": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Values"
           }
         },
         "required": [
@@ -1800,6 +2186,18 @@
             "default": null,
             "title": "End"
           },
+          "plant_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Plant Version"
+          },
           "start": {
             "anyOf": [
               {
@@ -1932,6 +2330,32 @@
         "changes"
       ],
       "name": "update_state"
+    },
+    "web_search": {
+      "description": "Search the web in English; return results with title, url, snippet, engine and date.",
+      "effect": "external",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "default": 5,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "query": {
+            "title": "Query",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "web_search_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "web_search"
     },
     "write_lesson": {
       "description": "Keep a general lesson for one role, or a fact the user gave, in the memory's experience.",
