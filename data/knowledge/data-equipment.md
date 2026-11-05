@@ -33,3 +33,32 @@ its status. Sizes (capacities, conductances, lengths) are not in it; they belong
 state, moved out of a case's assumptions document so that they serve any plant (QA-340). Values
 that only fit one case (its pump efficiency, sizes, search ranges and derived temperatures) were
 left with that case.
+
+## Additions (2026-11-05, QA-351)
+
+11 rows (1 secondary, 10 placeholder), the equipment values gemini's check still asked for after
+the first 51 rows, found by running `gm.check` on every plant class of gemini 0.6.34 with no
+parameters and comparing with this catalogue: the calibration factors of wells and ESP (none),
+the ESP alarm and operating window used when no pump model is chosen, the injection pump's model
+and motor frequency, the supply margins of boilers and absorption chillers, and the heat
+exchanger's pressure drop. Rows: 62 (11 secondary, 51 placeholder).
+
+## Values that are not in this catalogue, and where they come from
+
+Each is a size or an operating choice of one design, so no catalogue can give it. Never search
+the web for them:
+
+| Path | Where it comes from |
+|---|---|
+| `capacity` of a heat pump, chiller or boiler; `nominal_flow` of a doublet; `depth` | `size_plant` and the search over the ranges the user approves |
+| `injection_pump.nominal_flow`, `nominal_head`, `pressure_setpoint` | `size_plant` (from the doublets it serves) |
+| `injection_pump.efficiency` | the production pump's efficiency (`dN.pump_efficiency`), which the case's files or the user give |
+| `nominal_mass_flow` of a filter, desander or heat exchanger side | the design flow of the stream it carries: brine, the doublets' flow times the density; network, duty / (c_p (T_supply - T_return)) |
+| `heat_exchanger.thermal_conductance` | the design duty and the chosen approach, Q = UA dT_lm |
+| `heat_pump.minimum_source_outlet_temperature` | the production temperature less the case's brine cooling limit, or a chemistry limit |
+| `<cooler>.capacity` | the heat rejected: cold plus drive heat (compression: cold x (1 + 1/COP)) |
+| `<cooler>.flow` (first guess of a closed loop) | capacity / (c_p dT) with c_p = 4186 J/kg/K of water and the loop's rise, about 10 K |
+| `<cooler>.temperature_setpoint` | below the chiller's condensing (or absorber) limit; a case's assumptions document may give it |
+| pipe `length`, `elevation_change` | the site: the case, its files or its assumptions document; never invented |
+| pipe `inner_diameter` | 1 to 3 m/s at the design flow |
+| `params.control.dispatch`, `params.control.outages`, `params.backup` | the one value gemini's check suggests (`least_cost`, `lowest_demand`; `peak` or `none`) |
