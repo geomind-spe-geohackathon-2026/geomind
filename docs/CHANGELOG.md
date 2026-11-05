@@ -6,6 +6,14 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.133] - 2026-11-05
+
+### Fixed
+- QA-320 (reopen) agent-sourced economics refused or tied to their row; QA-333 one re-check and one
+  explainer after a case change; QA-334 the compression chiller is a HeatPump in cooling mode;
+  QA-276 no unasked family, only the latest version is the project plant; QA-233 a Study-page
+  result is checked against the project's case.
+
 ## [0.4.132] - 2026-11-05
 
 ### Fixed
