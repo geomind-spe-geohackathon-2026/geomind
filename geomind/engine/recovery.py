@@ -323,8 +323,9 @@ def apply(state, event):
 def recover(events, run_id=None):
     """Return the state of a run from its events; by default, the root run.
 
-    Nested runs share the log, so their events count for the sequence only, and for the problem
-    state, which the whole tree of runs shares from the moment this run began. A delegate's usage
+    Nested runs share the log, so their events count for the sequence only (the highest one, in
+    whatever order the store gives them: a resume went on below the stream's end, QA-336), and for
+    the problem state, which the whole tree of runs shares from the moment this run began. A delegate's usage
     comes with its result; the usage of a run that ran first for this one, without a step of it
     (the routing call), is added from its completions.
     """
@@ -337,7 +338,7 @@ def recover(events, run_id=None):
     first = {e.run_id for e in started if e.parent == run_id and e.parent_step is None}
     state = RunState(run_id=run_id)
     for event in events:
-        state.sequence = event.sequence
+        state.sequence = max(state.sequence, event.sequence)
         is_shared = event.type == "state.changed" and state.root != ""
         if event.run_id == run_id or is_shared:
             apply(state, event)

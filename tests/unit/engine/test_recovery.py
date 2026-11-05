@@ -193,3 +193,11 @@ def test_another_input_with_the_same_error_starts_the_count_again():
         call = ToolCall(id=f"c{step}", name="read_result", input={"reference": "x", "path": name})
         _failed(state, [call], step, UNKNOWN)
     assert state.repeated == 1
+
+
+async def test_the_sequence_goes_on_from_the_highest_event_in_any_order():
+    """QA-336: a resume went on below the stream's end; the highest sequence counts, not the last."""
+    _, _, events = await run([uses(call("lookup", "c1", key="k")), says("done")])
+    highest = max(event.sequence for event in events)
+    shuffled = [*events[-2:], *events[:-2]]
+    assert recover(shuffled).sequence == highest
