@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.75] - 2026-11-05
+
+### Fixed
+
+- QA-079 (geomind part): a typed answer to the economics question that approves all in its first sentence ("Approve all as recommended, with their sources. ...") sets the economics as the option does, and the rest of the text comes back as `user_note`; "approve all except/but/without ..." stays a change. Any other typed answer says `economics: not set` with what to do, so the same question is not asked again unchanged.
+
 ## [0.4.74] - 2026-11-05
 
 ### Fixed
