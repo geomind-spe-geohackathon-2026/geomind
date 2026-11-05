@@ -193,3 +193,12 @@ def test_a_named_owner_decides_over_the_module_type(plant):
     patch = {"params": {"injection_pump": {"efficiency": {"value": 0.7}}}}
     with pytest.raises(ToolError, match="the well engineer's"):
         check_ownership(context_of("energy", RUN_OWNERS), patch, "patch_plant", plant)
+
+
+def test_a_refusal_names_the_engineer_s_own_parts():
+    """IMP-014: the not_allowed refusal lists the parts the engineer owns."""
+    from geomind.tools.gemini.ownership import own_parts
+
+    owners = {"params.d0": "reservoir_engineer", "heat_pump": "energy", "params.d0.esp": "well"}
+    assert own_parts("energy", owners) == ["heat_pump"]
+    assert own_parts("reservoir", owners) == ["d0"]

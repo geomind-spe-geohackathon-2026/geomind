@@ -278,9 +278,22 @@ def check_ownership(context, changes, where, plant=None):
     path, owner = foreign[0]
     whose = f"the {owner} engineer's" if owner else "no discipline's (design.owners names none)"
     others = f" and {len(foreign) - 1} more" if len(foreign) > 1 else ""
+    own = own_parts(discipline, owners)
+    yours = f" Your parts: {', '.join(own)}." if own else ""
     raise ToolError(
         f"{where}: {path}{others} is {whose}; the {discipline} engineer changes only its own "
-        "part. Hand it back to the design lead with the reason, for its owner",
+        f"part.{yours} Send the patch again with only your parts, and hand the rest back to the "
+        "design lead with the reason, for its owner",
         code="not_allowed",
         path=f"changes.{path}",
+        suggestions=own,
+    )
+
+
+def own_parts(discipline, owners):
+    """Return the paths of ``design.owners`` that ``discipline`` owns, sorted (IMP-014)."""
+    return sorted(
+        key.removeprefix(PARAMS)
+        for key, owner in (owners or {}).items()
+        if discipline_named(owner) == discipline
     )

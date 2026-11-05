@@ -285,13 +285,36 @@ def plant_issues(context, plant):
     rules = rule_issues(plant)
     if context.problem.case is None:
         found = [issue_dict(i) for i in plant.check()]
-        return {"checked_against": "plant", "issues": found + rules}
+        return {"checked_against": "plant", "issues": owned_first(context, found + rules)}
     case = case_of(context)
     checked = gm.check(plant, case)
     issues = [issue_dict(i) for i in checked] + rules
     if not rules and all(issue.is_warning for issue in checked):
         issues += run_issues(plant, case)
-    return {"checked_against": "case", "issues": issues}
+    return {"checked_against": "case", "issues": owned_first(context, issues)}
+
+
+def owned_first(context, issues):
+    """Return ``issues`` for an engineer: its own first, each other one with its ``owner`` (IMP-014).
+
+    170 patch_plant calls were refused as another engineer's part: the engineer saw every
+    missing value as its own. Outside an engineer's call the issues are unchanged.
+    """
+    from geomind.tools.gemini.ownership import discipline_of, owner_of
+
+    discipline = discipline_of(context)
+    owners = (getattr(context.problem, "design", None) or {}).get("owners") or {}
+    if discipline is None or not owners:
+        return issues
+    own, others = [], []
+    for item in issues:
+        path = str(item.get("path") or "").removeprefix("params.")
+        owner = owner_of(path, owners) if path else None
+        if owner in (None, discipline):
+            own.append(item)
+        else:
+            others.append({**item, "owner": f"{owner} engineer: hand it back, not yours"})
+    return own + others
 
 
 def shown_ranges(plant):
