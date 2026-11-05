@@ -386,6 +386,28 @@ CHOICE_PARAMS = (("backup",), ("control", "outages"), ("control", "dispatch"))
 """Plant options a model often sends as a bare string (QA-052): ``"none"`` for ``{"value": "none"}``."""
 
 
+def listed_changes(changes):
+    """Return a change list ``[{path, value, ...}]`` as the merge patch ``{path: value}``.
+
+    The design engineers hand back their changes so (``agents/design/proposal.py``); the lead
+    passes all of them in one call. ``source`` and ``reason`` are the engineers' record, not plant
+    values. A dict passes unchanged.
+    """
+    if not isinstance(changes, list):
+        return changes
+    patch = {}
+    for index, item in enumerate(changes):
+        if not isinstance(item, dict) or not isinstance(item.get("path"), str) or "value" not in item:
+            raise ToolError(
+                f"patch_plant: changes[{index}] = {json.dumps(item)[:120]}; expected "
+                "{path, value} with path a dotted plant path such as 'params.d0.depth'",
+                path=f"changes.{index}",
+            )
+        path = item["path"].removeprefix("plant.")
+        patch[path] = item["value"]
+    return patch
+
+
 def wrapped_choices(plant):
     """Return ``plant`` with each plant option given as a bare string written ``{"value": ...}``."""
     params = plant.get("params") if isinstance(plant, dict) else None
@@ -545,7 +567,9 @@ def port_takes_one(gm, modules, port):
 
 
 @tool(effect="write", late_schemas={"design": reference_schema("design")})
-async def patch_plant(context, design: str, changes: dict[str, Any], name: str):
+async def patch_plant(
+    context, design: str, changes: dict[str, Any] | list[dict[str, Any]], name: str
+):
     """Change a stored design by a small patch, stored as design/<name>, and list what is missing.
 
     Skill `designing-a-plant`.
@@ -556,9 +580,19 @@ async def patch_plant(context, design: str, changes: dict[str, Any], name: str):
     from geomind.tools.gemini.ownership import check_ownership, placed_parameters
 
     plant = load_design(context, design, "patch_plant").to_dict(structure=True)
-    changes = placed_parameters(wrapped_choices(changes), plant)
+    changes = wrapped_choices(placed_parameters(listed_changes(changes), plant))
     check_ownership(context, changes, "patch_plant", plant)
     patched = merge_patch(plant, changes)
+    if patched == plant:
+        # QA-145: patches with `{}` or only a null note each saved a new plant version.
+        raise ToolError(
+            f"patch_plant: changes = {json.dumps(changes)[:200]}; they change nothing in "
+            f"{design}, so nothing was stored. Give each value to change at its plant path, "
+            "such as {\"params.d0.depth\": {\"value\": 2500, \"unit\": \"m\"}}, or the engineers' "
+            "list of {path, value, source}",
+            code="no_change",
+            path="changes",
+        )
     built = await runtime.in_gemini_thread(gm.Plant.from_dict, patched)
     stored = await save_design(context, name, built)
     issues = await runtime.in_gemini_thread(plant_issues, context, built)

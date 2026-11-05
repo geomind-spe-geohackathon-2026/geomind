@@ -3,8 +3,6 @@
 from geomind import tools
 from geomind.agents.agent import Agent, Model
 from geomind.agents.design.energy import EnergySystemsEngineer
-from geomind.agents.design.integration import IntegrationEngineer
-from geomind.agents.design.process import ProcessEngineer
 from geomind.agents.design.reservoir import ReservoirEngineer
 from geomind.agents.design.well import WellEngineer
 from geomind.agents.support.lead import SupportLead
@@ -38,59 +36,56 @@ GEMINI_TOOLS = (
     "run_study",
 )
 """The gemini tools of the design lead, in the order it is offered them."""
-SIDE_BY_SIDE = ("reservoir_engineer", "well_engineer", "energy_systems_engineer")
-"""The engineers who fill their parts at the same time, from one connected design."""
-ENGINEER_TOKENS = 2000
-"""The most tokens of an engineer's answer the design lead reads back."""
+ENGINEER_TOKENS = 4000
+"""The most tokens of an engineer's proposal the design lead reads back."""
 STEPS = "engineer_max_steps"
 """The setting of an engineer's own step limit, at which it hands back what it has."""
 LIMIT = "design_concurrency"
-"""The setting that bounds how many engineers fill their parts side by side."""
+"""The setting that bounds how many engineers work side by side."""
 SUPPORT_TOKENS = 1500
 """The most tokens of the support lead's answer a lead reads back."""
 
 
-def engineer(agent):
-    """Return the delegate of an engineer, with the engineers' own step limit."""
-    return Delegate(agent, max_summary_tokens=ENGINEER_TOKENS, steps=STEPS)
-
-
 def beside(agent):
-    """Return the delegate of an engineer that fills its part beside others, within the limit."""
+    """Return the delegate of an engineer that works beside others, within the limit."""
     return Delegate(
         agent, max_summary_tokens=ENGINEER_TOKENS, runs_beside=True, limit=LIMIT, steps=STEPS
     )
 
 
 def team():
-    """Return the design team as tools by name, in the order the lead calls them."""
+    """Return the design team as tools by name: the one team call of the engineers.
+
+    Only the design lead reads and writes the project's plants (IMP-025): the engineers propose
+    changes from the brief and the lead applies them in one ``patch_plant``. The single-engineer
+    tools and the process and integration engineers are gone: the lead picks the plant class
+    and its wiring from the handbook (``handbook-design.md`` chapter 0), and a brief to one
+    engineer is a team call with one brief (QA-145: 27 hand patches in 70 minutes, no simulate).
+    """
     members = {
-        "process_engineer": engineer(ProcessEngineer()),
-        "integration_engineer": engineer(IntegrationEngineer()),
         "reservoir_engineer": beside(ReservoirEngineer()),
         "well_engineer": beside(WellEngineer()),
         "energy_systems_engineer": beside(EnergySystemsEngineer()),
     }
-    return {**members, "fill_parts": side_by_side(members)}
-
-
-def side_by_side(members):
-    """Return the tool that has the side-by-side engineers fill their parts at the same time."""
-    return Team(
-        "fill_parts",
-        "Have the reservoir, well and energy systems engineers fill their parts side by side: "
-        "one brief each, by tool name; each answer, or its error, comes back by name.",
-        {name: members[name] for name in SIDE_BY_SIDE},
-    )
+    return {
+        "fill_parts": Team(
+            "fill_parts",
+            "Run up to four engineers at once, each on its own module group: briefs is a list of "
+            "{role, task} with role reservoir_engineer, well_engineer or energy_systems_engineer; "
+            "each instance (Energy systems engineer I, II, ...) answers by its name with its "
+            "proposed changes.",
+            members,
+        )
+    }
 
 
 class DesignLead(Agent):
     """Lead the design team, review the assembled plant, then size, check and optimise it.
 
-    NOTE: the process engineer chooses the modules and their owners, the integration engineer
-    connects them, and the reservoir, well and energy systems engineers fill their parts side by
-    side (at most ``design_concurrency`` at once), each patching only its own; the design lead
-    merges, reviews and sends each problem back to its owner. It checks its own designs with
+    NOTE: the lead alone reads and writes the plant (IMP-025): it picks the family and the plant
+    class, builds it once, splits the missing values among up to four engineers in one
+    ``fill_parts`` call (at most ``design_concurrency`` at once), applies all their proposed
+    changes in one ``patch_plant`` and simulates as soon as nothing is missing (QA-145). It checks its own designs with
     ``check_results`` and optimises directly: the search counts a trial as feasible only when
     gemini's verdict says so, so no ``Reviewer`` round comes before it. With several buildable
     families it compares them in one ``run_study``. The ``Reviewer`` checks the final design once.
@@ -118,6 +113,7 @@ class DesignLead(Agent):
         self.search_memory = tools.search_memory
         self.read_memory = tools.read_memory
         self.search_rag = tools.search_rag
+        self.read_rag = tools.read_rag
         self.support_lead = Delegate(SupportLead(), max_summary_tokens=SUPPORT_TOKENS)
         self.ask_user = tools.ask_user
         self.finish = tools.finish
