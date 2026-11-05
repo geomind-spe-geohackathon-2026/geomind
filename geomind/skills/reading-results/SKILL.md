@@ -25,6 +25,11 @@ A large result does not come back whole. You get a summary and a `reference` to 
   - energies of the whole plant: `check_results` `metrics` (`heat_delivered`, `cold_delivered`,
     `boiler_heat`, `electricity_bought`, `gas_bought`); the heat not from the boiler is
     `heat_delivered` minus `boiler_heat`, one `calculate` call.
+  - whether each requirement passes, with its number: `check_results` `requirements`; each entry
+    has `name`, `passed`, `value` (the worst value of the run: brine cooling in K, running days
+    in d, reinjection ratio, flow), `limit`, `unit_path` (which doublet or module) and
+    `worst_step` (its day). Quote `value` against `limit` for every requirement; never write that
+    a requirement "rests on the verdict" when its entry has a value.
   Use `run_python` only for what none of these gives, and never to sum a power series into an
   energy: the energies come from gemini in MWh.
 - A wrong `path` or `field` is an error result that lists what exists, so read it and try again.
