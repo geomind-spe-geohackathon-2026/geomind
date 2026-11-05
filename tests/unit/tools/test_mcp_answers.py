@@ -298,7 +298,7 @@ async def test_a_replay_saves_the_table_again_from_the_recorded_answer():
 
 
 def test_the_prompts_say_how_to_use_a_server_s_answer():
-    """The MCP section, the shared rules and the case lead say what to do with an answer.
+    """The MCP section, the shared rules and skill `connectors` say what to do with an answer.
 
     The arguments as listed, ``future``, UTC and ``save_mcp_table``.
     """
@@ -314,4 +314,7 @@ def test_the_prompts_say_how_to_use_a_server_s_answer():
     shared = (folder / "shared" / "rules.md").read_text()
     assert "`future: true`" in shared and "UTC" in shared and "save_mcp_table" in shared
     lead = (folder / "case" / "lead.md").read_text()
-    assert "save_mcp_table(answer, table, file)" in lead and "`future: true`" in lead
+    assert "read_skill('connectors')" in lead
+    # The case lead's server how-to moved to skill `connectors` (7e3c357), which it reads first.
+    skill = (folder.parent / "skills" / "connectors" / "SKILL.md").read_text()
+    assert "save_mcp_table(answer, table, file)" in skill and "`future: true`" in skill

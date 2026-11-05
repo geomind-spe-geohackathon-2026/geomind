@@ -53,12 +53,12 @@ def test_an_esp_curve_comes_from_its_source_or_is_asked_never_invented():
     """E2E-15: the design lead patched ``head_coefficients = [1e7, 0, ...]`` with no source.
 
     The well engineer takes the curves gemini derives from the pump design values or from a
-    source, never typed; the lead sends a curve failure back, and asks the user for a curve that
-    no source gives.
+    source, never typed; the lead sends a curve failure back. With no source the ESP is
+    ``unspecified`` with no curves (gemini derives them), so nobody asks the user for one.
     """
     well = " ".join(Prompt("design/well").render().split())
     lead = " ".join(Prompt("design/lead").render().split())
     assert "a pump curve) is your assumption" not in well
-    assert "never type an ESP's curves" in well and "the failure's `curve`" in well
-    assert "never patch an ESP's curves yourself" in lead
-    assert "ask the user for the pump's curve" in lead
+    assert "You never give an ESP's curves" in well and "the failure's `curve`" in well
+    assert "never patch an ESP's curves yourself" in lead and "the failure's `curve`" in lead
+    assert "Never ask the user for a pump curve" in lead
