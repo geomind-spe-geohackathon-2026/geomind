@@ -6,6 +6,13 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.137] - 2026-11-05
+
+### Fixed
+- QA-355 a verified design in a project with no plant is saved as its first plant (one card); QA-354
+  resume in auto mode answers a pending question; the assumptions document is found when the case cites
+  it and read by section.
+
 ## [0.4.136] - 2026-11-05
 
 ### Fixed
