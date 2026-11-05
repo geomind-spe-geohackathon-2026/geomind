@@ -505,6 +505,32 @@ def _amount(item):
     return f"{item.value} {item.unit}" if item.unit else f"{item.value}"
 
 
+COUNTRIES = {
+    "nl": "the Netherlands", "se": "Sweden", "no": "Norway", "dk": "Denmark", "de": "Germany",
+    "fr": "France", "uk": "the United Kingdom", "be": "Belgium", "fi": "Finland", "is": "Iceland",
+    "it": "Italy", "es": "Spain", "ch": "Switzerland", "at": "Austria", "pl": "Poland",
+}
+"""The country codes a catalogue row id names its country with (``electricity-nl-eurostat-...``)."""
+NATIONAL_SCHEMES = {"sde": "the Netherlands"}
+"""Words of a row id that name one country's scheme (SDE++ is Dutch)."""
+
+
+def row_region(row_id):
+    """Return the country a catalogue row's prices are of, or ``None`` for a general row (QA-085).
+
+    A band name after ``band`` (``band-id``, ``band-ie``) is a consumer band, not a country.
+    """
+    tokens = (row_id or "").lower().split("-")
+    for index, token in enumerate(tokens):
+        if index and tokens[index - 1] == "band":
+            continue
+        if token in NATIONAL_SCHEMES:
+            return NATIONAL_SCHEMES[token]
+        if token in COUNTRIES:
+            return COUNTRIES[token]
+    return None
+
+
 def value_line(item, note=None):
     """Return the question's line of one key: path, value, row, citation and the other rows.
 
@@ -514,6 +540,8 @@ def value_line(item, note=None):
     cited = [f"row {item.row}" if item.row else "no row"]
     cited += [str(part) for part in (item.status, item.year, item.source, item.url) if part]
     cited += [note] if note else []
+    region = row_region(item.row)
+    cited += [f"prices of {region}"] if region else []
     line = f"economics.{key} = {_amount(item)} | {' | '.join(cited)}"
     if item.others:
         others = "; ".join(
@@ -531,6 +559,13 @@ def question_text(values, open_keys, note=None, notes=None):
     lines += [note] if note else []
     lines += ["", "Values (approve all sets each, with its row):"]
     lines += [value_line(item, (notes or {}).get(short(item.key))) for item in first]
+    regions = sorted({row_region(item.row) for item in first} - {None})
+    if regions:
+        lines += [
+            "",
+            f"Rows marked 'prices of ...' are prices of {', '.join(regions)}: they fit only a site "
+            "there. Approve them as an assumption, or name the site's country to take its rows.",
+        ]
     if open_keys:
         lines += ["", "Open (no usable row; give a value with change some, or leave it open):"]
         lines += [f"economics.{key.removeprefix('economics.')}" for key in open_keys]
