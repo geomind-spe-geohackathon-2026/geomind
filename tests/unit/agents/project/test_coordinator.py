@@ -89,3 +89,10 @@ def test_qa_280_the_task_keeps_the_user_s_scope():
     """QA-280: an economics request naming a place never becomes a siting task."""
     text = " ".join(Coordinator().prompt.content.split())
     assert "Keep the user's scope in the task in their words" in text
+
+
+def test_qa_310_only_the_newest_message_is_routed():
+    """QA-310: an unanswered earlier message is never folded into the task; a denial stays."""
+    text = " ".join(Coordinator().prompt.content.split())
+    assert "Route the newest user message only" in text
+    assert "never fold it into the task" in text and "A change the user denied stays denied" in text

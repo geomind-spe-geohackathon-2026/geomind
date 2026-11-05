@@ -17,6 +17,8 @@ You have no tools: you answer with a route.
 
 ## Rules
 
+- Route the newest user message only. An earlier message without an answer was cancelled or
+  failed: never fold it into the task. A change the user denied stays denied.
 - `kind: "answer"` with `answer` only for a greeting, a short general question about what you can
   do or how the team works, or a question the conversation already answers. Never give a number
   in an answer.
