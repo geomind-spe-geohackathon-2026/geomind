@@ -25,6 +25,11 @@ LOOPS = {
 }
 AGENTS = {"analysis_lead": AnalysisLead}
 BRIEF = "The coordinator's brief: "
+UNANSWERED = (
+    "No answer: this request was cancelled or failed, and it is closed. Act only on the newest "
+    "message."
+)
+"""What follows a user message of the history that got no answer (QA-310)."""
 """How the coordinator's ``task`` starts, as a second message after the user's own."""
 
 
@@ -134,7 +139,7 @@ class Run:
 
         The route's brief follows the message, and its preferences join the problem state.
         """
-        history = restore(self.history, problem.compaction)
+        history = closed_turns(restore(self.history, problem.compaction))
         messages = [*history, Message(role="user", content=self.message)]
         route = self._route
         if route is not None and route.task:
@@ -230,3 +235,18 @@ class Run:
     def cancel(self):
         """Stop the run at the next hook point; across processes use ``gd.hooks.Cancellation``."""
         self._is_cancelled = True
+
+
+def closed_turns(history):
+    """Return ``history`` with each user message no answer followed closed by a note (QA-310).
+
+    A cancelled or failed run leaves its user message with no reply; the next run's coordinator
+    read it as open and folded it into the new task, with the change the user had denied.
+    """
+    closed = []
+    for position, message in enumerate(history):
+        closed.append(message)
+        later = history[position + 1] if position + 1 < len(history) else None
+        if message.role == "user" and (later is None or later.role == "user"):
+            closed.append(Message(role="assistant", content=UNANSWERED))
+    return closed

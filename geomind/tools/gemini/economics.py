@@ -585,7 +585,7 @@ def from_catalogue(context, values, skipped=None):
 
 
 DOCUMENT = re.compile(r"knowledge/[\w./-]+\.md")
-"""A Knowledge document a value's source names (``knowledge/hackathon-2026-assumptions.md``)."""
+"""A Knowledge document a value's source names; its uncertainty table gives the ranges."""
 RANGE_ROW = re.compile(r"^\|\s*`economics\.([\w.]+)`\s*\|\s*`(\{[^`]*\})`", re.MULTILINE)
 """A row of a document's uncertainty table: ``| `economics.<key>` | `{"kind": ...}` |``."""
 

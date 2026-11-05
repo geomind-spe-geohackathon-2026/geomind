@@ -296,3 +296,21 @@ def test_a_loop_set_by_hand_is_not_routed():
     run = gd.Run(message="hello", llm=FakeLLM([says("hi")]))
     run.loop = loop_of(Route(kind="loop", loop="tool", agent="analysis_lead"))
     assert run.start().answer == "hi"
+
+
+def test_a_request_of_the_history_with_no_answer_is_closed():
+    """QA-310: a cancelled run's message is closed, so the next run never takes it up again."""
+    from geomind.run import UNANSWERED, closed_turns
+
+    history = [
+        gd.Message(role="user", content="Size the plant."),
+        gd.Message(role="assistant", content="Sized."),
+        gd.Message(role="user", content="Make the heat pump smaller."),
+    ]
+    closed = closed_turns(history)
+    assert [item.role for item in closed] == ["user", "assistant", "user", "assistant"]
+    assert closed[-1].content == UNANSWERED
+    assert closed_turns(history[:2]) == history[:2]
+    run = gd.Run(message="What is the LCOH?", llm=FakeLLM([]), history=history)
+    messages = run._context(gd.context.ProblemState()).messages
+    assert [item.content for item in messages[-2:]] == [UNANSWERED, "What is the LCOH?"]
