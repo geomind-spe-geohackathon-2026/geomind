@@ -781,6 +781,19 @@
       "late_schemas": [],
       "name": "list_profiles"
     },
+    "list_starts": {
+      "description": "List the plant files of the Knowledge base a design starts from with start_plant.",
+      "effect": "read",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "title": "list_starts_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "list_starts"
+    },
     "list_studies": {
       "description": "List the studies stored in this chat: what ran, over which designs, and whether current.",
       "effect": "read",
@@ -1835,6 +1848,32 @@
         "design"
       ],
       "name": "size_plant"
+    },
+    "start_plant": {
+      "description": "Store a starting plant file (list_starts) as design/<name>; return its issues and next calls.",
+      "effect": "write",
+      "idempotent": true,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "start": {
+            "title": "Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "name"
+        ],
+        "title": "start_plant_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "start_plant"
     },
     "union_designs": {
       "description": "Join alternative designs into one superstructure by gemini, stored as design/<name>.",

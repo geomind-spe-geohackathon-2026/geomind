@@ -24,6 +24,7 @@ from geomind.tools.gemini.plants import (
 )
 from geomind.tools.gemini.results import read_result, search_rag
 from geomind.tools.gemini.runs import list_profiles, read_profile, simulate
+from geomind.tools.gemini.starts import list_starts, start_plant
 from geomind.tools.gemini.studies import list_studies, read_study
 from geomind.tools.gemini.study import (
     compare,
@@ -50,6 +51,7 @@ __all__ = [
     "evolve_structure",
     "list_modules",
     "list_plants",
+    "list_starts",
     "list_profiles",
     "list_studies",
     "merge_designs",
@@ -69,5 +71,6 @@ __all__ = [
     "set_ranges",
     "simulate",
     "size_plant",
+    "start_plant",
     "union_designs",
 ]

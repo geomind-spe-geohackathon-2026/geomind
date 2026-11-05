@@ -6,6 +6,10 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### Added
+- list_starts and start_plant: a plant file the Knowledge base holds (such as a superstructure)
+  is stored as a design without typing it; its next calls are size_plant then one evolve_structure.
+
 ### Fixed
 - QA-294: list_studies and project_result see the project's results of other chats (the optional
   project_designs "results" list).

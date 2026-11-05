@@ -1,0 +1,1164 @@
+{
+  "format": 1,
+  "kind": "plant",
+  "name": "HackathonSuperstructure",
+  "about": "The candidate plants of hackathon_2026 as one superstructure: the plant of HeatingCoolingPlant on 2 doublets, with the heat pump optional, the peak boiler with its gas makeup and gas grid a choice on or off (off, the co-produced gas goes to the flare), cooling a choice on or off (off, the cooling consumer and the drive splitter and mixer go: a heating-only plant), and each cooling unit (absorption, adsorption, compression, each with its dry cooler) a choice on or off, in series on the drive water and the chilled water. The cooling consumer sits directly on the chillers, so cooling on with every unit off leaves it unconnected: that structure is refused.",
+  "modules": {
+    "d0": {
+      "type": "Doublet"
+    },
+    "d1": {
+      "type": "Doublet"
+    },
+    "production_mixers": {
+      "type": "ModuleList",
+      "modules": {
+        "0": {
+          "type": "Mixer"
+        }
+      }
+    },
+    "injection_splitters": {
+      "type": "ModuleList",
+      "modules": {
+        "0": {
+          "type": "Splitter"
+        }
+      }
+    },
+    "degasser": {
+      "type": "Degasser"
+    },
+    "filters": {
+      "type": "ModuleDict",
+      "modules": {
+        "hot": {
+          "type": "Filter"
+        },
+        "cold": {
+          "type": "Filter"
+        }
+      }
+    },
+    "heat_exchanger": {
+      "type": "HeatExchanger"
+    },
+    "heat_pump": {
+      "type": "HeatPump"
+    },
+    "injection_pump": {
+      "type": "InjectionPump"
+    },
+    "heating_return_pipe": {
+      "type": "Pipe"
+    },
+    "peak_boiler": {
+      "type": "Boiler"
+    },
+    "absorption_chiller": {
+      "type": "AbsorptionUnit"
+    },
+    "adsorption_chiller": {
+      "type": "AdsorptionChiller"
+    },
+    "drive_splitter": {
+      "type": "Splitter"
+    },
+    "drive_mixer": {
+      "type": "Mixer"
+    },
+    "heating_supply_pipe": {
+      "type": "Pipe"
+    },
+    "heating_consumer": {
+      "type": "HeatingGrid"
+    },
+    "compression_chiller": {
+      "type": "HeatPump"
+    },
+    "cooling_consumer": {
+      "type": "CoolingGrid"
+    },
+    "gas_grid": {
+      "type": "GasGrid"
+    },
+    "electricity_grid": {
+      "type": "ElectricityGrid"
+    },
+    "gas_makeup": {
+      "type": "GasMakeup"
+    },
+    "flare": {
+      "type": "Flare"
+    },
+    "atmosphere": {
+      "type": "Atmosphere"
+    },
+    "absorption_cooler": {
+      "type": "Cooler"
+    },
+    "adsorption_cooler": {
+      "type": "Cooler"
+    },
+    "compression_cooler": {
+      "type": "Cooler"
+    }
+  },
+  "connections": [
+    {
+      "source": "degasser.gas_out",
+      "target": "gas_makeup.gas_in"
+    },
+    {
+      "source": "gas_grid.gas_out",
+      "target": "gas_makeup.grid_in"
+    },
+    {
+      "source": "gas_makeup.fuel_out",
+      "target": "peak_boiler.fuel_in"
+    },
+    {
+      "source": "gas_makeup.excess_out",
+      "target": "flare.gas_in"
+    },
+    {
+      "source": "d0.supply_out",
+      "target": "production_mixers.0.branch1_in"
+    },
+    {
+      "source": "d1.supply_out",
+      "target": "production_mixers.0.branch2_in"
+    },
+    {
+      "source": "production_mixers.0.fluid_out",
+      "target": "degasser.fluid_in"
+    },
+    {
+      "source": "degasser.liquid_out",
+      "target": "filters.hot.fluid_in"
+    },
+    {
+      "source": "filters.hot.fluid_out",
+      "target": "heat_exchanger.hot_in"
+    },
+    {
+      "source": "heat_exchanger.hot_out",
+      "target": "heat_pump.source_in"
+    },
+    {
+      "source": "heat_pump.source_out",
+      "target": "filters.cold.fluid_in"
+    },
+    {
+      "source": "filters.cold.fluid_out",
+      "target": "injection_pump.fluid_in"
+    },
+    {
+      "source": "injection_pump.fluid_out",
+      "target": "injection_splitters.0.fluid_in"
+    },
+    {
+      "source": "injection_splitters.0.branch1_out",
+      "target": "d0.return_in"
+    },
+    {
+      "source": "injection_splitters.0.branch2_out",
+      "target": "d1.return_in"
+    },
+    {
+      "source": "heating_return_pipe.fluid_out",
+      "target": "drive_mixer.branch1_in"
+    },
+    {
+      "source": "drive_mixer.fluid_out",
+      "target": "heat_exchanger.cold_in"
+    },
+    {
+      "source": "heat_exchanger.cold_out",
+      "target": "heat_pump.sink_in"
+    },
+    {
+      "source": "heat_pump.sink_out",
+      "target": "peak_boiler.fluid_in"
+    },
+    {
+      "source": "peak_boiler.fluid_out",
+      "target": "drive_splitter.fluid_in"
+    },
+    {
+      "source": "drive_splitter.branch2_out",
+      "target": "absorption_chiller.generator_in"
+    },
+    {
+      "source": "absorption_chiller.generator_out",
+      "target": "adsorption_chiller.generator_in"
+    },
+    {
+      "source": "adsorption_chiller.generator_out",
+      "target": "drive_mixer.branch2_in"
+    },
+    {
+      "source": "drive_splitter.branch1_out",
+      "target": "heating_supply_pipe.fluid_in"
+    },
+    {
+      "source": "heating_supply_pipe.fluid_out",
+      "target": "heating_consumer.supply_in"
+    },
+    {
+      "source": "cooling_consumer.return_out",
+      "target": "absorption_chiller.chilled_in"
+    },
+    {
+      "source": "absorption_chiller.chilled_out",
+      "target": "adsorption_chiller.chilled_in"
+    },
+    {
+      "source": "adsorption_chiller.chilled_out",
+      "target": "compression_chiller.source_in"
+    },
+    {
+      "source": "compression_chiller.source_out",
+      "target": "cooling_consumer.supply_in"
+    },
+    {
+      "source": "electricity_grid.power_out",
+      "target": "d0.power_in"
+    },
+    {
+      "source": "electricity_grid.power_out",
+      "target": "d1.power_in"
+    },
+    {
+      "source": "electricity_grid.power_out",
+      "target": "heat_pump.power_in"
+    },
+    {
+      "source": "electricity_grid.power_out",
+      "target": "injection_pump.power_in"
+    },
+    {
+      "source": "electricity_grid.power_out",
+      "target": "absorption_chiller.power_in"
+    },
+    {
+      "source": "electricity_grid.power_out",
+      "target": "adsorption_chiller.power_in"
+    },
+    {
+      "source": "electricity_grid.power_out",
+      "target": "compression_chiller.power_in"
+    },
+    {
+      "source": "heating_consumer.return_out",
+      "target": "heating_return_pipe.fluid_in"
+    },
+    {
+      "source": "atmosphere.air_out",
+      "target": "heating_return_pipe.air_in"
+    },
+    {
+      "source": "atmosphere.air_out",
+      "target": "heating_supply_pipe.air_in"
+    },
+    {
+      "source": "peak_boiler.flue_out",
+      "target": "atmosphere.gas_in"
+    },
+    {
+      "source": "flare.flue_out",
+      "target": "atmosphere.gas_in"
+    },
+    {
+      "source": "flare.loss_out",
+      "target": "atmosphere.heat_in"
+    },
+    {
+      "source": "absorption_chiller.cooling_out",
+      "target": "absorption_cooler.fluid_in"
+    },
+    {
+      "source": "absorption_cooler.fluid_out",
+      "target": "absorption_chiller.cooling_in"
+    },
+    {
+      "source": "atmosphere.air_out",
+      "target": "absorption_cooler.air_in"
+    },
+    {
+      "source": "absorption_cooler.air_out",
+      "target": "atmosphere.air_in"
+    },
+    {
+      "source": "electricity_grid.power_out",
+      "target": "absorption_cooler.power_in"
+    },
+    {
+      "source": "adsorption_chiller.cooling_out",
+      "target": "adsorption_cooler.fluid_in"
+    },
+    {
+      "source": "adsorption_cooler.fluid_out",
+      "target": "adsorption_chiller.cooling_in"
+    },
+    {
+      "source": "atmosphere.air_out",
+      "target": "adsorption_cooler.air_in"
+    },
+    {
+      "source": "adsorption_cooler.air_out",
+      "target": "atmosphere.air_in"
+    },
+    {
+      "source": "electricity_grid.power_out",
+      "target": "adsorption_cooler.power_in"
+    },
+    {
+      "source": "compression_chiller.sink_out",
+      "target": "compression_cooler.fluid_in"
+    },
+    {
+      "source": "compression_cooler.fluid_out",
+      "target": "compression_chiller.sink_in"
+    },
+    {
+      "source": "atmosphere.air_out",
+      "target": "compression_cooler.air_in"
+    },
+    {
+      "source": "compression_cooler.air_out",
+      "target": "atmosphere.air_in"
+    },
+    {
+      "source": "electricity_grid.power_out",
+      "target": "compression_cooler.power_in"
+    },
+    {
+      "source": "heating_return_pipe.loss_out",
+      "target": "atmosphere.heat_in"
+    },
+    {
+      "source": "heating_supply_pipe.loss_out",
+      "target": "atmosphere.heat_in"
+    },
+    {
+      "source": "peak_boiler.loss_out",
+      "target": "atmosphere.heat_in"
+    }
+  ],
+  "params": {
+    "heat_pump": {
+      "capacity": {
+        "value": 15000000.0,
+        "unit": "W",
+        "range": {
+          "min": 3000000.0,
+          "max": 30000000.0
+        }
+      },
+      "mode": {
+        "value": "heating"
+      },
+      "cop_model": {
+        "value": "carnot"
+      },
+      "carnot_fraction": {
+        "value": 0.5
+      },
+      "lorenz_fraction": {
+        "value": 0.5
+      },
+      "minimum_temperature_lift": {
+        "value": 10.0,
+        "unit": "K"
+      },
+      "minimum_source_outlet_temperature": {
+        "value": 320.15,
+        "unit": "K"
+      },
+      "supply_margin": {
+        "value": 0.0,
+        "unit": "K"
+      }
+    },
+    "absorption_chiller": {
+      "capacity": {
+        "value": 7000000.0,
+        "unit": "W",
+        "range": {
+          "min": 1000000.0,
+          "max": 10000000.0
+        }
+      },
+      "mode": {
+        "value": "chiller"
+      },
+      "characteristic_slope": {
+        "value": 700000.0,
+        "unit": "W/K"
+      },
+      "minimum_driving_difference": {
+        "value": 10.0,
+        "unit": "K"
+      },
+      "rejection_coefficient": {
+        "value": 2.2
+      },
+      "evaporator_coefficient": {
+        "value": 1.2
+      },
+      "thermal_cop": {
+        "value": 0.7
+      },
+      "auxiliary_power_ratio": {
+        "value": 0.01
+      },
+      "minimum_driving_temperature": {
+        "value": 353.15,
+        "unit": "K"
+      },
+      "supply_margin": {
+        "value": 0.0,
+        "unit": "K"
+      }
+    },
+    "adsorption_chiller": {
+      "capacity": {
+        "value": 1000000.0,
+        "unit": "W",
+        "range": {
+          "min": 1000000.0,
+          "max": 10000000.0
+        }
+      },
+      "characteristic_slope": {
+        "value": 70000.0,
+        "unit": "W/K"
+      },
+      "minimum_driving_difference": {
+        "value": 5.0,
+        "unit": "K"
+      },
+      "rejection_coefficient": {
+        "value": 2.0
+      },
+      "evaporator_coefficient": {
+        "value": 1.0
+      },
+      "thermal_cop": {
+        "value": 0.55
+      },
+      "auxiliary_power_ratio": {
+        "value": 0.02
+      },
+      "minimum_driving_temperature": {
+        "value": 328.15,
+        "unit": "K"
+      },
+      "maximum_driving_temperature": {
+        "value": 363.15,
+        "unit": "K"
+      },
+      "supply_margin": {
+        "value": 0.0,
+        "unit": "K"
+      }
+    },
+    "compression_chiller": {
+      "capacity": {
+        "value": 5000000.0,
+        "unit": "W",
+        "range": {
+          "min": 1000000.0,
+          "max": 10000000.0
+        }
+      },
+      "mode": {
+        "value": "cooling"
+      },
+      "cop_model": {
+        "value": "carnot"
+      },
+      "carnot_fraction": {
+        "value": 0.5
+      },
+      "lorenz_fraction": {
+        "value": 0.5
+      },
+      "minimum_temperature_lift": {
+        "value": 10.0,
+        "unit": "K"
+      },
+      "supply_margin": {
+        "value": 0.0,
+        "unit": "K"
+      }
+    },
+    "d0": {
+      "nominal_flow": {
+        "value": 0.08333333333333333,
+        "unit": "m3/s",
+        "range": {
+          "min": 0.013888888888888888,
+          "max": 0.08333333333333333
+        }
+      },
+      "depth": {
+        "value": 2500,
+        "unit": "m",
+        "range": {
+          "min": 2000.0,
+          "max": 3500.0
+        }
+      },
+      "well_diameter": {
+        "value": 0.244,
+        "unit": "m"
+      },
+      "drainage_radius": {
+        "value": 1000.0,
+        "unit": "m"
+      },
+      "roughness": {
+        "value": 4.5e-05,
+        "unit": "m"
+      },
+      "pump_efficiency": {
+        "value": 0.7
+      },
+      "nominal_wellhead_pressure": {
+        "value": 1000000.0,
+        "unit": "Pa"
+      },
+      "reservoir": {
+        "skin": {
+          "value": 0.0
+        },
+        "decline_threshold": {
+          "value": 0.15
+        }
+      },
+      "well": {
+        "friction_correlation": {
+          "value": "darcy_weisbach"
+        },
+        "two_phase_friction_correlation": {
+          "value": "BeggsBrill"
+        },
+        "correction_factors": {
+          "value": [
+            1.0,
+            0.0
+          ]
+        },
+        "heat_transfer_coefficient": {
+          "value": 10.0,
+          "unit": "W/m2/K"
+        }
+      },
+      "esp": {
+        "pump_type": {
+          "value": "unspecified"
+        },
+        "motor_efficiency": {
+          "value": 1.0
+        },
+        "minimum_flow": {
+          "value": 0.0,
+          "unit": "m3/s"
+        },
+        "maximum_flow": {
+          "value": 1.0,
+          "unit": "m3/s"
+        },
+        "best_efficiency_flow": {
+          "value": 0.04,
+          "unit": "m3/s"
+        },
+        "correction_factors": {
+          "value": [
+            1.0,
+            0.0
+          ]
+        },
+        "minimum_intake_pressure": {
+          "value": 500000.0,
+          "unit": "Pa"
+        },
+        "maximum_gas_fraction": {
+          "value": 0.1875
+        },
+        "drift_threshold": {
+          "value": 0.1
+        }
+      },
+      "riser": {
+        "friction_correlation": {
+          "value": "darcy_weisbach"
+        },
+        "two_phase_friction_correlation": {
+          "value": "BeggsBrill"
+        },
+        "correction_factors": {
+          "value": [
+            1.0,
+            0.0
+          ]
+        },
+        "heat_transfer_coefficient": {
+          "value": 10.0,
+          "unit": "W/m2/K"
+        }
+      },
+      "injector": {
+        "friction_correlation": {
+          "value": "darcy_weisbach"
+        },
+        "two_phase_friction_correlation": {
+          "value": "BeggsBrill"
+        },
+        "correction_factors": {
+          "value": [
+            1.0,
+            0.0
+          ]
+        },
+        "heat_transfer_coefficient": {
+          "value": 10.0,
+          "unit": "W/m2/K"
+        }
+      },
+      "sink": {
+        "skin": {
+          "value": 0.0
+        },
+        "decline_threshold": {
+          "value": 0.15
+        }
+      }
+    },
+    "d1": {
+      "nominal_flow": {
+        "value": 0.08333333333333333,
+        "unit": "m3/s",
+        "range": {
+          "min": 0.013888888888888888,
+          "max": 0.08333333333333333
+        }
+      },
+      "depth": {
+        "value": 2500,
+        "unit": "m",
+        "range": {
+          "min": 2000.0,
+          "max": 3500.0
+        }
+      },
+      "well_diameter": {
+        "value": 0.244,
+        "unit": "m"
+      },
+      "drainage_radius": {
+        "value": 1000.0,
+        "unit": "m"
+      },
+      "roughness": {
+        "value": 4.5e-05,
+        "unit": "m"
+      },
+      "pump_efficiency": {
+        "value": 0.7
+      },
+      "nominal_wellhead_pressure": {
+        "value": 1000000.0,
+        "unit": "Pa"
+      },
+      "reservoir": {
+        "skin": {
+          "value": 0.0
+        },
+        "decline_threshold": {
+          "value": 0.15
+        }
+      },
+      "well": {
+        "friction_correlation": {
+          "value": "darcy_weisbach"
+        },
+        "two_phase_friction_correlation": {
+          "value": "BeggsBrill"
+        },
+        "correction_factors": {
+          "value": [
+            1.0,
+            0.0
+          ]
+        },
+        "heat_transfer_coefficient": {
+          "value": 10.0,
+          "unit": "W/m2/K"
+        }
+      },
+      "esp": {
+        "pump_type": {
+          "value": "unspecified"
+        },
+        "motor_efficiency": {
+          "value": 1.0
+        },
+        "minimum_flow": {
+          "value": 0.0,
+          "unit": "m3/s"
+        },
+        "maximum_flow": {
+          "value": 1.0,
+          "unit": "m3/s"
+        },
+        "best_efficiency_flow": {
+          "value": 0.04,
+          "unit": "m3/s"
+        },
+        "correction_factors": {
+          "value": [
+            1.0,
+            0.0
+          ]
+        },
+        "minimum_intake_pressure": {
+          "value": 500000.0,
+          "unit": "Pa"
+        },
+        "maximum_gas_fraction": {
+          "value": 0.1875
+        },
+        "drift_threshold": {
+          "value": 0.1
+        }
+      },
+      "riser": {
+        "friction_correlation": {
+          "value": "darcy_weisbach"
+        },
+        "two_phase_friction_correlation": {
+          "value": "BeggsBrill"
+        },
+        "correction_factors": {
+          "value": [
+            1.0,
+            0.0
+          ]
+        },
+        "heat_transfer_coefficient": {
+          "value": 10.0,
+          "unit": "W/m2/K"
+        }
+      },
+      "injector": {
+        "friction_correlation": {
+          "value": "darcy_weisbach"
+        },
+        "two_phase_friction_correlation": {
+          "value": "BeggsBrill"
+        },
+        "correction_factors": {
+          "value": [
+            1.0,
+            0.0
+          ]
+        },
+        "heat_transfer_coefficient": {
+          "value": 10.0,
+          "unit": "W/m2/K"
+        }
+      },
+      "sink": {
+        "skin": {
+          "value": 0.0
+        },
+        "decline_threshold": {
+          "value": 0.15
+        }
+      }
+    },
+    "control": {
+      "dispatch": {
+        "value": "least_cost"
+      },
+      "outages": {
+        "value": "lowest_demand"
+      }
+    },
+    "backup": {
+      "value": "peak"
+    },
+    "degasser": {
+      "nominal_pressure_drop": {
+        "value": 14900.0,
+        "unit": "Pa"
+      },
+      "separation_efficiency": {
+        "value": 1.0
+      }
+    },
+    "filters": {
+      "hot": {
+        "nominal_pressure_drop": {
+          "value": 1600.0,
+          "unit": "Pa"
+        },
+        "nominal_mass_flow": {
+          "value": 44.20333333333333,
+          "unit": "kg/s"
+        },
+        "clogging_pressure_drop": {
+          "value": 50000.0,
+          "unit": "Pa"
+        }
+      },
+      "cold": {
+        "nominal_pressure_drop": {
+          "value": 1600.0,
+          "unit": "Pa"
+        },
+        "nominal_mass_flow": {
+          "value": 44.20333333333333,
+          "unit": "kg/s"
+        },
+        "clogging_pressure_drop": {
+          "value": 50000.0,
+          "unit": "Pa"
+        }
+      }
+    },
+    "heat_exchanger": {
+      "thermal_conductance": {
+        "value": 1500000.0,
+        "unit": "W/K"
+      },
+      "arrangement": {
+        "value": "counterflow"
+      },
+      "hot_nominal_pressure_drop": {
+        "value": 0.0,
+        "unit": "Pa"
+      },
+      "cold_nominal_pressure_drop": {
+        "value": 0.0,
+        "unit": "Pa"
+      },
+      "hot_nominal_mass_flow": {
+        "value": 171.7,
+        "unit": "kg/s"
+      },
+      "cold_nominal_mass_flow": {
+        "value": 178.0,
+        "unit": "kg/s"
+      },
+      "fouling_threshold": {
+        "value": 0.15
+      }
+    },
+    "injection_pump": {
+      "pump_type": {
+        "value": "unspecified"
+      },
+      "efficiency": {
+        "value": 0.7
+      },
+      "nominal_flow": {
+        "value": 0.16666666666666666,
+        "unit": "m3/s"
+      },
+      "nominal_head": {
+        "value": 1574000.0,
+        "unit": "Pa"
+      },
+      "pressure_setpoint": {
+        "value": 30,
+        "unit": "bar"
+      },
+      "frequency": {
+        "value": 60,
+        "unit": "Hz"
+      }
+    },
+    "heating_return_pipe": {
+      "length": {
+        "value": 100.0,
+        "unit": "m"
+      },
+      "inner_diameter": {
+        "value": 0.5,
+        "unit": "m"
+      },
+      "roughness": {
+        "value": 4.5e-05,
+        "unit": "m"
+      },
+      "elevation_change": {
+        "value": 0.0,
+        "unit": "m"
+      },
+      "heat_transfer_coefficient": {
+        "value": 0.0,
+        "unit": "W/m2/K"
+      }
+    },
+    "peak_boiler": {
+      "capacity": {
+        "value": 30000000.0,
+        "unit": "W"
+      },
+      "efficiency": {
+        "value": 0.9
+      },
+      "supply_margin": {
+        "value": 0.0,
+        "unit": "K"
+      }
+    },
+    "heating_supply_pipe": {
+      "length": {
+        "value": 100.0,
+        "unit": "m"
+      },
+      "inner_diameter": {
+        "value": 0.5,
+        "unit": "m"
+      },
+      "roughness": {
+        "value": 4.5e-05,
+        "unit": "m"
+      },
+      "elevation_change": {
+        "value": 0.0,
+        "unit": "m"
+      },
+      "heat_transfer_coefficient": {
+        "value": 0.0,
+        "unit": "W/m2/K"
+      }
+    },
+    "flare": {
+      "combustion_efficiency": {
+        "value": 0.98
+      }
+    },
+    "absorption_cooler": {
+      "cooler_type": {
+        "value": "dry"
+      },
+      "capacity": {
+        "value": 40000000.0,
+        "unit": "W"
+      },
+      "approach": {
+        "value": 5.0,
+        "unit": "K"
+      },
+      "specific_fan_power": {
+        "value": 0.02
+      },
+      "loop_pressure": {
+        "value": 300000.0,
+        "unit": "Pa"
+      },
+      "temperature_setpoint": {
+        "value": 15,
+        "unit": "degC"
+      },
+      "flow": {
+        "value": 800,
+        "unit": "kg/s"
+      }
+    },
+    "adsorption_cooler": {
+      "cooler_type": {
+        "value": "dry"
+      },
+      "capacity": {
+        "value": 10000000.0,
+        "unit": "W"
+      },
+      "approach": {
+        "value": 5.0,
+        "unit": "K"
+      },
+      "specific_fan_power": {
+        "value": 0.02
+      },
+      "loop_pressure": {
+        "value": 300000.0,
+        "unit": "Pa"
+      },
+      "temperature_setpoint": {
+        "value": 15,
+        "unit": "degC"
+      },
+      "flow": {
+        "value": 200,
+        "unit": "kg/s"
+      }
+    },
+    "compression_cooler": {
+      "cooler_type": {
+        "value": "dry"
+      },
+      "capacity": {
+        "value": 20000000.0,
+        "unit": "W"
+      },
+      "approach": {
+        "value": 5.0,
+        "unit": "K"
+      },
+      "specific_fan_power": {
+        "value": 0.02
+      },
+      "loop_pressure": {
+        "value": 300000.0,
+        "unit": "Pa"
+      },
+      "temperature_setpoint": {
+        "value": 25,
+        "unit": "degC"
+      },
+      "flow": {
+        "value": 400,
+        "unit": "kg/s"
+      }
+    },
+    "drive_splitter": {
+      "split_fraction": {
+        "value": 0.0
+      }
+    }
+  },
+  "fluids": {
+    "heating_consumer": {
+      "kind": "water",
+      "salinity": 0.0,
+      "co2_mass_fraction": 0.0,
+      "gas_mass_fraction": 0.0,
+      "gas_liquid_ratio": null,
+      "gas_composition": null,
+      "grid_composition": null,
+      "glycol_fraction": 0.0,
+      "property_model": "constant_stp",
+      "density": null,
+      "viscosity": null,
+      "specific_heat": null,
+      "thermal_conductivity": null
+    },
+    "cooling_consumer": {
+      "kind": "water",
+      "salinity": 0.0,
+      "co2_mass_fraction": 0.0,
+      "gas_mass_fraction": 0.0,
+      "gas_liquid_ratio": null,
+      "gas_composition": null,
+      "grid_composition": null,
+      "glycol_fraction": 0.0,
+      "property_model": "constant_stp",
+      "density": null,
+      "viscosity": null,
+      "specific_heat": null,
+      "thermal_conductivity": null
+    },
+    "absorption_cooler": {
+      "kind": "water",
+      "salinity": 0.0,
+      "co2_mass_fraction": 0.0,
+      "gas_mass_fraction": 0.0,
+      "gas_liquid_ratio": null,
+      "gas_composition": null,
+      "grid_composition": null,
+      "glycol_fraction": 0.0,
+      "property_model": "constant_stp",
+      "density": null,
+      "viscosity": null,
+      "specific_heat": null,
+      "thermal_conductivity": null
+    },
+    "adsorption_cooler": {
+      "kind": "water",
+      "salinity": 0.0,
+      "co2_mass_fraction": 0.0,
+      "gas_mass_fraction": 0.0,
+      "gas_liquid_ratio": null,
+      "gas_composition": null,
+      "grid_composition": null,
+      "glycol_fraction": 0.0,
+      "property_model": "constant_stp",
+      "density": null,
+      "viscosity": null,
+      "specific_heat": null,
+      "thermal_conductivity": null
+    },
+    "compression_cooler": {
+      "kind": "water",
+      "salinity": 0.0,
+      "co2_mass_fraction": 0.0,
+      "gas_mass_fraction": 0.0,
+      "gas_liquid_ratio": null,
+      "gas_composition": null,
+      "grid_composition": null,
+      "glycol_fraction": 0.0,
+      "property_model": "constant_stp",
+      "density": null,
+      "viscosity": null,
+      "specific_heat": null,
+      "thermal_conductivity": null
+    }
+  },
+  "optional": [
+    "heat_pump"
+  ],
+  "choices": {
+    "boiler": {
+      "on": [
+        "peak_boiler",
+        "gas_makeup",
+        "gas_grid"
+      ],
+      "off": []
+    },
+    "cooling": {
+      "on": [
+        "cooling_consumer",
+        "drive_splitter",
+        "drive_mixer"
+      ],
+      "off": []
+    },
+    "absorption": {
+      "on": [
+        "absorption_chiller",
+        "absorption_cooler"
+      ],
+      "off": []
+    },
+    "adsorption": {
+      "on": [
+        "adsorption_chiller",
+        "adsorption_cooler"
+      ],
+      "off": []
+    },
+    "compression": {
+      "on": [
+        "compression_chiller",
+        "compression_cooler"
+      ],
+      "off": []
+    }
+  },
+  "bypass": {
+    "drive_splitter": {
+      "fluid_in": "branch1_out"
+    },
+    "drive_mixer": {
+      "branch1_in": "fluid_out"
+    }
+  }
+}
