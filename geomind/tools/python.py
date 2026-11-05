@@ -19,7 +19,7 @@ from uuid import uuid4
 from geomind.context.skills import skill_hint
 from geomind.errors import SandboxError, ToolError
 from geomind.tools.base import tool
-from geomind.tools.calculate import DIMENSIONLESS, SOURCED_KINDS, _operand
+from geomind.tools.calculate import DIMENSIONLESS, SOURCED_KINDS, _operand, new_id
 
 LITERAL_LIMIT = 10
 """The largest integer the code may hold as a literal (indices, counts, small exponents)."""
@@ -89,7 +89,7 @@ def _cut(text, limit=OUTPUT_CHARACTERS):
     return text if len(text) <= limit else f"{text[:limit]}\n... ({len(text) - limit} more)"
 
 
-def _results(found, code_id, inputs, code, numbers):
+def _results(found, code_id, inputs, code):
     """Return the calculations of ``result.json``: ``{name: number or {value, unit, label}}``."""
     import gemini as gm
 
@@ -106,10 +106,9 @@ def _results(found, code_id, inputs, code, numbers):
             raise _error(f"{RESULT_FILE}: {name} = {value}, not a finite number", RESULT_FILE)
         if unit not in DIMENSIONLESS and gm.units.si_unit(unit) is None:
             raise _error(f"{RESULT_FILE}: {name} has unit {unit!r}, which gemini does not know")
-        numbers += 1
         calculations.append(
             {
-                "id": f"C{numbers}",
+                "id": new_id(),
                 "label": str(entry.get("label") or name),
                 "operation": "python",
                 "expression": f"run_python {code_id}: {name}",
@@ -199,9 +198,7 @@ async def run_python(
     except SandboxError as error:
         raise _error(str(error), code="unavailable") from error
     status = "ok" if result.exit_code == 0 else "timed_out" if result.exit_code == 124 else "failed"
-    ids = [item.id for item in context.problem.calculations]
-    numbers = max((int(item[1:]) for item in ids if item[1:].isdigit()), default=0)
-    calculations = _results(found, code_id, resolved, code, numbers) if status == "ok" and found is not None else []
+    calculations = _results(found, code_id, resolved, code) if status == "ok" and found is not None else []
     version = None
     if calculations:
         changes = [{"op": "add", "path": "/calculations/-", "value": item} for item in calculations]

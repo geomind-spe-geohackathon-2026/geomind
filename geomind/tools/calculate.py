@@ -15,6 +15,7 @@ with gemini's own scale of ``yr``.
 
 import math
 import re
+from uuid import uuid4
 from typing import Any, Literal
 
 from geomind.context.skills import skill_hint
@@ -314,6 +315,15 @@ def _name(operand):
     return f"{kind}:{reference[kind]}{suffix} [{operand['value']:g} {operand['unit']}]"
 
 
+def new_id():
+    """Return a new calculation id, ``C`` and six hex digits: unique without reading the state.
+
+    NOTE: calculations made at once (one step, or nested runs with their own copy of the state)
+    numbered C1, C2 ... from the state they saw, and two took the same id (QA-078).
+    """
+    return f"C{uuid4().hex[:6]}"
+
+
 def expression_of(operation, operands, exponent):
     """Return the expression as text, each operand named by its reference and value."""
     names = [_name(operand) for operand in operands]
@@ -452,10 +462,8 @@ async def calculate(
     result = _in_unit(value, found, unit, difference=operation == "subtract")
     if not math.isfinite(result):
         raise _error(f"the result is {result}, not a finite number", "operands")
-    ids = [item.id for item in context.problem.calculations]
-    number = 1 + max((int(item[1:]) for item in ids if item[1:].isdigit()), default=0)
     calculation = {
-        "id": f"C{number}",
+        "id": new_id(),
         "label": label.strip(),
         "operation": operation,
         "expression": expression_of(operation, resolved, exponent),

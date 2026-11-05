@@ -206,6 +206,26 @@ class ProblemState(Record):
     preferences: dict[str, Any] = {}
     compaction: Compaction | None = None
 
+    @field_validator("calculations", "findings", mode="before")
+    @classmethod
+    def _first_of_each_id(cls, items):
+        """Keep the first item of each id of a list the engine writes (QA-078).
+
+        Two calculations made at once (in one step, or in two nested runs that each hold a copy of
+        the state) could both take the id ``C1``; the state then never loaded again. The ids are
+        random now; a stored state with a repeated id keeps the first item.
+        """
+        if not isinstance(items, (list, tuple)):
+            return items
+        seen, kept = set(), []
+        for item in items:
+            key = item.get("id") if isinstance(item, dict) else getattr(item, "id", None)
+            if key in seen:
+                continue
+            seen.add(key)
+            kept.append(item)
+        return kept
+
     @field_validator("design", mode="before")
     @classmethod
     def _typed_design(cls, design, info):
