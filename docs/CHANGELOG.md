@@ -6,6 +6,10 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### Fixed
+- QA-278 follow-up: the design lead starts from the project's stored plants (design/<name> or
+  design/v<N>) and never builds or retypes them.
+
 ## [0.4.128] - 2026-11-05
 
 ### Fixed

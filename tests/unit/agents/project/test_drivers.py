@@ -21,8 +21,14 @@ def test_a_requirement_failing_three_rounds_in_a_row_stops_the_loop():
 
     assert stuck_requirements([["a", "b"], ["b"], ["b", "c"]]) == ["b"]
     assert stuck_requirements([["a"], ["b"]]) == []
-    note = {"stop": "requirement_budget", "round": 3, "design": "design/x", "result": "result/y",
-            "failures": ["b"], "stuck": ["b"]}
+    note = {
+        "stop": "requirement_budget",
+        "round": 3,
+        "design": "design/x",
+        "result": "result/y",
+        "failures": ["b"],
+        "stuck": ["b"],
+    }
     assert "b failed in each of the last 3 rounds" in stop_answer(note)
 
 
@@ -37,3 +43,15 @@ def test_a_passed_design_is_optimised_once():
     assert optimised(context) is False
     said = SimpleNamespace(role="assistant", content=MARK + '{"optimising": true}')
     assert optimised(SimpleNamespace(messages=[said])) is True
+
+
+def test_the_project_s_plants_are_used_by_reference_never_retyped(monkeypatch):
+    """A stored plant is used by its reference; build_plant only for a new one."""
+    from geomind.agents.project import drivers
+
+    monkeypatch.setattr(drivers, "project_plant_names", lambda context: ["HackathonPlant"])
+    text = drivers.project_plants_text(None)
+    assert "design/<name>" in text and "never build or retype it" in text
+    assert "store it with build_plant" not in text
+    monkeypatch.setattr(drivers, "project_plant_names", lambda context: [])
+    assert drivers.project_plants_text(None) == ""

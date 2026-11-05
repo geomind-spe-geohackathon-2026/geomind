@@ -466,7 +466,7 @@ def test_the_first_task_names_the_project_s_plants():
     """The design lead needs no discovery step: the task lists the plant files, sorted."""
     task = DesignDriver().first_task(plant_context({"Zeta": {}, "Alpha": {}}))
     assert "The project's plants: Alpha, Zeta." in task
-    assert "project_plant" in task and task.startswith("Size the plant")
+    assert "design/<name>" in task and task.startswith("Size the plant")
 
 
 def test_the_first_task_says_nothing_of_plants_when_the_project_has_none():

@@ -274,14 +274,19 @@ def request_of(context):
 
 
 def project_plants_text(context):
-    """Return the sentence naming the project's plant files, or ``""`` when it has none."""
+    """Return the sentence naming the project's plant files, or ``""`` when it has none.
+
+    A stored plant is a design by its reference: the design lead patches, sizes and studies it
+    as it is; retyping it with ``build_plant`` cost a card and a long call each run.
+    """
     names = project_plant_names(context)
     if not names:
         return ""
     return (
-        f"\n\nThe project's plants: {', '.join(names)}. Start from one that fits: read_plant "
-        "with project_plant, store it with build_plant, and build a new plant only when none "
-        "fits, saying why in an assumption."
+        f"\n\nThe project's plants: {', '.join(names)}. Start from one that fits by its "
+        "reference design/<name> (or a plant version design/v<N>): patch, size and study it "
+        "directly, never build or retype it; build a new plant only when none fits, saying why "
+        "in an assumption."
     )
 
 
