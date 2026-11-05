@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.84] - 2026-11-05
+
+### Added
+
+- `read_rag(name, outline=true)` gives a document's heading tree (`level`, `number`, `title`, `start`, `size`); `read_rag(name, section="3.2")` (or a title) gives that section with its subsections, paged inside it. `search_rag`'s knowledge hits carry `section`, their heading path. Usage in the skill `finding-sources`.
+
 ## [0.4.83] - 2026-11-05
 
 ### Fixed
