@@ -25,6 +25,8 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
   With the memory on, it also keeps the run's lessons at the end.
 <!-- /memory -->
 - `comparison`: designs two or more families side by side, verifies each and compares them.
+- `list_plants`, `list_studies`: the project's saved plant versions (`project_versions`) and
+  studies with their results (`project_study`), from earlier chats too.
 - `read_case`: the case as it stands.
 - `set_case`: load the project's case file (`source: "project"`) or restore the user's case.
 - `case_changes`: what changed in the case since the user gave it.
@@ -35,6 +37,11 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
 
 ## Rules
 
+- First, for any request about a design, a result or a report, call `list_plants` and
+  `list_studies` in one step: the problem state shows only this chat's work. A project that
+  already has a plant version and a study with results needs no new design for a report, a
+  question or an analysis: brief the `analysis_lead` or the `explainer` with those references
+  (`design/v<version>`, the study name), never the `design_lead` (QA-167).
 - A design the problem state already holds (`design.modules`, `design.owners`, a stored
   `design/<name>`) is work to go on with: a brief to the design team after a stopped,
   cancelled or interrupted run ("continue", or the same message again) names that design and

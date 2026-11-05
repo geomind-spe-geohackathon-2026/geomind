@@ -71,6 +71,8 @@ class ProjectLead(Agent):
         self.explainer = Delegate(Explainer(), max_summary_tokens=EXPLANATION_TOKENS)
         self.support_lead = Delegate(SupportLead(), max_summary_tokens=TEAM_TOKENS)
         self.comparison = comparison()
+        self.list_plants = tools.gemini.list_plants
+        self.list_studies = tools.gemini.list_studies
         self.read_case = tools.gemini.read_case
         self.set_case = tools.gemini.set_case
         self.case_changes = tools.gemini.case_changes
