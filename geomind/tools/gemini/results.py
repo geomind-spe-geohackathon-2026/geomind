@@ -128,9 +128,27 @@ def knowledge_matches(context, query):
             "text": item["text"],
             "score": item["score"],
             "citation": {key: item[key] for key in ("document", "title", "page")},
+            **hit_section(context, f"{PREFIX}{item['document']}", item["text"]),
         }
         for item in list(workspace.knowledge_search(query))[:SHOWN_MATCHES]
     ]
+
+
+def hit_section(context, name, passage):
+    """Return ``{"section": heading path}`` of a knowledge hit, or ``{}`` when it has none.
+
+    The agent then reads the whole section with ``read_rag(name, section=...)``.
+    """
+    from geomind.tools.files import document_bytes, document_text
+    from geomind.tools.sections import heading_path
+
+    try:
+        text = document_text(name, document_bytes(context, name))
+    except Exception:
+        return {}
+    position = text.find(passage[:200].strip())
+    path = heading_path(text, position) if position >= 0 else None
+    return {"section": path} if path else {}
 
 
 def page_at(text, position):

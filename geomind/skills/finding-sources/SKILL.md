@@ -17,6 +17,17 @@ Read one with `read_rag`, and give a data file to the case with `set_case` `file
 
 Read a project file, or a document of the knowledge base as `knowledge/<name>`, as text.
 
+A long document with headings (a handbook of 25 to 50 pages with `#`, `##`, `###`) is read by
+section, never page by page from the start:
+
+- `read_rag(name, outline=true)`: the heading tree, each `{level, number, title, start, size}`
+  (`number` is the title's own, such as `3.2`, else its place in the tree).
+- `read_rag(name, section="3.2")` or `section="Pumps"` (a title, or a part of one): exactly that
+  section with its subsections, paged with `start` inside it when it is longer than a page; the
+  answer names the `section` read. An unknown section is refused with the headings it has.
+- A knowledge hit of `search_rag` carries `section`, the heading path it falls in
+  (`3 Wells > 3.2 Pumps`): read that whole section next with `section`.
+
 CSV, TSV, JSON, Markdown and text files read as they are, and a PDF as its extracted text with
 a `[page n]` marker before each page; another file is a `not_text` error. `start` is the
 first character and `length` the number of characters, at most 20,000. Returns `name`,

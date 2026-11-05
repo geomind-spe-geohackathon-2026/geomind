@@ -11,6 +11,7 @@ from pathlib import Path
 
 from geomind.errors import ToolError
 from geomind.stores.documents import document_text
+from geomind.tools import sections
 from geomind.tools.base import tool
 from geomind.tools.stored import reference_of
 from geomind.utils.strings import join_names
@@ -347,6 +348,20 @@ def document_bytes(context, name):
     return project_file(context, "read_rag", name)
 
 
+def section_text(name, text, key, section):
+    """Return ``(section text, read key, heading)`` of the section ``section`` names, or refuse."""
+    found = sections.section_span(text, section)
+    if found is None:
+        listed = ", ".join(f"{item['number']} {item['title']}" for item in sections.headings(text))
+        raise ToolError(
+            f"read_rag: section = {section!r} is no heading of {name}; expected a number or a "
+            f"title of its outline (read_rag(name, outline=true)): {listed[:1500] or 'it has none'}",
+            code="unknown_name",
+            path="section",
+        )
+    return text[found["start"] : found["end"]], f"{key}#{found['number']}", found
+
+
 @tool(effect="read", late_schemas={"name": file_name_schema}, keeps_result="run")
 def read_rag(
     context,
@@ -356,6 +371,8 @@ def read_rag(
     force: bool = False,
     columns: list[str] | None = None,
     rows: dict[str, list[str] | str] | None = None,
+    outline: bool = False,
+    section: str | None = None,
 ):
     """Read a project file, or a document of the knowledge base as ``knowledge/<name>``, as text.
 
@@ -364,7 +381,14 @@ def read_rag(
     if start < 0:
         raise ToolError(f"read_rag: start = {start}; expected 0 or more", path="start")
     text, key = narrowed(name, document_text(name, document_bytes(context, name)), rows, columns)
-    shown = {"name": name, **({"columns": columns} if columns is not None else {})}
+    if outline:
+        return {"name": name, "total": len(text), "outline": sections.outline(text)}
+    if section is not None:
+        text, key, found = section_text(name, text, key, section)
+        name_shown = {"section": {k: found[k] for k in ("number", "title", "start", "size")}}
+    else:
+        name_shown = {}
+    shown = {"name": name, **name_shown, **({"columns": columns} if columns is not None else {})}
     shown = {**shown, **({"rows": rows} if rows is not None else {})}
     if len(text) > LARGE_TABLE_CHARACTERS and Path(name).suffix.lower() in TABLE_SUFFIXES:
         return {**shown, "start": start, **large_table(name, text)}
