@@ -802,3 +802,76 @@ async def test_the_question_counts_where_its_values_come_from_and_drops_a_false_
     assert note not in request.message
     period = next(line for line in lines if line.startswith("economics.analysis_period"))
     assert "subsidy-period" not in period and "25 yr" in period
+
+
+class CaseDocumentWorkspace(CatalogueWorkspace):
+    """The catalogue and an assumptions document written for the case ``my_case``."""
+
+    DOCUMENT = (
+        "## Economics\n\n| Item | Value | Source |\n|---|---|---|\n"
+        "| Heat revenue (`revenue.heat`) | 60 EUR/MWh | Team |\n"
+    )
+
+    def knowledge_files(self):
+        """Name the catalogue and the case's document."""
+        return [*super().knowledge_files(), {"name": "my-case-assumptions.md"}]
+
+    def knowledge_file(self, name):
+        """Return the document's text, else the catalogue's bytes."""
+        if name == "my-case-assumptions.md":
+            return self.DOCUMENT.encode()
+        return super().knowledge_file(name)
+
+
+def case_document_context(workspace):
+    """Return a context whose case ``my_case`` has no economics and names no country."""
+    from geomind.context import ProblemState
+    from geomind.engine import Context
+    from tests.fixtures.cases import example_case
+    from tests.fixtures.sessions import StubSession
+
+    data, _ = example_case("hackathon_2026")
+    data.pop("economics")
+    data["name"] = "my_case"
+    return Context(session=StubSession(workspace=workspace), problem=ProblemState(case=data))
+
+
+async def test_a_value_the_case_s_own_document_gives_comes_from_it():
+    """QA-320: the heat tariff came from a Dutch row while the case's document gave 60."""
+    from geomind.tools import dispatch
+    from geomind.types import ToolCall
+
+    context = case_document_context(CaseDocumentWorkspace())
+    tariff = {"key": "revenue.heat", "row": "heat-price-se-2019"}
+    asked = ToolCall(id="q", name="ask_economics", input={"values": [tariff]})
+    refused = await dispatch(ask_economics, asked, context)
+    message = refused.output["error"]["message"]
+    assert refused.is_error and "knowledge/my-case-assumptions.md" in message
+    own = {
+        "key": "revenue.heat",
+        "value": 60,
+        "unit": "EUR/MWh",
+        "source": "knowledge/my-case-assumptions.md (Economics)",
+    }
+    asked = ToolCall(id="q", name="ask_economics", input={"values": [own]})
+    assert isinstance(await dispatch(ask_economics, asked, context), Request)
+
+
+async def test_a_case_with_no_country_gets_no_national_tariff_or_scheme():
+    """QA-320: a Dutch heat tariff and SDE++ subsidy went into a case that names no country."""
+    from geomind.tools import dispatch
+    from geomind.types import ToolCall
+
+    context = case_document_context(CatalogueWorkspace())
+    asked = ToolCall(id="q", name="ask_economics", input={"values": []})
+    request = await dispatch(ask_economics, asked, context)
+    assert isinstance(request, Request), request
+    lines = request.message.splitlines()
+    assert not any(line.startswith("economics.revenue.heat =") for line in lines)
+    assert not any(line.startswith("economics.revenue.subsidy") and "=" in line for line in lines)
+    assert "economics.revenue.heat" in lines
+    row = "sde-basisbedrag-geothermal-pbl-2026-over-20mw"
+    subsidy = {"key": "revenue.subsidy.amount", "row": row}
+    asked = ToolCall(id="q", name="ask_economics", input={"values": [subsidy]})
+    refused = await dispatch(ask_economics, asked, context)
+    assert refused.is_error and "names no country" in refused.output["error"]["message"]

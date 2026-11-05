@@ -347,9 +347,13 @@ def case_country(context):
 
 
 def fits_site(row_id, country):
-    """Tell whether a row's prices fit the site: a general row, or one of the site's country."""
+    """Tell whether a row's prices fit the site: a general row, or one of the site's country.
+
+    QA-320: a case with no country took a Dutch heat tariff; a national row fits only a site of
+    that country, never a site whose country nobody named.
+    """
     region = row_region(row_id)
-    return region is None or country is None or region == country
+    return region is None or region == country
 
 
 def country_rows(rows, key, country):
@@ -473,7 +477,7 @@ def ranked_rows(found, key, country):
     return sorted(
         usable,
         key=lambda row: (
-            not fits_site(row["id"], country),
+            key not in NOT_PRICES and not fits_site(row["id"], country),
             country is not None and row_region(row["id"]) != country,
             *_rank(row),
         ),
@@ -545,7 +549,7 @@ def site_value(found, key, country, foreign):
     sourced = ranked_rows(found, key, own)
     if not sourced:
         return None
-    if not fits_site(sourced[0]["id"], own):
+    if key not in NOT_PRICES and not fits_site(sourced[0]["id"], own):
         regions = sorted({row_region(row["id"]) for row in sourced} - {None})
         foreign.append(f"economics.{key} (rows only of {', '.join(regions)})")
         return None
@@ -641,6 +645,97 @@ def with_ranges(context, values):
         uncertainty = ranges.get(short(item.key))
         found.append(item.model_copy(update={"uncertainty": uncertainty}) if uncertainty else item)
     return found
+
+
+ASSUMPTIONS = "-assumptions.md"
+"""How a Knowledge document written for one case ends: ``<case name>-assumptions.md``."""
+NAMED_KEY = re.compile(r"`([a-z_]+(?:\.[a-z_0-9]+)*)`")
+"""A key a document names in backticks, such as ``revenue.heat``."""
+
+
+def case_document(context):
+    """Return ``(knowledge/<name>, {key it names})`` of the case's assumptions document, or None.
+
+    QA-320: "fill in the economics yourself" took Dutch catalogue rows for every key while the
+    Knowledge base held a document written for this very case. The document is found by the
+    case's name (``my_case`` -> ``my-case-assumptions.md``), never by a search.
+    """
+    from geomind.tools.knowledge import has_knowledge
+
+    data = getattr(getattr(context, "problem", None), "case", None)
+    name = data.get("name") if isinstance(data, dict) else None
+    workspace = getattr(context.session, "workspace", None)
+    if not isinstance(name, str) or not has_knowledge(workspace):
+        return None
+    wanted = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") + ASSUMPTIONS
+    found = next(
+        (item["name"] for item in workspace.knowledge_files() if item["name"].endswith(wanted)),
+        None,
+    )
+    if found is None:
+        return None
+    content = workspace.knowledge_file(found)
+    text = content.decode("utf-8") if isinstance(content, bytes) else str(content or "")
+    return f"knowledge/{found}", set(NAMED_KEY.findall(text))
+
+
+def refuse_other_sources(context, values):
+    """Refuse a value the case's assumptions document gives that comes from elsewhere (QA-320).
+
+    The order is the case's own document first, then the catalogue, then open
+    (``knowledge/handbook-economics.md`` 0.3), whether the user wants a question or not.
+    """
+    found = case_document(context)
+    if found is None:
+        return
+    document, keys = found
+    elsewhere = [
+        short(item.key)
+        for item in values
+        if item.value is not None
+        and short(item.key) in keys
+        and document not in str(item.source or "")
+    ]
+    if elsewhere:
+        raise ToolError(
+            f"ask_economics: {', '.join(elsewhere)} from other sources, while the case's own "
+            f"assumptions document {document} gives them; expected each value as that document "
+            f"gives it, with source {document!r}; a catalogue row only for a key it lacks",
+            code="invalid_input",
+            path="values",
+            suggestions=[document],
+        )
+
+
+MARKET_KEYS = ("revenue.",)
+"""Keys whose value is a national market or scheme (a heat tariff, a subsidy), never a cost that
+travels: a named row of another country is refused for them (QA-320)."""
+
+
+def refuse_foreign_rows(values, country):
+    """Refuse a named revenue row of another country than the site's, or of any with none.
+
+    QA-320: a case with no country got the Dutch SDE++ subsidy and heat tariff. The user who
+    wants a country's prices names it (``country``), and the case's site or ``about`` may. A cost
+    row (drilling) may be national and still the best source; a tariff or a scheme may not.
+    """
+    foreign = [
+        f"{short(item.key)} (row {item.row}, {row_region(item.row)})"
+        for item in values
+        if item.value is not None
+        and item.row
+        and short(item.key).startswith(MARKET_KEYS)
+        and not fits_site(item.row, country)
+    ]
+    if foreign:
+        site = f"the site is in {country}" if country else "the case names no country"
+        raise ToolError(
+            f"ask_economics: {'; '.join(foreign)} are prices of another country, and {site}; "
+            "expected a general row, or the key in open; pass country only when the user names "
+            "the site's country",
+            code="invalid_input",
+            path="values",
+        )
 
 
 def given_values(values, open_keys):
@@ -1100,6 +1195,8 @@ def ask_economics(
     dropped, skipped, sited = [], [], {}
     values, open_keys = recommended(context, list(values), list(open or []), country, sited)
     values = with_ranges(context, from_catalogue(context, values, skipped))
+    refuse_other_sources(context, values)
+    refuse_foreign_rows(values, sited.get("country"))
     _, _, moved = whole_per_energy(*given_values(values, list(open_keys)))
     values, open_keys, notes = prepared(values, open_keys, dropped, sited.get("held") or ())
     message = question_text(values, open_keys, note, notes, sited.get("country"))
