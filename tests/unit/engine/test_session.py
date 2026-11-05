@@ -240,3 +240,20 @@ def test_model_problems_keeps_its_0_4_22_call_without_a_source():
     from geomind import runtime
 
     assert runtime.model_problems() == runtime.model_problems("settings")
+
+
+def test_a_tool_the_user_denied_is_not_asked_again_in_the_request():
+    """QA-116: after a denial of build_plant, a later call is refused with the user's reason."""
+    from types import SimpleNamespace
+
+    from geomind.engine.session import denied_again, earlier_denial
+
+    events = [
+        SimpleNamespace(type="permission", decision="deny", rule="user", tool="build_plant",
+                        reason="text only"),
+        SimpleNamespace(type="permission", decision="allow", rule="user", tool="simulate",
+                        reason=None),
+    ]
+    assert earlier_denial(events, "build_plant") == "text only"
+    assert earlier_denial(events, "simulate") is None
+    assert "answer in text" in denied_again("build_plant", "text only")

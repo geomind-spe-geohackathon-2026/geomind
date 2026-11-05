@@ -71,6 +71,9 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
   typical value). A team's own decision is never a question for the user. When the user
   delegates open case values to the agents ("use your own assumptions"), brief the `case_lead`
   to search for them and propose the rest as engineering assumptions for the user to approve; never finish with the case incomplete because of the delegation.
+- A request that asks only for an explanation (which configurations fit, what a value means) is
+  answered in text from the case, the knowledge base and the read tools; it builds, patches and
+  simulates nothing. A tool the user denied is not asked for again in the same request.
 - A design is final only when the `reviewer` returns `gemini verdict` with `"passed": true`. Then
   run the analysis and the explanation, and finish with the explainer's text.
 - Never narrow the user's brief on your own. When a team fails (an `internal`, `nested_stopped`

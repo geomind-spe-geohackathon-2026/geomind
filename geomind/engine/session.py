@@ -504,9 +504,13 @@ class RunSession:
             if self.never_waits and isinstance(decision, Request) and decision.kind == "approval":
                 decision, rule = Allow(), f"beside:{rule}"
             elif isinstance(decision, Request) and decision.kind == "approval":
-                decision = decision.model_copy(
-                    update={"message": approval_message(decision.message, call.input)}
-                )
+                refused = earlier_denial(self.engine.store.load_events(self.state.root), tool.name)
+                if refused is not None:
+                    decision, rule = Deny(reason=denied_again(tool.name, refused)), "user:earlier"
+                else:
+                    decision = decision.model_copy(
+                        update={"message": approval_message(decision.message, call.input)}
+                    )
         else:
             rule = f"hook:{rule}"
         await self.emit(
@@ -704,6 +708,32 @@ def approval_message(message, tool_input):
     if len(text) > APPROVAL_INPUT_CHARS:
         text = text[:APPROVAL_INPUT_CHARS] + "\n... (cut; the whole input is in the run log)"
     return f"{message}\n\nWhat the call sends:\n{text}"
+
+
+def earlier_denial(events, tool):
+    """Return the reason of the user's last denial of ``tool`` in this request's run tree, or None.
+
+    QA-116: an explanation request asked three times to build a plant after two denials. A
+    denial holds for the rest of the request, for every agent of the tree.
+    """
+    reason = None
+    for event in events:
+        if (
+            event.type == "permission"
+            and event.decision == "deny"
+            and event.rule == "user"
+            and event.tool == tool
+        ):
+            reason = event.reason or "denied by the user"
+    return reason
+
+
+def denied_again(tool, reason):
+    """Return what a model reads when a tool the user denied in this request is called again."""
+    return (
+        f"{tool}: the user denied this tool earlier in this request ({reason!r}), so it is not "
+        "asked again: do what the user asked without it, and answer in text with what you have"
+    )
 
 
 def _decision_name(decision):
