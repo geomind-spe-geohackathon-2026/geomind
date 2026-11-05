@@ -23,7 +23,7 @@ def clean_run():
 
 async def nested(script, **options):
     """Run the lead agent; return ``(result, engine, events)``."""
-    options.setdefault("permissions", Permissions(mode="auto"))
+    options.setdefault("permissions", Permissions(mode="auto", answers_questions=False))
     engine = Engine(llm=FakeLLM(script), **options)
     start = context("lead the work")
     result = await stopped_at_limit(engine, await engine.run(Lead(), start))
