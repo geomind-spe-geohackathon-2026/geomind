@@ -38,3 +38,12 @@ def test_the_summarizer_gets_the_material_itself():
 
     text = " ".join(SupportLead().prompt.content.split())
     assert "whole and word for word" in text and "it cannot read a reference" in text
+
+
+def test_qa_347_engineering_work_goes_back_to_the_project_lead():
+    """QA-347: a design-lead request reached the support lead, which said it cannot be run."""
+    from geomind.agents.support.lead import SupportLead
+
+    text = " ".join(SupportLead().prompt.content.split())
+    assert "send it back at once saying it goes to the project lead" in text
+    assert "never answer that a gemini unit cannot be modelled or run" in text
