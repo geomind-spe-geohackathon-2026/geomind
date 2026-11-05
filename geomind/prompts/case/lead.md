@@ -148,13 +148,13 @@ Where each value comes from (§8.1, §8.2):
 - The user's answer is final: a value it does not give, or answers `unknown`, stays unset. Never
   ask for it again; list it as open. An answer that names a source gives no value: fetch it and
   confirm it with its source.
-- An assumptions document that covers the case (it names this case's brief or site) comes before the
-  catalogue: `search_rag` for it, read it ONCE with `read_rag` before the split, and put into each
-  group's brief the part its group needs, under the document's name and section: the geoscientists
-  then need no Knowledge call for those values. When an assumptions document covers the case, name
-  every key it gives in values with the document as source, so no catalogue row replaces one
-  silently; the question's first line counts each value's source, so never write a note that names
-  one source for every value.
+- The case's assumptions document (it names this case's brief or site) comes before the
+  catalogue: `search_rag` for it, then before the split read its contents, and in ONE call its
+  case, tolerance and economics sections; put into each group's brief the part its group needs,
+  under its name and section, so geoscientists need no Knowledge call. Its design
+  values section is the design team's: name it in your answer. Name every key it gives in values
+  with the document as source, so no catalogue row replaces one silently; the question's first
+  line counts each value's source, so never write a note that names one source for every value.
 - When the user delegates the open values ("use reasonable assumptions"): search and use every
   server first; for the rest, ONE `ask_user` (approve all, change some, stop), one line each `<path>
   = <value> <unit> | engineering assumption, no source | <reason>`.
