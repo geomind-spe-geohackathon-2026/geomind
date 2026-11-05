@@ -255,9 +255,47 @@ def check_unit_given(plant, path, name, value):
         )
 
 
-def apply_changes(plant, changes):
-    """Set ``{module path: {parameter: {value, unit}}}`` on the plant, for this run only."""
+PLANT_LEVEL = ("control", "params.control", "params", "plant")
+"""The keys of ``changes`` that name the plant itself: its options, as ``params.control.dispatch``
+and ``params.backup`` sit in the plant file (QA-082)."""
+PLANT_OPTIONS = ("backup", "dispatch", "outages")
+"""The plant's own options; a change may name one as a key with a ``{"value": ...}``."""
+
+
+def _option(value):
+    """Return an option change as gemini takes it: ``{"value": "least_cost"}`` is the text."""
+    return value["value"] if isinstance(value, dict) and set(value) == {"value"} else value
+
+
+def plant_level(changes):
+    """Return ``(module changes, plant option changes)`` of a simulate ``changes`` (QA-082).
+
+    ``{"control": {"dispatch": ...}}``, ``{"params": {"backup": ...}}`` or ``{"backup": {"value":
+    "none"}}`` set the plant's own options; any other key is a module path.
+    """
+    modules, options = {}, {}
     for path, params in (changes or {}).items():
+        if path in PLANT_LEVEL and isinstance(params, dict):
+            inner = params.get("control") if path == "params" and "control" in params else None
+            items = {**{k: v for k, v in params.items() if k != "control"}, **(inner or {})}
+            options |= {name: _option(value) for name, value in items.items()}
+        elif path in PLANT_OPTIONS and isinstance(params, dict) and "value" in params:
+            options[path] = _option(params)
+        else:
+            modules[path] = params
+    return modules, options
+
+
+def apply_changes(plant, changes):
+    """Set ``{module path: {parameter: {value, unit}}}`` on the plant, for this run only.
+
+    The plant's own options (``control.dispatch``, ``control.outages``, ``backup``) are set
+    from a ``control``, ``params`` or option key (QA-082: the agent could not set them).
+    """
+    modules, options = plant_level(changes)
+    if options:
+        plant.set_params("", options)
+    for path, params in modules.items():
         for name, value in params.items():
             check_unit_given(plant, path, name, value)
         plant.set_params(path, {name: quantified(value) for name, value in params.items()})
@@ -382,7 +420,8 @@ async def simulate(
 
     ``design`` is a stored design (``design/<name>``), or the project's plant without one.
     ``changes`` holds parameters by module path for this run only, each a ``{"value", "unit"}``
-    (a dimensionless parameter may be a number). ``start`` and ``end`` are ISO 8601 times that cut
+    (a dimensionless parameter may be a number); the plant's own options go under ``control``
+    (``{"control": {"dispatch": {"value": "least_cost"}}}``) or as ``backup``. ``start`` and ``end`` are ISO 8601 times that cut
     the case's time to a window, both inclusive: the run, its summary and its stored case are those
     of the window (the case's ``time`` cut to it); to change the case's time itself use set_case.
 
