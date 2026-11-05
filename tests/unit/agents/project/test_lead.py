@@ -229,3 +229,10 @@ def test_qa_333_a_case_loaded_by_rule_is_checked_before_one_explainer_call():
     text = " ".join(ProjectLead().prompt.content.split())
     assert "So decide first, before any explainer" in text
     assert "Never brief the explainer twice with the same brief" in text
+
+
+def test_qa_276_an_optimisation_ends_with_the_best_of_the_plant_asked_for():
+    """QA-276: 32 min building an unasked heat-pump family after the optimise answer."""
+    text = " ".join(ProjectLead().prompt.content.split())
+    assert "never brief the design team again for another family the user did not name" in text
+    assert "the answer keeps the stored plant and says so" in text

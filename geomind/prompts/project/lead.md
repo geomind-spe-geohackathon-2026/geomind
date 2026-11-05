@@ -95,6 +95,11 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
   and the number of designs tried. Brief the `analysis_lead` only for what the record does not
   give, and brief it and the explainer at the same time, each with the study key and the result
   reference to read once (`read_study` gives `trials`), never 'read the study'.
+- An optimisation request ends with the design team's best of the plant asked for: never brief
+  the design team again for another family the user did not name, and never "try a different
+  family" on your own. A family the design lead names as a possible next step goes in
+  `suggestions`. When its best is not better than the stored plant as it was, the answer keeps
+  the stored plant and says so.
 - No brief widens the request: never ask a team for a study the user did not ask for (a
   sensitivity, an uncertainty sample, an optimisation, a what-if run, a review of the structure);
   such a study is a next step you offer in `suggestions`, never one you run.
