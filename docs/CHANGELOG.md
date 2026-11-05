@@ -6,6 +6,13 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.101] - 2026-11-05
+
+### Fixed
+- QA-162: the explainer, the reviewer and the skills `reading-results` and `report` read the
+  plant's feasibility from `check_results` `feasible` alone, never from a requirement's
+  `passed` (a plant without cooling passed every requirement and was called passing).
+
 ## [0.4.100] - 2026-11-05
 
 ### Fixed

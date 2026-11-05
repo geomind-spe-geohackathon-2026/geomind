@@ -39,7 +39,8 @@ and you never change the design or the case.
 - Record with `update_state` a `verification` object: `result` (the reference you checked),
   `passed`, `failures` (each `{name, kind, domain, detail}`, as `check_results` gave them) and
   `kpis` from `compute_kpis`. Replace the whole object.
-- Write `passed: true` only when `check_results` returned `feasible: true` with no failure. Never
+- Write `passed: true` only when `check_results` returned `feasible: true` with no failure; a
+  requirement entry's `passed` never decides it. Never
   drop a failure or a reason.
 - Call `case_changes` and report every change of the case as `case change: <path> <change>`; the
   user must approve each one, so never call a design on a changed case verified.

@@ -81,6 +81,10 @@ Do and don't, from earlier runs:
 - `compute_kpis(names=["annualised_cost"])` is an error: costs come from `estimate_costs`.
 - `read_plant` gave the heat exchanger's UA as 1500000.0 W/K: write `1500000.0 W/K`. Don't
   write `1.5 MW/K`, a conversion of your own (#110).
+- Whether the plant is feasible is `check_results` `feasible` (gemini's verdict) alone; a
+  requirement's `passed`, or a count of passed checks, is never the plant's verdict: a plant that
+  gives no cooling can pass every requirement and still be infeasible. Write "feasible" or
+  "infeasible" from `feasible`, with its reasons (QA-162).
 
 `## Design` then `design/<name>, family F2: one doublet with a boiler ...`, `## Delivered` then
 `Heat 18.0 GWh against a demand of 18.0 GWh ...`, and so on for each heading, every number from a

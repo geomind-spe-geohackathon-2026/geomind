@@ -30,6 +30,10 @@ A large result does not come back whole. You get a summary and a `reference` to 
     in d, reinjection ratio, flow), `limit`, `unit_path` (which doublet or module) and
     `worst_step` (its day). Quote `value` against `limit` for every requirement; never write that
     a requirement "rests on the verdict" when its entry has a value.
+  - Whether the plant is feasible is `check_results` `feasible` (gemini's verdict) alone; a
+    requirement's `passed`, or a count of passed checks, is never the plant's verdict: a plant that
+    gives no cooling can pass every requirement and still be infeasible. Write "feasible" or
+    "infeasible" from `feasible`, with its reasons (QA-162).
   - a doublet's production flow against its range: the series `<doublet>.reservoir.liquid_flow`
     (the liquid at brine density, what the requirement judges). The pump's
     `fluid_in.volume_flow` also counts the free gas at the intake pressure, so it reads higher

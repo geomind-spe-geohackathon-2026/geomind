@@ -14,3 +14,8 @@ search in `read_study`'s `result`:
 Quote them as they are, with the study key (`study/<name>`), under `Decisions`. Never compute,
 rank or convert anything from them; a study that is not `current` is named as made on an older
 case.
+
+- Whether the plant is feasible is `check_results` `feasible` (gemini's verdict) alone; a
+  requirement's `passed`, or a count of passed checks, is never the plant's verdict: a plant that
+  gives no cooling can pass every requirement and still be infeasible. Write "feasible" or
+  "infeasible" from `feasible`, with its reasons (QA-162).
