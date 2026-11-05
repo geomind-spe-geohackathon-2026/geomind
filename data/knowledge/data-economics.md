@@ -1,9 +1,9 @@
-# cost-sources.csv
+# data-economics.csv
 
 A copy of gemini's cited cost catalogue, kept by geomind as a knowledge source of its memory.
 It is reference data with its sources, not a code default: each row keeps its source columns
 (title, publisher, year, price year, page, link) and its status (`verified`, `secondary` or
-`placeholder`). Load it into a memory with `geomind memory seed data/knowledge/cost-sources.csv`.
+`placeholder`). Load it into a memory with `geomind memory seed data/knowledge/data-economics.csv`.
 
 - From: gemini, tag `v0.5.13` (commit `0177b1f46e9c821f84cd65a0228778f2c3fad18d`)
 - Path: `docs/cost-sources/sources.csv`

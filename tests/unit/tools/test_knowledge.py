@@ -59,7 +59,7 @@ async def test_read_rag_reads_a_document_of_the_knowledge_base():
     assert "knowledge/report.md" in missing["error"]["message"]
 
 
-CATALOGUE = (Path(__file__).parents[3] / "data" / "knowledge" / "cost-sources.csv").read_bytes()
+CATALOGUE = (Path(__file__).parents[3] / "data" / "knowledge" / "data-economics.csv").read_bytes()
 """geomind's copy of the cost catalogue: about 79,000 characters, one row per cited value."""
 CATALOGUE_ROWS = len(CATALOGUE.decode().strip().splitlines()) - 1
 """The catalogue's rows below its header, counted from the file, not pinned."""
@@ -75,8 +75,8 @@ async def test_a_large_table_is_outlined_never_read_whole_or_by_pages():
     """
     from geomind.tools.files import LARGE_TABLE_CHARACTERS
 
-    session = session_with(MemoryKnowledge({"cost-sources.csv": CATALOGUE}))
-    name = "knowledge/cost-sources.csv"
+    session = session_with(MemoryKnowledge({"data-economics.csv": CATALOGUE}))
+    name = "knowledge/data-economics.csv"
     for arguments in ({}, {"columns": WIDE}, {"columns": WIDE, "start": 20000}):
         page = (await call(read_rag, {"name": name, **arguments}, session)).output
         assert "text" not in page and page["total"] > LARGE_TABLE_CHARACTERS
@@ -88,9 +88,9 @@ async def test_a_large_table_is_outlined_never_read_whole_or_by_pages():
 
 async def test_rows_reads_only_the_rows_whose_column_starts_with_a_given_text():
     """B6: ``rows`` keeps the header and the rows of the keys asked for, so the table fits."""
-    session = session_with(MemoryKnowledge({"cost-sources.csv": CATALOGUE}))
+    session = session_with(MemoryKnowledge({"data-economics.csv": CATALOGUE}))
     asked = {
-        "name": "knowledge/cost-sources.csv",
+        "name": "knowledge/data-economics.csv",
         "columns": ["id", "path", "value_2015", "unit_2015"],
         "rows": {"path": ["economics.capex.drilling", "economics.opex.fixed"]},
     }
@@ -104,8 +104,8 @@ async def test_rows_reads_only_the_rows_whose_column_starts_with_a_given_text():
 
 async def test_rows_names_a_column_of_the_table():
     """An unknown column in ``rows`` is ``unknown_name`` with its close match; a text refuses it."""
-    session = session_with(MemoryKnowledge({"cost-sources.csv": CATALOGUE, "report.md": REPORT}))
-    asked = {"name": "knowledge/cost-sources.csv", "rows": {"paths": ["economics"]}}
+    session = session_with(MemoryKnowledge({"data-economics.csv": CATALOGUE, "report.md": REPORT}))
+    asked = {"name": "knowledge/data-economics.csv", "rows": {"paths": ["economics"]}}
     error = (await call(read_rag, asked, session)).output["error"]
     assert error["code"] == "unknown_name" and error["suggestions"] == ["path"]
     asked = {"name": "knowledge/report.md", "rows": {"path": ["economics"]}}

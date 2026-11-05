@@ -588,7 +588,7 @@ and the list form), 15 (`mol%`), 16 (bases per unit: ice and thermal storage per
 exchanger per W of duty, production pump per unit, `opex.fixed` per MW and year, subsidy per MWh;
 `capex.pipe` per MW and m is still refused), 18 (`opex.variable.chemical` prices every inhibitor,
 `opex.per_energy.chp`) and the economics descriptions; 17 by the descriptions only (its
-`sources.csv` is unchanged; geomind's copy now names the keys, `data/knowledge/cost-sources.md`).
+`sources.csv` is unchanged; geomind's copy now names the keys, `data/knowledge/data-economics.md`).
 The other requests of this list stay open.
 
 Status after gemini 0.6.3 (2026-11-04, geomind 0.4.23). Sahand's rule (docs/rules.md): a

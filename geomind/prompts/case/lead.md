@@ -111,7 +111,7 @@ Where each value comes from:
      unit, with no number of your own.
   Before the one question for missing values, ALWAYS, also when the files seem complete, in
   one step: `search_rag` for each missing value, and read the cost catalogue's rows of the
-  missing keys (`read_rag("knowledge/cost-sources.csv", rows=..., columns=[...])`, below). Then
+  missing keys (`read_rag("knowledge/data-economics.csv", rows=..., columns=[...])`, below). Then
   ask once for all of
   them. Never a typical value, a rule of thumb or a number you recall, at any step.
 - The user's answer is final: a value the answer does not give, or answers `unknown` or `leave
@@ -131,7 +131,7 @@ Where each value comes from:
   named so in `note`. Every economics key neither the files nor the knowledge base give (no
   document, no usable row) goes in `open`: never a value of yours. Any other knowledge document
   that states a value with its source may be cited the same way.
-- Economics come from the knowledge base's cost catalogue, `knowledge/cost-sources.csv`. Never
+- Economics come from the knowledge base's cost catalogue, `knowledge/data-economics.csv`. Never
   read it whole or by pages: it is too long, and `read_rag` gives only its outline then. Read
   once only the rows of the keys the case lacks, `rows={"path": [each missing key, such as
   "economics.capex.drilling"]}` (a key's start, such as `economics.opex.fixed`, gives every key
@@ -163,7 +163,7 @@ Where each value comes from:
   row's unit as the row writes it, sets the unit before the basis word and shows the user the
   row's basis beside the key's. The ESP rows of `capex.production_pump` are per W
   electric (the motor's rating) while the key is per W of shaft power: say so in `note`, with
-  what the catalogue's notes give (`cost-sources.md`, batch 3): shaft power is about 0.85 to 0.9
+  what the catalogue's notes give (`data-economics.md`, batch 3): shaft power is about 0.85 to 0.9
   of the electric rating, so per W of shaft power the cost is about 10 to 15 % higher. Give the
   row's value as it is and never convert the value: the user decides. A row
   whose unit the key does not accept (`EUR/MW/yr` for `opex.fixed.pipe` in `%/yr`) never goes

@@ -169,7 +169,7 @@ async def test_null_optional_fields_are_left_out_and_a_null_value_is_open():
         "value": "EUR",
         "unit": None,
         "row": None,
-        "source": "knowledge/cost-sources.csv",
+        "source": "knowledge/data-economics.csv",
         "url": None,
         "others": None,
     }
@@ -375,9 +375,9 @@ def test_the_catalogue_basis_is_what_the_catalogue_states():
 
     folder = Path(__file__).parents[4] / "data" / "knowledge"
     year = CATALOGUE_BASIS["price_year"]
-    header = next(csv.reader((folder / "cost-sources.csv").open()))
+    header = next(csv.reader((folder / "data-economics.csv").open()))
     assert {f"value_{year}", f"unit_{year}"} <= set(header)
-    notes = " ".join((folder / "cost-sources.md").read_text().split())
+    notes = " ".join((folder / "data-economics.md").read_text().split())
     assert f"{CATALOGUE_BASIS['currency']} at {year} prices" in notes
 
 
@@ -469,15 +469,15 @@ class CatalogueWorkspace:
 
     def knowledge_files(self):
         """Name the catalogue."""
-        return [{"name": "cost-sources.csv"}]
+        return [{"name": "data-economics.csv"}]
 
     def knowledge_file(self, name):
         """Return the catalogue's bytes, ``None`` for another document."""
         from pathlib import Path
 
-        if name != "cost-sources.csv":
+        if name != "data-economics.csv":
             return None
-        return (Path(__file__).parents[4] / "data/knowledge/cost-sources.csv").read_bytes()
+        return (Path(__file__).parents[4] / "data/knowledge/data-economics.csv").read_bytes()
 
 
 def catalogue_context():

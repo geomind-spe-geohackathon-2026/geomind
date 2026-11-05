@@ -15,7 +15,7 @@ Operands: each is an object. Every calculation needs at least one operand with a
   `demand.heating.peak`. It must hold one number or `{"value", "unit"}`.
 - `{"assumption": "<id>"}`: an assumption of the problem state the user has confirmed, with its
   value. An unconfirmed assumption is refused: ask the user first, with its source.
-- `{"catalogue": "<row id>"}`: a row of the cost catalogue `knowledge/cost-sources.csv`; its 2015
+- `{"catalogue": "<row id>"}`: a row of the cost catalogue `knowledge/data-economics.csv`; its 2015
   value and unit are used, and its citation goes with the result.
 - `{"stored": "<result-... reference>", "path": "<dotted path>"}`: one value of a result stored by
   reference (`read_stored` shows its parts).
@@ -63,7 +63,7 @@ Derive a value from sourced values and keep it as a calculation with an id.
 
 Each operand is a reference to a value with a source, one of
 `{"case": "<path in the case>"}`, `{"assumption": "<id of a confirmed assumption>"}`,
-`{"catalogue": "<row id of knowledge/cost-sources.csv>"}`,
+`{"catalogue": "<row id of knowledge/data-economics.csv>"}`,
 `{"stored": "<result-... reference>", "path": "<dotted path of one value>"}` or
 `{"calculation": "<id of an earlier calculation>"}`; or `{"constant": "pi"}` (pi, e) or a
 plain `{"number": 24, "unit": "h"}`, shown as plain. At least one operand must have a

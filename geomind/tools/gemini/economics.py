@@ -30,13 +30,13 @@ REQUIRED = ("currency", "price_year", "discount_rate")
 CITED = ("row", "source", "year", "url", "status")
 """The fields of a row that go into its citation."""
 CATALOGUE_BASIS = {"currency": "EUR", "price_year": 2015}
-"""The currency and price year of every value of the cost catalogue, ``knowledge/cost-sources.csv``.
+"""The currency and price year of every value of the cost catalogue, ``knowledge/data-economics.csv``.
 
 Its ``value_2015`` in ``unit_2015`` are EUR at 2015 prices (Eurostat HICP, euro area, 2015 = 100),
-as ``cost-sources.md`` states; a test reads both files, so the two cannot drift apart."""
+as ``data-economics.md`` states; a test reads both files, so the two cannot drift apart."""
 BASIS_SOURCE = (
     "the cost catalogue's value_2015 and unit_2015 columns: EUR at 2015 prices "
-    "(knowledge/cost-sources.md)"
+    "(knowledge/data-economics.md)"
 )
 
 
@@ -117,7 +117,7 @@ class EconomicsValue(BaseModel):
         return read
 
 
-CATALOGUE = "knowledge/cost-sources.csv"
+CATALOGUE = "knowledge/data-economics.csv"
 """The cost catalogue in the knowledge base, where ``ask_economics`` reads each row it is named."""
 
 

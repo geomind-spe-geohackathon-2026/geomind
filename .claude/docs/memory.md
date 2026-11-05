@@ -16,8 +16,8 @@ gives.
 A backend gives the knowledge base through the optional `Workspace.knowledge_search(query)`,
 `knowledge_files()` and `knowledge_file(name)`; without them the tools answer
 `knowledge_unavailable`. The command line reads the folder `GEOMIND_KNOWLEDGE_DIR` (required for
-a run with a project, no default) as `FolderKnowledge`. `data/knowledge/cost-sources.csv`, a copy
-of gemini's cost catalogue from tag v0.5.13 (see `data/knowledge/cost-sources.md` for its commit
+a run with a project, no default) as `FolderKnowledge`. `data/knowledge/data-economics.csv`, a copy
+of gemini's cost catalogue from tag v0.5.13 (see `data/knowledge/data-economics.md` for its commit
 and sha256), is a document of that folder; geomind owns the copy.
 
 ## Memory: experience only

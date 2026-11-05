@@ -35,8 +35,8 @@ def test_a_table_is_cut_into_rows_each_with_its_header():
 def test_the_folder_of_the_repository_holds_the_cost_catalogue():
     """``data/knowledge`` is the command line's knowledge base: the catalogue is a document."""
     knowledge = FolderKnowledge(ROOT / "data" / "knowledge")
-    assert "cost-sources.csv" in [item["name"] for item in knowledge.files()]
-    assert knowledge.search("drilling")[0]["document"] == "cost-sources.csv"
+    assert "data-economics.csv" in [item["name"] for item in knowledge.files()]
+    assert knowledge.search("drilling")[0]["document"] == "data-economics.csv"
 
 
 REFUSED_BY_GEMINI = {
@@ -47,7 +47,7 @@ REFUSED_BY_GEMINI = {
 }
 """Catalogue rows listed for reference whose unit gemini's key refuses, so they are never used:
 ``opex.fixed.pipe`` per MW and year (it takes %/yr only), and ``opex.variable.waste_disposal`` in
-EUR/m3 or t/m3 (it takes EUR/kg; cost-sources.md)."""
+EUR/m3 or t/m3 (it takes EUR/kg; data-economics.md)."""
 
 
 def test_every_catalogue_row_names_a_case_key_and_a_unit_gemini_takes():
@@ -65,7 +65,7 @@ def test_every_catalogue_row_names_a_case_key_and_a_unit_gemini_takes():
     from geomind.tools.gemini.unit_bridge import _accepted_units, _child_schema
 
     schemas = {"economics": gm.case.Economics.schema()}
-    rows = csv.DictReader((ROOT / "data" / "knowledge" / "cost-sources.csv").open())
+    rows = csv.DictReader((ROOT / "data" / "knowledge" / "data-economics.csv").open())
     unknown, refused = [], []
     for row in rows:
         if not row["path"]:
@@ -90,7 +90,7 @@ def test_the_pipe_rows_per_mw_and_metre_are_usable():
     """Request 16: gemini 0.6.3 prices ``capex.pipe`` per MW and m (DEA's transmission row)."""
     import csv
 
-    catalogue = (ROOT / "data" / "knowledge" / "cost-sources.csv").open()
+    catalogue = (ROOT / "data" / "knowledge" / "data-economics.csv").open()
     rows = {row["id"]: row for row in csv.DictReader(catalogue)}
     row = rows["pipe-dea-2025-transmission-0-50mw"]
     assert (row["path"], row["unit_2015"]) == ("economics.capex.pipe", "EUR/MW/m")
@@ -105,7 +105,7 @@ def test_the_rows_gemini_0_6_2_takes_as_their_source_states_them():
     """
     import csv
 
-    catalogue = (ROOT / "data" / "knowledge" / "cost-sources.csv").open()
+    catalogue = (ROOT / "data" / "knowledge" / "data-economics.csv").open()
     rows = {row["id"]: row for row in csv.DictReader(catalogue)}
     for row, amount in (
         ("opex-boiler-gas-dea-2018", "1950"),

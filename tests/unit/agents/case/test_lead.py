@@ -85,8 +85,8 @@ def test_a_missing_value_is_searched_before_it_is_asked_for():
     order = ["the project's files", "the knowledge base:", "`read_mcp`", "only when none"]
     assert [text.index(item) for item in order] == sorted(text.index(item) for item in order)
     assert "ALWAYS, also when the files seem complete" in text
-    assert '`read_rag("knowledge/cost-sources.csv", rows=..., columns=[...])`' in text
-    assert "knowledge/cost-sources.csv" in text and "`placeholder`" in text
+    assert '`read_rag("knowledge/data-economics.csv", rows=..., columns=[...])`' in text
+    assert "knowledge/data-economics.csv" in text and "`placeholder`" in text
 
 
 def test_the_catalogue_is_read_by_the_rows_of_the_missing_keys_only():
@@ -323,7 +323,7 @@ def test_the_per_energy_kinds_the_prompt_puts_in_values_each_have_a_catalogue_ro
     import csv
     from pathlib import Path
 
-    catalogue = Path(__file__).parents[4] / "data" / "knowledge" / "cost-sources.csv"
+    catalogue = Path(__file__).parents[4] / "data" / "knowledge" / "data-economics.csv"
     start = "economics.opex.per_energy."
     kinds = {
         row["path"].removeprefix(start)
@@ -374,14 +374,14 @@ def test_the_discount_rate_is_the_real_financial_rate_of_the_latest_pbl_advice()
 def test_the_esp_rows_are_electric_and_the_user_decides_the_basis():
     """The ESP rows are per W electric: the question says so with the shaft-power share, as is.
 
-    The share is the research report's (``cost-sources.md``, batch 3).
+    The share is the research report's (``data-economics.md``, batch 3).
     """
     from pathlib import Path
 
     text = " ".join(CaseLead().prompt.content.split())
     assert "shaft power is about 0.85 to 0.9 of the electric rating" in text
     assert "never convert the value: the user decides" in text
-    notes = Path(__file__).parents[4] / "data" / "knowledge" / "cost-sources.md"
+    notes = Path(__file__).parents[4] / "data" / "knowledge" / "data-economics.md"
     assert "Shaft power is about 0.85 to 0.9 of it" in " ".join(notes.read_text().split())
 
 
