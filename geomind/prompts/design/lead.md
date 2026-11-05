@@ -74,7 +74,8 @@ the plant, a profile or a finding once and never again unless you wrote it since
    no file: the paths it owns with gemini's issue text, the plant text of its modules (copied
    from `build_plant` or `read_plant`), the case values it needs with their units (temperatures,
    peaks and energy of the profiles, limits), the interface values you settled (0.3) and the
-   handbook chapters to read.
+   handbook chapters to read, always with 0.7 (the design-values table) and, for the hackathon
+   case, 0.8 (its hard limits).
 4. Write ONCE: when all are back, put every engineer's `changes` into ONE `patch_plant` (the
    list form takes their `changes` as they are) under a new name. Evaluate what they asked in
    `evaluations` with `evaluate_module`. Record each engineer's assumption (`source`
