@@ -194,3 +194,9 @@ def test_an_optimise_request_works_on_that_design_only_and_keeps_a_better_start(
     text = " ".join(DesignLead().prompt.render().split())
     assert "works on that design only: no other family" in text
     assert "when the start is as good or better, say so, keep the start" in text
+
+
+def test_a_failing_requirement_gets_design_changes_never_a_requirement_change():
+    """QA-211: the options offered for a failing hard limit are design changes only."""
+    text = " ".join(DesignLead().prompt.render().split())
+    assert "the options you name are design changes only" in text

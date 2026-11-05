@@ -625,3 +625,21 @@ async def test_the_site_country_replaces_only_keys_it_has_a_row_for_and_keeps_th
         if line.startswith("economics.") and " = " in line:
             assert "prices of the Netherlands" not in line.split("(recommended")[0], line
             assert "prices of France" not in line.split("(recommended")[0], line
+
+
+async def test_a_case_with_economics_is_asked_only_the_keys_it_lacks():
+    """QA-268: after a denied change, the question replaced every reference value with rows."""
+    from geomind.tools import dispatch
+    from geomind.types import ToolCall
+    from tests.fixtures.sessions import StubSession
+
+    session = StubSession(workspace=CatalogueWorkspace())
+    context = await case_context("hackathon_2026", session=session)
+    asked = ToolCall(id="q", name="ask_economics", input={"values": []})
+    request = await dispatch(ask_economics, asked, context)
+    assert isinstance(request, Request), request
+    lines = request.message.splitlines()
+    assert not any(line.startswith("economics.discount_rate =") for line in lines)
+    assert not any(line.startswith("economics.capex.heat_exchanger =") for line in lines)
+    assert not any(line.startswith("economics.energy.electricity =") for line in lines)
+    assert "Kept as the case has them, not asked again" in request.message

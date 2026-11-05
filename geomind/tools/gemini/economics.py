@@ -117,11 +117,35 @@ class EconomicsValue(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _row_by_id(cls, data):
-        """Read a row object by its ``id`` (``row_by_id``)."""
+        """Read a row object by its ``id`` (``row_by_id``) and a value given as a case leaf."""
         read, refusal = row_by_id(data)
         if refusal:
             raise ValueError(refusal)
-        return read
+        return unwrapped(read)
+
+
+def unwrapped(data):
+    """Return an entry whose ``value`` is a case leaf ``{value, unit}`` as its number and unit.
+
+    QA-298: a lead sent ``{"value": {"value": 25, "unit": "yr"}}``; the question showed the dict
+    and approve all failed at every key. The leaf's ``unit`` and ``uncertainty`` fill the entry's
+    when it gives none; a leaf with another unit than the entry's is refused.
+    """
+    if not isinstance(data, dict) or not isinstance(data.get("value"), dict):
+        return data
+    leaf = data["value"]
+    if "value" not in leaf:
+        raise ValueError(
+            f"value = {leaf!r}; expected a number (or text), or a case leaf with its value"
+        )
+    unit = leaf.get("unit")
+    if unit and data.get("unit") and unit != data["unit"]:
+        raise ValueError(f"value has unit {unit!r} and the entry unit {data['unit']!r}; give one")
+    read = {**data, "value": leaf["value"]}
+    for name in ("unit", "uncertainty"):
+        if leaf.get(name) is not None and read.get(name) is None:
+            read[name] = leaf[name]
+    return read
 
 
 CATALOGUE = "knowledge/data-economics.csv"
@@ -330,6 +354,37 @@ def kept_base(rows, values, country, replaced):
     return kept
 
 
+def case_values(context):
+    """Return ``{key: leaf}`` of each economics value the state's case already holds (QA-268).
+
+    A case with no economics, or none in the run, gives ``{}``.
+    """
+    from geomind.tools.gemini.case import economics_of
+
+    data = getattr(getattr(context, "problem", None), "case", None)
+    if not isinstance(data, dict) or not data.get("economics"):
+        return {}
+    try:
+        economics = economics_of(context, data)
+    except (ToolError, OSError, ValueError):
+        return {}
+    return {short(key): leaf for key, leaf in approved_leaves(economics).items()}
+
+
+KIND_GROUPS = ("capex.", "opex.fixed.", "opex.per_energy.")
+"""The economics groups whose keys are equipment kinds (``capex.heat_pump``)."""
+
+
+def is_kind_key(key):
+    """Tell whether an economics key prices one equipment kind (``opex.fixed.chp``)."""
+    return any(key.startswith(group) and "." not in key[len(group):] for group in KIND_GROUPS)
+
+
+def held_by_case(key, held):
+    """Tell whether the case holds ``key`` or a value under it (a per-energy map)."""
+    return key in held or any(item.startswith(f"{key}.") for item in held)
+
+
 def recommended(context, values, open_keys, country=None, notes=None):
     """Return ``(values, open keys)`` with every catalogue key the case lead did not name (QA-013).
 
@@ -343,6 +398,12 @@ def recommended(context, values, open_keys, country=None, notes=None):
     one: it stays in ``others``, and a key whose usable rows are all of other countries is open,
     named in ``notes["foreign"]``; a base value the lead gives is replaced only by a row of the
     site's country, named in ``notes["replaced"]``.
+
+    A key the case's economics already holds is never proposed again (QA-268: a denied change of
+    one value led to a question that replaced every reference value with catalogue rows); it is
+    counted in ``notes["kept"]``, or, with ``country``, replaced by a row of that country.
+    On such a case an equipment kind it has no price for is not asked (QA-192): a plant that
+    uses the kind asks for it then; each is counted in ``notes["later"]``.
     """
     rows = catalogue_rows(context)
     if rows is None:
@@ -351,6 +412,9 @@ def recommended(context, values, open_keys, country=None, notes=None):
     notes = {} if notes is None else notes
     replaced, foreign = notes.setdefault("replaced", []), notes.setdefault("foreign", [])
     values = kept_base(rows, values, country, replaced)
+    held = case_values(context)
+    notes["held"] = held
+    kept, later = notes.setdefault("kept", []), notes.setdefault("later", [])
     named = {short(item.key) for item in values} | {short(key) for key in open_keys}
     by_key = {}
     for row in rows.values():
@@ -360,6 +424,22 @@ def recommended(context, values, open_keys, country=None, notes=None):
     added, opened = [], []
     for key, found in sorted(by_key.items()):
         if key in CATALOGUE_BASIS:
+            continue
+        if held_by_case(key, held):
+            own = country_rows(rows, key, country) if country and key in held else []
+            if not own:
+                kept.append(key)
+                continue
+            base = held[key]
+            unit = f" {base['unit']}" if base.get("unit") else ""
+            shown = f"{base.get('value')}{unit} (the case)"
+            replaced.append(f"economics.{key}: {shown} -> row {own[0]['id']}")
+            others = [{"row": row["id"]} for row in own[1:]]
+            item = {"key": key, "row": own[0]["id"], **({"others": others} if others else {})}
+            added.append(EconomicsValue.model_validate(item))
+            continue
+        if held and is_kind_key(key):
+            later.append(key)
             continue
         if key.startswith(POLICY_KEYS):
             opened.append(key)
@@ -436,6 +516,14 @@ def given_values(values, open_keys):
             "catalogue row id or its source, or the key in open",
             path="values",
         )
+    claimed = [item.key for item in values if item.value is None and item.source]
+    if claimed:
+        raise ToolError(
+            f"ask_economics: {', '.join(claimed)} have a source and no value; expected each "
+            "value as the source gives it ({key, value, unit, source}), or the key in open with "
+            "no source (QA-298: they were shown as open while the note said they were set)",
+            path="values",
+        )
     nulls = [item.key for item in values if item.value is None]
     return given, list(dict.fromkeys(short(key) for key in [*open_keys, *nulls]))
 
@@ -455,14 +543,14 @@ def same(given, expected):
     return str(given).strip() == expected
 
 
-def catalogue_basis(values, open_keys):
+def catalogue_basis(values, open_keys, held=()):
     """Return ``(values, open keys)`` with the catalogue's currency and price year when a row is.
 
     A value from a catalogue row is in its ``value_2015`` and ``unit_2015``, EUR at 2015 prices
     (``CATALOGUE_BASIS``), so both are set from there with that source and taken out of ``open``;
     another value given for either is refused. Without a row, the model names both as before.
     """
-    if not any(item.row for item in values):
+    if not any(item.row for item in values) or all(key in held for key in CATALOGUE_BASIS):
         return values, open_keys
     for item in values:
         expected = CATALOGUE_BASIS.get(short(item.key))
@@ -595,21 +683,22 @@ def refuse_percents(values):
             )
 
 
-def prepared(values, open_keys, dropped=None):
+def prepared(values, open_keys, dropped=None, held=()):
     """Return ``(values, open keys, notes)`` of the question, or raise what the model must fix.
 
-    ``dropped``, a list, gets the keys left out as not economics keys (``not_economics``).
+    ``dropped``, a list, gets the keys left out as not economics keys (``not_economics``);
+    ``held`` the keys the case already holds, which need not be named (QA-268).
     """
     values, open_keys = given_values(values, open_keys)
     values, open_keys, _ = whole_per_energy(values, open_keys)
     values, open_keys, left_out = not_economics(values, open_keys)
     if dropped is not None:
         dropped += left_out
-    values, open_keys = catalogue_basis(values, open_keys)
+    values, open_keys = catalogue_basis(values, open_keys, held)
     refuse_percents(values)
     values, notes = fitted_units(values)
     values, open_keys = mismatched_open(values, open_keys, notes)
-    _checked(values, open_keys)
+    _checked(values, open_keys, held)
     return values, open_keys, notes
 
 
@@ -631,7 +720,7 @@ def mismatched_open(values, open_keys, notes):
     return kept, list(open_keys) + [key for key in keys if key not in open_keys]
 
 
-def _checked(values, open_keys):
+def _checked(values, open_keys, held=()):
     """Raise what the case lead must fix: an unknown key, a key twice, a required key not named."""
     from geomind.tools.gemini.skeleton import keys_under
 
@@ -660,7 +749,7 @@ def _checked(values, open_keys):
             "row, the key's other rows in its others",
             path="values",
         )
-    missing = [key for key in REQUIRED if key not in named]
+    missing = [key for key in REQUIRED if key not in named and key not in held]
     if missing:
         raise ToolError(
             f"ask_economics: {', '.join(missing)} not named; expected each in values (with its "
@@ -669,9 +758,16 @@ def _checked(values, open_keys):
         )
 
 
+SHOWN = 6
+"""Significant digits of a value the question shows (QA-298: 34.9514563107 EUR/MWh)."""
+
+
 def _amount(item):
-    """Return a value with its unit as the line shows it."""
-    return f"{item.value} {item.unit}" if item.unit else f"{item.value}"
+    """Return a value with its unit as the line shows it, a float to ``SHOWN`` digits."""
+    value = item.value
+    if isinstance(value, float):
+        value = f"{value:.{SHOWN}g}"
+    return f"{value} {item.unit}" if item.unit else f"{value}"
 
 
 COUNTRIES = {
@@ -763,7 +859,7 @@ def ask_economics(
     values, open_keys = recommended(context, list(values), list(open or []), country, sited)
     values = from_catalogue(context, values, skipped)
     _, _, moved = whole_per_energy(*given_values(values, list(open_keys)))
-    values, open_keys, notes = prepared(values, open_keys, dropped)
+    values, open_keys, notes = prepared(values, open_keys, dropped, sited.get("held") or ())
     message = question_text(values, open_keys, note, notes)
     if moved:
         message += "\n\n" + per_energy_note(moved)
@@ -773,7 +869,28 @@ def ask_economics(
         message += "\n\n" + skipped_note(skipped)
     if country:
         message += "\n\n" + country_note(site_country(country), sited)
+    message += held_note(sited, values)
     return Request(kind="question", message=message, options=list(OPTIONS))
+
+
+def held_note(sited, values):
+    """Return the lines on a case that already has economics: kept keys, kinds left, basis."""
+    lines = []
+    kept, later, held = sited.get("kept"), sited.get("later"), sited.get("held") or {}
+    if kept:
+        lines.append(f"Kept as the case has them, not asked again: {len(kept)} keys.")
+    if later:
+        lines.append(
+            f"Not asked: {len(later)} prices of equipment kinds the case has none for; a plant "
+            "that uses one asks for it then."
+        )
+    basis = {key: (held.get(key) or {}).get("value") for key in CATALOGUE_BASIS}
+    if any(item.row for item in values) and basis != CATALOGUE_BASIS and all(basis.values()):
+        lines.append(
+            f"The case's prices are {basis['currency']} at {basis['price_year']} prices; the "
+            "catalogue rows are EUR at 2015 prices: not converted, the user decides."
+        )
+    return "".join(f"\n\n{line}" for line in lines)
 
 
 def country_note(country, sited):
@@ -943,7 +1060,8 @@ async def economics_answered(context, tool_input, text):
 
     ``approve all`` records the assumptions, then sets every value; any other answer comes back
     as it is, typed text marked so. The assumptions go first so that ``set_case``, which refuses
-    economics other than the approved ones (QA-168), reads the values just approved. ``answer`` keeps the user's text, which a replay acts on again.
+    economics other than the approved ones (QA-168), reads the values just approved. ``answer``
+    keeps the user's text, which a replay acts on again.
     """
     from geomind.tools.gemini.case import set_case
 
@@ -954,10 +1072,11 @@ async def economics_answered(context, tool_input, text):
         return {"answer": text, "economics": "not set", **({"typed": True} if typed else {}), **note}
     values = [EconomicsValue.model_validate(item) for item in tool_input.get("values") or []]
     open_keys = list(tool_input.get("open") or [])
-    values, open_keys = recommended(context, values, open_keys, tool_input.get("country"))
+    sited = {}
+    values, open_keys = recommended(context, values, open_keys, tool_input.get("country"), sited)
     values = from_catalogue(context, values)
     dropped = []
-    values, open_keys, notes = prepared(values, open_keys, dropped)
+    values, open_keys, notes = prepared(values, open_keys, dropped, sited.get("held") or ())
     changes = assumption_changes(context.problem, values, notes)
     if changes:
         await context.session.change_state(changes)

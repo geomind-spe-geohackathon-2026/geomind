@@ -27,6 +27,33 @@ STUDY_TIMEOUT_S = 900
 CASE_FILE = "case/case.json"
 
 
+FIGURES = 5
+"""Significant digits of a figure a study tool returns: ``49.281``, not 16 digits."""
+
+
+def figures(found):
+    """Return ``found`` with every float to ``FIGURES`` significant digits (QA-099).
+
+    The study tools returned the trials, ranks and sensitivity rows with 15 to 17 digits, which
+    the answers quoted; the stored study keeps gemini's full numbers, only what the model reads
+    is rounded. An integer, a bool, a NaN or an infinity is left as it is.
+    """
+    if isinstance(found, dict):
+        return {key: figures(item) for key, item in found.items()}
+    if isinstance(found, (list, tuple)):
+        return [figures(item) for item in found]
+    if isinstance(found, float) and found == found and abs(found) != float("inf"):
+        return float(f"{found:.{FIGURES}g}")
+    return found
+
+
+EVALUATIONS_NOTE = (
+    "evaluations is gemini's budget per doublet count; found.evaluations counts every trial of "
+    "every count searched"
+)
+"""Why a search's trials can exceed the ``evaluations`` asked (QA-179: 80 trials for 30)."""
+
+
 def to_plain(node):
     """Return ``node`` as JSON data: every ``Quantity`` as its ``{value, unit}`` dict."""
     import gemini as gm
@@ -156,6 +183,7 @@ async def optimize(context, design: str, objective: str, evaluations: int, seed:
         "best": best.to_dict(),
         "feasible": found["feasible"],
         "trials": len(found["history"]),
+        "evaluations_note": EVALUATIONS_NOTE,
     }
     wrote = []
     if best["plant"] is not None:
@@ -166,7 +194,7 @@ async def optimize(context, design: str, objective: str, evaluations: int, seed:
     key = await save_study(
         context, name, "optimize", recorded, ([design], wrote), recommended, case, runs=runs
     )
-    return result | {"study": key} | ({"design": wrote[0]} if wrote else {})
+    return figures(result | {"study": key} | ({"design": wrote[0]} if wrote else {}))
 
 
 def sample_design(plant, case, metrics, samples, seed):
@@ -209,7 +237,7 @@ async def sample_uncertainty(
     result["varied"] = varied(result)
     found = (study.to_dict(), result)
     key = await save_study(context, name, "sample_uncertainty", found, ([design], []), None, case)
-    return {"study": key, **result}
+    return figures({"study": key, **result})
 
 
 def varied(result):
@@ -247,7 +275,7 @@ async def sensitivity(
     result = to_plain(tornado.to_dict())
     found = (study.to_dict(), result)
     key = await save_study(context, name, "sensitivity", found, ([design], []), None, case)
-    return {"study": key, **result, **left_out(ran[0], ran[1], values)}
+    return figures({"study": key, **result, **left_out(ran[0], ran[1], values)})
 
 
 def left_out(data, files, values):
@@ -369,6 +397,8 @@ def run_entry(run, entry, reference):
         "note": run.note,
         "found": found,
     }
+    if isinstance(found, dict) and "evaluations" in found:
+        result["evaluations_note"] = EVALUATIONS_NOTE
     if entry is not None:
         result |= {"ranks": entry["ranks"], "pareto": entry["pareto"]}
     return result
@@ -426,7 +456,7 @@ async def run_study(
     key = await save_study(
         context, name, "run_study", found, kept, stored.get(first), case, runs=full
     )
-    return {"study": key, "runs": runs, "best": best}
+    return figures({"study": key, "runs": runs, "best": best})
 
 
 def compare_runs(runs, by):

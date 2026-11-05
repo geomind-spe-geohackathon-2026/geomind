@@ -7,6 +7,11 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 ## [Unreleased]
 
 ### Fixed
+- QA-268, QA-192 (part 2): ask_economics never asks again for a key the case holds, nor for a price of
+  an equipment kind the case has none for; the case's currency and price year stay.
+- QA-211: a failing requirement gets design changes as options, never a requirement change.
+- QA-099 (code), QA-179: study tools give figures to 5 significant digits and say what
+  found.evaluations counts.
 - QA-212: the design lead never patches or asks for a `derived` value; with nothing missing it goes
   straight to the search.
 
