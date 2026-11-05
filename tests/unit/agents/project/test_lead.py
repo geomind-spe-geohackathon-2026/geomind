@@ -131,3 +131,12 @@ def test_qa_229_257_187_245_only_what_the_request_asks():
     assert "No brief widens the request" in text
     assert "never for an engineering review" in text
     assert "After a case change, the design team's brief is" in text
+
+
+def test_qa_283_an_empty_project_asks_for_the_site_first():
+    """QA-283: no files and no case: ask the site and demand, never brief from a missing file."""
+    lead = ProjectLead()
+    assert "list_files" in lead.tools()
+    text = " ".join(lead.prompt.content.split())
+    assert "In an empty project (no files, no case), ask the user first" in text
+    assert "is never this project's brief unless the user or the project's files name" in text
