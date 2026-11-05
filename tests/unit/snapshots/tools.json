@@ -1775,6 +1775,21 @@
             "title": "Name",
             "type": "string"
           },
+          "percentiles": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Percentiles"
+          },
           "samples": {
             "title": "Samples",
             "type": "integer"
@@ -2492,5 +2507,5 @@
       "name": "write_lesson"
     }
   },
-  "version": "0.4.26"
+  "version": "0.4.131"
 }

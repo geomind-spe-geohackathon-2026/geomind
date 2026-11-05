@@ -6,6 +6,8 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.131] - 2026-11-05
+
 ### Fixed (QA-296)
 - QA-268, QA-085, QA-259: ask_economics re-proposes no held key, takes the site's country from the
   case, and fills each value's uncertainty from its source document's range table; a misspelt
