@@ -55,6 +55,7 @@ def list_plants(context, plant_class: str | None = None, with_schema: bool = Fal
 
     shown = {
         "project_plants": project_plant_names(context),
+        "project_versions": project_designs(context)["plants"],
         "plants": [
             {"name": name, "summary": gm.plants.get(name).describe()["summary"]}
             for name in gm.plants.names()
@@ -92,6 +93,45 @@ def project_plant_names(context):
     if workspace is None or context.project is None:
         return []
     return sorted(workspace.plants(context.project))
+
+
+def project_designs(context):
+    """Return the project's plant versions and studies, or empty lists (QA-122).
+
+    The backend serves them with ``Workspace.project_designs``; a workspace without it, or a run
+    without a project, gives ``{"plants": [], "studies": []}``.
+    """
+    workspace = context.session.workspace
+    read = getattr(workspace, "project_designs", None)
+    if read is None or context.project is None:
+        return {"plants": [], "studies": []}
+    found = read(context.project) or {}
+    return {"plants": found.get("plants") or [], "studies": found.get("studies") or []}
+
+
+def version_plant(context, where, version):
+    """Return a saved plant version of the run's project as a gemini plant (QA-122)."""
+    import gemini as gm
+
+    workspace = context.session.workspace
+    read = getattr(workspace, "plant_version", None)
+    if read is None or context.project is None:
+        raise ToolError(
+            f"{where}: plant_version = {version}; this run's workspace keeps no plant versions; "
+            "expected a design, a project_plant or a plant_class",
+            code="not_allowed",
+            path="plant_version",
+        )
+    plant = read(context.project, version)
+    if plant is None:
+        known = [item["version"] for item in project_designs(context)["plants"]]
+        raise ToolError(
+            f"{where}: plant_version = {version}; expected one of {known} (list_plants "
+            "project_versions)",
+            code="unknown_name",
+            path="plant_version",
+        )
+    return gm.Plant.from_dict(plant)
 
 
 def workspace_plant(context, where, name=None):
@@ -361,21 +401,25 @@ async def read_plant(
     design: str | None = None,
     plant_class: str | None = None,
     project_plant: str | None = None,
+    plant_version: int | None = None,
 ):
-    """Read a project plant file, a stored design or a plant class: file, ranges, issues.
+    """Read a project plant file or version, a stored design or a plant class: file, ranges, issues.
 
     Skill `designing-a-plant`.
     """
     import gemini as gm
 
-    if sum(argument is not None for argument in (design, plant_class, project_plant)) > 1:
+    chosen = (design, plant_class, project_plant, plant_version)
+    if sum(argument is not None for argument in chosen) > 1:
         raise ToolError(
-            "read_plant: design, plant_class and project_plant are mutually exclusive; "
-            "expected one of them",
+            "read_plant: design, plant_class, project_plant and plant_version are mutually "
+            "exclusive; expected one of them",
             path="design",
         )
     if plant_class is not None:
         plant = gm.plants.get(plant_class)
+    elif plant_version is not None:
+        plant = version_plant(context, "read_plant", plant_version)
     else:
         plant = load_plant(context, design, "read_plant", project_plant)
     issues = await runtime.in_gemini_thread(plant_issues, context, plant)

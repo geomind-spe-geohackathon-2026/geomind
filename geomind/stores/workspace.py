@@ -49,6 +49,18 @@ class Workspace(Protocol):
         ``sse``, and the header values are secrets geomind never logs, stores or shows.
         """
 
+    def project_designs(self, project_id):
+        """Return every plant version and study of the project, read-only (QA-122).
+
+        ``{plants: [{version, name, note, by, created, latest}], studies: [{id, name, kind,
+        status, created, plant_version, case_version, settings, result}]}``; ``result`` is
+        ``None`` or ``{id, name, role, plant_version, case_version, kpis, checks}``. NOTE:
+        optional, with ``plant_version``; without them the agents see the chat's own designs.
+        """
+
+    def plant_version(self, project_id, version):
+        """Return a saved plant version of the project as a plant file dict, or ``None``."""
+
     def project_state(self, project_id):
         """Return how far a project's work is, for the next-step suggestions, or ``None``.
 

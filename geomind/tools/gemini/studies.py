@@ -7,12 +7,15 @@ from geomind.tools.gemini.stored import case_id, load_study, ran_case, study_ind
 
 @tool(effect="read")
 def list_studies(context):
-    """List the studies stored in this chat: what ran, over which designs, and whether current.
+    """List this chat's studies (what ran, over which designs, whether current) and the project's.
 
     Skill `comparing-designs`.
     """
+    from geomind.tools.gemini.plants import project_designs
+
     now = case_id(ran_case(context)) if context.problem.case is not None else None
-    return [
+    project = [{"project_study": item} for item in project_designs(context)["studies"]]
+    return project + [
         {
             "study": entry["study"],
             "tool": entry["tool"],

@@ -6,6 +6,14 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.97] - 2026-11-05
+
+### Added
+- QA-122: the agents see every plant version and study of the project, read-only, through the
+  optional `Workspace.project_designs` and `Workspace.plant_version`: `list_plants` gives
+  `project_versions`, `list_studies` lists the project's studies first (`project_study` with
+  the results' KPIs and checks), and `read_plant(plant_version=N)` reads a saved version.
+
 ## [0.4.96] - 2026-11-05
 
 ### Changed

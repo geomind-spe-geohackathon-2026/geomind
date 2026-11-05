@@ -54,9 +54,13 @@ other: size, simulate, check.
 
 ### `list_studies`
 
-List the studies stored in this chat: what ran, over which designs, and whether current.
+List this chat's studies (what ran, over which designs, whether current) and the project's.
 
-Each item is `{study, tool, method, designs, best, current}`: the `study/<name>` key, the
+The project's studies come first, each as `{project_study: {id, name, kind, status, created,
+plant_version, case_version, settings, result}}`: studies run on the Study page or by earlier
+chats, read-only. `result` is `null` or `{id, name, role, plant_version, case_version, kpis,
+checks}`: quote its `kpis` and `checks` to compare alternatives, and read its plant with
+`read_plant(plant_version=...)`. Each chat study item is `{study, tool, method, designs, best, current}`: the `study/<name>` key, the
 study tool and the gemini method it ran, the names of the plants it ran over, the reference of
 the design it recommends (`null` when it has none) and `current`, whether the state's case
 is still the case it ran on. A study that is not current ran on an older case: run it again
