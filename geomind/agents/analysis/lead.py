@@ -26,6 +26,17 @@ class AnalysisLead(Agent):
 
         # Tools
         self.economist = Delegate(Economist(), max_summary_tokens=ECONOMIST_TOKENS)
+        self._declare_gemini_tools()
+        self._declare_shared_tools()
+
+        # Output
+        self.output = Output(str)
+
+        # Model
+        self.model = Model(setting="analysislead_model", temperature=0)
+
+    def _declare_gemini_tools(self):
+        """Declare the tools over files, the case, the modules, plants, runs and studies."""
         self.list_files = tools.list_files
         self.read_rag = tools.read_rag
         self.read_case = tools.gemini.read_case
@@ -44,6 +55,9 @@ class AnalysisLead(Agent):
         self.list_studies = tools.gemini.list_studies
         self.read_study = tools.gemini.read_study
         self.compute_kpis = tools.gemini.compute_kpis
+
+    def _declare_shared_tools(self):
+        """Declare the knowledge, state, calculation, web, memory, support and question tools."""
         self.search_rag = tools.search_rag
         self.read_knowledge = tools.read_knowledge
         self.update_state = tools.update_state
@@ -58,9 +72,3 @@ class AnalysisLead(Agent):
         self.support_lead = Delegate(SupportLead(), max_summary_tokens=SUPPORT_TOKENS)
         self.ask_user = tools.ask_user
         self.finish = tools.finish
-
-        # Output
-        self.output = Output(str)
-
-        # Model
-        self.model = Model(setting="analysislead_model", temperature=0)

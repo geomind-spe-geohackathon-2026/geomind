@@ -136,6 +136,12 @@ class Servers:
             "arguments": arguments,
             "tool_description": summary_of(row["description"]),
         }
+        answer, limited = await self._answer(tool_name, server, name, arguments, row)
+        _raise_failed(tool_name, server, name, answer, limited, row)
+        return {"text": answer["text"], "structured": answer["structured"], "origin": origin}
+
+    async def _answer(self, tool_name, server, name, arguments, row):
+        """Return ``(answer, limited)``; a read-only call is sent again after a rate limit."""
         for attempt in range(RATE_LIMIT_RETRIES + 1):
             try:
                 async with McpClient(self.servers[server], self.timeout, self.transport) as client:
@@ -149,19 +155,23 @@ class Servers:
             if not limited or not row["read_only"] or attempt == RATE_LIMIT_RETRIES:
                 break
             await asyncio.sleep(RATE_LIMIT_WAIT)
-        if answer["is_error"] and limited:
-            raise ToolError(
-                f"{tool_name}: {server}/{name}: {answer['text']}; still limited after waiting "
-                f"{RATE_LIMIT_RETRIES} times {RATE_LIMIT_WAIT} s: do the rest of your work first and "
-                "call it again later, once, with every value you need in one call",
-                code="rate_limited",
-            )
-        if answer["is_error"]:
-            raise ToolError(
-                f"{tool_name}: {server}/{name}: {answer['text'] or 'the tool failed'}"
-                f"{schema_note(row)}"
-            )
-        return {"text": answer["text"], "structured": answer["structured"], "origin": origin}
+        return answer, limited
+
+
+def _raise_failed(tool_name, server, name, answer, limited, row):
+    """Raise the ``ToolError`` of a server's error answer: still rate limited, or failed."""
+    if answer["is_error"] and limited:
+        raise ToolError(
+            f"{tool_name}: {server}/{name}: {answer['text']}; still limited after waiting "
+            f"{RATE_LIMIT_RETRIES} times {RATE_LIMIT_WAIT} s: do the rest of your work first and "
+            "call it again later, once, with every value you need in one call",
+            code="rate_limited",
+        )
+    if answer["is_error"]:
+        raise ToolError(
+            f"{tool_name}: {server}/{name}: {answer['text'] or 'the tool failed'}"
+            f"{schema_note(row)}"
+        )
 
 
 RATE_LIMIT_WAIT = 61
