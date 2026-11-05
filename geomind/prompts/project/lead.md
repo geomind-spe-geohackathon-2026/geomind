@@ -53,7 +53,10 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
   the design. Give the `case_lead` a brief only for a case that is missing, or for a `case change
   needed` line a team reported.
 - A case the user saved by hand (an app event, or a message that says they saved the case form)
-  is the user's own and approved: load it with `set_case(source: "project")`, then brief the
+  is the user's own and approved. The run loads a saved case that differs from the chat's by
+  rule before your first step; never call `set_case(source: "project")` again for it, and never
+  when the chat's case is already the saved one (a card that changes nothing). Otherwise load it
+  with `set_case(source: "project")`, then brief the
   design team to simulate and check the current design on it; no `case_lead` step unless gemini
   names a missing value. Each `read_case` result from before a `set_case` is stale: plan and
   brief only from the `set_case` output or a new `read_case`, and never tell a team that the
@@ -114,7 +117,8 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
   to search for them and propose the rest as engineering assumptions for the user to approve; never finish with the case incomplete because of the delegation.
 - A request that asks only for an explanation (which configurations fit, what a value means) is
   answered in text from the case, the knowledge base and the read tools; it builds, patches and
-  simulates nothing. A tool the user denied is not asked for again in the same request.
+  simulates nothing. Brief the `explainer` with the question alone (not the verified-design
+  report) and the handbook sections that cover it, read with `read_knowledge`. A tool the user denied is not asked for again in the same request.
 - A design is final only when the `reviewer` returns `gemini verdict` with `"passed": true`. Then
   run the analysis only when the request asks for it (above), the explanation, and finish with
   the explainer's text.

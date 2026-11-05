@@ -573,3 +573,29 @@ def test_a_percent_given_as_a_whole_number_on_a_fraction_key_is_refused():
     with pytest.raises(ToolError, match="give 0.08"):
         refuse_percents([EconomicsValue(key="discount_rate", value=8, source="user")])
     refuse_percents([EconomicsValue(key="discount_rate", value=0.08, source="user")])
+
+
+def test_a_value_other_than_the_approved_one_is_named_and_refused():
+    """QA-168: a lead approved 0.5 EUR/(W/K) for the heat exchanger and wrote 0.1089 EUR/W."""
+    from geomind.context import ProblemState
+    from geomind.context.state import Assumption
+    from geomind.tools.gemini.economics import refuse_unapproved, unapproved_economics
+
+    approved = Assumption(
+        id="economics.capex.heat_exchanger",
+        text="approved",
+        value={"value": 0.5, "unit": "EUR/(W/K)"},
+        confirmed=True,
+    )
+    problem = ProblemState(assumptions=[approved])
+    same = {"capex": {"heat_exchanger": {"value": 0.5, "unit": "EUR/(W/K)"}}, "about": {}}
+    other = {"capex": {"heat_exchanger": {"value": 0.1089, "unit": "EUR/W"}}}
+    new_key = {"capex": {"cooler": {"value": 0.1, "unit": "EUR/W"}}}
+    assert unapproved_economics(problem, same) == []
+    assert unapproved_economics(problem, new_key) == []
+    lines = unapproved_economics(problem, other)
+    assert lines == [
+        "economics.capex.heat_exchanger: 0.1089 EUR/W, but the user approved 0.5 EUR/(W/K)"
+    ]
+    with pytest.raises(ToolError, match="call ask_economics"):
+        refuse_unapproved(problem, other)

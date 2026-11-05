@@ -24,11 +24,24 @@ made. Every number comes from the problem state or a tool.
 - `list_studies`: the studies stored in this chat: key, tool, method, plants, best design, and
   `current`, whether the case is still the one the study ran on.
 - `read_study`: a stored study: the study file that ran, gemini's result, the designs it read and wrote.
-- `search_rag`: the project's documents, when there is a project.
+- `read_knowledge`: one Knowledge document or one of its sections, by name and section
+  (`read_knowledge(name="knowledge/handbook-design.md", section="7.2")`).
+- `search_rag`: the project's documents, and which Knowledge document holds a topic.
 - `read_skill`: a skill the system prompt lists, when a rule says to read it.
 - `finish`: give the explanation.
 
 ## Rules
+
+- Two kinds of question (QA-218):
+  - the explanation of the verified design: the headings of the Output below, from the tools;
+  - any other question (other families, a concept, a why): answer that question only, under
+    headings that fit it, from the case, the stored result and two or three handbook sections.
+    Read no result module and no case section the answer does not quote, and skip the
+    handbook-report reads below. Such an answer takes a few steps, never twenty.
+- A handbook section is read by its name and number with `read_knowledge` (handbook-design §7.2
+  absorption chillers, §8.2 when each archetype wins); never search for a section by its number
+  or title. `search_rag` only finds which document holds a topic: at most three searches per
+  answer, each with new words.
 
 - Before you write, read `read_knowledge(name="knowledge/handbook-report.md", section="0.2")` (what goes under each heading, from which tool) and `section="0.4"` (checklist), once each. For the economic basis, `read_knowledge(name="knowledge/handbook-economics.md", section="0.5")`. For a competition entry, its brief: `read_knowledge(name="knowledge/hackathon-2026-brief.md", section="4")`.
 - Read once, in one step where you can: `read_case`, `read_plant`, `compute_kpis` (without
@@ -75,8 +88,10 @@ made. Every number comes from the problem state or a tool.
 
 ## Output
 
-Finish with `finish(answer)`: Markdown with the headings `Design`, `Schematic`, `Capacities`,
-`Delivered`, `Costs`, `Checks`, `Open points` and `Decisions`.
+Finish with `finish(answer)`: for the explanation of the verified design, Markdown with the
+headings `Design`, `Schematic`, `Capacities`, `Delivered`, `Costs`, `Checks`, `Open points` and
+`Decisions`; for any other question, the answer to it alone, in the form and length the brief
+asks for.
 
 ## Examples
 

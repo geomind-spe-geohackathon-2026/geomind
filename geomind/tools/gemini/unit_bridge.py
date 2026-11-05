@@ -29,6 +29,8 @@ POWER_BASES = ("electric", "shaft", "heat")
 """The powers a per-W cost is stated on: a row on one and a key on another are not converted."""
 BASIS = re.compile(r"(per [^(),;]+?) \(([^()]+)\)")
 """A cost basis in gemini's description of an economics key: ``per W of capacity (EUR/W)``."""
+SIZE_UNIT = re.compile(r"per [^(),;]+? \(([^()]*(?:\([^()]*\))?)\)")
+"""The unit of each size a key's description names: ``EUR/(W/K)`` and ``EUR/W``."""
 
 
 def bridged_units(changes):
@@ -191,6 +193,28 @@ def bracketed(unit, accepted):
     return form if form in accepted else unit
 
 
+def chosen_basis(schema, unit, accepted):
+    """Return the note of a ``unit`` that picks one of a key's sizes, or ``None`` (QA-168).
+
+    A key that takes a cost on more than one size (``capex.heat_exchanger``: per W/K of
+    conductance or per W of nominal duty) reads the size from the unit; the plant's modules of
+    that kind then need that size. The run: the only catalogue row was in EUR/W, the user approved
+    it, and the plant, sized by conductance, could not be simulated (nominal_duty missing).
+    """
+    if unit is None:
+        return None
+    description = schema.get("description") or ""
+    named = [name for name in SIZE_UNIT.findall(description) if name in accepted and "/" in name]
+    basis = dict((name, text) for text, name in BASIS.findall(description))
+    if len(named) < 2 or unit not in basis:
+        return None
+    others = [name for name in named if name != unit]
+    return (
+        f"the key reads {unit} {basis[unit]}: each module of this kind needs that size in the "
+        f"plant, else the plant is not simulated; the key also takes {', '.join(others)}"
+    )
+
+
 def economics_unit(key, unit):
     """Return ``(unit, note, accepted)`` of an economics value's ``unit`` as its key takes it.
 
@@ -204,7 +228,7 @@ def economics_unit(key, unit):
     given = unit.strip() if isinstance(unit, str) else unit
     given = bracketed(given, accepted)
     if given is None or given in accepted:
-        return given, None, accepted
+        return given, chosen_basis(schema, given, accepted), accepted
     if not accepted and "unit" not in (schema or {}).get("properties", {}):
         return _unitless(given)
     if not accepted:
@@ -219,7 +243,11 @@ def economics_unit(key, unit):
     note = f"the row's unit is {given}; set as {name}"
     if name not in basis:
         return name, note, accepted
-    note += f", which the key reads {basis[name]}"
+    size = chosen_basis(schema, name, accepted)
+    if size:
+        note += f"; {size}"
+    else:
+        note += f", which the key reads {basis[name]}"
     row_basis = [word for word in POWER_BASES if word in words.lower().split()]
     key_basis = [word for word in POWER_BASES if word in basis[name].lower().split()]
     if row_basis and key_basis and row_basis != key_basis:

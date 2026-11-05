@@ -46,3 +46,15 @@ def test_a_unit_name_is_mapped_only_to_a_name_the_key_accepts():
     assert changes["demand"]["heating"]["power"]["unit"] == "MWth"
     odd = {"site": {"ground": {"surface_temperature": {"value": 12, "unit": "MWth"}}}}
     assert bridged_units(odd) == (odd, [])
+
+
+def test_a_unit_that_picks_one_of_a_keys_sizes_says_the_size_the_plant_then_needs():
+    """QA-168: a heat exchanger cost per W needs the nominal duty; per W/K needs nothing more."""
+    from geomind.tools.gemini.unit_bridge import economics_unit
+
+    unit, note, _ = economics_unit("capex.heat_exchanger", "EUR/W")
+    assert unit == "EUR/W"
+    assert "nominal duty" in note and "EUR/(W/K)" in note
+    assert economics_unit("capex.heat_exchanger", "EUR/(W/K)")[1] is None
+    assert economics_unit("capex.cooler", "EUR/W")[1] is None
+    assert "EUR/m3" in economics_unit("capex.ice_storage", "EUR/MWh cold")[1]

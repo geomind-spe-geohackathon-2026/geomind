@@ -760,6 +760,69 @@ def assumption_changes(problem, values, notes=None):
     return changes
 
 
+def approved_leaves(patch, prefix="economics"):
+    """Return ``{dotted key: {value, unit}}`` of each value leaf of an economics merge patch."""
+    found = {}
+    for key, node in (patch or {}).items():
+        path = f"{prefix}.{key}"
+        if key == "about" or not isinstance(node, dict):
+            continue
+        if "value" in node:
+            found[path] = {"value": node.get("value"), "unit": node.get("unit")}
+        else:
+            found.update(approved_leaves(node, path))
+    return found
+
+
+def equal(given, approved):
+    """Tell whether two values are the same: numbers to a relative 1e-9, anything else as is."""
+    pair = (given, approved)
+    if all(isinstance(item, (int, float)) and not isinstance(item, bool) for item in pair):
+        return abs(given - approved) <= 1e-9 * max(abs(given), abs(approved), 1e-300)
+    return given == approved
+
+
+def unapproved_economics(problem, patch):
+    """Return the lines of an economics patch whose value differs from the one the user approved.
+
+    ``ask_economics`` records every value the user approved as a confirmed assumption
+    ``economics.<key>``. A ``set_case`` that writes another value or unit for such a key is not
+    what the user approved (QA-168: a lead asked one set of prices and wrote another, 9 values
+    changed, the heat exchanger capex in another unit). A new value goes through
+    ``ask_economics`` again, which asks the user and replaces the assumption.
+    """
+    approved = {
+        item.id: item.value
+        for item in getattr(problem, "assumptions", None) or ()
+        if item.confirmed and item.id.startswith("economics.") and isinstance(item.value, dict)
+    }
+    lines = []
+    for key, leaf in approved_leaves(patch).items():
+        given = approved.get(key)
+        if given is None:
+            continue
+        unit = given.get("unit")
+        if not equal(leaf["value"], given.get("value")) or (leaf["unit"] or None) != (unit or None):
+            shown = f"{given.get('value')} {unit}" if unit else f"{given.get('value')}"
+            asked = f"{leaf['value']} {leaf['unit']}" if leaf["unit"] else f"{leaf['value']}"
+            lines.append(f"{key}: {asked}, but the user approved {shown}")
+    return lines
+
+
+def refuse_unapproved(problem, patch, where="set_case"):
+    """Raise when an economics patch changes a value the user approved (QA-168)."""
+    lines = unapproved_economics(problem, patch)
+    if lines:
+        raise ToolError(
+            f"{where}: economics values differ from those the user approved: "
+            + "; ".join(lines)
+            + ". Write the approved values; for a new value call ask_economics with it, so the "
+            "user approves it first",
+            code="invalid_input",
+            path="economics",
+        )
+
+
 HOLDS_BACK = ("except", "but", "without", "apart from", "other than", "not ")
 """Words after a typed "approve all" that keep part back: then it is a change, not approve all."""
 TYPED_NOTE = (

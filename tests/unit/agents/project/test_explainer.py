@@ -36,3 +36,13 @@ def test_it_quotes_gemini_s_explanation_of_a_structure_search():
     text = " ".join(Explainer().prompt.content.split())
     assert "`explanation`" in text and "`table`" in text
     assert "Quote them as they are" in text and "never compute" in text
+
+
+def test_qa_218_a_conceptual_question_is_answered_in_a_few_steps():
+    """QA-218: other questions skip the design headings; sections are read, never fished for."""
+    explainer = Explainer()
+    assert "read_knowledge" in explainer.tools()
+    text = " ".join(explainer.prompt.content.split())
+    assert "answer that question only, under headings that fit it" in text
+    assert "never search for a section by its number or title" in text
+    assert "at most three searches per answer" in text

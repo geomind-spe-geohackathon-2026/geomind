@@ -178,3 +178,10 @@ def test_qa_289_an_earlier_answer_is_not_printed_again():
     assert earlier_answer_repeated(Context(messages=answered("| v1 | v2 |\nBuild v1."))) is None
     text = " ".join(ProjectLead().prompt.content.split())
     assert "An earlier answer of this chat is never printed again" in text
+
+
+def test_qa_224_a_saved_case_is_loaded_by_rule_and_never_again_as_a_no_op():
+    """QA-224: the load card came back for a case equal to the chat's."""
+    text = " ".join(ProjectLead().prompt.content.split())
+    assert "The run loads a saved case that differs from the chat's by rule" in text
+    assert "(a card that changes nothing)" in text

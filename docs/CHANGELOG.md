@@ -7,6 +7,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 ## [Unreleased]
 
 ### Fixed
+- QA-218: an explanation-only question gets that answer alone, from two or three handbook sections
+  read by name with read_knowledge, and at most three Knowledge searches.
+- QA-224: the project lead never loads a hand-saved case again when the run has loaded it or the
+  chat's case already is it.
+- QA-168 (parts 2 and 4): an economics question names the plant size a key's unit needs (EUR/W
+  of nominal duty); economics.refuse_unapproved names a value other than the one the user approved.
 - QA-278 follow-up: the design lead starts from the project's stored plants (design/<name> or
   design/v<N>) and never builds or retypes them.
 
