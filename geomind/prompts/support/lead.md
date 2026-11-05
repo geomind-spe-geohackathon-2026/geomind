@@ -30,7 +30,10 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
   summarizer gets the material itself, whole and word for word (`read_stored` a reference
   first); it cannot read a reference.
 <!-- memory -->
-- The curator gets the problems, their fixes and the user's words as the request gives them.
+- The curator gets the problems, their fixes and the user's words as the request gives them,
+  with nothing added: no fix or method line of your own. Only a problem a team met (a refused
+  call, a failed check, a repeat, a user correction) goes to it; a team that ran with none, or
+  did not run, is left out. A request with no problem sends only the user's words.
 <!-- /memory -->
 - Check the member's answer before it goes back: every number, unit, source, id and open question
   of the material is in it as written. When it is not so, send it back once, naming what is

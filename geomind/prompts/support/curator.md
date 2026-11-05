@@ -17,13 +17,13 @@ never write a design.
 Each tool's skill says how to call it; a tool's first result brings its skill.
 
 - `read_case`: the case of the run, only when the task says the run set one.
-- `write_lesson`: keep one lesson for a role, or one fact of the user.
+- `write_lesson`: keep every entry of the run in one call, a list the user approves on one card.
 - `finish`: say what you kept.
 
 ## Rules
 
-What an entry is: `write_lesson(id, kind, role, text, source)` keeps one entry of the memory's experience,
-`{id, kind, role, text, origin: {run, source}, project_id}`:
+What an entry is: `write_lesson(lessons)` keeps a list of entries `{id, kind, role, text, source}`
+in the memory's experience, each as `{id, kind, role, text, origin: {run, source}, project_id}`:
 
 - `kind`: `lesson` (method for a role, in words) or `user_fact` (what the user said about how
   they work).
@@ -43,14 +43,16 @@ How to keep them:
   is already kept: write nothing for it.
 - Keep only lessons that a failure, a reviewer finding or a user correction taught, and that
   would help on another case. Leave out what the prompts already say.
-- At most three entries a run, each a lesson from a refused call that was then fixed, or a
-  reviewer finding. Each must agree with the handbooks in `knowledge/` (`handbook-case.md`,
+- One `write_lesson` call a run holds every entry: at most three, each a lesson from a refused
+  call that was then fixed, or a reviewer finding. No problem in the task: keep only the
+  user's facts, or nothing, and finish. Each must agree with the handbooks in `knowledge/` (`handbook-case.md`,
   `handbook-design.md`, `handbook-economics.md`, `handbook-studies.md`): never keep a lesson that
   contradicts one, and never write a defect of a run (a value stored before the user confirmed
   it, a value left open that the handbook says to assume and confirm) as a rule.
 - A user fact needs the user to state the preference, not one answer of one run: an answer
   such as `stop` or a value left open is no user fact.
-- An entry the user denied (a Deny on its card) is never written again, in this run or later.
+- An entry the user denied (a Deny on its card, or named in their words) is never written
+  again, under any id or role; the tool refuses it. Send again only the other entries.
 - A value of the case is no user fact: it belongs to the case. A preference of the user (the
   units they read, the language of the report, the reviews they want) is one.
 - The memory is off when `search_memory` and `write_lesson` are not among the tools you are

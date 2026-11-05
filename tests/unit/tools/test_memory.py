@@ -53,7 +53,7 @@ async def test_write_lesson_keeps_its_origin_and_search_returns_it_to_the_role()
         "text": "review coupled values before sizing",
         "source": "reviewer",
     }
-    assert (await call(write_lesson, lesson, session)).output == {"written": "l1", "kind": "lesson"}
+    assert (await call(write_lesson, {"lessons": [lesson]}, session)).output == {"written": ["l1"]}
     entry = session.memory.entries("experience")[0]
     assert entry["origin"] == {"run": "r1", "source": "reviewer"}
 
@@ -63,7 +63,8 @@ async def test_write_lesson_keeps_its_origin_and_search_returns_it_to_the_role()
     session.agent = Lead()
     found = (await call(search_memory, {}, session)).output
     assert [item["id"] for item in found["lessons"]] == ["l1"]
-    refused = await call(write_lesson, {**lesson, "id": "l2", "text": "use 3 doublets"}, session)
+    digit = {**lesson, "id": "l2", "text": "use 3 doublets"}
+    refused = await call(write_lesson, {"lessons": [digit]}, session)
     assert refused.is_error
 
 
@@ -94,7 +95,7 @@ async def test_a_lesson_for_a_role_no_agent_has_is_refused():
 
     session = session_with(MemoryMemory())
     lesson = {"id": "l1", "kind": "lesson", "role": "designlead", "text": "check", "source": "user"}
-    error = (await call(write_lesson, lesson, session)).output["error"]
+    error = (await call(write_lesson, {"lessons": [lesson]}, session)).output["error"]
     assert error["code"] == "unknown_name" and "designlead" in error["suggestions"]
 
 
@@ -119,7 +120,7 @@ async def test_a_failing_memory_store_is_memory_unavailable_never_internal():
     for tool, arguments in ((search_memory, {}), (read_memory, {"id": "e1"})):
         error = (await call(tool, arguments, session)).output["error"]
         assert error["code"] == "memory_unavailable" and "unreachable" in error["message"]
-    error = (await call(write_lesson, lesson, session)).output["error"]
+    error = (await call(write_lesson, {"lessons": [lesson]}, session)).output["error"]
     assert error["code"] == "memory_unavailable"
 
 
@@ -165,3 +166,81 @@ async def test_search_memory_with_a_workspace_memory_method_is_never_internal():
     asked = ToolCall(id="c1", name="read_memory", input={"id": "e1"})
     result = await dispatch(read_memory, asked, Context(project="p1", session=session))
     assert not result.is_error and result.output["design"] == "design/a"
+
+
+async def test_one_write_lesson_call_keeps_the_run_s_entries_at_most_three():
+    """QA-199: nine lessons were nine cards; one call holds them, more than three is refused."""
+    from geomind.tools import write_lesson
+
+    session = session_with(MemoryMemory())
+    entry = {"kind": "lesson", "role": "all", "text": "read each file once", "source": "gemini"}
+    entries = [{**entry, "id": f"all-{name}"} for name in ("a", "b")]
+    assert (await call(write_lesson, {"lessons": entries}, session)).output == {
+        "written": ["all-a", "all-b"]
+    }
+    four = [{**entry, "id": f"all-{name}"} for name in ("c", "d", "e", "f")]
+    assert (await call(write_lesson, {"lessons": four}, session)).is_error
+    assert len(session.memory.entries("experience")) == 2
+
+
+class Event:
+    """A logged event with the fields ``denied_lessons`` reads."""
+
+    def __init__(self, type, **fields):
+        """Keep the type and the fields."""
+        self.type = type
+        self.__dict__.update(fields)
+
+
+class Call:
+    """A pending tool call: its id and input."""
+
+    def __init__(self, id, input):
+        """Keep the id and the input."""
+        self.id = id
+        self.input = input
+
+
+def denial(call_id, entries, reason="denied by the user"):
+    """Return the events of a write_lesson card of ``entries`` the user denied."""
+    return [
+        Event("request", call=Call(call_id, {"lessons": entries})),
+        Event(
+            "permission",
+            decision="deny",
+            rule="user",
+            tool="write_lesson",
+            call_id=call_id,
+            reason=reason,
+        ),
+    ]
+
+
+def test_a_denied_lesson_under_another_id_or_role_is_refused_before_its_card():
+    """QA-265: a denied lesson came back as role ``all`` under another id, and was asked again."""
+    from geomind.tools.memory import repeated_denial
+
+    denied = {
+        "id": "case-lead-check-case-accepted-first",
+        "kind": "lesson",
+        "role": "case_lead",
+        "text": "Check the case was accepted before any case step.",
+        "source": "support_lead",
+    }
+    events = denial("c1", [denied], reason="the case lead did not run")
+    again = {**denied, "id": "all-check-case-accepted", "role": "all"}
+    other = {**denied, "id": "all-read-once", "text": "Read each project document once."}
+    assert "all-check-case-accepted" in repeated_denial(events, {"lessons": [again, other]})
+    assert repeated_denial(events, {"lessons": [other]}) is None
+
+
+def test_a_card_of_several_denied_with_words_refuses_only_the_named_entries():
+    """A Deny of a card of several entries refuses the ones its words name; the rest may return."""
+    from geomind.tools.memory import repeated_denial
+
+    entry = {"kind": "lesson", "role": "all", "source": "gemini"}
+    first = {**entry, "id": "all-first", "text": "Read each project document once."}
+    second = {**entry, "id": "all-second", "text": "Never re-simulate a stored result."}
+    events = denial("c1", [first, second], reason="drop all-second, it is wrong")
+    assert repeated_denial(events, {"lessons": [first]}) is None
+    assert "all-second" in repeated_denial(events, {"lessons": [first, second]})

@@ -8,6 +8,8 @@ knowledge base's (``geomind/tools/knowledge.py``).
 import difflib
 from typing import Literal
 
+from pydantic import BaseModel, ConfigDict
+
 from geomind import runtime
 from geomind.errors import ToolError
 from geomind.stores.memory import checked_lesson, lessons_for, search_experience
@@ -158,33 +160,140 @@ def read_memory(context, id: str):
     )
 
 
-@tool(effect="write", idempotent=True)
-def write_lesson(
-    context,
-    id: str,
-    kind: Literal["lesson", "user_fact"],
-    role: str,
-    text: str,
-    source: str,
-):
-    """Keep a general lesson for one role, or a fact the user gave, in the memory's experience.
+MOST_LESSONS = 3
+"""The most entries one run keeps (QA-199: eight or nine lessons a run, each its own card)."""
 
+
+class Lesson(BaseModel):
+    """One entry of the memory's experience: a lesson for a role, or a fact the user stated."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    kind: Literal["lesson", "user_fact"]
+    role: str
+    text: str
+    source: str
+
+
+@tool(effect="write", idempotent=True)
+def write_lesson(context, lessons: list[Lesson]):
+    """Keep the run's general lessons for roles, and the facts the user gave, in one call.
+
+    One call holds every entry of the run, so the user approves them on one card (QA-199).
     Skill `memory`.
     """
     memory = memory_of(context, "write_lesson")
-    if not is_role(role):
+    entries = [lesson if isinstance(lesson, dict) else lesson.model_dump() for lesson in lessons]
+    if not entries:
         raise ToolError(
-            f"write_lesson: role = {role!r}; expected an agent's snake name, such as "
-            "design_lead, or all",
-            code="unknown_name",
-            path="role",
-            suggestions=difflib.get_close_matches(role.replace("_", ""), runtime.ROLES),
+            "write_lesson: lessons = []; expected at least one entry, or keep nothing and finish",
+            path="lessons",
         )
-    origin = {"run": context.session.state.run_id, "source": source}
-    entry = {"id": id, "kind": kind, "role": role, "text": text, "origin": origin}
-    entry["project_id"] = context.project
-    from_store("write_lesson", memory.add, "experience", checked_lesson(entry))
-    return {"written": id, "kind": kind}
+    if len(entries) > MOST_LESSONS:
+        raise ToolError(
+            f"write_lesson: {len(entries)} entries; expected at most {MOST_LESSONS} a run: keep "
+            "only the ones a refused call, a reviewer finding or a user correction taught",
+            code="invalid_input",
+            path="lessons",
+        )
+    for index, entry in enumerate(entries):
+        if not is_role(entry["role"]):
+            raise ToolError(
+                f"write_lesson: role = {entry['role']!r}; expected an agent's snake name, such "
+                "as design_lead, or all",
+                code="unknown_name",
+                path=f"lessons.{index}.role",
+                suggestions=difflib.get_close_matches(
+                    entry["role"].replace("_", ""), runtime.ROLES
+                ),
+            )
+    origin = {"run": context.session.state.run_id}
+    checked = [
+        checked_lesson(
+            {
+                "id": entry["id"],
+                "kind": entry["kind"],
+                "role": entry["role"],
+                "text": entry["text"],
+                "origin": {**origin, "source": entry["source"]},
+                "project_id": context.project,
+            }
+        )
+        for entry in entries
+    ]
+    for entry in checked:
+        from_store("write_lesson", memory.add, "experience", entry)
+    return {"written": [entry["id"] for entry in checked]}
+
+
+SAME_TEXT = 0.8
+"""How alike two lesson texts are, at least, to be the same lesson under another id or role."""
+
+
+def _words(text):
+    """Return a lesson's text in lower case with its spacing made single, for comparing."""
+    return " ".join(str(text or "").lower().split())
+
+
+def lessons_of(tool_input):
+    """Return the entries of a ``write_lesson`` call's input, an older single entry as one."""
+    item = tool_input or {}
+    if isinstance(item.get("lessons"), list):
+        return [entry for entry in item["lessons"] if isinstance(entry, dict)]
+    return [item] if item.get("text") else []
+
+
+def denied_lessons(events):
+    """Return the lessons the user denied in this request: one card's, or the ones their words name.
+
+    QA-265: a denied lesson came back under another id and role ``all``. A card of one entry
+    denied is that entry; a card of several denied with words is the entries whose id the words
+    name (the other entries may come back without them); a denial without words stops the tool.
+    """
+    inputs, denied = {}, []
+    for event in events:
+        call = getattr(event, "call", None)
+        if event.type == "request" and call is not None:
+            inputs[call.id] = call.input
+        if not (
+            event.type == "permission"
+            and event.decision == "deny"
+            and event.rule == "user"
+            and event.tool == "write_lesson"
+        ):
+            continue
+        entries = lessons_of(inputs.get(getattr(event, "call_id", None)))
+        words = _words(event.reason)
+        named = [entry for entry in entries if _words(entry.get("id")) in words]
+        denied += entries if len(entries) == 1 else named
+    return denied
+
+
+def repeated_denial(events, tool_input):
+    """Return the refusal of a ``write_lesson`` call that holds a lesson denied before, or None.
+
+    A lesson is the same when its id is, or its text is at least ``SAME_TEXT`` alike, whatever
+    its role.
+    """
+    denied = denied_lessons(events)
+    if not denied:
+        return None
+    again = []
+    for entry in lessons_of(tool_input):
+        text = _words(entry.get("text"))
+        for earlier in denied:
+            ratio = difflib.SequenceMatcher(None, text, _words(earlier.get("text"))).ratio()
+            if entry.get("id") == earlier.get("id") or ratio >= SAME_TEXT:
+                again.append(f"{entry.get('id')} (the denied {earlier.get('id')})")
+                break
+    if not again:
+        return None
+    return (
+        "write_lesson: the user denied these lessons earlier in this request, so they are never "
+        f"written, under any id or role: {', '.join(again)}; leave them out, and call "
+        "write_lesson again only with the other entries, or finish"
+    )
 
 
 def keep_design(context, found, rejected):

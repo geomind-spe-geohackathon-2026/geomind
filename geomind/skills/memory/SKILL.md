@@ -23,7 +23,11 @@ Cited values are not here: search the knowledge base (`search_rag`).
 
 ### `write_lesson`
 
-Keep a general lesson for one role, or a fact the user gave, in the memory's experience.
+Keep the run's lessons for roles, and the facts the user gave, in the memory's experience:
+one call with the list `lessons` of every entry, so the user approves them on one card. At
+most three entries a run; an entry the user denied earlier, under any id or role, is refused.
+
+Each entry is `{id, kind, role, text, source}`.
 
 A `lesson` is method for `role` (an agent's snake name such as `design_lead`, or
 `all`) in words, with no number: a project's values never become a rule. A `user_fact`

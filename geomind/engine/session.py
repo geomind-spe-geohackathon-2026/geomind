@@ -522,11 +522,16 @@ class RunSession:
 
     def _approval(self, decision, rule, tool, call):
         """Return the approval to ask, with what the call writes, or the refusal of a denial."""
-        refused = earlier_denial(
-            self.engine.store.load_events(self.state.root), tool.name, call.input
-        )
+        events = self.engine.store.load_events(self.state.root)
+        refused = earlier_denial(events, tool.name, call.input)
         if refused is not None:
             return Deny(reason=denied_again(tool.name, refused)), "user:earlier"
+        if tool.name == "write_lesson":
+            from geomind.tools.memory import repeated_denial
+
+            again = repeated_denial(events, call.input)
+            if again is not None:
+                return Deny(reason=again), "user:earlier"
         summary = project_case_summary(self, call.input) if tool.name == "set_case" else None
         message = approval_message(decision.message, call.input, call.name, summary)
         return decision.model_copy(update={"message": message}), rule
@@ -700,7 +705,9 @@ class RunSession:
 
 
 APPROVAL_INPUT_CHARS = 1500
-"""How much of a call's input an approval shows, after its one-line summary (QA-121)."""
+"""How much of a call's input an approval shows as JSON, after its one-line summary (QA-121)."""
+APPROVAL_LEAVES_CHARS = 12000
+"""How much a longer input shows as one ``path: value`` line per leaf, every leaf (QA-196)."""
 
 
 def _leaves(node, prefix=""):
@@ -764,7 +771,33 @@ def call_summary(tool, tool_input):
         return text + (f"; ranges removed: {_listed(dropped)}" if dropped else "") + "."
     if tool == "set_case":
         return _case_summary(item)
+    if tool == "write_lesson":
+        from geomind.tools.memory import lessons_of
+
+        kept = [
+            f"{entry.get('id')} ({entry.get('kind')} for {entry.get('role')}, from "
+            f"{entry.get('source')}): {entry.get('text')}"
+            for entry in lessons_of(item)
+        ]
+        return f"Keep {len(kept)} entries in the memory:\n" + "\n".join(f"- {k}" for k in kept)
     return None
+
+
+def _value_text(node):
+    """Return a leaf of a change as text: ``0.5 EUR/(W/K)``, a plain value, or ``removed``."""
+    if isinstance(node, dict) and "value" in node:
+        return f"{node.get('value')} {node.get('unit') or ''}".strip()
+    return "removed" if node is None else json.dumps(node, ensure_ascii=False, default=str)
+
+
+def _leaf_values(node, prefix=""):
+    """Return ``(path, value text)`` of each leaf of a nested change, a ``{value, unit}`` one."""
+    if not isinstance(node, dict) or not node or "value" in node:
+        return [(prefix, _value_text(node))] if prefix else []
+    found = []
+    for key, child in node.items():
+        found += _leaf_values(child, f"{prefix}.{key}" if prefix else str(key))
+    return found
 
 
 def _case_summary(item):
@@ -778,7 +811,13 @@ def _case_summary(item):
         text += f", then change {_listed(changed)}" if changed else ""
     else:
         text = f"Change the case: {_listed(changed)}" if changed else "Set the case"
-    return text + (f"; files {_listed(files)}" if files else "") + "."
+    text += (f"; files {_listed(files)}" if files else "") + "."
+    priced = _leaf_values(item.get("economics") or {})
+    if priced:
+        # QA-168: the card listed only paths, so a user could not see the values differ from
+        # the ones just approved: every economics value is shown with its unit.
+        text += "\nEconomics values:\n" + "\n".join(f"- {p}: {v}" for p, v in priced)
+    return text
 
 
 SOURCE_WORDS = {
@@ -850,7 +889,12 @@ def approval_message(message, tool_input, tool=None, summary=None):
     summary = summary or call_summary(tool, tool_input)
     text = json.dumps(tool_input, indent=2, ensure_ascii=False, default=str)
     if len(text) > APPROVAL_INPUT_CHARS:
-        text = text[:APPROVAL_INPUT_CHARS] + "\n... (cut; the whole input is in the run log)"
+        text = "\n".join(f"{path}: {value}" for path, value in _leaf_values(tool_input))
+        if len(text) > APPROVAL_LEAVES_CHARS:
+            # QA-196: the card sent the user to the run log, which holds no pending call.
+            shown = text[:APPROVAL_LEAVES_CHARS].rsplit("\n", 1)[0]
+            rest = text.count("\n") - shown.count("\n")
+            text = f"{shown}\n... and {rest} more values: deny with words to see or change them"
     head = f"{message}\n\n{summary}" if summary else message
     return f"{head}\n\nWhat the call sends:\n{text}"
 

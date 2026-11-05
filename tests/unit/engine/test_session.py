@@ -198,7 +198,7 @@ async def test_a_workspace_memory_of_none_turns_the_memory_off_with_no_fallback(
         assert session.memory is None and session.memory_source() == "off"
         assert runtime.memory_problems("off") == []
         names = [item["name"] for item in session.offered_schemas(DesignLead())]
-        asked = ToolCall(id="c1", name="write_lesson", input=lesson)
+        asked = ToolCall(id="c1", name="write_lesson", input={"lessons": [lesson]})
         result = await dispatch(write_lesson, asked, Context(project="p1", session=session))
         error = result.output["error"]
     assert "search_memory" not in names and "simulate" in names
@@ -306,3 +306,30 @@ def test_a_set_case_from_the_project_names_its_version_and_changes():
                                      "set_case", text)
     assert call_summary("set_case", {"source": "project"}) == "Load the project's saved case."
     assert project_case_summary(session, {"changes": {}}) is None
+
+
+def test_a_long_approval_shows_every_value_never_a_cut_json():
+    """QA-196: the card cut the JSON at a fixed length and pointed to a log with no pending call."""
+    from geomind.engine.session import approval_message
+
+    changes = {"site": {f"layer_{n}": {"value": n, "unit": "m"} for n in range(80)}}
+    text = approval_message("Allow set_case (write)?", {"changes": changes}, "set_case")
+    assert "changes.site.layer_79: 79 m" in text and "run log" not in text
+
+
+def test_the_set_case_card_shows_each_economics_value_with_its_unit():
+    """QA-168 part 3: the card named only paths, so changed values could not be checked."""
+    from geomind.engine.session import call_summary
+
+    economics = {"capex": {"heat_exchanger": {"value": 0.5, "unit": "EUR/(W/K)"}}, "flare": None}
+    text = call_summary("set_case", {"economics": economics})
+    assert "capex.heat_exchanger: 0.5 EUR/(W/K)" in text and "flare: removed" in text
+
+
+def test_the_write_lesson_card_lists_every_entry_with_its_text():
+    """QA-199: one card for the run's entries, each with its id, role and text."""
+    from geomind.engine.session import call_summary
+
+    entry = {"id": "all-a", "kind": "lesson", "role": "all", "text": "Read.", "source": "gemini"}
+    text = call_summary("write_lesson", {"lessons": [entry, {**entry, "id": "all-b"}]})
+    assert text.startswith("Keep 2 entries") and "all-b (lesson for all, from gemini)" in text
