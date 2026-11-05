@@ -7,6 +7,8 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 ## [Unreleased]
 
 ### Fixed
+- QA-163: ask_user refuses a question that retypes a long number with other digits than its source.
+- set_case refuses economics other than the values the user approved in ask_economics.
 - QA-268, QA-192 (part 2): ask_economics never asks again for a key the case holds, nor for a price of
   an equipment kind the case has none for; the case's currency and price year stay.
 - QA-211: a failing requirement gets design changes as options, never a requirement change.

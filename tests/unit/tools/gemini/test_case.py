@@ -923,3 +923,22 @@ async def test_an_uncertainty_of_another_kind_replaces_the_old_one_whole():
     assert result.is_error is False, result.output
     stored = json.loads(session.artifacts["case/economics.json"])
     assert stored["discount_rate"]["uncertainty"] == uniform
+
+
+async def test_economics_other_than_the_approved_values_are_refused():
+    """QA-279: set_case wrote another value than the user approved with ask_economics."""
+    from geomind.context.state import Assumption
+
+    session, problem = await loaded("hackathon_2026")
+    approved = Assumption(
+        id="economics.discount_rate",
+        text="approved",
+        value={"value": 0.05},
+        confirmed=True,
+    )
+    problem = problem.model_copy(update={"assumptions": [approved]})
+    patch = {"discount_rate": {"value": 0.08}}
+    error = (await edited(session, problem, {"economics": patch})).output["error"]
+    assert "the user approved 0.05" in error["message"]
+    result = await edited(session, problem, {"economics": {"discount_rate": {"value": 0.05}}})
+    assert result.is_error is False, result.output

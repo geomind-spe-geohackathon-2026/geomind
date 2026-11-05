@@ -37,7 +37,11 @@ goes as the row writes it (`EUR/W electric`); a unit its key does not take is re
 every one at once, before the user is asked. `open` names the keys no usable row gives, each
 key once in `values` or `open`; `note` one line for the user. A field with
 nothing to say is null or left out; a key whose value is null is open. The question's
-options are approve all, change some and stop, and the user may type an answer instead. On
+options are approve all, change some and stop, and the user may type an answer instead.
+`country` names the site's country (Norway or NO): a base value you pass with its source
+stays unless the catalogue has a row of that country for its key, which then replaces it; a
+key you leave out never takes a row of another country, and a key with only such rows is
+open. The card lists what was replaced. On
 approve all, every value is set in the case's economics (`set_case`) with its row in
 `about.sources`, and each becomes a confirmed assumption with its citation; the result says
 what was set. On change some, ask which values change and to what, without options.

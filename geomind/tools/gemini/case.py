@@ -1187,6 +1187,12 @@ async def set_case(
     converted += judged_requirements(data)
     moved = moved_reference_depth(base, data)
     exact = exact_ratios(data.get("requirements"))
+    if economics:
+        from geomind.tools.gemini.economics import refuse_unapproved
+
+        # The session's state holds assumptions ask_economics recorded in this same call.
+        state = getattr(getattr(context.session, "state", None), "problem", None)
+        refuse_unapproved(state or context.problem, economics)
     contents = edited_economics(context, data, supplied, economics) if economics else supplied
     origin = given_case(context, source, (base, supplied), (data, contents))
     try:
