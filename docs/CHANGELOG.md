@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.69] - 2026-11-05
+
+### Fixed
+
+- QA-080: the case lead writes a range the brief gives with both ends (a flow of 50 to 300 m3/h) as one requirement with `min` and `max`. With gemini 0.6.8 two one-sided rules also make one flow range.
+
 ## [0.4.68] - 2026-11-05
 
 ### Fixed
