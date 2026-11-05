@@ -1,7 +1,7 @@
 """Tools over the global Knowledge base only, for a team's sub-agents (IMP-025).
 
 Only a team lead reads and writes the project's files; a sub-agent may read the Knowledge base
-(user decision, 2026-11-05), so these tools refuse any name outside ``knowledge/``.
+(user decision, 2026-11-05), so these tools read only names inside ``knowledge/`` (a bare name gets the prefix).
 """
 
 from geomind.errors import ToolError
@@ -35,16 +35,16 @@ def read_knowledge(
     outline: bool = False,
     section: str | None = None,
 ):
-    """Read one document of the Knowledge base, ``knowledge/<name>``, as text.
+    """Read one document of the Knowledge base, ``knowledge/<name>`` or ``<name>``, as text.
+
+    Every name is a Knowledge document: a bare ``handbook-design.md`` reads
+    ``knowledge/handbook-design.md`` (QA-169, QA-182).
 
     Skill `finding-sources`.
     """
-    if not str(name).startswith(PREFIX):
-        raise ToolError(
-            f"read_knowledge: name = {name!r}; expected a Knowledge document 'knowledge/<name>'; "
-            "a project file is the lead's to read",
-            path="name",
-        )
+    name = str(name).strip()
+    if not name.startswith(PREFIX):
+        name = PREFIX + name.lstrip("/")
     return read_rag.function(
         context, name, start=start, length=length, outline=outline, section=section
     )

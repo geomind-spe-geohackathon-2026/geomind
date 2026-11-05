@@ -6,6 +6,15 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.104] - 2026-11-05
+
+### Fixed
+- QA-169, QA-182: `read_knowledge` reads a bare name (`handbook-design.md`) as
+  `knowledge/handbook-design.md` instead of refusing it as a project file; a section key of a
+  number and a title that names no heading as a whole (`3 Wells`, `5.5 Gas use and disposal`)
+  takes the heading whose title holds that title, else the one of that number; the outline of
+  a refused section lists each number once (`3 The subsurface`, not `3 3 The subsurface`).
+
 ## [0.4.103] - 2026-11-05
 
 ### Fixed

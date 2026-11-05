@@ -352,7 +352,7 @@ def section_text(name, text, key, section):
     """Return ``(section text, read key, heading)`` of the section ``section`` names, or refuse."""
     found = sections.section_span(text, section)
     if found is None:
-        listed = ", ".join(f"{item['number']} {item['title']}" for item in sections.headings(text))
+        listed = ", ".join(sections.label(item) for item in sections.headings(text))
         raise ToolError(
             f"read_rag: section = {section!r} is no heading of {name}; expected a number or a "
             f"title of its outline (read_rag(name, outline=true)): {listed[:1500] or 'it has none'}",

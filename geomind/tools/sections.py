@@ -49,6 +49,8 @@ def section_span(text, key):
     """Return the heading of the section ``key`` names: its number, its title, or a part of it.
 
     ``None`` when no heading matches; an exact number or title wins over a title that holds it.
+    A key of a number and a title that match no heading as a whole (``3 Wells``, QA-169) takes
+    the heading whose title holds that title, else the heading of that number.
     """
     wanted = str(key).strip().lower().rstrip(".")
     found = headings(text)
@@ -61,7 +63,24 @@ def section_span(text, key):
         match = next((item for item in found if test(item)), None)
         if match is not None:
             return match
+    numbered = NUMBER.match(wanted)
+    if numbered:
+        number, title = numbered.group(1), numbered.group(2).strip()
+        for test in (
+            lambda item: title and title in item["title"].lower(),
+            lambda item: item["number"] == number,
+        ):
+            match = next((item for item in found if test(item)), None)
+            if match is not None:
+                return match
     return None
+
+
+def label(item):
+    """Return how a heading is listed: its title, with its number only if the title has none."""
+    if NUMBER.match(item["title"]):
+        return item["title"]
+    return f"{item['number']} {item['title']}"
 
 
 def heading_path(text, position):
