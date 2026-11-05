@@ -8,6 +8,7 @@ from geomind.agents.case.geoscientist import Geoscientist
 from geomind.agents.support.lead import SupportLead
 from geomind.prompts import Prompt
 from geomind.tools import Delegate
+from geomind.tools.delegate import Team
 from geomind.tools.gemini.skeleton import trees
 
 FINDINGS_TOKENS = 8000
@@ -128,6 +129,13 @@ class CaseLead(Agent):
         geoscientist = Delegate(Geoscientist(), max_summary_tokens=FINDINGS_TOKENS, once=True)
         geoscientist.keeps_result = "run"
         self.geoscientist = geoscientist
+        self.geoscientists = Team(
+            "geoscientists",
+            "Run several geoscientists at once, each on its own field group and files: briefs is "
+            "a list of {role: 'geoscientist', task}; each instance (Geoscientist I, II, ...) "
+            "answers by its name.",
+            {"geoscientist": geoscientist},
+        )
         self.list_files = tools.list_files
         self.read_rag = tools.read_rag
         self.search_rag = tools.search_rag

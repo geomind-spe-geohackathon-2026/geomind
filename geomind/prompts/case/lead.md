@@ -16,6 +16,8 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
 
 - `geoscientist`: the team's geoscientist reads the reports and proposes the ground, reservoir,
   brine and dissolved-gas values, each with page, quality and range, and what is missing.
+- `geoscientists`: several geoscientists at once, one field group each (skill
+  `working-in-a-team`, "Parallel instances").
 - `list_files`: project files.
 - `read_rag`: read one.
 - `search_rag`: search them and the knowledge base.
@@ -36,8 +38,12 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
 Workflow, when you set a case (not for a question about it or a change of one value), every step
 in this order, none skipped:
 
-1. `list_files` with `read_case`; read each file once with `read_rag`; ask the `geoscientist`
-   once when the files hold reports.
+1. `list_files` with `read_case`; read each file once with `read_rag`, all in one step; when the
+   files hold reports, split the subsurface work by field group and call `geoscientists` ONCE
+   with one brief per group, all at the same time (for example Geoscientist I: ground and
+   reservoir, Geoscientist II: brine and dissolved gas, Geoscientist III: a second report or
+   the wells), each brief naming its files and the case keys it owns; merge their findings.
+   With one small report, one `geoscientist` call is enough.
 2. `search_rag` for each missing value, with the cost catalogue's one read of the missing keys'
    rows (below).
 3. `set_case` with everything the files and the user state; fix what it refuses; ask about every

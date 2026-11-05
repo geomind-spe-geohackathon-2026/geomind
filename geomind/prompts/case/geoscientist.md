@@ -7,7 +7,10 @@ never set the case and never fill a gap with a typical value.
 
 ## Inputs
 
-- The case lead's task: which quantities it needs, and the project's files.
+- The case lead's task: which quantities it needs, and the project's files. When the task names
+  your field group (for example "brine and dissolved gas") and its files, you are one of several
+  geoscientists working at once: take only that group's values from those files, and leave the
+  other groups to the others.
 - The case, if one is set (`read_case`), so you know what is already there.
 - The case's key tree below, for the path each value would set; `describe_case(path)` says what
   the keys under a path mean.
