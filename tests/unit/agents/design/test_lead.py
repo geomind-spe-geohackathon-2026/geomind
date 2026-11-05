@@ -227,3 +227,9 @@ def test_a_report_on_several_plant_versions_compares_them_all():
     """QA-337: a recommendation or report runs one study over every version, not current alone."""
     text = " ".join(DesignLead().prompt.render().split())
     assert "is a comparison: run ONE `run_study` over every version" in text
+
+
+def test_after_size_the_remaining_issues_go_in_one_patch():
+    """QA-343: one patch after size; a closed cooler loop's values are never invented."""
+    text = " ".join(DesignLead().prompt.render().split())
+    assert "After `size_plant`, patch every value its `issues` name in ONE `patch_plant`" in text

@@ -94,7 +94,9 @@ the plant, a profile or a finding once and never again unless you wrote it since
    user asks to optimise, with `missing` 0: `optimize` it as it is, no `size_plant`). Never size by hand
    with builds or patches: a new plant version is not a search. Then `simulate` the best for the
    whole year and `check_results`. Never wait for a perfect plant: the failures tell you what to
-   fix.
+   fix. After `size_plant`, patch every value its `issues` name in ONE `patch_plant`; a closed
+   cooler loop's `loop_pressure` and flow come from the case's assumptions document or the user
+   (ask once), never invented (QA-343).
 6. Fix only what `check_results` or a run reports, all in ONE `patch_plant` per round (0.5):
    read the worst step, then give the failure, gemini's message and
    the module's plant text to its owner in one `fill_parts` call (one brief per owner), apply
