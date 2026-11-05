@@ -609,6 +609,19 @@ def without_plant(item):
     return {**item, "plant": None}
 
 
+async def stored_front(context, name, found):
+    """Store each design of an evolve's front as ``<name>_<n>``; return ``(front, best)``."""
+    front = []
+    for number, item in enumerate(found["front"], 1):
+        reference = await save_design(context, f"{name}_{number}", item["plant"])
+        front.append(front_entry(item, reference))
+    best = next(
+        (entry["design"] for item, entry in zip(found["front"], front) if item is found["best"]),
+        None,
+    )
+    return front, best
+
+
 @tool(
     effect="compute",
     timeout=STUDY_TIMEOUT_S,
@@ -628,28 +641,14 @@ async def evolve_structure(context, design: str, objectives: list[str], name: st
     found = await runtime.in_gemini_thread(
         evolve_design, plants[design], build_case(*ran), objectives, settings
     )
-    front, wrote = [], []
-    for number, item in enumerate(found["front"], 1):
-        reference = await save_design(context, f"{name}_{number}", item["plant"])
-        wrote.append(reference)
-        front.append(front_entry(item, reference))
-    best = next(
-        (entry["design"] for item, entry in zip(found["front"], front) if item is found["best"]),
-        None,
-    )
+    front, best = await stored_front(context, name, found)
     recommended = best if found["best"]["feasible"] else None
     kept = await runtime.in_gemini_thread(evolved, found)
     recorded = (study.to_dict(), kept)
     runs = [await simulated_run(context, best, ran, {"study": name})] if best else []
+    wrote = ([design], [entry["design"] for entry in front])
     key = await save_study(
-        context,
-        name,
-        "evolve_structure",
-        recorded,
-        ([design], wrote),
-        recommended,
-        case,
-        runs=runs,
+        context, name, "evolve_structure", recorded, wrote, recommended, case, runs=runs
     )
     return {
         "front": front,

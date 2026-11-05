@@ -25,6 +25,9 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
 - `update_state`: record the modules and their owners.
 - `read_skill`: read a skill, such as `designing-a-plant`.
 - `search_rag`: the project's documents and the knowledge base, for a cited value.
+- `list_starts`, `start_plant`: the starting plant files of the Knowledge base; store one as design/<name>.
+- `calculate`, `run_python`: a value derived from sourced values, kept with its id; never a value gemini computes.
+- `web_search`, `read_web_page`: a cited public value the Knowledge base lacks.
 - `finish`: hand the skeleton to the design lead.
 
 ## Rules

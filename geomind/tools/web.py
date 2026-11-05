@@ -104,8 +104,6 @@ async def web_search(context, query: str, limit: int = 5):
 
     Skill `web-search`.
     """
-    import httpx
-
     if not isinstance(query, str) or not query.strip():
         raise _error("web_search", "query is empty", "query")
     searched = context.session.__dict__.setdefault("web_searches", [])
@@ -123,33 +121,43 @@ async def web_search(context, query: str, limit: int = 5):
         raise _error("web_search", f"query = {query.strip()!r}: {problem}", "query")
     if not 1 <= limit <= MAX_RESULTS:
         raise _error("web_search", f"limit = {limit}; expected 1 to {MAX_RESULTS}", "limit")
+    found = await _searched(query.strip())
+    results = [_result(item) for item in found.get("results") or [] if _is_result(item)][:limit]
+    searched.append(query.strip())
+    return {"query": query.strip(), "results": results, "searches_left": MAX_SEARCHES - len(searched)}
+
+
+async def _searched(query):
+    """Return the search service's JSON answer to ``query``."""
+    import httpx
+
     url = f"{search_url()}/search"
     try:
         async with httpx.AsyncClient(timeout=SEARCH_SECONDS) as client:
-            response = await client.get(url, params={"q": query.strip(), "format": "json", "language": LANGUAGE})
+            params = {"q": query, "format": "json", "language": LANGUAGE}
+            response = await client.get(url, params=params)
         response.raise_for_status()
-        found = response.json()
+        return response.json()
     except (httpx.HTTPError, ValueError) as error:
         raise _error("web_search", f"the search service did not answer: {error}",
                      code="unavailable") from error
-    results = []
-    for item in found.get("results") or []:
-        if not isinstance(item, dict) or not item.get("url"):
-            continue
-        engines = item.get("engines") or ([item["engine"]] if item.get("engine") else [])
-        results.append(
-            {
-                "title": _cut(item.get("title"), 300),
-                "url": item["url"],
-                "snippet": _cut(item.get("content"), SNIPPET_CHARACTERS),
-                "engine": ", ".join(engines) or None,
-                "date": item.get("publishedDate") or None,
-            }
-        )
-        if len(results) == limit:
-            break
-    searched.append(query.strip())
-    return {"query": query.strip(), "results": results, "searches_left": MAX_SEARCHES - len(searched)}
+
+
+def _is_result(item):
+    """Tell whether a search answer's item is a result with a url."""
+    return isinstance(item, dict) and bool(item.get("url"))
+
+
+def _result(item):
+    """Return one search result as the model reads it."""
+    engines = item.get("engines") or ([item["engine"]] if item.get("engine") else [])
+    return {
+        "title": _cut(item.get("title"), 300),
+        "url": item["url"],
+        "snippet": _cut(item.get("content"), SNIPPET_CHARACTERS),
+        "engine": ", ".join(engines) or None,
+        "date": item.get("publishedDate") or None,
+    }
 
 
 def _is_public(host):
@@ -186,21 +194,33 @@ async def _fetch(url):
     async with httpx.AsyncClient(timeout=PAGE_SECONDS, follow_redirects=False) as client:
         for _ in range(MAX_REDIRECTS + 1):
             await _checked(url)
-            async with client.stream("GET", url, headers=headers) as response:
-                if response.is_redirect and response.headers.get("location"):
-                    url = urljoin(url, response.headers["location"])
-                    continue
-                if response.status_code >= 400:
-                    raise _error("read_web_page", f"the page answered {response.status_code}",
-                                 "url", code="unavailable")
-                body = bytearray()
-                async for chunk in response.aiter_bytes():
-                    body += chunk
-                    if len(body) > MAX_BYTES:
-                        raise _error("read_web_page", "the page is larger than 5 MB", "url")
-                kind = response.headers.get("content-type", "").split(";")[0].strip().lower()
-                return str(response.url), kind, bytes(body)
+            url, found = await _get(client, url, headers)
+            if found is not None:
+                return found
     raise _error("read_web_page", f"more than {MAX_REDIRECTS} redirects", "url")
+
+
+async def _get(client, url, headers):
+    """Return ``(next url, None)`` for a redirect, else ``(url, (final url, kind, bytes))``."""
+    async with client.stream("GET", url, headers=headers) as response:
+        if response.is_redirect and response.headers.get("location"):
+            return urljoin(url, response.headers["location"]), None
+        if response.status_code >= 400:
+            raise _error("read_web_page", f"the page answered {response.status_code}",
+                         "url", code="unavailable")
+        body = await _body(response)
+        kind = response.headers.get("content-type", "").split(";")[0].strip().lower()
+        return url, (str(response.url), kind, body)
+
+
+async def _body(response):
+    """Return the bytes of a response, refused past ``MAX_BYTES``."""
+    body = bytearray()
+    async for chunk in response.aiter_bytes():
+        body += chunk
+        if len(body) > MAX_BYTES:
+            raise _error("read_web_page", "the page is larger than 5 MB", "url")
+    return bytes(body)
 
 
 class _Page(HTMLParser):
@@ -272,7 +292,10 @@ def _html(content, kind):
 
 
 def _pdf(content):
-    """Return the fields of a PDF: its metadata and the text of its pages."""
+    """Return the fields of a PDF: its metadata and the text of its pages.
+
+    pypdf raises many kinds of error on a broken file; each is the same refusal.
+    """
     from pypdf import PdfReader
 
     try:
@@ -280,7 +303,7 @@ def _pdf(content):
         info = reader.metadata or {}
         pages = [f"[page {number}]\n{page.extract_text() or ''}" for number, page in
                  enumerate(reader.pages, start=1)]
-    except Exception as error:  # pypdf raises many kinds on a broken file
+    except Exception as error:
         raise _error("read_web_page", f"the PDF could not be read: {error}", "url") from error
     return {
         "title": (info.get("/Title") or None),

@@ -341,7 +341,13 @@ def curve_ranges(module):
 
 
 def with_curve(plant, group):
-    """Return a failure group; an ESP outside its curves also says where the curves are negative."""
+    """Return a failure group; an ESP outside its curves also says where the curves are negative.
+
+    The plant here holds the plant file's values only (the case is applied to the run's own
+    copy); reading a curve it lacks raised gemini's whole-plant "uninitialized parameters" error,
+    which listed the case's values as missing and failed a simulate that had run (QA-082). The
+    group is then given without the curve.
+    """
     import gemini as gm
 
     if group.get("code") != "out_of_range" or not group.get("path"):
@@ -355,10 +361,6 @@ def with_curve(plant, group):
     try:
         curve = curve_ranges(module)
     except gm.errors.ValidationError:
-        # NOTE: the plant here holds the plant file's values only (the case is applied to the
-        # run's own copy); reading a curve it lacks raised gemini's whole-plant "uninitialized
-        # parameters" error, which listed the case's values as missing and failed a simulate
-        # that had run (QA-082). The group is then given without the curve.
         return group
     said = [
         f"negative {name} at flows "

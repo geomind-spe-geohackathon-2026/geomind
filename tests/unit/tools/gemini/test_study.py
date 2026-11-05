@@ -368,7 +368,6 @@ async def test_size_plant_names_what_simulate_still_needs():
     reference = await save_design(context, "nocontrol", gm.Plant.from_dict(plant))
     result = await run(study.size_plant, context, {"design": reference, "name": "s"})
     paths = [issue["path"] for issue in result.output["issues"]]
-    # IMP-019: the two rules gemini allows one value of are filled, so none is missing.
     assert "params.control.dispatch" not in paths and "params.control.outages" not in paths
     assert result.output["sizing"]["sized"]
 

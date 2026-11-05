@@ -84,23 +84,25 @@ def _layout_numbers(tree):
     digits of ``round(x, 3)`` were refused as data literals after the user approved the code.
     """
     found = set()
-
-    def add(node):
-        if _integer(node):
-            found.add(id(node.operand if isinstance(node, ast.UnaryOp) else node))
-
     for node in ast.walk(tree):
-        if isinstance(node, ast.Slice):
-            for part in (node.lower, node.upper, node.step):
-                add(part)
-        elif isinstance(node, ast.Call):
-            name = getattr(node.func, "attr", None) or getattr(node.func, "id", None)
-            if name in LAYOUT_CALLS:
-                for argument in node.args:
-                    add(argument)
-            elif name == "round" and len(node.args) == 2:
-                add(node.args[1])
+        for part in _layout_parts(node):
+            if _integer(part):
+                found.add(id(part.operand if isinstance(part, ast.UnaryOp) else part))
     return found
+
+
+def _layout_parts(node):
+    """Return the parts of ``node`` that lay out text: slice bounds, widths and round digits."""
+    if isinstance(node, ast.Slice):
+        return [node.lower, node.upper, node.step]
+    if not isinstance(node, ast.Call):
+        return []
+    name = getattr(node.func, "attr", None) or getattr(node.func, "id", None)
+    if name in LAYOUT_CALLS:
+        return list(node.args)
+    if name == "round" and len(node.args) == 2:
+        return [node.args[1]]
+    return []
 
 
 def _inputs(context, inputs):
