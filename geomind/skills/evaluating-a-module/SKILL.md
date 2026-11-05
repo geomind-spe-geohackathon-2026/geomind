@@ -34,8 +34,16 @@ no display unit stays in SI).
   One inlet in full: `{"fluid_in": {"fluid": {"kind": "brine", "density": {"value": 1000,
   "unit": "kg/m3"}}, "T": {"value": 80, "unit": "degC"}, "p": {"value": 10, "unit": "bar"},
   "flow": {"value": 100, "unit": "m3/h"}}}`.
-- `design` (`design/<name>`): with `name` a module id, the design's values of that module are
-  used for every parameter and control the call does not give.
+- `design` (`design/<name>`): with `name` a module id (or a class the design holds once, such as
+  `Doublet`), the design's values of that module are used for every parameter and control the
+  call does not give. A design holds no stream's state: a module with stream inlets (a doublet's
+  `return_in`, a heat pump's `source_in`) needs them in `inlets` with `design`, or a `result`
+  instead. Example, a doublet of a design not yet simulated: `evaluate_module(name="d0",
+  design="design/x", inlets={"return_in": {"fluid": {"kind": "brine"}, "T": {"value": 40,
+  "unit": "degC"}, "p": {"value": 10, "unit": "bar"}, "flow": {"value": 300, "unit":
+  "m3/h"}}})`, with the temperature, pressure and flow of your design.
+- A refused call is never sent again unchanged: an identical call that already failed is not
+  run (`failed_before`) until something else succeeded in between.
 - `result` (`result/<id>`, a simulated run) and `time` (ISO 8601, a step of the run): with `name`
   a module id, the plant's values as with `design`, and `T`, `p` and `m_dot` of every required
   inlet are read from that step; give each inlet's `fluid` only (a result keeps no fluid). Without

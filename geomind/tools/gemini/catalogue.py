@@ -97,9 +97,13 @@ def checked_inlets(name, description, inlets):
     }
     raise ToolError(
         f"evaluate_module: inlets = {sorted(inlets or {})}; {name} needs the stream inlets "
-        f"{', '.join(missing)}, each with its fluid, T, p and m_dot (or flow), from the case or "
-        "the plant; or name the module's id with result=result/<id> to read T, p and m_dot of a "
-        "simulated step (give only each inlet's fluid); read_skill('evaluating-a-module')",
+        f"{', '.join(missing)}, each with its fluid, T, p and m_dot (or flow). A design alone gives "
+        "parameters, never a stream's state: either keep design= and give each of these inlets "
+        "in inlets (the form in suggestions; a doublet's return_in is the brine it injects, at "
+        "the temperature, pressure and flow of your design), or simulate the "
+        "design and call again with the module's id and result=result/<id>, which reads T, p "
+        "and m_dot of a step (give only each inlet's fluid). Do not send the same call again; "
+        "read_skill('evaluating-a-module')",
         code="invalid_input",
         path="inlets",
         suggestions=[json.dumps({port: form for port in missing})],

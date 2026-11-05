@@ -16,6 +16,11 @@ def module_type(gm, name, plant_data):
     """Return ``(type name, module path or None, note or None)`` of the ``name`` a call gives."""
     names = gm.modules.names()
     if name in names:
+        single = class_path(plant_data, name)
+        if single is not None:
+            # A class name with a design that holds one module of that class means that module,
+            # so the design's values fill the call (QA-143: name Doublet lost the reservoir).
+            return name, single, f"name {name!r} with the design: its one {name}, {single!r}"
         return name, None, None
     entry = module_entry(plant_data, name)
     if isinstance(entry, dict) and entry.get("type") in names:
@@ -26,6 +31,26 @@ def module_type(gm, name, plant_data):
     if found is not None:
         return found, None, f"name {name!r} is gemini's module type {found!r}"
     return name, None, None
+
+
+def class_path(plant_data, kind):
+    """Return the path of the only top-level-or-nested module of type ``kind`` in a plant file.
+
+    ``None`` without a plant file, or when it holds none or several of that type.
+    """
+    found = []
+
+    def walk(modules, prefix):
+        for key, entry in (modules or {}).items():
+            if not isinstance(entry, dict):
+                continue
+            path = f"{prefix}{key}"
+            if entry.get("type") == kind:
+                found.append(path)
+            walk(entry.get("modules"), f"{path}.")
+
+    walk((plant_data or {}).get("modules"), "")
+    return found[0] if len(found) == 1 else None
 
 
 def module_entry(plant_data, path):
