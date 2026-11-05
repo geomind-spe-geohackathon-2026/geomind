@@ -76,6 +76,10 @@ Do and don't (from earlier runs):
   `riser.segment` `above_esp`, and `well.esp_depth` and `riser.esp_depth` both the ESP's
   `setting_depth`. A split well without its `esp_depth` is an issue at
   `params.d0.riser.esp_depth` (`invalid_design`): `simulate` would refuse it.
+- The riser and the well share the WHOLE path, from the wellhead to the reservoir; `esp_depth`
+  cuts it. Give both the same `section_length` (and inclination, diameter, roughness), never
+  each its own part: that runs a producer only as deep as the well's own part, shorter than the
+  doublet, and `check` refuses it at `params.d0.riser.section_length`.
 - A value gemini asks for at a case path (`site`, `demand`, `utilities`, `time`, `economics`,
   `requirements`) belongs to the case: `case_changes` `<path>: <why>`; never put it into the
   plant under another path, and never with a number of your own.

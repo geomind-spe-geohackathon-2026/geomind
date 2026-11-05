@@ -981,3 +981,29 @@ async def test_a_case_that_leaves_out_an_approved_value_says_which():
     context = Context(project="p", session=first_case_session(), messages=stopped)
     result = await dispatch(set_case, ToolCall(id="c1", name="set_case", input=first), context)
     assert "check_approved" not in result.output
+
+
+async def test_a_case_change_the_user_approved_on_its_card_is_the_user_s_case():
+    """QA-317: requirements approved by card were "added" against the origin; review failed."""
+    from types import SimpleNamespace
+
+    from geomind.tools import dispatch
+    from geomind.tools.gemini.origin import changes_of
+    from geomind.types import ToolCall
+
+    session, problem = await loaded("shallow_district")
+    approval = SimpleNamespace(type="permission", decision="allow", rule="user", call_id="c2")
+    session.engine = SimpleNamespace(store=SimpleNamespace(load_events=lambda root: [approval]))
+    session.state.root = "r1"
+    gradient = {"site": {"ground": {"gradient": {"value": 31, "unit": "K/km"}}}}
+    unapproved = Context(project="p", session=session, problem=problem, call_id="c1")
+    call_c1 = ToolCall(id="c1", name="set_case", input={"changes": gradient})
+    await dispatch(set_case, call_c1, unapproved)
+    changed = state_after(session, problem)
+    assert changes_of(Context(project="p", session=session, problem=changed))
+    approved = Context(project="p", session=session, problem=changed, call_id="c2")
+    call_c2 = ToolCall(id="c2", name="set_case", input={"changes": gradient})
+    result = await dispatch(set_case, call_c2, approved)
+    assert result.is_error is False, result.output
+    accepted = state_after(session, changed)
+    assert changes_of(Context(project="p", session=session, problem=accepted)) == []

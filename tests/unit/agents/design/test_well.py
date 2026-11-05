@@ -57,3 +57,9 @@ def test_it_knows_the_form_of_a_well_path_s_section_lists():
     text = " ".join(WellEngineer().prompt.render().split())
     assert '`{"value": [500, 2000], "unit": "m"}`, never a list of quantities' in text
     assert "`correction_factors` is a plain pair" in text
+
+
+def test_qa_321_the_riser_and_the_well_share_the_whole_path():
+    """QA-321: a riser and a well given each its own part ran a shorter producer."""
+    text = " ".join(WellEngineer().prompt.render().split())
+    assert "The riser and the well share the WHOLE path" in text

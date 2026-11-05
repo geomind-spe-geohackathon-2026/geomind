@@ -300,12 +300,19 @@ def _change_item(items, change, token):
 
 
 def _change_key(node, change, token):
-    """Apply one operation to a mapping."""
+    """Apply one operation to a mapping; removing a key it lacks changes nothing (QA-317).
+
+    A loop that clears the design removed ``/design/reference`` after a nested driver had removed
+    it already, and the run failed on "'reference' does not exist there": the key is gone either
+    way, so the removal holds.
+    """
     path = change["path"]
     if not isinstance(node, dict):
         raise StateError(f"update_state: path = {path!r}; expected a path into an object")
     if change["op"] == "add":
         node[token] = change["value"]
+        return
+    if change["op"] == "remove" and token not in node:
         return
     _child(node, token, path)
     if change["op"] == "replace":

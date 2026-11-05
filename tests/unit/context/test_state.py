@@ -219,3 +219,10 @@ def test_an_assumption_keeps_its_reason_and_its_source_details():
     text = render(ProblemState(assumptions=(item,), version=1))
     assert "because the files give none" in text and "A cost survey" in text
     assert Assumption.model_validate(item.model_dump()).citation == cited
+
+
+def test_removing_a_key_that_is_gone_changes_nothing():
+    """QA-317: a loop removed ``/design/reference`` a driver had removed, and the run failed."""
+    state = apply_changes(ProblemState(), [{"op": "add", "path": "/design/rejected", "value": []}])
+    cleared = apply_changes(state, [{"op": "remove", "path": "/design/reference"}])
+    assert cleared.design == {"rejected": []}

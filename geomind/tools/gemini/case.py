@@ -1504,12 +1504,55 @@ def every_problem(error, paths):
     )
 
 
+APPROVING_TOOLS = ("ask_economics",)
+"""Tools whose answered question approves what they set with ``set_case``: approve all."""
+
+
+def user_approved(context):
+    """Tell whether the user approved this call: its approval card, or an approving question.
+
+    The engine logs an approval as a ``permission`` event with the rule ``user`` and the call's
+    id; ``ask_economics`` sets its values only on approve all. A dry run is never approved.
+    """
+    call_id = getattr(context, "call_id", None)
+    session = context.session
+    state = getattr(session, "state", None)
+    if call_id is None or state is None or DRY_RUN.get():
+        return False
+    calls = getattr(state, "calls", None) or ()
+    if any(call.id == call_id and call.name in APPROVING_TOOLS for call in calls):
+        return True
+    try:
+        events = session.engine.store.load_events(state.root)
+    except AttributeError:
+        return False
+    return any(approves(event, call_id) for event in events)
+
+
+def approves(event, call_id):
+    """Tell whether ``event`` is the user's approval of call ``call_id``, or its approving ask."""
+    call = getattr(event, "call", None)
+    if call is not None and call.id == call_id and call.name in APPROVING_TOOLS:
+        return True
+    return (
+        event.type == "permission"
+        and event.decision == "allow"
+        and getattr(event, "rule", None) == "user"
+        and getattr(event, "call_id", None) == call_id
+    )
+
+
 def given_case(context, source, base, current):
     """Return ``(case dict, files)`` that ``set_case`` keeps as the origin, or ``None``.
 
     The project's case is the origin, without the changes of the same call; the first case of a
-    chat is the origin as it is set, since it comes from the user's request or answer.
+    chat is the origin as it is set, since it comes from the user's request or answer. A call the
+    user approved (its card, or ``ask_economics``'s approve all) is the user's case too, so it is
+    the origin as it is set (QA-317: requirements and economics approved by card after the first
+    case were "added" against the origin, and the reviewer rejected a feasible design).
     """
+    if user_approved(context):
+        return current[0], file_contents(context, *current)
     if source == "project":
         return base[0], file_contents(context, base[0], base[1])
     if source is None and context.problem.case_origin is None:
