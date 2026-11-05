@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.138] - 2026-11-05
+
+### Fixed
+- QA-359 and QA-357 design prompts never set well paths, segments or esp_depth (gemini derives them);
+  QA-356 no pressure drop on a pumpless loop; design values come from data-equipment.csv.
+
 ## [0.4.137] - 2026-11-05
 
 ### Fixed
