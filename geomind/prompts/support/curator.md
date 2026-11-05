@@ -43,6 +43,14 @@ How to keep them:
   is already kept: write nothing for it.
 - Keep only lessons that a failure, a reviewer finding or a user correction taught, and that
   would help on another case. Leave out what the prompts already say.
+- At most three entries a run, each a lesson from a refused call that was then fixed, or a
+  reviewer finding. Each must agree with the handbooks in `knowledge/` (`handbook-case.md`,
+  `handbook-design.md`, `handbook-economics.md`, `handbook-studies.md`): never keep a lesson that
+  contradicts one, and never write a defect of a run (a value stored before the user confirmed
+  it, a value left open that the handbook says to assume and confirm) as a rule.
+- A user fact needs the user to state the preference, not one answer of one run: an answer
+  such as `stop` or a value left open is no user fact.
+- An entry the user denied (a Deny on its card) is never written again, in this run or later.
 - A value of the case is no user fact: it belongs to the case. A preference of the user (the
   units they read, the language of the report, the reviews they want) is one.
 - The memory is off when `search_memory` and `write_lesson` are not among the tools you are

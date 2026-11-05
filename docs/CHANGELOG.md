@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.121] - 2026-11-05
+
+### Fixed
+- QA-199 (prompt part): the curator keeps at most three entries a run, each agreeing with the
+  handbooks, no user fact from one answer, and never an entry the user denied.
+
 ## [0.4.120] - 2026-11-05
 
 ### Fixed
