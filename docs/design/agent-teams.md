@@ -61,6 +61,7 @@ Order: ProcessEngineer and ReservoirEngineer set the layout, then the specialist
 - Support team (lead: SupportLead, Sahand 16:10): SupportLead (model, new) takes support requests from the other leads, gives them to its members and checks the result before it goes back. Members: Summarizer (shortens long histories).
 - Removed (Sahand 16:00): Assistant. The Coordinator answers short general questions itself.
 - Removed (Sahand 16:00, "we don't write code"): CodeAssistant and every code-running tool from all agents: run_python, the code sandbox (local and docker), write_module and test_module, their settings and tests. The CHANGELOG lists each removal for the later backend update.
+  Later (0.4.58): `run_python` came back for the analysis and design agents, in a docker sandbox with no network, on sourced inputs only; since 2026-11-05 it is checked before its approval card, as `read_web_page` is (QA-296). `write_module` and `test_module` stay removed.
 - Also removed: FamilyDesigner (DesignLead with a fixed family does this). Rule agents ComparisonDriver / CompareDriver move under ProjectLead.
 - Shared memory for all agents: knowledge (sourced data) and experience (approved designs only, written by code). Anti-overfit rules apply.
 - Every value not from the user's files is confirmed by the user, with its source or reason.
