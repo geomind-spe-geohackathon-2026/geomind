@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.71] - 2026-11-05
+
+### Fixed
+
+- QA-083: an unexpected exception in a tool reaches the agent as `internal` with its class, message and innermost file and line, and the advice to change the input, instead of a bare `<tool>: internal error`. With gemini 0.6.10 a bare inlet name in a plant file is a coded `invalid_connection`.
+
 ## [0.4.70] - 2026-11-05
 
 ### Fixed
