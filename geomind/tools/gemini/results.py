@@ -98,12 +98,41 @@ def read_result(
     _, _, results = load_run(context, reference, "read_result")
     first, last = parse_time(start, "start", "read_result"), parse_time(end, "end", "read_result")
     if field is None:
+        members = group_members(results, path)
+        if members:
+            return {
+                "group": path,
+                "note": f"{path} is a group; its modules, each read as its own path",
+                "modules": {
+                    member: module_summary(results, member, first, last) for member in members
+                },
+            }
         summary = results.summary(path=path, start=first, end=last, units=READ_UNITS)
         if path is None:
             return summary
         return {**summary, "operation": operation(results, path, first, last)}
     read = results.get(path, field, start=first, end=last, units=READ_UNITS)
     return {**read, "summary": series_summary(read)}
+
+
+def group_members(results, path):
+    """Return the module paths under a group path such as ``d0``, or ``[]`` (QA-262).
+
+    A doublet ``d0`` is one module of the plant, but its results are kept per part
+    (``d0.reservoir``, ``d0.well``, ``d0.esp``, ``d0.riser``, ``d0.injector``).
+    """
+    if not path:
+        return []
+    names = list(results.names())
+    if path in names:
+        return []
+    return [name for name in names if name.startswith(f"{path}.")]
+
+
+def module_summary(results, path, first, last):
+    """Return the summary of one module path with its operation, as ``read_result`` gives it."""
+    summary = results.summary(path=path, start=first, end=last, units=READ_UNITS)
+    return {**summary, "operation": operation(results, path, first, last)}
 
 
 ENERGY_UNITS = {**READ_UNITS, "energy": "MWh", "duration": "h"}

@@ -58,14 +58,27 @@ def gm():
     return gemini
 
 
+def same_plant(shown, stored):
+    """Tell whether a shown plant file builds the plant of a stored dict, whatever its units."""
+    def built(data):
+        return gemini.Plant.from_dict(data).to_dict(structure=True, units="si")
+
+    return built(shown) == built(stored)
+
+
 def plant_dict(example, plant):
     """Return an example plant file as the dict ``gm.Plant.to_dict(structure=True)`` writes."""
     return example_plant(example, plant).to_dict(structure=True)
 
 
 def shown_dict(example, plant):
-    """Return an example plant file as ``read_plant`` shows it: in gemini's display units (30)."""
-    return example_plant(example, plant).to_dict(structure=True, units="display")
+    """Return an example plant file as ``read_plant`` shows it: in gemini's display units (30).
+
+    A class plant shows its own file, its class, size and given values (QA-247).
+    """
+    from geomind.tools.gemini.plants import editable_dict
+
+    return editable_dict(example_plant(example, plant), units="display")
 
 
 async def read_with_and_without_case(example, plant):
@@ -128,7 +141,7 @@ async def test_list_plants_with_an_unknown_class_suggests_one():
 def test_a_stored_design_reads_back_as_its_dict(reads, example, plant):
     """``read_plant`` of ``design/<name>`` is the plant dict that was stored."""
     without_case, with_case = reads[(example, plant)]
-    assert without_case["plant"] == shown_dict(example, plant)
+    assert same_plant(without_case["plant"], plant_dict(example, plant))
     assert with_case["plant"] == without_case["plant"]
 
 
@@ -174,7 +187,8 @@ async def test_a_class_name_reads_as_a_plant_with_its_missing_values(gm):
     result = await call(TOOLS.read_plant, {"plant_class": "HeatingPlant"})
     plant = gm.plants.get("HeatingPlant")
     assert not result.is_error
-    assert result.output["plant"] == plant.to_dict(structure=True)
+    assert result.output["plant"] == plant.to_dict()
+    assert "d0" in result.output["modules"]
     assert result.output["checked_against"] == "plant"
     assert {issue["kind"] for issue in result.output["issues"]} == {"missing"}
     assert set(result.output["issues"][0]) == {"path", "code", "message", "kind", "units"}
@@ -221,7 +235,7 @@ async def test_build_plant_round_trips_each_example_plant(example, plant):
     assert built.output["checked_against"] == "plant"
     assert session.artifacts["design/p"] == data
     read = await call(TOOLS.read_plant, {"design": "design/p"}, session)
-    assert read.output["plant"] == shown_dict(example, plant)
+    assert same_plant(read.output["plant"], data)
     assert read.output["issues"] == built.output["issues"]
 
 
@@ -489,6 +503,66 @@ async def test_a_plant_is_built_step_by_step_with_small_patches(gm):
     still = {issue["path"] for issue in second["issues"]}
     assert "params.d0.drainage_radius" not in still and still < missing
     assert second["missing"] == len(still)
+
+
+async def test_read_plant_output_builds_back_and_names_its_stored_design(gm):
+    """QA-247, QA-221: a project plant reads as a file build_plant takes, with its reference."""
+    workspace = example_workspace("hackathon_2026")
+    session = StubSession(workspace=workspace)
+    plant = "HeatingHeatPumpCoolingPlant"
+    read = await call(TOOLS.read_plant, {"project_plant": plant}, session, project="p1")
+    assert read.output["design"] == f"design/{plant}"
+    assert "never type it again" in read.output["use"]
+    built = await call(TOOLS.build_plant, {"plant": read.output["plant"], "name": "copy"}, session)
+    assert not built.is_error
+
+
+async def test_a_class_plant_keeps_its_type_and_size_through_a_patch(gm):
+    """QA-260: 2 doublets stay 2 after a value patch; a size patch resizes the class plant."""
+    session = StubSession()
+    start = {
+        "name": "two",
+        "plant": {
+            "format": 1, "kind": "plant", "name": "p", "type": "HeatingPlant",
+            "size": {"doublets": {"value": 2}},
+        },
+    }
+    assert not (await call(TOOLS.build_plant, start, session)).is_error
+    patch = {"params": {"d0": {"drainage_radius": {"value": 500, "unit": "m"}}}}
+    step = {"design": "design/two", "changes": patch, "name": "two_b"}
+    assert not (await call(TOOLS.patch_plant, step, session)).is_error
+    stored = session.artifacts["design/two_b"]
+    assert stored["type"] == "HeatingPlant"
+    assert stored["size"]["doublets"]["value"] == 2
+    assert "d1" in stored["modules"]
+    resize = {"design": "design/two_b", "changes": {"size": {"doublets": {"value": 3}}},
+              "name": "three"}
+    assert not (await call(TOOLS.patch_plant, resize, session)).is_error
+    assert "d2" in session.artifacts["design/three"]["modules"]
+
+
+async def test_a_class_extended_with_from_class_keeps_the_size_it_is_given(gm):
+    """QA-260: build_plant with from_class makes the class's modules at the given size."""
+    session = StubSession()
+    start = {
+        "name": "ext",
+        "from_class": "HeatingPlant",
+        "plant": {"format": 1, "kind": "plant", "name": "p", "size": {"doublets": {"value": 2}}},
+    }
+    built = await call(TOOLS.build_plant, start, session)
+    assert not built.is_error
+    assert "d1" in session.artifacts["design/ext"]["modules"]
+
+
+async def test_a_version_alias_is_no_new_design_name(gm):
+    """QA-221: design/v<N> is a project plant version; a new design may not take that name."""
+    start = {
+        "name": "v1",
+        "plant": {"format": 1, "kind": "plant", "name": "p", "type": "HeatingPlant"},
+    }
+    result = await call(TOOLS.build_plant, start, StubSession())
+    assert result.is_error
+    assert "pass design/v1" in result.output["error"]["message"]
 
 
 async def test_a_patch_gemini_refuses_stores_nothing(gm):

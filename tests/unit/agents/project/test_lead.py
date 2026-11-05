@@ -122,3 +122,12 @@ def test_qa_197_a_stop_to_the_case_lead_ends_the_request_by_rule():
     )
     text = " ".join(ProjectLead().prompt.content.split())
     assert "A user's `stop` to a team's question ends the request" in text
+
+
+def test_qa_229_257_187_245_only_what_the_request_asks():
+    """QA-229, QA-257: no unasked study; QA-187: no review of the structure; QA-245: case change."""
+    text = " ".join(ProjectLead().prompt.content.split())
+    assert "Do what the request asks and nothing more" in text
+    assert "No brief widens the request" in text
+    assert "never for an engineering review" in text
+    assert "After a case change, the design team's brief is" in text

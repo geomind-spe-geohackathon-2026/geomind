@@ -8,7 +8,7 @@ from geomind.errors import ToolError
 from geomind.stores import MemoryWorkspace
 from geomind.tools import search_rag
 from tests.fixtures.calls import call
-from tests.fixtures.cases import EXAMPLES, example_names
+from tests.fixtures.cases import EXAMPLES, example_case, example_names, example_plant
 from tests.fixtures.sessions import StubSession
 from tests.fixtures.stored_runs import simulated
 
@@ -154,3 +154,56 @@ def test_search_documents_needs_a_project(options):
 def test_both_only_read():
     """Reading needs no approval, and a replay reads again."""
     assert (TOOLS.read_result.effect, search_rag.effect) == ("read", "read")
+
+
+class ProjectWorkspace:
+    """A project with one plant version and one Study-page result of it (QA-165)."""
+
+    def __init__(self, case_version=1):
+        """Keep the example's plant as version 1 and its case at ``case_version``."""
+        self.case_version = case_version
+
+    def project_designs(self, project_id):
+        """Return one page study with its result."""
+        result = {"id": "c0661c15-aaaa-bbbb", "plant_version": 1, "case_version": 1}
+        return {"plants": [], "studies": [{"id": "s1", "name": "run v1", "result": result}]}
+
+    def plant_version(self, project_id, version):
+        """Return the example's plant dict as version 1."""
+        return example_plant("shallow_district").to_dict() if version == 1 else None
+
+    def plants(self, project_id):
+        """No named plants."""
+        return {}
+
+    def case(self, project_id):
+        """Return the example's case."""
+        return example_case("shallow_district")
+
+    def project_state(self, project_id):
+        """Return the case version."""
+        return {"case_version": self.case_version}
+
+
+async def test_a_project_result_is_readable_by_its_id():
+    """QA-165: the result of the Study page is read by its id, in any form an agent writes."""
+    session = StubSession(workspace=ProjectWorkspace())
+    for reference in ("result/c0661c15-aaaa-bbbb", "c0661c15aaaabbbb", "result-c0661c15-aaaa-bbbb"):
+        result = await call(TOOLS.read_result, {"reference": reference}, session, project="p1")
+        assert not result.is_error, result.output
+    old = StubSession(workspace=ProjectWorkspace(case_version=2))
+    refused = await call(
+        TOOLS.read_result, {"reference": "result/c0661c15-aaaa-bbbb"}, old, project="p1"
+    )
+    assert refused.is_error and "case version 1" in refused.output["error"]["message"]
+
+
+async def test_a_group_path_gives_each_of_its_modules():
+    """QA-262: d0 is the doublet; its parts are read at once, not refused."""
+    session, problem, reference = await ran("hackathon_2026")
+    result = await call(
+        TOOLS.read_result, {"reference": reference, "path": "d0"}, session, problem=problem
+    )
+    assert not result.is_error and result.output["group"] == "d0"
+    assert {"d0.reservoir", "d0.well", "d0.esp", "d0.riser"} <= set(result.output["modules"])
+    assert "operation" in result.output["modules"]["d0.esp"]

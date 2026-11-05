@@ -28,6 +28,8 @@ from geomind.types import Action, ToolCall
 from geomind.verify.design import verify_design
 
 FEASIBLE = "feasible"
+REPAIRED = ("failed", "infeasible")
+"""The verdicts of a family run that gets another run, within the loop's retries (QA-251)."""
 VERIFIED = "verified"
 LIMIT_CODE = '"code": "budget"'
 SHOWN_REASON = 500
@@ -92,7 +94,12 @@ def family_task(request, family, failed=None, attempt=0):
     return (
         f"{request}\n\nDesign one alternative only: {family['id']}: {family['summary']}.{again} "
         "Other runs design the others. Size it, simulate the whole year, check it, optimize it "
-        "with design.search, simulate the best and check it. Start every design and study name "
+        "with design.search, simulate the best and check it. When a run fails steps or the "
+        "check finds it infeasible, read its failures, fix them in one patch_plant (each value "
+        "from the engineer who owns it) and simulate again, up to two repair rounds, before you "
+        "record the family infeasible; never optimize a design whose run failed every step. "
+        "Keep every range the user or the case gave: when a path is refused, say so in your "
+        "answer and never narrow the range. Start every design and study name "
         f"with '{prefix}'. Do not write design.reference, design.result or verification. Add "
         "one entry at /design/alternatives/-: {family, design, result, verdict, reason}, with "
         f"family '{family['id']}' and verdict 'feasible' or 'infeasible', and the reason of an "
@@ -349,7 +356,36 @@ class ComparisonDriver(DesignDriver):
         pending = [item for item in open_families(design) if item.get("id") not in done]
         if pending:
             return self.batch(context, pending, note, index)
+        repair = self.repair(context, design, note, index)
+        if repair is not None:
+            return repair
         return self.check_next(context, calls, design, note, index)
+
+    def repair(self, context, design, note, index):
+        """Set aside a failed or infeasible family for another run, or return ``None`` (QA-251).
+
+        A family whose run left no design, or an infeasible one, is run again with its reason,
+        as a rejected one is, while the loop's ``retries`` allow.
+        """
+        for item in design.get("alternatives") or ():
+            if item.get("verdict") not in REPAIRED:
+                continue
+            family = item.get("family")
+            reason = item.get("reason") or f"the run ended {item['verdict']}"
+            move = self.retry_move(context, design, family, reason, note, index)
+            if move is not None:
+                return move
+        return None
+
+    def retry_move(self, context, design, family, reason, note, index):
+        """Return the move that drops a family's entry to run it again, or ``None`` past retries."""
+        used = sum(item.get("retry") == family for item in notes(context.messages))
+        if used >= (self._retries or 0):
+            return None
+        kept = [item for item in design.get("alternatives") or () if item.get("family") != family]
+        changes = [{"op": "add", "path": "/design/alternatives", "value": kept}]
+        retry = {**note, "retry": family, "failed": reason, "attempt": used + 1}
+        return act(retry, index, "update_state", changes=changes)
 
     def partial(self, design, note, index):
         """End on a limit: the finished alternatives are the answer."""
@@ -403,14 +439,11 @@ class ComparisonDriver(DesignDriver):
         verdict = VERIFIED if found["passed"] else "rejected"
         reason = None if found["passed"] else failure_reason(found)
         design = context.problem.design or {}
-        used = sum(item.get("retry") == family for item in notes(context.messages))
-        if verdict == "rejected" and used < (self._retries or 0):
-            kept = [
-                item for item in design.get("alternatives") or () if item.get("family") != family
-            ]
-            changes = [{"op": "add", "path": "/design/alternatives", "value": kept}]
-            retry = {**note, "retry": family, "failed": reason, "attempt": used + 1}
-            return act(retry, index, "update_state", changes=changes)
+        move = None
+        if verdict == "rejected":
+            move = self.retry_move(context, design, family, reason, note, index)
+        if move is not None:
+            return move
         changes = verdict_changes(design, family, verdict, reason)
         return act(note, index, "update_state", changes=changes)
 

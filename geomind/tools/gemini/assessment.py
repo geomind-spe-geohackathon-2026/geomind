@@ -182,9 +182,54 @@ def estimate_costs(context, reference: str):
             suggestions=first["suggestions"],
         )
     shown = displayed(gm.evaluate.report(plant, case, results), values)
-    return rounded(
-        {name: shown[name] if name in shown else {"error": problems[name]} for name in COSTS}
-    )
+    costs = {name: shown[name] if name in shown else {"error": problems[name]} for name in COSTS}
+    return rounded({**costs, "economics": economics_used(context, reference)})
+
+
+def economics_used(context, reference):
+    """Return whether the costs used the economics of the state's case, and what differs (QA-258).
+
+    The costs of a stored result are those of the case its run ran on. After a ``set_case`` that
+    changed the economics, the same result gives the same costs; an economist costed the old
+    result four times to find the new prices. The answer says it at once: ``same_as_case`` and,
+    when it is false, the ``changed`` keys and the call that gives the new costs.
+    """
+    from geomind.tools.gemini.case import state_case
+    from geomind.tools.gemini.stored import RESULT, unquoted
+
+    identifier = unquoted(reference).removeprefix(RESULT)
+    ran = context.session.load_artifact(f"{identifier}.case") if identifier else None
+    try:
+        current = state_case(context)
+    except ToolError:
+        current = None
+    if not isinstance(ran, dict) or current is None:
+        return {"same_as_case": None, "note": "the case of this result's run is not known here"}
+    changed = changed_keys(ran.get("economics") or {}, current.get("economics") or {})
+    if not changed:
+        return {"same_as_case": True, "note": "the costs use the economics of the current case"}
+    return {
+        "same_as_case": False,
+        "changed": changed,
+        "note": (
+            "these are the costs of the economics the run ran on, not of the current case: "
+            "simulate the same plant again on the current case, then estimate_costs on that new "
+            "result; costing this result again gives the same numbers"
+        ),
+    }
+
+
+def changed_keys(old, new, prefix="economics"):
+    """Return the dotted keys whose values differ between two economics dicts."""
+    found = []
+    for key in sorted(set(old) | set(new)):
+        path = f"{prefix}.{key}"
+        before, after = old.get(key), new.get(key)
+        if isinstance(before, dict) and isinstance(after, dict) and "value" not in after:
+            found += changed_keys(before, after, path)
+        elif before != after:
+            found.append(path)
+    return found
 
 
 SIGNIFICANT = 5

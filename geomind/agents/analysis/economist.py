@@ -10,7 +10,11 @@ class Economist(Agent):
     """Cost a verified design with gemini, compare it and test its uncertainty; record the costs."""
 
     def __init__(self):
-        """Declare the prompt, the tools that cost, compare and sample, and the role's model."""
+        """Declare the prompt, the tools that cost, compare and sample, and the role's model.
+
+        ``simulate`` re-runs the stored plant on the current case after its economics changed, so
+        the economist costs the new prices at once instead of the old result again (QA-258).
+        """
         super().__init__()
 
         # Prompt
@@ -20,6 +24,7 @@ class Economist(Agent):
         self.read_case = tools.gemini.read_case
         self.compute_kpis = tools.gemini.compute_kpis
         self.estimate_costs = tools.gemini.estimate_costs
+        self.simulate = tools.gemini.simulate
         self.compare = tools.gemini.compare
         self.run_study = tools.gemini.run_study
         self.sample_uncertainty = tools.gemini.sample_uncertainty

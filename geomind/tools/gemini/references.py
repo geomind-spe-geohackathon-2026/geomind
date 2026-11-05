@@ -130,27 +130,12 @@ def unknown_reference(context, kind, given, where, field):
 
 
 def project_result_hint(context, given):
-    """Return how to use a result of the project's Study page, which no result tool reads (QA-165).
+    """Return how to name a result of the project's Study page, which the result tools read.
 
-    ``list_studies`` lists such a result under ``project_study`` with its ``kpis`` and
-    ``checks``; its series are only in a new run of its plant version.
+    ``list_studies`` lists such a result under ``project_study``; the result tools read it by
+    its result id (``result/<id>``), simulating its plant version on the project's case (QA-165).
     """
-    workspace = context.session.workspace
-    read = getattr(workspace, "project_designs", None)
-    if read is None or context.project is None:
-        return ""
-    found = read(context.project) or {}
-    wanted = str(given).removeprefix("result/")
-    for study in found.get("studies") or []:
-        result = study.get("result") or {}
-        if str(result.get("id")) == wanted:
-            version = result.get("plant_version") or study.get("plant_version")
-            return (
-                f"; {given!r} is a result of the project's study {study.get('name')!r}, not of "
-                "this chat: quote its `kpis` and `checks` from list_studies (project_study), and "
-                f"for its series or a new check simulate design/v{version} and read that result"
-            )
     return (
-        "; a result listed by list_studies under project_study is not readable by the result "
-        "tools: quote its kpis and checks, or simulate its plant (design/v<plant_version>)"
+        "; a result of the project's Study page is read by the result id list_studies gives under "
+        "project_study (result/<id>, as written there)"
     )

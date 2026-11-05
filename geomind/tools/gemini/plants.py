@@ -55,7 +55,10 @@ def list_plants(context, plant_class: str | None = None, with_schema: bool = Fal
 
     shown = {
         "project_plants": project_plant_names(context),
-        "project_versions": project_designs(context)["plants"],
+        "project_versions": [
+            {**item, "design": f"design/v{item['version']}"}
+            for item in project_designs(context)["plants"]
+        ],
         "plants": [
             {"name": name, "summary": gm.plants.get(name).describe()["summary"]}
             for name in gm.plants.names()
@@ -401,14 +404,31 @@ def shown_ranges(plant):
     return shown
 
 
+def editable_dict(plant, units=None):
+    """Return the plant file to show and patch: a class plant's own file, else the full form.
+
+    A class plant's file is its class, its size and the values given (QA-247, QA-260): it builds
+    back as it is, and a patch of ``size`` resizes it. Its full form lists the modules the class
+    makes from its size (``d1`` of 2 doublets), which ``build_plant`` refuses beside a ``type``.
+    """
+    data = plant.to_dict(units=units)
+    if "type" in data:
+        return data
+    return plant.to_dict(structure=True, units=units)
+
+
 def plant_view(plant):
     """Return the plant file in gemini's display units, with its search ranges and options.
 
     gemini 0.6.3 writes a plant file in display units (MW, degC, bar, m3/h; request 30), so the
-    model quotes each value as given and converts none.
+    model quotes each value as given and converts none. A class plant is shown as its own file,
+    with the names of the modules its class makes under ``modules``.
     """
+    view = {"plant": editable_dict(plant, units="display")}
+    if "type" in view["plant"]:
+        view["modules"] = sorted(plant.to_dict(structure=True).get("modules") or {})
     return {
-        "plant": plant.to_dict(structure=True, units="display"),
+        **view,
         "ranges": shown_ranges(plant),
         "options": {path: list(options) for path, options in plant.options.items()},
     }
@@ -446,7 +466,31 @@ async def read_plant(
     else:
         plant = load_plant(context, design, "read_plant", project_plant)
     issues = await runtime.in_gemini_thread(plant_issues, context, plant)
-    return {**plant_view(plant), **issues}
+    stored = stored_reference(context, design, project_plant, plant_version)
+    return {**stored, **plant_view(plant), **issues}
+
+
+def stored_reference(context, design, project_plant, plant_version):
+    """Return ``{design, use}``: the reference a read plant is stored under (QA-221, QA-247).
+
+    A project plant or plant version is a stored design already: the design tools take it by its
+    reference, so it is never typed again into ``build_plant``.
+    """
+    if plant_version is not None:
+        reference = f"design/v{plant_version}"
+    elif design is not None:
+        reference = design
+    elif project_plant is not None or project_plant_names(context):
+        reference = f"design/{project_plant or project_plant_names(context)[0]}"
+    else:
+        return {}
+    return {
+        "design": reference,
+        "use": (
+            f"{reference} is stored: pass it as design to patch_plant, set_ranges, simulate and "
+            "the studies; never type it again into build_plant"
+        ),
+    }
 
 
 CHOICE_PARAMS = (("backup",), ("control", "outages"), ("control", "dispatch"))
@@ -490,6 +534,22 @@ def wrapped_choices(plant):
     return {**plant, "params": params}
 
 
+VERSION_NAME = re.compile(r"v\d+")
+"""A design name that is the alias of a project plant version: ``design/v3`` is version 3."""
+
+
+def free_name(name, where):
+    """Raise unless ``name`` is free to store a new design under: ``v<N>`` is a version's alias."""
+    if VERSION_NAME.fullmatch(str(name)):
+        raise ToolError(
+            f"{where}: name = {name!r}; design/{name} is the project's plant version "
+            f"{name[1:]}, stored already: pass design/{name} as the design to work on it, or "
+            "give a new design another name",
+            code="invalid_input",
+            path="name",
+        )
+
+
 @tool(effect="write", late_schemas={"plant": plant_schema})
 async def build_plant(context, plant: dict[str, Any], name: str, from_class: str | None = None):
     """Build a plant from a plant file and store it as design/<name>; return its issues.
@@ -498,6 +558,7 @@ async def build_plant(context, plant: dict[str, Any], name: str, from_class: str
     """
     import gemini as gm
 
+    free_name(name, "build_plant")
     if not plant:
         example = {**plant_skeleton(), "type": "<plant class>"}
         raise ToolError(
@@ -579,7 +640,7 @@ def extended_plant(plant, from_class):
             code="unknown_name",
             path="from_class",
         )
-    base = gm.plants.get(from_class).to_dict(structure=True)
+    base = class_base(gm, from_class, plant.get("size"))
     modules = {**(base.get("modules") or {}), **(plant.get("modules") or {})}
     given = [item for item in plant.get("connections") or [] if isinstance(item, dict)]
     single = single_ports(gm, modules, given)
@@ -598,6 +659,14 @@ def extended_plant(plant, from_class):
     else:
         extended.pop("params", None)
     return extended
+
+
+def class_base(gm, from_class, size):
+    """Return the full form of a class plant at ``size`` (QA-260: 2 doublets stay 2)."""
+    if not size:
+        return gm.plants.get(from_class).to_dict(structure=True)
+    header = {"format": 1, "kind": "plant", "name": from_class, "type": from_class, "size": size}
+    return gm.Plant.from_dict(header).to_dict(structure=True)
 
 
 def single_ports(gm, modules, connections):
@@ -633,6 +702,10 @@ def port_takes_one(gm, modules, port):
     return isinstance(item, dict) and not item.get("port", {}).get("many", False)
 
 
+STRUCTURE_KEYS = {"modules", "connections", "fluids", "type"}
+"""The keys of a patch that change a plant's structure: it is applied to the full form."""
+
+
 @tool(effect="write", late_schemas={"design": reference_schema("design")})
 async def patch_plant(
     context, design: str, changes: dict[str, Any] | list[dict[str, Any]], name: str
@@ -646,9 +719,13 @@ async def patch_plant(
     from geomind.tools.gemini.case import merge_patch
     from geomind.tools.gemini.ownership import check_ownership, placed_parameters
 
-    plant = load_design(context, design, "patch_plant").to_dict(structure=True)
+    free_name(name, "patch_plant")
+    loaded = load_design(context, design, "patch_plant")
+    plant = loaded.to_dict(structure=True)
     changes = wrapped_choices(placed_parameters(listed_changes(changes), plant))
     check_ownership(context, changes, "patch_plant", plant)
+    if not STRUCTURE_KEYS & set(changes):
+        plant = editable_dict(loaded)
     patched = merge_patch(plant, changes)
     if patched == plant:
         raise ToolError(

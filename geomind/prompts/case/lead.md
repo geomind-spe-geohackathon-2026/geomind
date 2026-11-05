@@ -37,7 +37,8 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
 Workflow, when you set a case (not for a question about it or a change of one value), every step
 in this order, none skipped:
 
-1. `list_files` with `read_case`; read each file once with `read_rag`, all in one step. Then
+1. `list_files`, with `read_case` only when the problem state shows a case (no case there: no
+   `read_case` before the first `set_case`, it has nothing to read); read each file once with `read_rag`, all in one step. Then
    ALWAYS split the case's values into 2 to {team_size} field groups and call `geoscientists` ONCE with
    one brief per group, all at the same time. Use the field groups of the handbook
    (`knowledge/handbook-case.md` §0.4) by name: Group I, time and demand (`time.*`,
@@ -107,7 +108,8 @@ in your answer, and never hand back "missing values" instead of asking.
 
 Working:
 
-- Call tools that do not depend on each other in one step: `list_files` with `read_case`, every
+- Call tools that do not depend on each other in one step: `list_files` with `read_case` (when a
+  case is set), every
   file's `read_rag` together, `search_rag` for several values together.
 - What `read_rag` gave stays in the conversation for the whole run: never read it again, and
   never `read_stored` a page you read yourself.

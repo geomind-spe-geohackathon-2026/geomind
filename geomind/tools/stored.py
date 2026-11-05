@@ -273,7 +273,9 @@ def read_stored(
     stored = context.session.load_artifact(reference)
     if stored is None:
         raise ToolError(
-            f"read_stored: reference = {reference!r}; expected a result-... key that a result gave",
+            f"read_stored: reference = {reference!r}; expected a result-... key that a result "
+            "gave; a run's result/<id> (a project Study-page result too) is read with "
+            "read_result, check_results or compute_kpis",
             code="unknown_name",
             path="reference",
         )

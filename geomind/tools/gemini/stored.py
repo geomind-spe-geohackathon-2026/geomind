@@ -94,7 +94,7 @@ def load_design(context, design, where):
     design = unquoted(design)
     data = context.session.load_artifact(design) if design.startswith(DESIGN) else None
     if data is None and design.startswith(DESIGN):
-        data = project_design(context, design[len(DESIGN):])
+        data = project_design(context, design[len(DESIGN) :])
     if data is None:
         raise unknown_reference(context, "design", design, where, "design")
     return gm.Plant.from_dict(data)
@@ -230,10 +230,93 @@ def load_run(context, reference, where):
     identifier = reference.removeprefix(RESULT) if reference.startswith(RESULT) else ""
     parts = [context.session.load_artifact(f"{identifier}.{part}") for part in RUN_PARTS]
     if not identifier or None in parts:
+        found = project_run(context, reference, where)
+        if found is not None:
+            return found
         raise unknown_reference(context, "result", reference, where, "reference")
     plant_data, case_data, _, data = parts
     case = build_case(case_data, run_files(context, identifier))
     return gm.Plant.from_dict(plant_data), case, gm.Results.from_bytes(data)
+
+
+def plain_id(text):
+    """Return an id as a project result is matched: no prefix, no dashes, lower case."""
+    text = str(text or "").strip().lower()
+    for prefix in (RESULT, "result-", STUDY, "project_result/", "project_study/"):
+        text = text.removeprefix(prefix)
+    return text.replace("-", "")
+
+
+def project_result(context, reference):
+    """Return ``(study, result)`` of the project's Study-page result ``reference`` names, or None.
+
+    ``list_studies`` lists them under ``project_study``; an agent names one by its result id or
+    its study id, with or without ``result/`` and dashes (QA-165).
+    """
+    from geomind.tools.gemini.plants import project_designs
+
+    wanted = plain_id(reference)
+    if not wanted:
+        return None
+    for study in project_designs(context)["studies"]:
+        result = study.get("result") or {}
+        if result and wanted in (plain_id(result.get("id")), plain_id(study.get("id"))):
+            return study, result
+    return None
+
+
+def project_run(context, reference, where):
+    """Return ``(plant, case, results)`` of a project's Study-page result, or ``None`` (QA-165).
+
+    The backend keeps a page study's report, not gemini's series, so the run is made again: the
+    result's plant version on the project's case, once per session. gemini's run is the same for
+    the same plant and case, so every result tool reads the run the page shows. A result of an
+    older case version than the project's case is refused: it would be another run.
+    """
+    import gemini as gm
+
+    found = project_result(context, reference)
+    if found is None:
+        return None
+    study, result = found
+    cache = getattr(context.session, "__dict__", {}).setdefault("project_runs", {})
+    key = plain_id(result.get("id"))
+    if key in cache:
+        return cache[key]
+    version = result.get("plant_version") or study.get("plant_version")
+    plant = project_design(context, f"v{version}") if version is not None else None
+    workspace = context.session.workspace
+    ran = workspace.case(context.project) if hasattr(workspace, "case") else None
+    if plant is None or ran is None:
+        raise ToolError(
+            f"{where}: reference = {reference!r} is the project's result of study "
+            f"{study.get('name')!r}, but its plant version {version} or the project's case is not "
+            "readable in this run; simulate design/v<plant_version> and read that result",
+            code="unknown_name",
+            path="reference",
+        )
+    project_case = current_case_version(context)
+    ran_on = result.get("case_version") or study.get("case_version")
+    if project_case is not None and ran_on is not None and project_case != ran_on:
+        raise ToolError(
+            f"{where}: reference = {reference!r} ran on case version {ran_on}, and the project's "
+            f"case is now version {project_case}: it is no run of the current case. Simulate "
+            f"design/v{version} on the current case and read that result, or quote the page "
+            "result's kpis and checks from list_studies as of its case version",
+            code="not_allowed",
+            path="reference",
+        )
+    case = build_case(*ran)
+    loaded = gm.Plant.from_dict(plant)
+    cache[key] = (loaded, case, gm.simulate(loaded, case))
+    return cache[key]
+
+
+def current_case_version(context):
+    """Return the version of the project's case from its state, or ``None`` when unknown."""
+    read = getattr(context.session.workspace, "project_state", None)
+    state = read(context.project) if read is not None else None
+    return state.get("case_version") if isinstance(state, dict) else None
 
 
 def design_stem(design):

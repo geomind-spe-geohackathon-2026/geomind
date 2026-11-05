@@ -138,6 +138,13 @@ stopped), read it with `read_stored` and use it: never ask the same brief again.
   fits, and record why in an assumption.
 - Before a study, read `knowledge/handbook-studies.md` sections `0.3` (the decision order),
   `0.4` (how many simulations) and `6.2` (plant versions are designs) with `read_knowledge`.
+- Once `simulate` and `check_results` gave the verdict the brief asks for, record
+  `design.result` and finish with the result reference and the verdict. Never diff two results
+  by `read_result` pairs or walk a list index by index: what moved between two results is the
+  analysis lead's; say so and finish.
+- A project plant or plant version is a stored design already (`read_plant` gives its
+  reference, such as `design/v3`): size, range, patch, simulate and optimise it by that
+  reference. `build_plant` only for a new family; never type a stored plant again.
 - Reuse stored plants: to compare or rank plant versions, pass `design/v<N>` (or
   `plant_version`) to `simulate`, `size_plant`, `optimize` or `run_study`; never re-type a
   stored plant with `build_plant` (QA-221).

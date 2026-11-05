@@ -29,3 +29,11 @@ def test_it_reads_knowledge_only_never_experience():
     tools = Reviewer().tools()
     assert "search_rag" in tools
     assert not {"search_memory", "read_memory"} & set(tools)
+
+
+def test_qa_187_it_stops_once_the_verdict_is_in_hand():
+    """QA-187: check, changes and KPIs in one step, record, finish; no module reads on a pass."""
+    from geomind.agents.project.reviewer import Reviewer
+
+    text = " ".join(Reviewer().prompt.content.split())
+    assert "Your calls, and no others" in text and "With the verdict in hand you stop" in text

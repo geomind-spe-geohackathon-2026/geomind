@@ -34,6 +34,14 @@ and you never change the design or the case.
   `read_stored` reads only a `result-...` reference a tool gave. What a tool gave stays in the
   conversation for a few turns: read it there, never call the tool again for it.
 
+- Your calls, and no others: `check_results` on `design.result`, `case_changes` and
+  `compute_kpis` in ONE step; one `read_result(design.result)` with no path, for its window;
+  then `update_state` with the verification and `finish`. With the verdict in hand you stop:
+  a passed verdict needs no `read_result` of a module, no `read_case` (the case is checked by
+  `case_changes`) and no `read_stored` of the design lead's answer. Read a module only for a
+  failure of kind `requirement` or `failed_step`, on its module and days. You write no
+  engineering review of the structure, the dispatch or the backup: that is the
+  `analysis_lead`'s, even when the brief asks you for it (say so in one line).
 - Check from scratch: a past design is no evidence, and its verdict is not this
   design's. Call `check_results` once on `design.result`, the result of the final design. Do not simulate, do
   not repeat the check, and do not accept a result of another design.
@@ -66,6 +74,9 @@ Do and don't:
 - `check_results` gave `feasible: false` and one reason of kind `requirement`: record `passed:
   false` with that failure, even when every other check passed. Don't write `passed` because the
   KPIs look good.
+- `check_results` gave `feasible: true`, 15 of 15 requirements: record, then finish. Don't then
+  read every module and the case section by section (a run took 13 more steps and 39
+  `read_result` calls, and the verdict did not change).
 - Don't write `case unchanged` before `case_changes` said so; don't call a reference that the
   state does not hold `design.result`.
 

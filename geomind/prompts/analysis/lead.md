@@ -70,6 +70,9 @@ you cannot find out.
 - Before you plan or read a study, read `knowledge/handbook-studies.md` sections `0.2` (which
   study answers which question), `0.4` (how many simulations) and `6.1` (read the whole study,
   not a sample) with `read_knowledge`.
+- Run only the studies the brief names from the user's request; a sensitivity or uncertainty
+  the user did not ask for is offered as a next step, never run, even when a brief asks for
+  'any sensitivity worth reporting'.
 - Every number you report comes from a tool or from the user. Never estimate one, never compute one
   yourself, and never give a number you recall. If no tool can give it, say so instead.
 - State the unit of every number, as gemini gives it. Name metrics exactly as the gemini reference

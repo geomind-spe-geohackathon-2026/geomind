@@ -6,6 +6,22 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.122] - 2026-11-05
+
+### Fixed
+- QA-165 (reopened): a result of the project's Study page is read by `check_results`,
+  `compute_kpis`, `read_result` and the verification: its plant version is run again on the
+  project's case (refused when the case version changed).
+- QA-262: `read_result` of a group path (`d0`) lists its modules.
+- QA-261: the leads call `read_case` only when the state shows a case.
+- QA-229, QA-257: the project lead does only what the request asks; no unasked sensitivity,
+  uncertainty or review; the analysis lead runs only the studies the brief names.
+- QA-187, QA-245: the reviewer stops with its verdict; the design lead finishes once simulate
+  and check gave the verdict.
+- QA-221, QA-247, QA-260: `read_plant` gives a stored plant's `design` reference and a class
+  plant as its own file that builds back; `patch_plant` keeps a class plant's type and size;
+  `build_plant` refuses the name `v<N>`.
+
 ## [0.4.121] - 2026-11-05
 
 ### Fixed
