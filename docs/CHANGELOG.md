@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.72] - 2026-11-05
+
+### Fixed
+
+- QA-082 (the cause): `simulate` ran, but its summary read an ESP's curves on the plant without the case applied, and gemini's "uninitialized parameters" error listed `d0.gradient`, `surface_temperature`, `permeability` and `thickness` as missing; every simulate with an ESP failure group failed so. The summary now gives that group without the curve, and the run's real failures (an ESP outside its flow window, negative pipe pressures, an unmet supply temperature) reach the agent.
+
 ## [0.4.71] - 2026-11-05
 
 ### Fixed
