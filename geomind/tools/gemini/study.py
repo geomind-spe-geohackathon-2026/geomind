@@ -491,6 +491,7 @@ async def run_study(
     seed: int | None = None,
     samples: int | None = None,
     prepare: list[Literal["size"]] | None = None,
+    values: list[str] | None = None,
 ):
     """Run one study over several stored designs on the state's case and rank them.
 
@@ -500,6 +501,8 @@ async def run_study(
     settings |= {"evaluations": evaluations, "samples": samples, "prepare": prepare}
     written = [f"design/{name}_{design_stem(design)}" for design in designs]
     ran, plants, study, case = prepared(context, "run_study", name, designs, settings, written)
+    if values:
+        study = study_over(name, settings, ran, plants, method, values)
     with range_guidance(plants):
         result = await runtime.in_gemini_thread(study_runs, study)
     runs = await store_runs(context, name, result)
@@ -516,6 +519,24 @@ async def run_study(
         context, name, "run_study", found, kept, stored.get(first), case, runs=full
     )
     return figures({"study": key, "runs": runs, "best": best})
+
+
+def study_over(name, settings, ran, plants, method, values):
+    """Return the study with only the uncertainties ``values`` names drawn (QA-248).
+
+    ``values`` belongs to a ``sample`` or ``sensitivity`` study; the case it runs on keeps the
+    named uncertainties only, and is refused when another one is left (``restricted``).
+    """
+    if method not in ("sample", "sensitivity"):
+        raise ToolError(
+            f"run_study: values = {values}; it limits a sample or sensitivity study, not "
+            f"method {method!r}",
+            path="values",
+        )
+    data, files = only_uncertainty(ran[0], ran[1], values, "run_study")
+    restricted(build_case(data, files), values, "run_study")
+    dicts = {design: plant.to_dict(structure=True) for design, plant in plants.items()}
+    return study_of(name, settings, (data, files), dicts)
 
 
 def compare_runs(runs, by):

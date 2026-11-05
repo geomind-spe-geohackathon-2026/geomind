@@ -896,3 +896,12 @@ def test_a_draw_of_three_prices_draws_only_those_three():
     assert sorted(case.uncertainty) == sorted(prices)
     with pytest.raises(ToolError, match="still declares"):
         restricted(build_case(data, dict(files)), prices, "sample_uncertainty")
+
+
+def test_run_study_values_belongs_to_a_sample_or_sensitivity():
+    """QA-248: run_study takes values for a sample; another method with values is refused."""
+    from geomind.errors import ToolError
+    from geomind.tools.gemini.study import study_over
+
+    with pytest.raises(ToolError, match="limits a sample or sensitivity"):
+        study_over("s", {}, ({}, {}), {}, "minimize", ["economics.energy.gas"])

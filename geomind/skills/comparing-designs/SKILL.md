@@ -86,7 +86,7 @@ Run one study over several stored designs on the state's case and rank them.
 
 This is how alternatives are compared: one study over several topologies. `method` is
 `run` (simulate as it is), `minimize` (search each design's ranges), `sample` or
-`sensitivity`; `prepare=["size"]` sizes each design first, from its ranges and its own
+`sensitivity` (`values` draws only the named uncertainties, as `sample_uncertainty` does); `prepare=["size"]` sizes each design first, from its ranges and its own
 `params.backup`.
 The settings a method needs are gemini's: `minimize` needs `objective`, `evaluations`
 and `seed`; `sample` needs `metrics`, `samples` and `seed`; `sensitivity` needs
