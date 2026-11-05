@@ -306,3 +306,43 @@ def test_the_same_error_twice_in_a_row_says_to_change_the_call():
     second = ToolResult(call_id="b", tool="evaluate_module", output=dict(error), is_error=True)
     assert "repeated" not in with_repeat_note(session, first).output
     assert "second time" in with_repeat_note(session, second).output["repeated"]
+
+
+FAILS = []
+
+
+@tool(effect="compute")
+async def picky(value: int):
+    """Refuse every value but 1."""
+    from geomind.errors import ToolError
+
+    FAILS.append(value)
+    if value != 1:
+        raise ToolError(f"picky: value = {value}; expected 1", path="value")
+    return "ok"
+
+
+class Picky(Agent):
+    """Has one tool that refuses."""
+
+    def __init__(self):
+        """Declare the tool."""
+        super().__init__()
+
+        # Tools
+        self.picky = picky
+
+
+async def test_a_call_identical_to_a_failed_one_is_not_run_again():
+    """QA-143: the same refused call is answered from its first refusal, not run again."""
+    FAILS.clear()
+    script = [
+        uses(call("picky", "a", value=2)),
+        uses(call("picky", "b", value=2)),
+        uses(call("picky", "c", value=1)),
+        says(),
+    ]
+    result, _, events = await run(script, Picky())
+    assert result.status == "done" and FAILS == [2, 1]
+    second = next(e for e in of_type(events, "tool.result") if e.call_id == "b")
+    assert second.output["error"]["code"] == "failed_before"

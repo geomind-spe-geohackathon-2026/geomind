@@ -260,6 +260,10 @@ async def _execute(session, agent, tool, call):
     if same is not None:
         await record_result(session, call, text_result(call, same), source="repeat")
         return _over_retries(session, tool)
+    failed = failed_before(session, call) if recorded is None else None
+    if failed is not None:
+        await record_result(session, call, failed)
+        return _over_retries(session, tool)
     outcome = await dispatch(tool, call, session.context())
     if isinstance(outcome, Finish):
         session.proposed_suggestions = outcome.suggestions
@@ -273,8 +277,55 @@ async def _execute(session, agent, tool, call):
             return _over_retries(session, tool)
         return await session.pause(asking_new(outcome, found) if found else outcome, "tool", call)
     outcome = with_repeat_note(session, with_skill(outcome, session.state.messages))
+    remember_failure(session, call, outcome)
     await record_result(session, call, outcome)
     return _over_retries(session, tool)
+
+
+FAILED_AGAIN = (
+    "{tool}: this exact call already failed at step {step} with {code}: {message} Nothing it "
+    "reads has changed since, so it would fail the same way and was not run. Change what that "
+    "message names, or hand back to whoever gave you the task with it"
+)
+"""What a model reads instead of running a call identical to one that failed (QA-143)."""
+
+
+def remember_failure(session, call, outcome):
+    """Keep an error of a call by its whole input, with how many calls had succeeded then."""
+    error = outcome.output.get("error") if isinstance(outcome.output, dict) else None
+    if not outcome.is_error or not isinstance(error, dict):
+        return
+    failures = session.__dict__.setdefault("failed_calls", {})
+    failures[call_key(call.name, call.input)] = (
+        session.state.step,
+        len(session.state.succeeded),
+        error,
+    )
+
+
+def failed_before(session, call):
+    """Return an error result for a call identical to one that failed, when nothing ran since.
+
+    "Nothing ran since" is no call succeeding after it: a successful write, simulate or nested
+    run may change what the call reads, so then it runs again. The same evaluate_module call was
+    sent three times with the same refusal (QA-143); the repeat note alone did not stop it.
+    """
+    found = session.__dict__.get("failed_calls", {}).get(call_key(call.name, call.input))
+    if found is None:
+        return None
+    step, done, error = found
+    if len(session.state.succeeded) != done:
+        return None
+    message = FAILED_AGAIN.format(
+        tool=call.name,
+        step=step,
+        code=error.get("code"),
+        message=str(error.get("message", "")).removeprefix(f"{call.name}: "),
+    )
+    output = {"error": {**error, "message": message, "code": "failed_before"}}
+    return ToolResult(
+        call_id=call.id, tool=call.name, output=output, is_error=True, is_validation=True
+    )
 
 
 REPEAT_NOTE = (
