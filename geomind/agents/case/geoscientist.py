@@ -83,6 +83,8 @@ class Geoscientist(Agent):
         # Only the case lead reads and writes the project's files and the case: the lead puts
         # the report text in the brief (user rule, IMP-025).
         self.describe_case = tools.gemini.describe_case
+        self.search_knowledge = tools.search_knowledge
+        self.read_knowledge = tools.read_knowledge
         self.search_memory = tools.search_memory
         self.read_memory = tools.read_memory
         self.finish = tools.finish

@@ -5,7 +5,7 @@ from geomind.agents import CaseLead, DesignLead
 from tests.unit.agents.structure import check_complete
 
 TOOLS = [
-    "geoscientist",
+    "geoscientists",
     "list_files",
     "read_rag",
     "search_rag",
@@ -168,10 +168,9 @@ def test_the_economics_parts_of_gemini_0_6_2_have_their_rules():
 
 
 def test_a_refused_full_call_is_sent_again_whole():
-    """#69: files alone after a refused full call, the geoscientist after ``already_asked``."""
+    """#69: files alone after a refused full call."""
     text = " ".join(CaseLead().prompt.content.split())
     assert "send the SAME full call again" in text and "never a files-only call" in text
-    assert "after `already_asked`, never call it again" in text
     assert "File names are case-sensitive" in text
 
 

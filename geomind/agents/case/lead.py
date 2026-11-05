@@ -126,9 +126,10 @@ class CaseLead(Agent):
         self.prompt = Prompt("case/lead", appendix=trees("case_compact"))
 
         # Tools
-        geoscientist = Delegate(Geoscientist(), max_summary_tokens=FINDINGS_TOKENS, once=True)
+        # The case lead always splits the case among up to four geoscientists in one call, and
+        # again for what is left, so the single geoscientist tool is gone (QA-140, IMP-025).
+        geoscientist = Delegate(Geoscientist(), max_summary_tokens=FINDINGS_TOKENS)
         geoscientist.keeps_result = "run"
-        self.geoscientist = geoscientist
         self.geoscientists = Team(
             "geoscientists",
             "Run several geoscientists at once, each on its own field group and files: briefs is "

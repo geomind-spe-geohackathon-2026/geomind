@@ -10,6 +10,8 @@ from tests.unit.agents.structure import check_complete
 
 TOOLS = [
     "describe_case",
+    "search_knowledge",
+    "read_knowledge",
     "search_memory",
     "read_memory",
     "finish",
@@ -46,10 +48,12 @@ def test_it_proposes_and_never_sets_the_case():
 
 
 def test_the_case_lead_asks_it_as_a_tool():
-    """The case lead has the geoscientist as a delegate and its prompt says when to ask."""
+    """The case lead has its geoscientists as a team and always splits the case (QA-140)."""
     lead = CaseLead()
-    assert type(lead.tools()["geoscientist"].agent) is Geoscientist
-    assert "ask the `geoscientist`" in lead.prompt.render()
+    team = lead.tools()["geoscientists"]
+    assert type(team.members["geoscientist"].agent) is Geoscientist
+    assert "geoscientist" not in lead.tools()
+    assert "ALWAYS split" in lead.prompt.render()
 
 
 def test_its_findings_carry_page_quality_and_range():
@@ -83,7 +87,13 @@ async def test_the_case_lead_reads_the_findings_of_a_nested_run():
     from tests.fixtures.runs import call, of_type, run, says, uses
 
     script = [
-        uses(call("geoscientist", "g1", task="Read report.pdf: reservoir and brine.")),
+        uses(
+            call(
+                "geoscientists",
+                "g1",
+                briefs=[{"role": "geoscientist", "task": "Reservoir and brine: text ..."}],
+            )
+        ),
         uses(call("finish", "f1", answer=json.dumps(FINDINGS))),
         says("Proposed: reservoir mid depth 2500 m from report.pdf page 12."),
     ]
@@ -91,8 +101,13 @@ async def test_the_case_lead_reads_the_findings_of_a_nested_run():
     assert result.status == "done"
     nested = [event.agent for event in of_type(events, "run.started")]
     assert nested == ["case_lead", "geoscientist"]
-    output = next(e for e in of_type(events, "tool.result") if e.tool == "geoscientist").output
-    assert json.loads(output)["values"][0]["source"]["page"] == 12
+    output = next(e for e in of_type(events, "tool.result") if e.tool == "geoscientists").output
+    answers = output if isinstance(output, dict) else json.loads(output)
+    found = answers["Geoscientist I"]
+    found = found if isinstance(found, dict) else json.loads(found)
+    assert found["values"][0]["source"]["page"] == 12
+    started = [e for e in of_type(events, "run.started") if e.agent == "geoscientist"]
+    assert started[0].instance == "Geoscientist I"
 
 
 def test_a_gap_goes_to_missing_for_the_lead_to_search():
