@@ -942,3 +942,17 @@ async def test_economics_other_than_the_approved_values_are_refused():
     assert "the user approved 0.05" in error["message"]
     result = await edited(session, problem, {"economics": {"discount_rate": {"value": 0.05}}})
     assert result.is_error is False, result.output
+
+
+async def test_a_saved_connector_table_is_found_by_its_name_without_its_folder():
+    """QA-301: data/air.csv saved by save_mcp_table was named air.csv: twelve "not found"."""
+    session = first_case_session()
+    air = b"time,t2m\n2030-01-01T00:00:00Z,5\n2030-01-02T00:00:00Z,6\n2030-01-03T00:00:00Z,7\n"
+    session.artifacts["case/data/air.csv"] = air
+    changes = copy.deepcopy(FROM_FILE)
+    changes["site"] = {"air": {"temperature": {"file": "air.csv", "column": "t2m", "unit": "degC"}}}
+    arguments = {"changes": changes, "files": ["demand.csv", "air.csv"]}
+    result = await call(set_case, arguments, session, "p")
+    assert result.is_error is False, result.output
+    assert result.output["case"]["site"]["air"]["temperature"]["file"] == "data/air.csv"
+    assert any(item["path"] == "site.air.temperature.file" for item in result.output["converted"])

@@ -800,9 +800,9 @@ def period_requirements(requirements):
 def moved_reference_depth(base, data):
     """Return the warning of a reference depth changed while its pressure or temperature stay.
 
-    QA-119: "reservoir at 3000 m" moved ``site.reservoir.reference_depth`` and kept 250 bar(g)
-    of 2500 m. The reference depth is where the given values hold, so moving it alone moves them;
-    a well depth is the plant's ``params.depth``, where gemini derives both.
+    QA-119: a new reservoir depth moved ``site.reservoir.reference_depth`` and kept the pressure
+    of the old depth. The reference depth is where the given values hold, so moving it alone
+    moves them; a well depth is the plant's ``params.depth``, where gemini derives both.
     """
     before = ((base or {}).get("site") or {}).get("reservoir") or {}
     after = ((data or {}).get("site") or {}).get("reservoir") or {}
@@ -1021,6 +1021,67 @@ def project_files_of(context, names, columns=None):
     return found
 
 
+DATA_FOLDER = "data/"
+"""The folder a connector table is saved in when its name gives one (``save_mcp_table``)."""
+
+
+def saved_name(context, name, project):
+    """Return the run's saved case file ``name`` stands for, or ``None`` (QA-301).
+
+    ``save_mcp_table`` keeps a connector table as the run's case file ``data/<name>.csv``; the case
+    lead named it without ``data/`` (and the other way round) and was told "not found" twelve
+    times. A name that is no project file is the saved file of the same name, with or without
+    the folder.
+    """
+    if not isinstance(name, str) or name in project:
+        return None
+    bare = name.removeprefix(DATA_FOLDER)
+    for candidate in dict.fromkeys((name, f"{DATA_FOLDER}{bare}", bare)):
+        if not is_safe_name(candidate):
+            continue
+        try:
+            if context.session.load_artifact(f"{CASE_FILE}{candidate}") is not None:
+                return candidate
+        except (OSError, ValueError, KeyError):
+            continue
+    return None
+
+
+def with_saved_files(context, changes, files):
+    """Return ``(changes, files, converted)`` with each saved case file named as it is saved.
+
+    A series ``file`` that names a saved connector table under another spelling becomes its saved
+    name, listed in ``converted``; a name in ``files`` that is a saved file, not a project file,
+    leaves ``files``, since set_case reads it from the run (QA-301: "expected one of" the uploads).
+    """
+    try:
+        project = set(project_file_names(context))
+    except ToolError:
+        project = set()
+    converted = []
+
+    def walked(node, path):
+        if isinstance(node, list):
+            return [walked(item, f"{path}[{index}]") for index, item in enumerate(node)]
+        if not isinstance(node, dict):
+            return node
+        result = {key: walked(value, f"{path}.{key}" if path else key) for key, value in node.items()}
+        saved = saved_name(context, node.get("file"), project) if "file" in node else None
+        if saved is not None and saved != node["file"]:
+            converted.append({
+                "path": f"{path}.file",
+                "from": {"value": node["file"], "unit": None},
+                "to": {"value": saved, "unit": None},
+                "reason": "the run's saved case file of that name (save_mcp_table)",
+            })
+            result["file"] = saved
+        return result
+
+    changes = walked(changes, "")
+    kept = [name for name in files or [] if saved_name(context, name, project) is None]
+    return changes, (kept if files is not None else None), converted
+
+
 def kept_columns(columns, kept):
     """Return ``columns`` with the renames of an earlier call of the run it does not give.
 
@@ -1168,6 +1229,8 @@ async def set_case(
         kept.update(copy.deepcopy(columns))
     columns = kept_columns(columns, kept)
     changes, converted = without_empty_units(changes or {})
+    changes, files, saved = with_saved_files(context, changes, files)
+    converted += saved
     files = changes_files(context, changes, files, supplied)
     if files:
         given = await runtime.in_gemini_thread(project_files_of, context, files, columns)

@@ -117,7 +117,10 @@ ONE requirement with `min` and `max`: two one-sided requirements on the same `on
 `economics` is a merge patch on the content of the case's economics file. `files` names
 project files (`list_files`): their bytes go to gemini, under the same name, so a data file
 is given to the case and never retyped: name it in `changes`, as the `file` of a series.
-A project file the changes name is loaded even when `files` leaves it out. `columns`
+A project file the changes name is loaded even when `files` leaves it out. A connector table that
+`save_mcp_table` saved is already the run's case file: name it as the `file` of its series by
+the `file` its result gives (`data/<name>.csv`; the name without `data/` is found too), and
+leave it out of `files`, which lists only uploaded project files. `columns`
 renames header names of those files, such as `{"demand.csv": {"date": "time"}}`:
 gemini reads a series' times from a column named `time`; a first column named as a time
 (`date`, `timestamp`) is renamed `time` by set_case itself, and the `columns` of an earlier

@@ -7,6 +7,8 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 ## [Unreleased]
 
 ### Fixed (QA-296)
+- QA-301: set_case finds a saved connector table by its name with or without `data/`, and drops
+  it from `files`.
 - run_python and read_web_page check a call before its approval card, so a call they would refuse
   shows no card; integers that lay out text are not refused as data.
 
