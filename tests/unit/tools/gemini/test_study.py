@@ -863,3 +863,19 @@ def test_qa_099_compare_and_the_structure_search_round_what_the_model_reads():
         "lcts": study_module.figures(49.28130562173663)
     }
     assert study_module.figures(49.28130562173663) != 49.28130562173663
+
+
+def test_an_optimum_of_a_sized_copy_names_the_stored_plant_it_came_from():
+    """QA-276: a search of design/v2_sized says it was not compared with design/v2 as it is."""
+    from types import SimpleNamespace
+
+    from geomind.tools.gemini.study import sized_from
+
+    entry = {"tool": "size_plant", "best": "design/v2_sized", "designs": ["v2"]}
+    index = {"studies": [entry]}
+    session = SimpleNamespace(load_artifact=lambda key: index, workspace=None)
+    context = SimpleNamespace(session=session, project=None)
+    assert sized_from(context, "design/v2_sized")["sized_from"] == "design/v2"
+    assert sized_from(context, "design/other") == {}
+    entry["designs"] = ["mine"]
+    assert sized_from(context, "design/v2_sized") == {}

@@ -20,6 +20,7 @@ from geomind.tools.gemini.stored import (
     ran_case,
     save_design,
     save_study,
+    study_index,
 )
 
 STUDY_TIMEOUT_S = 900
@@ -194,7 +195,28 @@ async def optimize(context, design: str, objective: str, evaluations: int, seed:
     key = await save_study(
         context, name, "optimize", recorded, ([design], wrote), recommended, case, runs=runs
     )
-    return figures(result | {"study": key} | ({"design": wrote[0]} if wrote else {}))
+    shown = result | {"study": key} | ({"design": wrote[0]} if wrote else {})
+    return figures(shown | sized_from(context, design))
+
+
+def sized_from(context, design):
+    """Return ``{sized_from, compare}`` when ``design`` is a sized copy of a stored plant (QA-276).
+
+    gemini's search keeps its own start among the trials, so its best is never worse than the
+    design it searched; a sized copy of a stored plant is another start, and its best was worse
+    than the stored plant as it was. The answer then names the stored plant to compare with.
+    """
+    from geomind.tools.gemini.plants import VERSION_NAME, project_plant_names
+
+    for entry in reversed(study_index(context)):
+        if entry["tool"] != "size_plant" or entry["best"] != design or not entry["designs"]:
+            continue
+        stem = entry["designs"][0]
+        if VERSION_NAME.fullmatch(stem) or stem in project_plant_names(context):
+            compare = f"best not compared with design/{stem} as it is: optimize it, or compare"
+            return {"sized_from": f"design/{stem}", "compare": compare}
+        return {}
+    return {}
 
 
 def sample_design(plant, case, metrics, samples, seed, percentiles=None):

@@ -90,7 +90,8 @@ the plant, a profile or a finding once and never again unless you wrote it since
    pump's setpoint, the doublet design its ESP stages and curves): never patch or ask for them.
    As soon as `missing` is 0, go straight to the search, as gemini's reference example does:
    ONE `set_ranges` (the doublets, the depth, `nominal_flow` and the heat pump and chiller
-   capacities), `size_plant`, then ONE `optimize` study per configuration. Never size by hand
+   capacities), `size_plant`, then ONE `optimize` study per configuration (a stored plant the
+   user asks to optimise, with `missing` 0: `optimize` it as it is, no `size_plant`). Never size by hand
    with builds or patches: a new plant version is not a search. Then `simulate` the best for the
    whole year and `check_results`. Never wait for a perfect plant: the failures tell you what to
    fix.
@@ -240,8 +241,10 @@ stopped), read it with `read_stored` and use it: never ask the same brief again.
   `ask_user` with the values you propose and a one-line reason, and wait for the answer. Record
   the question in `questions` `{id, text}` before you ask. Call `set_ranges` only with the values
   the user confirmed.
-- `optimize` the sized design, then `simulate` the best. When you started from a stored plant
-  or plant version, compare the best with that plant as it was (its whole-year result on the
+- `optimize` the sized design, then `simulate` the best. A stored plant or plant version with
+  `missing` 0 that the user asks to optimise is searched as it is (`optimize` on its
+  `design/v<N>`, no `size_plant` first): gemini keeps it among the trials, so the best is never
+  worse. When `optimize` returns `sized_from`, compare the best with that plant as it was (its whole-year result on the
   same case, by `compare` on the objective): when the start is as good or better, say so, keep
   the start as the design and never call the search's best the optimised design. Report the
   change from the stored plant, never from the sized start alone. A trial is feasible only when gemini's
