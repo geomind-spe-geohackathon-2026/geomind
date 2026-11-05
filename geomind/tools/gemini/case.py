@@ -685,6 +685,35 @@ def running_supply_temperatures(requirements):
     return converted
 
 
+def period_requirements(requirements):
+    """Return ``converted`` entries after dropping ``over``/``when`` where gemini takes none.
+
+    A quantity read over the whole period (``unmet_share``, ``count``, an equipment value)
+    takes no ``over`` and no ``when``; gemini refuses either (IMP-012: a pure slip of form, so
+    the tool drops it and says so). Edits in place.
+    """
+    try:
+        from gemini.plants.roles import TABLE
+    except ImportError:
+        return []
+    converted = []
+    for item in requirements if isinstance(requirements, list) else ():
+        if not isinstance(item, dict):
+            continue
+        reads = TABLE.get(item.get("on"), {}).get(item.get("quantity"))
+        if reads is None or getattr(reads, "over", True):
+            continue
+        for key in ("over", "when"):
+            if key in item:
+                converted.append({
+                    "path": f"requirements.{item.get('name')}.{key}",
+                    "from": {"value": item.pop(key), "unit": None},
+                    "to": {"value": None, "unit": None},
+                    "reason": f"{item.get('quantity')} is read over the whole period: no {key}",
+                })
+    return converted
+
+
 def edited_requirements(current, edits):
     """Return the requirement list with ``edits`` ``{name: dict | None}`` applied by name."""
     items = copy.deepcopy(current or [])
@@ -859,6 +888,7 @@ async def set_case(
     if data.get("requirements"):
         data["requirements"] = copy.deepcopy(data["requirements"])
         converted += running_supply_temperatures(data["requirements"])
+        converted += period_requirements(data["requirements"])
     contents = edited_economics(context, data, supplied, economics) if economics else supplied
     origin = given_case(context, source, (base, supplied), (data, contents))
     try:
