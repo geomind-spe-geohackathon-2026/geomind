@@ -944,3 +944,26 @@ async def test_one_call_with_every_problem_of_the_run_becomes_one_question():
     assert "economics.revenue.heat = 60 EUR/MWh" in request.message
     left = request.message.split("Left open, no source the rules accept gives them:")[1]
     assert "revenue.subsidy.amount" in left and "compression_chiller" in left
+
+
+def test_a_case_of_another_name_finds_the_document_its_about_cites():
+    """A case named otherwise skipped its assumptions document; a cited one is found."""
+    from geomind.tools.gemini.economics import case_document, document_note
+
+    context = case_document_context(CaseDocumentWorkspace())
+    context.problem.case["name"] = "QA-TEST run 7"
+    assert case_document(context) is None
+    note = document_note(context)
+    assert "knowledge/my-case-assumptions.md" in note and "none was used" in note
+    context.problem.case["about"] = {"source": "values from knowledge/my-case-assumptions.md"}
+    document, keys, given = case_document(context)
+    assert document == "knowledge/my-case-assumptions.md" and given["revenue.heat"][0] == 60
+    assert document_note(context) is None
+
+
+def test_a_key_with_capitals_is_read_from_a_document():
+    """`accounting.gwp.CH4` was never read: the key pattern was lowercase only."""
+    from geomind.tools.gemini.economics import document_values
+
+    text = "| CH4 GWP (`accounting.gwp.CH4`) | 29.8 | Cited |\n"
+    assert document_values(text) == {"accounting.gwp.CH4": (29.8, None)}

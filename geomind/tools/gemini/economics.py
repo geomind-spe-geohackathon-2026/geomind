@@ -649,8 +649,11 @@ def with_ranges(context, values):
 
 ASSUMPTIONS = "-assumptions.md"
 """How a Knowledge document written for one case ends: ``<case name>-assumptions.md``."""
-NAMED_KEY = re.compile(r"`([a-z_]+(?:\.[a-z_0-9]+)*)`")
-"""A key a document names in backticks, such as ``revenue.heat``."""
+NAMED_KEY = re.compile(r"`([a-z_]+(?:\.[A-Za-z_0-9]+)*)`")
+"""A key a document names in backticks, such as ``revenue.heat``; a part after the first keeps
+its case (``accounting.gwp.CH4``, which a lowercase pattern never read)."""
+CITED_DOCUMENT = re.compile(r"knowledge/([\w./-]+" + re.escape(ASSUMPTIONS) + r")")
+"""An assumptions document a case's texts cite by its Knowledge name."""
 
 
 def case_document(context):
@@ -658,25 +661,59 @@ def case_document(context):
 
     QA-320: "fill in the economics yourself" took Dutch catalogue rows for every key while the
     Knowledge base held a document written for this very case. The document is found by the
-    case's name (``my_case`` -> ``my-case-assumptions.md``), never by a search.
+    case's name (``my_case`` -> ``my-case-assumptions.md``), else by the ``knowledge/<name>`` of an
+    assumptions document the case's ``about`` or the state's assumptions cite (a case of another
+    name skipped it silently), never by a search.
     """
     from geomind.tools.knowledge import has_knowledge
 
+    workspace = getattr(context.session, "workspace", None)
+    if not has_knowledge(workspace):
+        return None
+    names = [item["name"] for item in workspace.knowledge_files()]
+    found = next((name for name in names if name in cited_documents(context)), None)
     data = getattr(getattr(context, "problem", None), "case", None)
     name = data.get("name") if isinstance(data, dict) else None
-    workspace = getattr(context.session, "workspace", None)
-    if not isinstance(name, str) or not has_knowledge(workspace):
-        return None
-    wanted = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") + ASSUMPTIONS
-    found = next(
-        (item["name"] for item in workspace.knowledge_files() if item["name"].endswith(wanted)),
-        None,
-    )
+    if found is None and isinstance(name, str):
+        wanted = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") + ASSUMPTIONS
+        found = next((item for item in names if item.endswith(wanted)), None)
     if found is None:
         return None
     content = workspace.knowledge_file(found)
     text = content.decode("utf-8") if isinstance(content, bytes) else str(content or "")
     return f"knowledge/{found}", set(NAMED_KEY.findall(text)), document_values(text)
+
+
+def cited_documents(context):
+    """Return the assumptions documents the case's ``about`` and the state's assumptions cite."""
+    problem = getattr(context, "problem", None)
+    data = getattr(problem, "case", None)
+    words = texts(data.get("about")) if isinstance(data, dict) else []
+    for item in getattr(problem, "assumptions", None) or ():
+        words += [str(item.text or ""), str(item.reason or ""), *texts(item.citation or {})]
+    return {match for text in words for match in CITED_DOCUMENT.findall(text)}
+
+
+def document_note(context):
+    """Return the note of a question with no case document while Knowledge holds some, or None.
+
+    The document is used only when the case's name or texts point to it; the user is told which
+    ones exist, so a document meant for this case is not skipped silently.
+    """
+    from geomind.tools.knowledge import has_knowledge
+
+    workspace = getattr(context.session, "workspace", None)
+    if case_document(context) is not None or not has_knowledge(workspace):
+        return None
+    names = [item["name"] for item in workspace.knowledge_files()]
+    found = sorted(f"knowledge/{name}" for name in names if name.endswith(ASSUMPTIONS))
+    if not found:
+        return None
+    return (
+        f"The Knowledge base has assumptions documents ({', '.join(found)}), but none is this "
+        "case's (by its name, or cited in its about): none was used. Name the one meant for this "
+        "case to use its values."
+    )
 
 
 VALUE_CELL = re.compile(r"^\s*(-?\d[\d,]*(?:\.\d+)?)\s*([^\s|]*)\s*$")
@@ -1338,6 +1375,9 @@ def ask_economics(
     if opened:
         message += "\n\n" + opened_note(opened)
     message += held_note(sited, values)
+    unused = document_note(context)
+    if unused:
+        message += "\n\n" + unused
     return Request(kind="question", message=message, options=list(OPTIONS))
 
 
