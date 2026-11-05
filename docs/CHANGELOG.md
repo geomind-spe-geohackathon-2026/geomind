@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.65] - 2026-11-05
+
+### Fixed
+
+- QA-071: `web_search` asks SearXNG for English results (`language=en`) and refuses a query longer than 8 words or not in English (non-Latin letters, or common Dutch, German, French or Norwegian words), naming why. Its description and the `web-search` skill teach queries: one value, 3 to 6 English technical terms (quantity, technology, unit, region and year when they matter), never a sentence, chat text, the project itself or a value the files already give; 2 or 3 refined queries when results are weak, primary sources first; and first whether the value is needed at all (a detail the brief never mentions is a labelled assumption or a gap, not a long search).
+
 ## [0.4.64] - 2026-11-05
 
 ### Fixed

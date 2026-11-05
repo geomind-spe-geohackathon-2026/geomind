@@ -9,13 +9,42 @@ Look in this order: the user's files, the Knowledge base (`search_rag`), the con
 then the web. The web is for what none of them gives: a price, a property, a standard, a site
 fact.
 
-Searching:
+Before you search, ask whether the value is needed at all: only a value gemini or the case needs
+now (an error or `plants_need` names it) is looked for. When a module asks for a detail the brief
+never mentions (a sand concentration, a filter rating), prefer one labelled engineering assumption
+with a one-line reason in the confirmation question, or name it as a gap, over a long search.
 
-- `web_search(query, limit)`: short, specific queries with the quantity, the place and the year,
-  such as `geothermal doublet drilling cost per metre Netherlands 2020`. A result (title, url,
-  snippet, engine, date) is a lead, never a source: a snippet can be cut or wrong.
-- Prefer primary sources: agencies, operators, standards bodies, peer-reviewed papers, official
-  statistics. Avoid forums, ads and pages that give no source of their own.
+Search only for a value nothing gives yet. A value the user's files, the brief
+or the case already state (a supply temperature the brief fixes) is never searched for, and the
+project, the hackathon or the chat itself is never a query.
+
+Writing a query (`web_search(query, limit)`; the search is English only):
+
+- English only, whatever language the user or the site uses. A query in another language, or
+  longer than 8 words, is refused.
+- One value per query, 3 to 6 technical terms, never a sentence, a question or chat text: the
+  quantity, the technology, its unit, and the region and the year when they matter.
+  Good: `geothermal well sand production ppm`, then
+  `hydrocyclone desander geothermal brine specification`;
+  `absorption chiller COP single effect`,
+  `geothermal doublet drilling cost Netherlands 2024`,
+  `electricity grid CO2 intensity Netherlands 2024 gCO2/kWh`,
+  `KNMI De Bilt mean annual air temperature 1991-2020`.
+  Bad: `produced sand concentration geothermal well kg/m3 brine solids removal cyclone
+  specification` (two values, eleven words: generic pages came back),
+  `Nederland warmtenet ontwerptemperatuur aanvoer` (not English),
+  `GEMINI agentic geothermal design hackathon site location` (the project, not a value),
+  `district heating supply and return temperature 100 C 20 C chilled water return temperature`
+  (a pile of terms for two values, one the brief gives).
+- One value per query. For a price, name what is priced and its basis (`EUR/kW`, `per m`).
+- Results are weak (no primary source, off topic): try 2 or 3 refined queries: other or narrower
+  terms, the technology's exact name, or a primary source's name (`IEA`, `IRENA`, `EU JRC`,
+  `TNO`, a manufacturer). Stop after three and ask the user, naming what you searched.
+- A result (title, url, snippet, engine, date) is a lead, never a source: a snippet can be cut or
+  wrong.
+- Prefer primary sources: agencies (IEA, IRENA, EU JRC, national statistics), operators, standards
+  bodies, manufacturers' datasheets, peer-reviewed papers. Avoid forums, ads and pages that give
+  no source of their own.
 
 Reading:
 

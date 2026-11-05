@@ -33,6 +33,19 @@ SNIPPET_CHARACTERS = 400
 MAX_REDIRECTS = 5
 MAX_RESULTS = 10
 USER_AGENT = "geomind-web-reader/1.0"
+LANGUAGE = "en"
+"""The language of every search: the results and the queries are English (QA-071)."""
+MAX_WORDS = 8
+"""The most words a query has: a query is a few technical terms, never a sentence."""
+FOREIGN_WORDS = frozenset(
+    "het een voor naar van gemiddelde langjarig temperatuur aanvoer vochtigheid warmte warmtenet "
+    "ontwerptemperatuur kosten prijs normaal relatieve und fur für mit kosten preis temperatur "
+    "durchschnitt pour avec prix moyenne og av til ikke pris gjennomsnitt varme fjernvarme".split()
+)
+"""Common words of the languages seen in queries (Dutch, German, French, Norwegian) that are no
+English words: a query that holds one is refused, so the search stays English."""
+ALLOWED_SIGNS = set("°²³µ€±·–—’")
+"""Signs outside ASCII that an English technical query may hold (units, a dash)."""
 SKIPPED_TAGS = {
     "script", "style", "noscript", "svg", "nav", "header", "footer", "aside", "form", "iframe",
     "template", "button", "select",
@@ -69,24 +82,47 @@ def _cut(text, limit):
     return text if len(text) <= limit else f"{text[:limit].rstrip()} ..."
 
 
+def query_problem(query):
+    """Return why a query is not a short English technical query, or ``None`` when it is."""
+    words = query.split()
+    if len(words) > MAX_WORDS:
+        return f"the query has {len(words)} words; expected at most {MAX_WORDS} technical terms"
+    if any(not char.isascii() and char not in ALLOWED_SIGNS and char.isalpha() for char in query):
+        return "the query has letters that are not English; expected an English query"
+    foreign = sorted({word.lower().strip(",.;:()") for word in words} & FOREIGN_WORDS)
+    if foreign:
+        return f"the query has words that are not English ({', '.join(foreign)}); expected English"
+    return None
+
+
 @tool(effect="external")
 async def web_search(query: str, limit: int = 5):
-    """Search the web; return results with title, url, snippet, engine and date when known.
+    """Search the web in English; return results with title, url, snippet, engine and date.
 
-    ``limit`` is how many results come back, 1 to 10. A result is a lead, not a source: read the
-    page with read_web_page and give the user its URL, publisher and year before a value is used.
-    Read the skill web-search for the rules.
+    ``query``: one value, 3 to 6 English technical terms (at most 8 words), never a sentence
+    or chat text: the quantity, the technology, its unit and, when they matter, the
+    region and the year, such as ``geothermal well sand production ppm`` or
+    ``geothermal doublet drilling cost Netherlands 2024``. Never search for a value the
+    user's files or the case already give, nor for the project or the chat itself. When the
+    results are weak, try 2 or 3 refined queries (other terms, a narrower technology, a primary
+    source's name such as IEA, IRENA, an EU report or a manufacturer). ``limit`` is how many
+    results come back, 1 to 10. A result is a lead, not a source: read the page with
+    read_web_page and give the user its URL, publisher and year before a value is used. Read the
+    skill web-search for the rules.
     """
     import httpx
 
     if not isinstance(query, str) or not query.strip():
         raise _error("web_search", "query is empty", "query")
+    problem = query_problem(query.strip())
+    if problem is not None:
+        raise _error("web_search", f"query = {query.strip()!r}: {problem}", "query")
     if not 1 <= limit <= MAX_RESULTS:
         raise _error("web_search", f"limit = {limit}; expected 1 to {MAX_RESULTS}", "limit")
     url = f"{search_url()}/search"
     try:
         async with httpx.AsyncClient(timeout=SEARCH_SECONDS) as client:
-            response = await client.get(url, params={"q": query.strip(), "format": "json"})
+            response = await client.get(url, params={"q": query.strip(), "format": "json", "language": LANGUAGE})
         response.raise_for_status()
         found = response.json()
     except (httpx.HTTPError, ValueError) as error:
