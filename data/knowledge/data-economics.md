@@ -147,7 +147,7 @@ still has one.
   (FRF 1989; the euro-area HICP starts in 1996).
 - Added (QA-006, sources and arithmetic in each row): `opex-compression-chiller-hre4-2017-755kw`
   (4639.7 EUR/MW/yr), `opex-compression-chiller-tctc-2013-district` (4309 EUR/MW/yr),
-  `opex-absorption-chiller-hre4-2017-500kw` (6800 EUR/MW/yr),
+  `opex-absorption-chiller-hre4-2017-500kw` (6800 EUR/MW/yr; now `...-500kw-per-mw`, QA-206),
   `opex-production-pump-ecn-2012-esp-replacement` (20 %/yr).
 - Still without a row: `opex.per_energy` of the chillers, `opex.fixed.adsorption_chiller`,
   `revenue.subsidy.capacity` (a project value, not a price).
@@ -160,3 +160,27 @@ still has one.
   2026-11-04 15:08: "electricity_emission_factor: 0.3 #kg/kWh"). Recommended for the challenge
   cases; Ember `co2-grid-eu-2025` (209.21 g/kWh) is the alternative.
 - Rows: 154 (75 verified, 79 secondary, 0 placeholder).
+
+## Corrections (2026-11-05, QA-191, QA-202, QA-206, QA-207, QA-208)
+
+- QA-202, ids of price rows name the price year: `carbon-price-eu-ets-esma-2026` ->
+  `carbon-price-eu-ets-esma-price-2025` (the 2025 price), `carbon-price-eu-ets-esma-2025` ->
+  `carbon-price-eu-ets-esma-price-2024` (the 2024 price), `carbon-price-nl-co2-levy-rijksoverheid-2026`
+  -> `carbon-price-nl-co2-levy-price-2026`; items start with what the price is for and its year.
+  Rule: a price row (energy, carbon, revenue) names its price year after `price-`; a technology
+  row may keep its source's publication year in the id, and `price_year` is the authoritative
+  column. `value_2015` is stored with at most 6 significant digits (38 rows had up to 17).
+- QA-207, Eurostat band letters (ranges and values unchanged): `electricity-nl-eurostat-2024-band-id`
+  -> `electricity-nl-eurostat-price-2024-band-ie` (20,000-69,999 MWh), `...-band-ie` ->
+  `electricity-nl-eurostat-price-2024-band-if` (70,000-149,999 MWh), `gas-nl-eurostat-2024-band-i3`
+  -> `gas-nl-eurostat-price-2024-band-i4` (100,000-999,999 GJ), `...-band-i4` ->
+  `gas-nl-eurostat-price-2024-band-i5` (1,000,000-3,999,999 GJ).
+- QA-206, one id per row: `opex-absorption-chiller-hre4-2017-500kw` was two rows ->
+  `opex-absorption-chiller-hre4-2017-500kw-share` (4.0 %/yr; price year 2015 filled) and
+  `opex-absorption-chiller-hre4-2017-500kw-per-mw` (6800 EUR/MW/yr).
+- QA-208: the `in_case` column is removed. It held the values of gemini's hackathon sample case;
+  those live in `knowledge/hackathon-2026-assumptions.md`, not in a general catalogue.
+- QA-191, added (secondary, as quoted in gemini's `examples/hackathon_2026/README.md`):
+  `electricity-eu-eurostat-price-2025-band-ie` (105.75 EUR2015/MWh), `gas-eu-eurostat-price-2025-band-i4`
+  (39.92 EUR2015/MWh, GCV), `carbon-price-eu-ets-instrat-price-2025` (57.03 EUR2015/t).
+- Rows: 157 (75 verified, 82 secondary, 0 placeholder).
