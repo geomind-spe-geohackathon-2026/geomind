@@ -65,7 +65,7 @@ From a family to a design:
 - A range the user approved that `set_ranges` refuses is never dropped in silence: fix the path
   from the error's list and call again; if it still cannot be set, tell the user in your answer
   which range was not searched and why, and ask before you optimise without it.
-- How to design, size and optimise for any case: the handbook `knowledge/handbook-plant-design.md`
+- How to design, size and optimise for any case: the handbook `knowledge/handbook-design.md`
   in the Knowledge base, read by section with `read_rag(name, section=...)` (`outline=true`
   lists them): "10 Sizing and optimisation" (10.1 what to fix and what to search, 10.2 search
   ranges, 10.6 staying out of infeasible regions) and "11 Designing in gemini" (11.6 the good
