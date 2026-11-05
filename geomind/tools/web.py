@@ -38,7 +38,7 @@ LANGUAGE = "en"
 MAX_SEARCHES = 6
 """The searches one agent makes in one run: about two values at three refined queries each
 (QA-087: 39 searches for one value). Then a labelled assumption or a named gap."""
-MAX_WORDS = 8
+MAX_WORDS = 12
 """The most words a query has: a query is a few technical terms, never a sentence."""
 FOREIGN_WORDS = frozenset(
     "het een voor naar van gemiddelde langjarig temperatuur aanvoer vochtigheid warmte warmtenet "

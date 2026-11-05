@@ -80,7 +80,7 @@ the user for approval before it is used. Read the skill web-search for the rules
 
 Search the web in English; return results with title, url, snippet, engine and date.
 
-`query`: one value, 3 to 6 English technical terms (at most 8 words), never a sentence
+`query`: one value, 3 to 6 English technical terms (at most 12 words), never a sentence
 or chat text: the quantity, the technology, its unit and, when they matter, the
 region and the year, such as `geothermal well sand production ppm` or
 `geothermal doublet drilling cost Netherlands 2024`. Never search for a value the
