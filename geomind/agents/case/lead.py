@@ -9,6 +9,7 @@ from geomind.agents.support.lead import SupportLead
 from geomind.prompts import Prompt
 from geomind.tools import Delegate
 from geomind.tools.delegate import Team
+from geomind.tools.gemini.case import economics_leaves
 from geomind.tools.gemini.skeleton import trees
 
 FINDINGS_TOKENS = 8000
@@ -62,6 +63,26 @@ BY_HAND = "economics not asked"
 """The start of the case lead's one refusal of an answer that set economics without asking."""
 
 
+def _changes_economics(call):
+    """Return the economics a ``set_case`` call sends inside its ``changes``, or ``None``."""
+    changes = call.get("changes")
+    return changes.get("economics") if isinstance(changes, dict) else None
+
+
+def user_sourced(call):
+    """Tell whether every economics key a ``set_case`` call sets is sourced to the user.
+
+    QA-256: a price the user names in chat ("carbon price 80 EUR/t") is set in one ``set_case``
+    whose ``about.sources`` names the user for each key; it needs no economics question again.
+    """
+    patch = call.get("economics") or _changes_economics(call) or {}
+    sources = (patch.get("about") or {}).get("sources") or {}
+    keys = economics_leaves(patch)
+    return bool(keys) and all(
+        isinstance(sources.get(key), dict) and sources[key].get("source") == "user" for key in keys
+    )
+
+
 def economics_by_hand(context):
     """Return the refusal of an answer that wrote economics with ``set_case`` unasked, or ``None``.
 
@@ -73,8 +94,7 @@ def economics_by_hand(context):
     by_hand = [
         call
         for call in calls_of(messages, "set_case")
-        if call.get("economics")
-        or (isinstance(call.get("changes"), dict) and call["changes"].get("economics"))
+        if (call.get("economics") or _changes_economics(call)) and not user_sourced(call)
     ]
     if not by_hand or any(BY_HAND in (message.content or "") for message in messages):
         return None

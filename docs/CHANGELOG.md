@@ -6,6 +6,13 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.120] - 2026-11-05
+
+### Fixed
+- QA-256: a price the user names in chat is set in one `set_case` sourced to the user, with no
+  economics question again; the QA-243 guard lets such a call pass.
+- QA-259: the case lead carries a source's stated uncertainty into the economics value.
+
 ## [0.4.119] - 2026-11-05
 
 ### Fixed

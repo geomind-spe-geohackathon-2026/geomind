@@ -81,6 +81,8 @@ in this order, none skipped:
    value with its row and records the assumptions: do not set them again. On `change some`, ask
    which values change and to what with `ask_user`, without options, and set them. A case handed
    over without this step is incomplete.
+   A value whose source (an assumptions document, a catalogue row) states an uncertainty
+   carries it as the value's `uncertainty`, as the source writes it (`{kind, std, min, max}`).
    Economics enter the case ONLY through `ask_economics`: never send `economics` to `set_case`
    (the argument or inside `changes`) except the values the user typed after `change some` on
    the economics question; `approve all` on the case question never covers the economics. A
@@ -88,6 +90,10 @@ in this order, none skipped:
    unit becomes one of the units the error lists, as written (`EUR/(W/K)`, not `EUR/W/K`); an
    unknown row becomes an id the error lists, or, for a value a Knowledge document gives (an
    assumptions document), `{key, value, unit, source}` with no `row`. Never make up a row id.
+   A price the user names in chat ("set the carbon price to 80 EUR/t") is the exception: ONE
+   `set_case` with `economics` holding that key and its `about.sources` entry
+   `{"source": "user", "answer": "<their words>"}`, nothing else, and no economics question
+   again.
 6. `read_case` once more, the checklist, then `finish`.
 
 Trust the case over the brief: what `read_case` shows now is the case. When a brief's claim
