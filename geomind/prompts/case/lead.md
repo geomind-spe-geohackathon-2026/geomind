@@ -99,10 +99,8 @@ Where each value comes from:
   3. the knowledge base: `search_rag` (its matches of `scope` `knowledge`), then
      `read_rag("knowledge/<name>")`, cited with its document and page, or its row `id` for a
      table;
-  4. a connected server, when `list_mcp` is offered: a read-only tool of it through `read_mcp`,
-     cited with the server, the tool, the dates asked and the time of the call. An origin with
-     `future: true` is a forecast or a projection (the tool's description says which): cite it
-     so. When the server refuses the dates the brief names, say which dates you used instead;
+  4. a connected server, when `list_mcp` is offered: read `read_skill('connectors')` before
+     your first server call (how to call, cite and save a server's values);
   5. only when none of these has it, the user: ask for the value itself, naming its path and
      unit, with no number of your own.
   Before the one question for missing values, ALWAYS, also when the files seem complete, in
@@ -116,10 +114,8 @@ Where each value comes from:
   value with its source; a value you found or changed may always be confirmed.
 - Values from 3 and 4 go into the ONE confirmation question, each with its source, as below.
 - A key that takes a constant or a series (the outside air's temperature and humidity) may take
-  a cited constant; say in the confirmation question that it is constant. For a series from a
-  server, `save_mcp_table(answer, table, file)` saves the answer's table (its `tables` path,
-  such as `structured.daily`) as a case file with its times in UTC; set the key to `{"file",
-  "column", "unit"}` with the unit its `units` gives, and confirm it with its origin.
+  a cited constant; say in the confirmation question that it is constant. A series from a
+  server goes in as a saved case file (`connectors`).
 - Economics come from the knowledge base's cost catalogue, `knowledge/cost-sources.csv`. Never
   read it whole or by pages: it is too long, and `read_rag` gives only its outline then. Read
   once only the rows of the keys the case lacks, `rows={"path": [each missing key, such as
