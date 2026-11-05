@@ -235,6 +235,7 @@ async def test_a_team_runs_several_instances_of_one_member_by_name():
 
 
 async def test_a_team_refuses_an_instance_of_an_unknown_member():
+    """A brief for a role the team does not have is refused and names that role."""
     from geomind.tools.delegate import Team
 
     team = Team("team", "a team", {"helper": Delegate(Helper())})

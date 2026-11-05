@@ -80,8 +80,6 @@ class Geoscientist(Agent):
         self.prompt = Prompt("case/geoscientist", appendix=trees("case_compact"))
 
         # Tools
-        # Only the case lead reads and writes the project's files and the case: the lead puts
-        # the report text in the brief (user rule, IMP-025).
         self.describe_case = tools.gemini.describe_case
         self.search_knowledge = tools.search_knowledge
         self.read_knowledge = tools.read_knowledge
