@@ -30,6 +30,7 @@ class AnalysisLead(Agent):
         self.read_rag = tools.read_rag
         self.read_case = tools.gemini.read_case
         self.set_case = tools.gemini.set_case
+        self.ask_economics = tools.gemini.ask_economics
         self.list_modules = tools.gemini.list_modules
         self.describe_module = tools.gemini.describe_module
         self.evaluate_module = tools.gemini.evaluate_module

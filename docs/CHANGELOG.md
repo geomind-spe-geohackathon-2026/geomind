@@ -6,6 +6,15 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.107] - 2026-11-05
+
+### Fixed
+- QA-168: the analysis lead has `ask_economics`, and its prompt says to ask a missing economics
+  with it, never with `ask_user` and values it writes itself.
+- QA-186: a `set_case` economics patch drops the `about.sources` entry of every key it changes or
+  removes without giving that key a source, so a value the user changed never keeps the
+  Knowledge row of the value it replaced.
+
 ## [0.4.106] - 2026-11-05
 
 ### Fixed

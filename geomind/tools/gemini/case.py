@@ -784,6 +784,43 @@ def economics_header(data):
     return {"format": 1, "kind": "economics", "name": f"{name} economics" if name else "economics"}
 
 
+def economics_leaves(node, prefix=""):
+    """Return the dotted keys a merge patch of economics sets or removes, ``about`` left out."""
+    if not isinstance(node, dict) or "value" in node:
+        return [prefix] if prefix else []
+    found = []
+    for key, child in node.items():
+        if not prefix and key == "about":
+            continue
+        found += economics_leaves(child, f"{prefix}.{key}" if prefix else str(key))
+    return found
+
+
+def sourced_patch(patch):
+    """Return ``patch`` with the source of each key it sets or removes without one dropped.
+
+    ``about.sources`` names the row or answer of each value; a value the user changed in chat, or
+    a key set to ``null``, kept the Knowledge source of the value it replaced (QA-186). A key the
+    patch gives its own source keeps that one.
+    """
+    about = patch.get("about") if isinstance(patch.get("about"), dict) else {}
+    given = about.get("sources") if isinstance(about.get("sources"), dict) else {}
+    stale = {key: None for key in economics_leaves(patch) if key not in given}
+    if not stale:
+        return patch
+    return {**patch, "about": {**about, "sources": {**given, **stale}}}
+
+
+def without_empty_sources(content):
+    """Return economics ``content`` without an ``about.sources`` (or ``about``) left empty."""
+    about = content.get("about")
+    if not isinstance(about, dict) or about.get("sources") != {}:
+        return content
+    rest = {key: value for key, value in about.items() if key != "sources"}
+    kept = {key: value for key, value in content.items() if key != "about"}
+    return {**kept, "about": rest} if rest else kept
+
+
 def edited_economics(context, data, supplied, patch):
     """Set the economics of ``data`` by a merge ``patch``; return the files with the new content.
 
@@ -792,15 +829,17 @@ def edited_economics(context, data, supplied, patch):
     A new file starts from its header (``economics_header``), so a patch of values alone, such as
     ``ask_economics`` sets on approve all, is never refused as an older shape.
     """
+    patch = sourced_patch(patch)
     named = data.get("economics")
     if isinstance(named, dict):
-        data["economics"] = merge_patch(named, patch)
+        data["economics"] = without_empty_sources(merge_patch(named, patch))
         return supplied
     name = checked_name(named or ECONOMICS_FILE)
     data["economics"] = name
     current = file_contents(context, data, supplied).get(name)
     content = json.loads(current) if current is not None else economics_header(data)
-    text = json.dumps(merge_patch(content, patch), indent=2, ensure_ascii=False)
+    content = without_empty_sources(merge_patch(content, patch))
+    text = json.dumps(content, indent=2, ensure_ascii=False)
     return {**supplied, name: text.encode()}
 
 

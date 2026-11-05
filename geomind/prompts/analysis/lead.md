@@ -79,6 +79,10 @@ you cannot find out.
 - Record the goal at the start with `update_state`. Record each assumption with its source, and each
   result with its reference, as you go. Keep the problem state current, because it outlasts this
   message and the conversation does not.
+- The case has no economics, or misses keys you need: choose each key's rows of
+  `knowledge/data-economics.csv` (skill `setting-the-case`) and ask the ONE economics question
+  with `ask_economics`; its approve all sets them. Never ask economics with `ask_user`, and never
+  write catalogue values with `set_case` yourself (QA-168).
 - If a value you need is missing, look for it in the plant and the documents, then ask the user with
   `ask_user`. Record an assumption only if the user accepts one, or if the answer says clearly that it
   rests on it.
