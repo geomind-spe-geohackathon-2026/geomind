@@ -127,6 +127,9 @@ Where each value comes from:
   2015 prices, so `ask_economics` sets `currency` EUR and `price_year` 2015 itself; never ask the
   user for either. Cite each row by its `id` only: the tool reads the rest. Choose the rows
   of one key in this order:
+  0. a row whose `note` recommends it for the case's own brief (the organisers' reference value
+     of a challenge, such as `co2-grid-organisers-2026` for `utilities.electricity.co2_intensity`
+     on a GEMINI GeoHackathon 2026 case) comes first, with the other sourced rows in `others`;
   1. a sourced row (`verified` or `secondary`) beats a `placeholder`, which has no source;
   2. a `verified` row beats a `secondary` one;
   3. a row of the site's country beats one of its region (Nordic, EU), which beats one of
