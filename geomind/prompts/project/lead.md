@@ -84,6 +84,9 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
   ("the report above") and give only what is new. A form the user asks for ("short", "for my
   manager", "one table") bounds the answer: say so in the explainer's brief, with the length
   (such as one table and a few lines of recommendation), and finish with that alone.
+- Keys ask_economics left open because no source gives them (its 'Left open' lines) are finished
+  work: say in the answer that they are open and why; never delegate them again, and never ask
+  the case lead to fill them with guesses.
 - A team that gave the same unusable answer twice gets no third brief of the same kind: finish
   with what was done and what is open, naming that team.
 - Do what the request asks and nothing more. Plan in this order, and take only the steps the

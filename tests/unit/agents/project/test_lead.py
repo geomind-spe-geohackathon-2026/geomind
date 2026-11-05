@@ -250,3 +250,10 @@ def test_qa_347_could_a_variant_be_simulated_is_a_comparison_for_the_design_lead
     text = " ".join(ProjectLead().prompt.content.split())
     assert "A question that asks whether a variant could be simulated or compared" in text
     assert "`design change needed: <variant>: <why>`" in text
+
+
+def test_qa_349_economics_left_open_are_finished_work():
+    """QA-349: keys no source gives are named open, never delegated again."""
+    text = " ".join(ProjectLead().prompt.content.split())
+    assert "Keys ask_economics left open because no source gives them" in text
+    assert "never ask the case lead to fill them with guesses" in text
