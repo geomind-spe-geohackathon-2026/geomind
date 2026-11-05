@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.80] - 2026-11-05
+
+### Changed
+
+- The case lead takes economics values from an assumptions document in the knowledge base (or a project file) that covers the case before the cost catalogue, as `ask_economics` `{key, value, unit, source}` citing the document; keys no file and no knowledge give stay `open`; with such a document and no per-energy price, every `opex.per_energy.*` key is `open`. A return temperature an assumptions document gives is the design choice proposed. `ask_economics` says a `value` with `source` may come from a knowledge document.
+
 ## [0.4.79] - 2026-11-05
 
 ### Fixed
