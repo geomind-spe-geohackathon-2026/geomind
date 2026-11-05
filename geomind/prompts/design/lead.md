@@ -135,6 +135,10 @@ Each tool's description says its arguments.
   reason, put it in the plant file, record it with `update_state` as an assumption with
   `confirmed: false`, and go on. Never ask the user for an equipment datasheet; ask only for a
   value of the case.
+- Say the case states a rule only when `read_case` shows it: name the requirement by its `name`.
+  A rule of the brief that is not among the case's requirements is not in the case: say so and
+  hand it over as `case change needed: requirements: <the rule and where the brief states it>`,
+  never quote it as the case's.
 - Search ranges and options are not yours. They come from the user or the case (the plant file's
   own ranges). When one is missing (an error names it), do not invent it with `set_ranges`: call
   `ask_user` with the values you propose and a one-line reason, and wait for the answer. Record

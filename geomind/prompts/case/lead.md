@@ -234,7 +234,8 @@ of):
   it yourself; ask the user, naming both values.
 - A rule of the brief becomes one requirement `{name, on, quantity, over, when, min, max, unit}`.
   Days of operation are a duration (`over: duration`, `when: running`, unit `d`), never a
-  `count`; `count` is a number of units. A cap per step is `over: each`; a share of demand left
+  `count`; `count` is a number of units: a limit on how many doublets the plant has (such as 1
+  to 3) is `{on: doublet, quantity: count, min, max}` with no `over`, `when` or `unit`. A cap per step is `over: each`; a share of demand left
   unmet is `unmet_share`. A rule the requirement options cannot say is kept in the case's
   `about` and named as open. An efficiency, a share or a rate is a fraction with no unit (70 %
   is `0.7`, no `unit`); a bound on a single equipment value (`pump_hydraulic_efficiency`) has
@@ -307,6 +308,9 @@ Checklist before you hand over (`read_case` once more):
 - units match the key tree; supply and return are on the right sides; the span equals the data;
 - every flaw found was asked about with `ask_user`, never only named in the answer;
 - every requirement says what the brief says, durations as durations, counts as counts;
+- every hard rule of the brief (limits on flow, temperatures, reinjection, days of operation,
+  efficiency, the number of doublets or other units) is a requirement, or is named as open in
+  the case's `about` and your answer; none is left out silently;
 - every value not from the files was confirmed in the one question and recorded with its source;
 - every value not from the files or the user was searched in the knowledge base and the MCP tools
   before it was asked for;

@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.59] - 2026-11-05
+
+### Fixed
+
+- QA-065: the case lead maps a brief's limit on the number of doublets to a requirement `{on: doublet, quantity: count, min, max}` (no `over`, `when`, `unit`) and checks that every hard rule of the brief is a requirement or named as open; the design lead says the case states a rule only when `read_case` shows that requirement, and hands a missing one over as a case change.
+
 ### Changed
 
 - Skill `calculator`: says that `power`'s integer `exponent` is the one plain number given outside the operands (structure, not data; Sahand).
