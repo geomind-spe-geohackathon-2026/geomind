@@ -676,35 +676,75 @@ def case_document(context):
         return None
     content = workspace.knowledge_file(found)
     text = content.decode("utf-8") if isinstance(content, bytes) else str(content or "")
-    return f"knowledge/{found}", set(NAMED_KEY.findall(text))
+    return f"knowledge/{found}", set(NAMED_KEY.findall(text)), document_values(text)
 
 
-def refuse_other_sources(context, values):
-    """Refuse a value the case's assumptions document gives that comes from elsewhere (QA-320).
+VALUE_CELL = re.compile(r"^\s*(-?\d[\d,]*(?:\.\d+)?)\s*([^\s|]*)\s*$")
+"""One value of a document's table cell: a number and its unit, such as ``105.75 EUR/MWh``."""
 
-    The order is the case's own document first, then the catalogue, then open
-    (``knowledge/handbook-economics.md`` 0.3), whether the user wants a question or not.
+
+def document_values(text):
+    """Return ``{key: (value, unit)}`` of the keys a document's table rows give one number each.
+
+    A row names its keys in backticks in its first cell (``Heat / cold revenue (`revenue.heat`,
+    `revenue.cold`)``) and the value in its second: one number for every key (``60 EUR/MWh
+    each``), or one per key split by `` / ``. A row of one key whose cell is no number gives
+    its text (a text key such as ``accounting.gwp.standard``).
+    """
+    found = {}
+    for line in text.splitlines():
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        keys = NAMED_KEY.findall(cells[0]) if len(cells) > 1 else []
+        if not keys:
+            continue
+        parts = [part.removesuffix(" each").strip() for part in cells[1].split(" / ")]
+        if len(parts) == 1:
+            parts = parts * len(keys)
+        if len(parts) != len(keys):
+            continue
+        for key, part in zip(keys, parts):
+            match = VALUE_CELL.match(part)
+            if match:
+                found[key] = (_number(match.group(1).replace(",", "")), match.group(2) or None)
+            elif len(keys) == 1:
+                found[key] = (part, None)
+    return found
+
+
+def from_document(context, values, problems):
+    """Return ``values`` with each key the case's assumptions document gives taken from it.
+
+    QA-320: the case's own document comes first, then the catalogue, then open. QA-349: a value
+    from elsewhere for a key the document gives was refused, one class at a time, six times in
+    a row; it takes the document's value instead. A key the document names but gives no number
+    for (a text) is a problem the refusal names, with what to send.
     """
     found = case_document(context)
     if found is None:
-        return
-    document, keys = found
-    elsewhere = [
-        short(item.key)
-        for item in values
-        if item.value is not None
-        and short(item.key) in keys
-        and document not in str(item.source or "")
-    ]
-    if elsewhere:
-        raise ToolError(
-            f"ask_economics: {', '.join(elsewhere)} from other sources, while the case's own "
-            f"assumptions document {document} gives them; expected each value as that document "
-            f"gives it, with source {document!r}; a catalogue row only for a key it lacks",
-            code="invalid_input",
-            path="values",
-            suggestions=[document],
-        )
+        return values
+    document, keys, given = found
+    kept = []
+    for item in values:
+        key = short(item.key)
+        wanted = key in keys and document not in str(item.source or "")
+        if not wanted or (item.value is None and not item.source):
+            kept.append(item)
+        elif key in given and isinstance(given[key][0], str) != isinstance(item.value, str):
+            problems.append(
+                f"{key}: {document} gives {given[key][0]!r}; send it with source {document!r}, "
+                "or the key in open"
+            )
+            kept.append(item)
+        elif key in given:
+            value, unit = given[key]
+            update = {"value": value, "unit": unit, "source": document, "row": None}
+            kept.append(item.model_copy(update=update))
+        else:
+            problems.append(
+                f"{key}: send the value {document} gives it, as it is, with source {document!r}"
+            )
+            kept.append(item)
+    return kept
 
 
 MARKET_KEYS = ("revenue.",)
@@ -749,51 +789,79 @@ def own_values(context, values):
     so the key stays open unless a document, a row or the user gives it.
     """
     rows = catalogue_rows(context)
-    found, own = [], []
+    found = []
     for item in values:
         if item.value is None or item.row or not is_agent_source(item.source):
             found.append(item)
             continue
         row = row_of_value(rows, short(item.key), item.value)
-        if row is None:
-            own.append(short(item.key))
-            continue
-        found.append(item.model_copy(update={"row": row, "source": None}))
-    if own:
-        raise ToolError(
-            f"ask_economics: {', '.join(own)} have the agent as their source and no row, "
-            "document or user gives them; expected each in open (no value), or its value with "
-            "the row, document or user that gives it; never a value of your own",
-            code="invalid_input",
-            path="values",
-        )
+        found.append(item.model_copy(update={"row": row, "source": None}) if row else item)
     return found
 
 
-def refuse_foreign_rows(values, country):
-    """Refuse a named revenue row of another country than the site's, or of any with none.
+OPENED = {
+    "agent": "no row, document or user gives it (the agent's own value)",
+    "unsourced": "a value with no row or source",
+    "claimed": "a source with no value",
+}
+"""Why a key the lead sent with a value went to open (QA-349), by kind."""
 
-    QA-320: a case with no country got the Dutch SDE++ subsidy and heat tariff. The user who
-    wants a country's prices names it (``country``), and the case's site or ``about`` may. A cost
-    row (drilling) may be national and still the best source; a tariff or a scheme may not.
+
+def opened_values(values, country, opened):
+    """Return ``values`` with each value no source gives, or of another country, made open.
+
+    QA-349: these were refused one class at a time, and the lead tried six times; now each key
+    is open and named in ``opened`` with why, and the user sees it in the question.
     """
-    foreign = [
-        f"{short(item.key)} (row {item.row}, {row_region(item.row)})"
-        for item in values
-        if item.value is not None
-        and item.row
-        and short(item.key).startswith(MARKET_KEYS)
-        and not fits_site(item.row, country)
-    ]
-    if foreign:
-        site = f"the site is in {country}" if country else "the case names no country"
+    kept = []
+    for item in values:
+        key = short(item.key)
+        reason = None
+        if item.value is not None and not item.row and is_agent_source(item.source):
+            reason = OPENED["agent"]
+        elif item.value is not None and not (item.row or item.source):
+            reason = OPENED["unsourced"]
+        elif item.value is None and item.source:
+            reason = OPENED["claimed"]
+        elif (
+            item.value is not None
+            and item.row
+            and key.startswith(MARKET_KEYS)
+            and not fits_site(item.row, country)
+        ):
+            where = f"the site is in {country}" if country else "the case names no country"
+            reason = f"row {item.row} is of {row_region(item.row)}, and {where}"
+        if reason is None:
+            kept.append(item)
+            continue
+        opened.append(f"economics.{key}: {reason}")
+        kept.append(item.model_copy(update={"value": None, "source": None, "row": None}))
+    return kept
+
+
+def screened(context, values, country, opened=None):
+    """Return the values a question shows: the document's first, the rest checked (QA-349).
+
+    Every key the case's document gives is taken from it, every value no source gives (or a
+    tariff of another country) is made open, and what cannot be fixed by code is refused in ONE
+    error that names every key with what to send.
+    """
+    opened = [] if opened is None else opened
+    problems = []
+    values = from_document(context, values, problems)
+    values = opened_values(values, country, opened)
+    if problems:
         raise ToolError(
-            f"ask_economics: {'; '.join(foreign)} are prices of another country, and {site}; "
-            "expected a general row, or the key in open; pass country only when the user names "
-            "the site's country",
+            "ask_economics: " + "; ".join(problems) + "; every other value is fine as sent",
             code="invalid_input",
             path="values",
         )
+    return values
+
+
+def opened_note(opened):
+    """Return the question's lines on the keys made open, each with why."""
+    return "Left open, no source the rules accept gives them:\n" + "\n".join(opened)
 
 
 def given_values(values, open_keys):
@@ -1252,9 +1320,10 @@ def ask_economics(
     """
     dropped, skipped, sited = [], [], {}
     values, open_keys = recommended(context, list(values), list(open or []), country, sited)
-    values = with_ranges(context, from_catalogue(context, own_values(context, values), skipped))
-    refuse_other_sources(context, values)
-    refuse_foreign_rows(values, sited.get("country"))
+    values = from_catalogue(context, own_values(context, values), skipped)
+    opened = []
+    site = sited.get("country") or site_country(country) or case_country(context)
+    values = with_ranges(context, screened(context, values, site, opened))
     _, _, moved = whole_per_energy(*given_values(values, list(open_keys)))
     values, open_keys, notes = prepared(values, open_keys, dropped, sited.get("held") or ())
     message = question_text(values, open_keys, note, notes, sited.get("country"))
@@ -1266,6 +1335,8 @@ def ask_economics(
         message += "\n\n" + skipped_note(skipped)
     if sited.get("country"):
         message += "\n\n" + country_note(sited["country"], sited)
+    if opened:
+        message += "\n\n" + opened_note(opened)
     message += held_note(sited, values)
     return Request(kind="question", message=message, options=list(OPTIONS))
 
@@ -1498,6 +1569,20 @@ def auto_approved(context):
     return getattr(getattr(context.session, "engine", None), "auto_answer", None) is not None
 
 
+def answered_values(context, tool_input):
+    """Return ``(values, open keys, notes, dropped)`` of an approved question, as it was shown."""
+    values = [EconomicsValue.model_validate(item) for item in tool_input.get("values") or []]
+    open_keys = list(tool_input.get("open") or [])
+    sited = {}
+    values, open_keys = recommended(context, values, open_keys, tool_input.get("country"), sited)
+    values = from_catalogue(context, own_values(context, values))
+    site = sited.get("country") or site_country(tool_input.get("country"))
+    values = with_ranges(context, screened(context, values, site or case_country(context)))
+    dropped = []
+    values, open_keys, notes = prepared(values, open_keys, dropped, sited.get("held") or ())
+    return values, open_keys, notes, dropped
+
+
 async def economics_answered(context, tool_input, text):
     """Act on the answer to the economics question; return what the model reads.
 
@@ -1513,13 +1598,7 @@ async def economics_answered(context, tool_input, text):
         typed = text not in OPTIONS
         note = {"note": TYPED_NOTE} if typed else {}
         return {"answer": text, "economics": "not set", **({"typed": True} if typed else {}), **note}
-    values = [EconomicsValue.model_validate(item) for item in tool_input.get("values") or []]
-    open_keys = list(tool_input.get("open") or [])
-    sited = {}
-    values, open_keys = recommended(context, values, open_keys, tool_input.get("country"), sited)
-    values = with_ranges(context, from_catalogue(context, own_values(context, values)))
-    dropped = []
-    values, open_keys, notes = prepared(values, open_keys, dropped, sited.get("held") or ())
+    values, open_keys, notes, dropped = answered_values(context, tool_input)
     try:
         approved_economics_checked(context, values, notes)
     except ToolError as error:

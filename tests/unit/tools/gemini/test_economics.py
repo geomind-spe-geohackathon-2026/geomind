@@ -198,8 +198,9 @@ async def test_null_optional_fields_are_left_out_and_a_null_value_is_open():
     assert output["open"] == ["opex.fixed.heat_pump"]
     assert "opex.fixed.heat_pump" not in output["keys"]
     unsourced = [{**VALUES[2], "source": None}, *VALUES[3:]]
-    result = await call(ask_economics, {"values": unsourced})
-    assert result.is_error and "no row or source" in result.output["error"]["message"]
+    asked = ToolCall(id="u", name="ask_economics", input={"values": unsourced})
+    result = await dispatch(ask_economics, asked, Context(session=StubSession()))
+    assert "a value with no row or source" in result.message
 
 
 PBL = {"source": "PBL 5698", "status": "verified", "year": 2026}
@@ -247,7 +248,8 @@ async def test_approve_all_sets_the_economics_parts_of_gemini_0_6_2():
     Their rows go in as any key's; gemini reads each with its unit (its schema since 0.6.2).
     """
     context = await case_context("hackathon_2026")
-    output = await economics_answered(context, {"values": VALUES + ADDED}, "approve all")
+    asked = {"values": VALUES + ADDED, "country": "the Netherlands"}
+    output = await economics_answered(context, asked, "approve all")
     assert output["economics"] == "set", output
     stored = json.loads(context.session.artifacts["case/economics.json"])
     assert stored["opex"]["per_energy"]["chp"] == {"value": 5.4, "unit": "EUR/MWh"}
@@ -680,8 +682,9 @@ async def test_a_value_given_as_a_case_leaf_is_shown_as_a_number_and_a_bare_sour
     assert "economics.energy.gas = 34.9515 EUR/MWh" in request.message
     assert "{'value'" not in request.message
     bare = [*values[:2], {"key": "discount_rate", "source": base}]
-    result = await call(ask_economics, {"values": bare}, session=catalogue_context().session)
-    assert result.is_error and "have a source and no value" in result.output["error"]["message"]
+    asked = ToolCall(id="b", name="ask_economics", input={"values": bare})
+    result = await dispatch(ask_economics, asked, catalogue_context())
+    assert "economics.discount_rate: a source with no value" in result.message
     text = [*values[1:], {"key": "analysis_period", "value": "25 years", "source": base}]
     result = await call(ask_economics, {"values": text}, session=catalogue_context().session)
     assert result.is_error and "analysis_period = '25 years'" in result.output["error"]["message"]
@@ -844,9 +847,9 @@ async def test_a_value_the_case_s_own_document_gives_comes_from_it():
     context = case_document_context(CaseDocumentWorkspace())
     tariff = {"key": "revenue.heat", "row": "heat-price-se-2019"}
     asked = ToolCall(id="q", name="ask_economics", input={"values": [tariff]})
-    refused = await dispatch(ask_economics, asked, context)
-    message = refused.output["error"]["message"]
-    assert refused.is_error and "knowledge/my-case-assumptions.md" in message
+    taken = await dispatch(ask_economics, asked, context)
+    line = next(line for line in taken.message.splitlines() if "revenue.heat =" in line)
+    assert "= 60 EUR/MWh" in line and "knowledge/my-case-assumptions.md" in line
     own = {
         "key": "revenue.heat",
         "value": 60,
@@ -873,8 +876,9 @@ async def test_a_case_with_no_country_gets_no_national_tariff_or_scheme():
     row = "sde-basisbedrag-geothermal-pbl-2026-over-20mw"
     subsidy = {"key": "revenue.subsidy.amount", "row": row}
     asked = ToolCall(id="q", name="ask_economics", input={"values": [subsidy]})
-    refused = await dispatch(ask_economics, asked, context)
-    assert refused.is_error and "names no country" in refused.output["error"]["message"]
+    opened = await dispatch(ask_economics, asked, context)
+    assert "economics.revenue.subsidy.amount: row sde-" in opened.message
+    assert "names no country" in opened.message
 
 
 async def test_a_value_of_the_agent_s_own_is_refused_and_a_catalogue_value_takes_its_row():
@@ -903,9 +907,8 @@ async def test_a_value_of_the_agent_s_own_is_refused_and_a_catalogue_value_takes
         "source": "engineering assumption",
     }
     asked = ToolCall(id="q", name="ask_economics", input={"values": [chiller]})
-    refused = await dispatch(ask_economics, asked, context)
-    assert refused.is_error
-    assert "opex.per_energy.compression_chiller" in refused.output["error"]["message"]
+    opened = await dispatch(ask_economics, asked, context)
+    assert "economics.opex.per_energy.compression_chiller: no row" in opened.message
 
 
 def test_values_auto_approve_approved_are_recorded_as_such_and_not_confirmed():
@@ -921,3 +924,23 @@ def test_values_auto_approve_approved_are_recorded_as_such_and_not_confirmed():
     Assumption.model_validate(auto)
     user = assumption_changes(ProblemState(), [value])[0]["value"]
     assert (user["source"], user["confirmed"]) == ("agent", True)
+
+
+async def test_one_call_with_every_problem_of_the_run_becomes_one_question():
+    """QA-349: six calls, one refusal class each; now the document's value, the rest open."""
+    from geomind.tools import dispatch
+    from geomind.types import ToolCall
+
+    context = case_document_context(CaseDocumentWorkspace())
+    values = [
+        {"key": "revenue.heat", "row": "heat-price-se-2019"},
+        {"key": "revenue.subsidy.amount", "row": "sde-basisbedrag-geothermal-pbl-2026-over-20mw"},
+        {"key": "opex.per_energy.compression_chiller", "value": 2, "unit": "EUR/MWh",
+         "source": "agent"},
+    ]
+    asked = ToolCall(id="q", name="ask_economics", input={"values": values})
+    request = await dispatch(ask_economics, asked, context)
+    assert isinstance(request, Request), request
+    assert "economics.revenue.heat = 60 EUR/MWh" in request.message
+    left = request.message.split("Left open, no source the rules accept gives them:")[1]
+    assert "revenue.subsidy.amount" in left and "compression_chiller" in left
