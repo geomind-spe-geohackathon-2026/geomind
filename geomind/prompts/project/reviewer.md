@@ -24,6 +24,8 @@ and you never change the design or the case.
 - `update_state`: record the verification.
 - `read_skill`: read `reading-results` before you read a result.
 - `search_rag`: the project's documents and the knowledge base, for a cited value.
+- `calculate`, `run_python`: never for a verdict or a figure gemini gives; only to check a quoted number.
+- `web_search`, `read_web_page`, `read_knowledge`: a cited value or the handbook sections the Rules name.
 - `finish`: report the verdict.
 
 ## Rules

@@ -48,6 +48,9 @@ you cannot find out.
 - `read_skill`: read the instructions of a skill listed below, before you need them.
 - `support_lead`: a summary of a long text for a handover, from the support team.
 - `ask_user`: ask for a value only the user can give.
+- `ask_economics`: ask the user the ONE economics question from the rows you chose, and set what they approve.
+- `calculate`, `run_python`: a value derived from sourced values, kept with its id; never a cost gemini gives.
+- `web_search`, `read_web_page`, `read_knowledge`: a cited value, or a Knowledge document or one of its sections.
 - `finish`: give the final answer.
 
 ## Rules
