@@ -146,3 +146,23 @@ def first_call_skill(tool, messages):
             if getattr(call, "name", None) == "read_skill" and name in str(getattr(call, "input", "")):
                 return None
     return f"{SKILL_MARK.format(name=name, tool=tool)}\n{_skills()[name][1]}"
+
+
+def tool_section(tool):
+    """Return the ``### `tool``` section of the skill that explains ``tool``, without its heading.
+
+    A tool whose call is a question to the user (``ask_user``, ``ask_economics``) returns no result
+    the skill could come with, so its description carries this section: the skill stays the one
+    place the usage is written, and the description is made from it.
+    """
+    name = tool_skills().get(tool)
+    if name is None:
+        return ""
+    body = _skills()[name][1]
+    heading = f"### `{tool}`"
+    if heading not in body:
+        return ""
+    section = body.split(heading, 1)[1]
+    for end in ("\n### ", "\n## "):
+        section = section.split(end, 1)[0]
+    return section.strip()

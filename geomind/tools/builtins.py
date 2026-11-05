@@ -3,6 +3,7 @@
 import hashlib
 from typing import Any
 
+from geomind.context.skills import tool_section
 from geomind.tools.base import tool
 from geomind.types import Finish, Option, Request
 from geomind.types.decisions import typed_answer
@@ -53,6 +54,7 @@ async def user_answered(context, tool_input, text):
 
 
 ask_user.on_answer = user_answered
+ask_user.description = f"{ask_user.description}\n\n{tool_section('ask_user')}"
 
 
 @tool(effect="read", runs_alone=True)

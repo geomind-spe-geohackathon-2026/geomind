@@ -18,6 +18,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from geomind.errors import ToolError
+from geomind.context.skills import tool_section
 from geomind.tools.base import tool
 from geomind.types import Request
 
@@ -756,3 +757,4 @@ async def economics_answered(context, tool_input, text):
 
 
 ask_economics.on_answer = economics_answered
+ask_economics.description = f"{ask_economics.description}\n\n{tool_section('ask_economics')}"
