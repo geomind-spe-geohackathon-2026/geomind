@@ -1,6 +1,7 @@
 """The problem state: shared notes kept outside the message window."""
 
 import json
+import re
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
@@ -402,13 +403,20 @@ def _stamped(before, after, name):
     )
 
 
+def _minors(versions):
+    """Return the minor versions of ``geomind X / gemini Y``: ``("0.4", "0.6")``."""
+    found = re.findall(r"(\d+\.\d+)\.\S+", versions or "")
+    return tuple(found)
+
+
 def _older(item):
-    """Return the note of an item made under other versions than these, or ``""`` (QA-346).
+    """Return the note of a finding made under another minor version, or ``""`` (QA-346).
 
     A finding of an earlier geomind said a percentile did not exist after a fix made it exist,
-    and the economist believed the finding over the tool.
+    and the economist believed the finding over the tool. A patch release changes no claim worth
+    a check: only another minor version of geomind or gemini, or no version at all, is marked.
     """
-    if item.made_under == tools_version():
+    if item.made_under is not None and _minors(item.made_under) == _minors(tools_version()):
         return ""
     made = item.made_under or "an earlier geomind"
     return f" [made under {made}; check it against the current tools before you rely on it]"
@@ -431,8 +439,7 @@ def _assumption_line(item):
     value = f" = {json.dumps(item.value)}" if item.value is not None else ""
     reason = f", because {item.reason}" if item.reason else ""
     cited = f"; source: {json.dumps(item.citation)}" if item.citation else ""
-    line = f"Assumption {item.id} [{status}, {item.source}]: {item.text}{value}{reason}{cited}"
-    return line + _older(item)
+    return f"Assumption {item.id} [{status}, {item.source}]: {item.text}{value}{reason}{cited}"
 
 
 def _result_line(item):

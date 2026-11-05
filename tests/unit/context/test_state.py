@@ -228,15 +228,22 @@ def test_removing_a_key_that_is_gone_changes_nothing():
     assert cleared.design == {"rejected": []}
 
 
-def test_an_item_made_under_other_versions_is_marked_in_the_render():
-    """QA-346: a finding of an earlier geomind is marked; one of this run is not."""
+def test_a_finding_of_another_minor_version_is_marked_in_the_render():
+    """QA-346: a finding of another minor geomind or gemini is marked; a patch release is not."""
     from geomind.context.state import apply_changes, render, tools_version
 
     finding = {"id": "F1", "agent": "economist", "task": "t", "summary": "no P10", "reference": "f"}
     state = apply_changes(ProblemState(), [{"op": "add", "path": "/findings/-", "value": finding}])
     assert state.findings[0].made_under == tools_version()
     assert "made under" not in render(state)
-    old = state.model_copy(update={"findings": (state.findings[0].model_copy(
-        update={"made_under": "geomind 0.4.1 / gemini 0.6.0"}),)})
-    note = "made under geomind 0.4.1 / gemini 0.6.0; check it against the current tools"
-    assert note in render(old)
+
+    def made(versions):
+        item = state.findings[0].model_copy(update={"made_under": versions})
+        return render(state.model_copy(update={"findings": (item,)}))
+
+    geomind, gemini = (part.split()[1] for part in tools_version().split(" / "))
+    patched = ".".join([*geomind.split(".")[:2], "999"])
+    assert "made under" not in made(f"geomind {patched} / gemini {gemini}")
+    note = "made under geomind 0.1.0 / gemini 0.6.0; check it against the current tools"
+    assert note in made("geomind 0.1.0 / gemini 0.6.0")
+    assert "made under an earlier geomind" in made(None)
