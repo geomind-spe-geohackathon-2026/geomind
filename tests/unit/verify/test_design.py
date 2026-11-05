@@ -80,3 +80,24 @@ def test_a_result_that_ran_on_another_case_than_the_state_s_is_off_the_case():
     assert found["passed"] is False
     assert found["failures"][0]["name"] == "result_off_case"
     assert "simulate the design on the state's case" in found["reason"]
+
+
+def test_a_project_page_result_on_the_project_s_case_is_on_the_case(monkeypatch):
+    """QA-233: a Study-page result has no chat artifacts; it ran on the project's case."""
+    from types import SimpleNamespace
+
+    import geomind.verify.design as design_module
+
+    case = {"name": "c", "time": {"step": {"value": 1, "unit": "d"}}}
+
+    class Workspace:
+        def case(self, project):
+            return dict(case), {}
+
+    session = SimpleNamespace(workspace=Workspace(), load_artifact=lambda key: None)
+    context = SimpleNamespace(problem=ProblemState(case=dict(case)), session=session, project="p")
+    monkeypatch.setattr(design_module, "project_result", lambda context, result: ({}, {}))
+    assert design_module.result_off_case(context, "result/f9e1024c") is None
+    other = SimpleNamespace(problem=ProblemState(case={**case, "name": "d"}), session=session)
+    other.project = "p"
+    assert design_module.result_off_case(other, "result/f9e1024c") is not None

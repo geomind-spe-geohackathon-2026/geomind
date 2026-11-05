@@ -3,7 +3,7 @@
 from geomind.errors import ToolError
 from geomind.tools.gemini.case import digests, file_contents
 from geomind.tools.gemini.origin import changes_of
-from geomind.tools.gemini.stored import RESULT, load_design, load_run
+from geomind.tools.gemini.stored import RESULT, load_design, load_run, project_result
 from geomind.verify.verify import verify
 
 
@@ -39,12 +39,16 @@ def result_off_case(context, result):
 
     NOTE: a geomind process rule, not physics: a run is verified only against the case it ran on,
     so a case changed since (a limit, the demand, the schedule, the content of a file it names)
-    makes the run stale.
+    makes the run stale. A result of the project's Study page has no chat artifacts: it ran on
+    the project's case (``project_run`` refuses one of an older case version), so that case is
+    compared (QA-233: every page result was called off the case).
     """
     identifier = result.removeprefix(RESULT)
     data = context.problem.case
     ran_on = context.session.load_artifact(f"{identifier}.case")
     kept = context.session.load_artifact(f"{identifier}.files")
+    if ran_on is None and project_result(context, result) is not None:
+        ran_on, kept = project_case(context)
     current = digests(file_contents(context, data, {})) if data is not None else None
     if ran_on == data and kept == current:
         return None
@@ -52,6 +56,15 @@ def result_off_case(context, result):
         f"{result} ran on another case than the problem state's; simulate the design on the "
         "state's case and check it again"
     )
+
+
+def project_case(context):
+    """Return ``(case dict, file digests)`` of the project's saved case, or ``(None, None)``."""
+    workspace = context.session.workspace
+    found = workspace.case(context.project) if hasattr(workspace, "case") else None
+    if found is None:
+        return None, None
+    return found[0], digests(found[1])
 
 
 def same_plant(context, plant, design):
