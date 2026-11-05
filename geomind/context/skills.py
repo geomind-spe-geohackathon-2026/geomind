@@ -109,3 +109,40 @@ def skill_listing(role=None, tools=None):
 def skill_hint(name):
     """Return the words a tool error ends with to point at a skill."""
     return f"read_skill('{name}') for the rules"
+
+
+def tool_skills():
+    """Return ``{tool name: skill name}`` from every skill's ``tools`` field (identifiers only)."""
+    found = {}
+    for name, (fields, _) in _skills().items():
+        for item in fields["tools"].split(","):
+            item = item.strip()
+            if item.isidentifier():
+                found.setdefault(item, name)
+    return found
+
+
+SKILL_MARK = "[skill {name}, sent with the first call of {tool}]"
+"""The line that opens a skill attached to a tool's first result; the loop looks for it."""
+
+
+def first_call_skill(tool, messages):
+    """Return the skill text to attach to ``tool``'s result, or ``None`` when already shown.
+
+    A skill reaches a model only when loaded; an agent without ``read_skill`` (an engineer)
+    never loads one. So the first result of a tool in an agent's conversation carries the
+    skill that explains it, once: a later call, or a call after ``read_skill`` of that skill,
+    gets none.
+    """
+    name = tool_skills().get(tool)
+    if name is None:
+        return None
+    opening = f"[skill {name}, sent with the first call of "
+    for message in messages:
+        text = str(getattr(message, "content", ""))
+        if opening in text:
+            return None
+        for call in getattr(message, "tool_calls", None) or ():
+            if getattr(call, "name", None) == "read_skill" and name in str(getattr(call, "input", "")):
+                return None
+    return f"{SKILL_MARK.format(name=name, tool=tool)}\n{_skills()[name][1]}"

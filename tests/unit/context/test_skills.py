@@ -37,3 +37,17 @@ def test_the_listing_has_one_line_per_skill():
     lines = skill_listing().splitlines()
     assert len(lines) == 4
     assert lines[2].startswith("- gemini-units: Units gemini accepts")
+
+
+def test_a_tool_s_first_result_carries_its_skill_once():
+    """A skill reaches an agent without read_skill: the first result of its tool carries it."""
+    from geomind.context.skills import first_call_skill, tool_skills
+    from geomind.types.messages import Message
+
+    assert tool_skills()["evaluate_module"] == "evaluating-a-module"
+    text = first_call_skill("evaluate_module", [])
+    assert text.startswith("[skill evaluating-a-module, sent with the first call of evaluate_module]")
+    later = [Message(role="tool", content=text, tool_call_id="c1")]
+    assert first_call_skill("evaluate_module", later) is None
+    assert first_call_skill("describe_module", later) is None
+    assert first_call_skill("finish", []) is None

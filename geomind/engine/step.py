@@ -12,6 +12,7 @@ from geomind.engine.compaction import compact_history
 from geomind.engine.questions import answered_paths, asking_new, named_paths, reused_answer
 from geomind.engine.recovery import call_key
 from geomind.engine.state import Stop, is_cancel
+from geomind.context.skills import first_call_skill
 from geomind.errors import OutputError, ToolError, UnknownNameError
 from geomind.tools import dispatch
 from geomind.tools.base import with_old_names
@@ -271,8 +272,23 @@ async def _execute(session, agent, tool, call):
             await record_result(session, call, text_result(call, reused_answer(found)))
             return _over_retries(session, tool)
         return await session.pause(asking_new(outcome, found) if found else outcome, "tool", call)
-    await record_result(session, call, outcome)
+    await record_result(session, call, with_skill(outcome, session.state.messages))
     return _over_retries(session, tool)
+
+
+def with_skill(result, messages):
+    """Return ``result`` with its tool's skill attached on the tool's first call (``first_call_skill``).
+
+    A text output gets the skill after it, a dict one a ``skill`` key; any other output is left.
+    """
+    text = first_call_skill(result.tool, messages)
+    if text is None:
+        return result
+    if isinstance(result.output, str):
+        return result.model_copy(update={"output": f"{result.output}\n\n{text}"})
+    if isinstance(result.output, dict) and "skill" not in result.output:
+        return result.model_copy(update={"output": {**result.output, "skill": text}})
+    return result
 
 
 async def _refuse_unknown(session, agent, call):
