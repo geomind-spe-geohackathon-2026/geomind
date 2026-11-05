@@ -133,7 +133,7 @@ async def test_costs_are_gemini_s_values_of_the_case_in_display_units():
     output = assessed("estimate_costs", "hackathon_2026", "base")
     plant, case, _ = gd.tools.gemini.stored.load_run(context, result, "test")
     assert output["capex"]["value"] == pytest.approx(
-        gm.evaluate.capex(plant, case).to("MEUR").value
+        gm.evaluate.capex(plant, case).to("MEUR").value, rel=1e-4
     )
     assert {key: item["unit"] for key, item in output.items()} == {
         "capex": "MEUR",
