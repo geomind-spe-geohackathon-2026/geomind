@@ -6,11 +6,12 @@ from typing import Any
 
 from geomind.errors import ToolError
 from geomind.tools.base import tool
+from geomind.tools.gemini.references import reference_schema
 
 
 @tool(effect="read")
 def list_modules(category: str | None = None):
-    """List the modules gemini has, with their name, category and summary."""
+    """List gemini's module types with category and summary. Skill `evaluating-a-module`."""
     import gemini as gm
 
     rows = []
@@ -28,10 +29,7 @@ def list_modules(category: str | None = None):
 
 @tool(effect="read")
 def describe_module(name: str):
-    """Describe one module compactly: parameters and controls one per line, ports and outputs.
-
-    A line gives the type, quantity and units, bounds and options, with * when no default.
-    """
+    """Describe one module type: parameters, controls, ports, outputs. Skill `evaluating-a-module`."""
     import gemini as gm
 
     from geomind.tools.gemini.skeleton import module_tree
@@ -94,7 +92,8 @@ def checked_inlets(name, description, inlets):
     raise ToolError(
         f"evaluate_module: inlets = {sorted(inlets or {})}; {name} needs the stream inlets "
         f"{', '.join(missing)}, each with its fluid, T, p and m_dot (or flow), from the case or "
-        "the plant",
+        "the plant; or name the module's id with result=result/<id> to read T, p and m_dot of a "
+        "simulated step (give only each inlet's fluid); read_skill('evaluating-a-module')",
         code="invalid_input",
         path="inlets",
         suggestions=[json.dumps({port: form for port in missing})],
@@ -112,37 +111,37 @@ def plain(found):
     return found
 
 
-@tool(effect="compute")
+@tool(
+    effect="compute",
+    late_schemas={
+        "design": reference_schema("design", optional=True),
+        "result": reference_schema("result", optional=True),
+    },
+)
 def evaluate_module(
+    context,
     name: str,
-    parameters: dict[str, Any],
-    inlets: dict[str, dict[str, Any]] | None = None,
+    parameters: dict[str, Any] | None = None,
+    inlets: dict[str, dict[str, Any]] | list | None = None,
     controls: dict[str, Any] | None = None,
     state: dict[str, Any] | None = None,
     dt: dict[str, Any] | None = None,
+    design: str | None = None,
+    result: str | None = None,
+    time: str | None = None,
 ):
-    """Run one module at one point in display units; every inlet needs a fluid.
-
-    Give every value with a dimension as ``{"value": 150, "unit": "m3/h"}``, never as text such as
-    '150 m3/h'. Every inlet is ``{"fluid": {...}, "T": {...}, "p": {...}, "m_dot": {...}}`` (or
-    ``flow`` for a volume flow), for example ``{"fluid_in": {"fluid": {"kind": "brine",
-    "density": {"value": 1000, "unit": "kg/m3"}}, "T": {"value": 80, "unit": "degC"},
-    "p": {"value": 10, "unit": "bar"}, "flow": {"value": 100, "unit": "m3/h"}}}``. ``fluid``
-    holds gemini's fluid fields: ``kind`` (brine, water, glycol_water, steam, gas), ``salinity``,
-    ``gas_liquid_ratio``, ``gas_composition`` and the properties ``density``, ``viscosity``,
-    ``specific_heat``, each property as ``{"value", "unit"}``; ``kind`` alone uses gemini's. The
-    result is in gemini's display units (MW, degC, m3/h; a quantity it has no display unit for
-    stays in SI). A module with state needs
-    ``state``, its state at the start as ``{name: {"value", "unit"}}``, and ``dt``, the step as
-    ``{"value", "unit"}``; the ``state`` of the result is the state after the step.
-    """
+    """Run one module at one point in display units. Skill `evaluating-a-module`."""
     import gemini as gm
 
-    description = gm.modules.get(name)().describe()
-    checked_names(name, description, parameters, controls)
-    checked_inlets(name, description, inlets)
+    from geomind.tools.gemini.module_call import prepared_call
+
+    kind, description, parameters, inlets, controls, notes = prepared_call(
+        context, name, (parameters, inlets, controls), design, result, time
+    )
+    checked_names(kind, description, parameters, controls)
+    checked_inlets(kind, description, inlets)
     called = gm.call(
-        gm.modules.get(name),
+        gm.modules.get(kind),
         parameters,
         inlets,
         controls,
@@ -151,4 +150,5 @@ def evaluate_module(
         state=state,
         dt=dt,
     )
-    return plain(called)
+    found = plain(called)
+    return {**found, "notes": notes} if notes else found

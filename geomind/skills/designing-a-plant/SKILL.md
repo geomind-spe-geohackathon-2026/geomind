@@ -1,7 +1,7 @@
 ---
 name: designing-a-plant
 description: How to design a geothermal heating and cooling plant in gemini for any case: reading the case, choosing families, sizing, optimising, and what gemini can run.
-tools: read_case, list_modules, describe_module, build_plant, patch_plant, read_plant
+tools: read_case, build_plant, patch_plant, read_plant
 roles: all
 ---
 
@@ -19,8 +19,8 @@ Reading the case:
   records it as an assumption or asks the user. A network return temperature is a design choice
   of the team within the case's limits: propose a value with its reason for the case's owner to
   record; never stop the design to wait for one.
-- Tools worth knowing: `list_modules`, `describe_module` and `evaluate_module` (a module's
-  parameters, ports, units; run one at one point, every inlet with its fluid); `list_profiles`,
+- Tools worth knowing: `list_modules`, `describe_module` and `evaluate_module` (skill
+  `evaluating-a-module`); `list_profiles`,
   `read_profile`; `read_result`; `read_study`. A model gemini lacks makes its family
   `blocked`; no code is written.
 - Read the demand with `read_profile` before you size: the peak, the annual energy, and when
@@ -80,7 +80,7 @@ From a family to a design:
   `method="minimize"` with `objective`, `evaluations` and `seed`, and `prepare=["size"]` to size
   each first. It returns one run per design (`feasible`, `metrics`, `ranks`, `pareto`, the stored
   `design`, named `design/<name>_<plant>`) and `best`. This is how families are compared.
-- Get the numbers from gemini (`evaluate_module` on a doublet, `simulate` on a short window around
+- Get the numbers from gemini (`evaluate_module` on one module, `simulate` on a short window around
   the peak), never by hand. After any change, every earlier result of that design is stale.
 
 What `check_results` returns:

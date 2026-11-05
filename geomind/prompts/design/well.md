@@ -17,7 +17,7 @@ Each tool's description says its arguments.
 - `read_case`: the case.
 - `read_plant`: the design and what is still missing.
 - `describe_module`: a module of another discipline; yours are in the module reference below.
-- `evaluate_module`: run one module at one point.
+- `evaluate_module`: run one module at one point (skill `evaluating-a-module`).
 - `read_profile`: a demand profile.
 - `patch_plant`: set your parameters.
 - `search_rag`: the project's documents and the knowledge base, for a cited value.
@@ -46,9 +46,6 @@ Do and don't (from earlier runs):
   takes them from the case.
 - Don't patch under a name already stored: `patch_plant` answers `invalid_input` with a free
   name. Each patch of `design/<name>` gets a new name (`well`, `well_2`).
-- Don't run `evaluate_module` on a whole `Doublet` to learn its flow: it needs every inner value.
-  Read the plant's `issues` and gemini's check instead; `evaluate_module` is for one module of
-  yours at one point.
 - Don't convert a value to show it (`320.15 K (47 degC)`, a pressure in Pa written in bar):
   copy each value with the unit the plant file or the case writes it in.
 - Do keep a value the plant file gives when the case calls for no other, and say "kept".
@@ -56,7 +53,7 @@ Do and don't (from earlier runs):
 - A parameter of each section of a well path (`section_length`, `section_inclination`,
   `section_diameter`, `section_roughness`) is one quantity holding a list, one item per section:
   `{"value": [500, 2000], "unit": "m"}`, never a list of quantities. `correction_factors` is a
-  plain pair `[1.0, 0.0]`. `evaluate_module` takes a module type, such as `ESP`, never a path.
+  plain pair `[1.0, 0.0]`.
 - Read the case, the plant and each module once: their results stay in the conversation for several turns. `read_profile`'s `summary` has the peak, the mean and the energy; a stored result is read by its `path` with `read_stored`, never whole again.
 - The well reaches the reservoir the case names; a deeper or shallower well is a choice with
   its reason and the case's limits.

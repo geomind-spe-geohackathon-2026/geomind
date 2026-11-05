@@ -145,23 +145,32 @@ async def test_an_inlet_without_a_fluid_is_gemini_s_problem(gm):
 
 
 def test_evaluate_module_takes_the_state_and_the_step_of_a_stateful_module():
-    """``state`` and ``dt`` are inputs; the description says every inlet needs a fluid."""
+    """``state`` and ``dt`` are inputs; the description names the skill that holds the usage."""
     properties = TOOLS.evaluate_module.input_schema["properties"]
-    assert {"state", "dt"} <= properties.keys()
-    assert "fluid" in TOOLS.evaluate_module.description
+    assert {"state", "dt", "design", "result", "time"} <= properties.keys()
+    assert "evaluating-a-module" in TOOLS.evaluate_module.description
 
 
-def test_evaluate_module_needs_a_name_and_parameters():
-    """The model sees which inputs are required."""
-    assert TOOLS.evaluate_module.input_schema["required"] == ["name", "parameters"]
+def test_evaluate_module_needs_a_name():
+    """The model sees which inputs are required: parameters may come from a design or result."""
+    assert TOOLS.evaluate_module.input_schema["required"] == ["name"]
 
 
 def test_evaluate_module_shows_the_whole_inlet_with_gemini_s_fluid_fields(gm):
     """#47: engineers sent ``kind`` beside the inlet and a bare density; the form is shown."""
     import inspect
 
-    text = TOOLS.evaluate_module.description
+    from geomind.context.skills import load_skill
+
+    text = load_skill("evaluating-a-module")
     assert '"fluid": {"kind": "brine"' in text and '"density": {"value"' in text
     fields = inspect.signature(gm.Fluid).parameters
     for name in ("kind", "salinity", "gas_liquid_ratio", "gas_composition", "density", "viscosity"):
-        assert name in fields and f"``{name}``" in text
+        assert name in fields and f"`{name}`" in text
+
+
+async def test_evaluate_module_takes_an_empty_inlet_list_as_none():
+    """IMP-013: ``inlets = []`` is no inlet, so the refusal names the inlets the module needs."""
+    result = await call(TOOLS.evaluate_module, {"name": "Pipe", "parameters": PIPE, "inlets": []})
+    assert result.is_error
+    assert "fluid_in" in result.output["error"]["message"]

@@ -28,7 +28,7 @@ Each tool's description says its arguments.
 - `read_plant`: read plant.
 - `list_modules`: modules.
 - `describe_module`: module.
-- `evaluate_module`: run module.
+- `evaluate_module`: run module (skill `evaluating-a-module`).
 - `build_plant`: store plant.
 - `patch_plant`: change plant.
 - `set_ranges`: ranges.

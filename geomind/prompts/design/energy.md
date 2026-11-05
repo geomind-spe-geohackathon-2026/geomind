@@ -17,7 +17,7 @@ Each tool's description says its arguments.
 - `read_case`: the case.
 - `read_plant`: the design and what is still missing.
 - `describe_module`: a module of another discipline; yours are in the module reference below.
-- `evaluate_module`: run one module at one point.
+- `evaluate_module`: run one module at one point (skill `evaluating-a-module`).
 - `list_profiles`: the case's profiles.
 - `read_profile`: one profile: peak, energy, when services overlap.
 - `patch_plant`: set your parameters.
@@ -47,9 +47,6 @@ Do and don't (from earlier runs):
   takes them from the case.
 - Don't patch under a name already stored: `patch_plant` answers `invalid_input` with a free
   name. Each patch of `design/<name>` gets a new name (`energy`, `energy_2`).
-- Don't run `evaluate_module` on a whole `Doublet` to learn its flow: it needs every inner value.
-  Read the plant's `issues` and gemini's check instead; `evaluate_module` is for one module of
-  yours at one point.
 - Don't convert a value to show it (`320.15 K (47 degC)`, a pressure in Pa written in bar):
   copy each value with the unit the plant file or the case writes it in.
 - Do keep a value the plant file gives when the case calls for no other, and say "kept".
@@ -59,8 +56,7 @@ Do and don't (from earlier runs):
   overlap; size each machine for the share it covers and say what covers the rest.
 - A heat pump or a chiller works between the temperatures the case and the source give. When
   you change a machine's capacity or temperatures, check it at its design point with
-  `evaluate_module`, giving every stream inlet (`source_in`, `sink_in`) with its fluid, `T`, `p`
-  and `m_dot`; a machine the plant file gives and the case does not change needs no evaluation.
+  `evaluate_module` (skill `evaluating-a-module`).
 - The exchanger's approach and the network's losses follow from the temperatures and the flow;
   a network return temperature is a design choice of the team within the case's limits: when
   the case lacks it, or another one suits the plant better, propose the value with its reason

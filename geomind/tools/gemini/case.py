@@ -714,6 +714,16 @@ def period_requirements(requirements):
     return converted
 
 
+def judged_requirements(data):
+    """Return ``converted`` of the case's requirements written as gemini judges them (copied)."""
+    if not data.get("requirements"):
+        return []
+    data["requirements"] = copy.deepcopy(data["requirements"])
+    return running_supply_temperatures(data["requirements"]) + period_requirements(
+        data["requirements"]
+    )
+
+
 def edited_requirements(current, edits):
     """Return the requirement list with ``edits`` ``{name: dict | None}`` applied by name."""
     items = copy.deepcopy(current or [])
@@ -885,10 +895,7 @@ async def set_case(
         requirements, renamed = bridged_requirements(requirements)
         converted += renamed
         data["requirements"] = edited_requirements(data.get("requirements"), requirements)
-    if data.get("requirements"):
-        data["requirements"] = copy.deepcopy(data["requirements"])
-        converted += running_supply_temperatures(data["requirements"])
-        converted += period_requirements(data["requirements"])
+    converted += judged_requirements(data)
     contents = edited_economics(context, data, supplied, economics) if economics else supplied
     origin = given_case(context, source, (base, supplied), (data, contents))
     try:
