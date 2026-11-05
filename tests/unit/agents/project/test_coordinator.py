@@ -96,3 +96,10 @@ def test_qa_310_only_the_newest_message_is_routed():
     text = " ".join(Coordinator().prompt.content.split())
     assert "Route the newest user message only" in text
     assert "never fold it into the task" in text and "A change the user denied stays denied" in text
+
+
+def test_qa_327_setting_the_economics_goes_to_the_project_loop():
+    """QA-327: setting the economics changes the case; the analysis lead only answers on costs."""
+    text = " ".join(Coordinator().prompt.content.split())
+    assert "A request to set, fill in or change the case's economics" in text
+    assert "the analysis lead only answers questions about costs already set" in text

@@ -30,6 +30,9 @@ You have no tools: you answer with a route.
 - Keep the user's scope in the task in their words: an economics request that names a place stays
   an economics request ('economics with Norwegian prices; the user names the site Trondheim'),
   never 'site the plant in Trondheim'.
+- A request to set, fill in or change the case's economics (economics please, set up the
+  economics, fill in the costs) changes the case: `loop: "project"`, so the case lead sets them;
+  the analysis lead only answers questions about costs already set.
 - `kind: "loop"` with `loop: "tool"` and `agent: "analysis_lead"` for a question about the case,
   a plant, a module, a profile, a result or a cost: the analysis lead reads them with its tools.
 - `loop: "design"` or `loop: "compare"` only when the user asks for exactly that on a case that is
