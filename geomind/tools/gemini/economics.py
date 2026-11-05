@@ -688,6 +688,30 @@ def assumption_changes(problem, values, notes=None):
     return changes
 
 
+HOLDS_BACK = ("except", "but", "without", "apart from", "other than", "not ")
+"""Words after a typed "approve all" that keep part back: then it is a change, not approve all."""
+TYPED_NOTE = (
+    "nothing was set: the user typed an answer. Act on it: for values to change, call "
+    "ask_economics again with those rows changed; never ask the same question unchanged"
+)
+
+
+def approves_all(text):
+    """Tell whether an answer approves every value: the option, or typed text that starts so.
+
+    A typed "Approve all as recommended, ..." is approve all (QA-079: it set nothing and the same
+    question came again); "approve all except ..." keeps part back and is a change. Only the first
+    sentence is read for that; the rest goes to the agent as ``user_note``.
+    """
+    words = " ".join(text.strip().lower().split())
+    if words == APPROVE:
+        return True
+    if not words.startswith(APPROVE):
+        return False
+    rest = words[len(APPROVE):].split(". ")[0]
+    return not any(word in f"{rest} " for word in HOLDS_BACK)
+
+
 async def economics_answered(context, tool_input, text):
     """Act on the answer to the economics question; return what the model reads.
 
@@ -696,9 +720,11 @@ async def economics_answered(context, tool_input, text):
     """
     from geomind.tools.gemini.case import set_case
 
-    if text.strip().lower() != APPROVE:
+    approves = approves_all(text)
+    if not approves:
         typed = text not in OPTIONS
-        return {"answer": text, **({"typed": True} if typed else {})}
+        note = {"note": TYPED_NOTE} if typed else {}
+        return {"answer": text, "economics": "not set", **({"typed": True} if typed else {}), **note}
     values = [EconomicsValue.model_validate(item) for item in tool_input.get("values") or []]
     values, open_keys = recommended(context, values, list(tool_input.get("open") or []))
     values = from_catalogue(context, values)
@@ -708,8 +734,10 @@ async def economics_answered(context, tool_input, text):
     changes = assumption_changes(context.problem, values, notes)
     version = await context.session.change_state(changes) if changes else stored["version"]
     keys = [item.key.removeprefix("economics.") for item in values]
+    extra = text.strip() if text.strip().lower() != APPROVE else ""
     return {
         "answer": text,
+        **({"user_note": extra} if extra else {}),
         "economics": "set",
         "keys": keys,
         "open": open_keys,
