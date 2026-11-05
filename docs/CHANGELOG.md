@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.67] - 2026-11-05
+
+### Fixed
+
+- QA-076: `design.owners` written with an engineer's tool name (`reservoir_engineer`, `well_engineer`, `energy_systems_engineer`) or in words names that discipline; the reservoir and well engineers were refused their own parts (`patch_plant` not_allowed). With gemini 0.6.7, `read_plant`, `build_plant` and `patch_plant` return an incomplete plant's missing values as `issues` again instead of failing with `missing_value` (gemini 0.6.5 regression).
+
 ## [0.4.66] - 2026-11-05
 
 ### Fixed
