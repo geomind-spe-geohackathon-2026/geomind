@@ -259,10 +259,11 @@ async def sample_uncertainty(
         if not values
         else only_uncertainty(ran[0], ran[1], values, "sample_uncertainty")
     )
+    drawn = restricted(build_case(data, files), values, "sample_uncertainty")
     sample = await runtime.in_gemini_thread(
         sample_design,
         plants[design],
-        build_case(data, files),
+        drawn,
         metrics,
         samples,
         seed,
@@ -305,7 +306,10 @@ async def sensitivity(
     ran, plants, study, case = prepared(context, "sensitivity", name, [design], settings, [])
     data, files = (ran[0], ran[1]) if not values else only_uncertainty(ran[0], ran[1], values)
     tornado = await runtime.in_gemini_thread(
-        sensitivity_of_design, plants[design], build_case(data, files), metrics
+        sensitivity_of_design,
+        plants[design],
+        restricted(build_case(data, files), values, "sensitivity"),
+        metrics,
     )
     result = to_plain(tornado.to_dict())
     found = (study.to_dict(), result)
@@ -343,6 +347,26 @@ def case_uncertainty(data, files):
         sheet = economics
     rest = {k: v for k, v in (data or {}).items() if k != "economics"}
     return declared_uncertainty(rest) + declared_uncertainty(sheet or {}, "economics.")
+
+
+def restricted(case, values, tool_name):
+    """Return ``case``, refused when it still declares an uncertainty ``values`` does not name.
+
+    ``values`` limits a draw to the named uncertainties (QA-248); a run drew all seven of a case
+    when three prices were named. Without ``values`` every declared one is drawn.
+    """
+    if not values:
+        return case
+    names = {str(item).removeprefix("case.") for item in values}
+    extra = sorted(path for path in case.uncertainty if path not in names)
+    if extra:
+        raise ToolError(
+            f"{tool_name}: values = {sorted(names)}, but the case still declares {extra}: "
+            "nothing was drawn; this is geomind's fault, report it",
+            code="internal",
+            path="values",
+        )
+    return case
 
 
 def declared_uncertainty(data, prefix=""):

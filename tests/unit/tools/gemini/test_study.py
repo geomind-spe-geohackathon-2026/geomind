@@ -879,3 +879,20 @@ def test_an_optimum_of_a_sized_copy_names_the_stored_plant_it_came_from():
     assert sized_from(context, "design/other") == {}
     entry["designs"] = ["mine"]
     assert sized_from(context, "design/v2_sized") == {}
+
+
+def test_a_draw_of_three_prices_draws_only_those_three():
+    """QA-248: values names three prices; the case built for the draw declares only those."""
+    from geomind.errors import ToolError
+    from geomind.tools.gemini.case import build_case
+    from geomind.tools.gemini.study import only_uncertainty, restricted
+    from tests.fixtures.cases import read_example
+
+    text, files = read_example("hackathon_2026")
+    data = json.loads(text)
+    prices = ["economics.energy.gas", "economics.energy.electricity", "economics.carbon.price"]
+    kept, kept_files = only_uncertainty(data, dict(files), prices, "sample_uncertainty")
+    case = restricted(build_case(kept, kept_files), prices, "sample_uncertainty")
+    assert sorted(case.uncertainty) == sorted(prices)
+    with pytest.raises(ToolError, match="still declares"):
+        restricted(build_case(data, dict(files)), prices, "sample_uncertainty")
