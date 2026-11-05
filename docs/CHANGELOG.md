@@ -6,6 +6,13 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.91] - 2026-11-05
+
+### Changed
+- IMP-025 (user rule): only a team lead reads and writes the project's files; the geoscientist
+  has no file tools and works from the report text the case lead puts in its brief; a team call
+  takes at most 4 briefs; the lead merges, writes once and re-splits what is left.
+
 ## [0.4.90] - 2026-11-05
 
 ### Added
