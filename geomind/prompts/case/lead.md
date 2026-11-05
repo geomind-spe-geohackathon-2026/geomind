@@ -233,7 +233,9 @@ of):
 - A rule of the brief becomes one requirement `{name, on, quantity, over, when, min, max, unit}`.
   Days of operation are a duration (`over: duration`, `when: running`, unit `d`), never a
   `count`; `count` is a number of units: a limit on how many doublets the plant has (such as 1
-  to 3) is `{on: doublet, quantity: count, min, max}` with no `over`, `when` or `unit`. A cap per step is `over: each`; a share of demand left
+  to 3) is `{on: doublet, quantity: count, min, max}` with no `over`, `when` or `unit`. A range
+  the brief gives with both ends (a flow of 50 to 300 m3/h) is ONE requirement with `min` and
+  `max`, never two. A cap per step is `over: each`; a share of demand left
   unmet is `unmet_share`. A rule the requirement options cannot say is kept in the case's
   `about` and named as open. An efficiency, a share or a rate is a fraction with no unit (70 %
   is `0.7`, no `unit`); a bound on a single equipment value (`pump_hydraulic_efficiency`) has
