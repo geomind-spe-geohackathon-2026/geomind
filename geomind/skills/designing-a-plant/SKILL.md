@@ -1,7 +1,7 @@
 ---
 name: designing-a-plant
 description: How to design a geothermal heating and cooling plant in gemini for any case: reading the case, choosing families, sizing, optimising, and what gemini can run.
-tools: build_plant, patch_plant, read_plant, merge_designs, list_plants, set_ranges
+tools: build_plant, patch_plant, read_plant, merge_designs, list_plants, set_ranges, list_starts, start_plant
 roles: all
 ---
 
@@ -33,6 +33,9 @@ Choosing families:
   depth of the doublets, how the supply temperature is reached (direct geothermal heat, a heat
   pump, a boiler, deeper wells), how cold is made (absorption chiller, compression chiller, heat
   pump) and storage or backup. Mark a family gemini cannot run `blocked`, with the reason.
+- A plant file the Knowledge base holds (`list_starts`) is started with `start_plant`, never typed
+  by hand: a superstructure is sized once with `size_plant`, then searched by ONE
+  `evolve_structure` on `lcts` and `co2`.
 - `list_plants` shows the project's plant files (`project_plants`) and the plant classes gemini
   can build, and the saved versions (`project_versions`, each with its `design` reference). When
   the project has plants, start from one by its stored reference (`design/v<N>`, or the `design`

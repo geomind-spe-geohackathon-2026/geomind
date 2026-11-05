@@ -16,6 +16,8 @@ GEMINI_TOOLS = (
     "union_designs",
     "read_case",
     "list_plants",
+    "list_starts",
+    "start_plant",
     "read_plant",
     "list_modules",
     "describe_module",

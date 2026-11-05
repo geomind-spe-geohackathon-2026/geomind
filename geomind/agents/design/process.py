@@ -29,6 +29,8 @@ class ProcessEngineer(Agent):
         self.read_plant = tools.gemini.read_plant.kept()
         self.list_modules = tools.gemini.list_modules
         self.describe_module = tools.gemini.describe_module.kept()
+        self.list_starts = tools.gemini.list_starts
+        self.start_plant = tools.gemini.start_plant
         self.build_plant = tools.gemini.build_plant
         self.patch_plant = tools.gemini.patch_plant
         self.update_state = tools.update_state

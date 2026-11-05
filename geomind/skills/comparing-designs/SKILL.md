@@ -7,6 +7,7 @@ roles: all
 
 Superstructure (more than one sensible way to meet a service, in one design):
 
+- `evolve_structure` takes a sized superstructure from `start_plant` then `size_plant`.
 - Read the union's `structures` and `notes` before `evolve_structure`: a note is a value the
   alternatives state differently, where gemini kept the first and widened its range.
 - After your review, call `evolve_structure` on the merged design with the objectives the case or

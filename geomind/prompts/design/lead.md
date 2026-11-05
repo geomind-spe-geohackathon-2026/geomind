@@ -124,6 +124,10 @@ stopped), read it with `read_stored` and use it: never ask the same brief again.
   changes only (another doublet within the size range, a larger heat pump share, a module the
   case does not ask for removed), never accepting the failure or changing the requirement.
 - Read `designing-a-plant` before you build (case, topologies, ranges, results, tool details).
+- Before you build a plant, call `list_starts`. When a start fits the case, store it with
+  `start_plant`; never type a plant file a start or a class gives. To search structures, start
+  from a superstructure: `size_plant` once, then ONE `evolve_structure` on `lcts` and `co2`, and
+  read its front; never hand-optimise a structure the evolve already ranked.
 - Load a skill with `read_skill`, never with a dummy call such as `read_web_page` on a
   placeholder URL.
 - Round 1: record the case's requirements with `update_state` (`case_requirement` is the name) and
