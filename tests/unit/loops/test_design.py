@@ -47,6 +47,20 @@ NO_DEMAND = {"time": CASE["time"], "choices": {}}
 
 
 @pytest.fixture
+def asked_economics():
+    """Let the scripted case lead set the economics in its one set_case (QA-320).
+
+    These tests drive the design loop; the economics of a real run go through ask_economics,
+    which set_case marks this way, and the scripts stand for that step.
+    """
+    from geomind.tools.gemini.case import ASKED_ECONOMICS
+
+    token = ASKED_ECONOMICS.set(True)
+    yield
+    ASKED_ECONOMICS.reset(token)
+
+
+@pytest.fixture
 def verdicts(monkeypatch):
     """Return the list of gemini's verdicts the loop and the ``Verified`` hook read, in order."""
     queue = []
@@ -252,6 +266,7 @@ def files_project():
     return MemoryWorkspace(files={"p": files}), setting
 
 
+@pytest.mark.usefixtures("asked_economics")
 async def test_a_case_built_in_chat_alone_is_designed(verdicts):
     """No files: the case lead asks one grouped question, sets the case, the design lead designs."""
     verdicts.append(PASSED)
@@ -289,6 +304,7 @@ async def test_a_case_built_in_chat_alone_is_designed(verdicts):
     assert problem.case == problem.case_origin["case"] == case
 
 
+@pytest.mark.usefixtures("asked_economics")
 async def test_files_and_chat_together_make_the_case(verdicts):
     """With files, the case lead still asks the user for what the files lack."""
     verdicts.append(PASSED)
@@ -548,6 +564,7 @@ def test_the_designer_prompt_asks_instead_of_inventing_a_range():
         assert "ask_user" in text and ("invent" in text or "Never fill a missing one" in text)
 
 
+@pytest.mark.usefixtures("asked_economics")
 async def test_the_formulator_sets_the_case_from_the_files_before_the_designer(verdicts):
     """With files and no case the case lead runs once; the design lead reads the case, not files."""
     verdicts.append(PASSED)
