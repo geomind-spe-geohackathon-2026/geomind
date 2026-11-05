@@ -43,6 +43,16 @@ A large result does not come back whole. You get a summary and a `reference` to 
     (341 m3/h for 300 m3/h of liquid) and is no flow limit.
   Use `run_python` only for what none of these gives, and never to sum a power series into an
   energy: the energies come from gemini in MWh.
+- `read_result` reads module columns only (a path such as `d0.esp`, or no path for the run's
+  summary). Costs (`lcts`, `lcoh`, `lcoc`, `capex`, `opex`, `annualised_cost`) come from
+  `estimate_costs`, energy and emission KPIs from `compute_kpis`, a study's metrics from
+  `read_study`: never send a metric's name as a `path`.
+- A study is read whole, never a sample of it (`knowledge/handbook-studies.md` §6.1):
+  `read_study` gives `trials`, the count, the feasible count and, over the feasible trials, the
+  span of the objective and of each parameter; the table itself is `result.history`, read with
+  `read_stored(reference, path="result.history", start=0)` and then each `next` to the end, or
+  passed whole to `run_python` as `{"stored": reference, "path": "result.history"}`. Never one
+  trial per call, and never a conclusion on the trials you happened to read.
 - A wrong `path` or `field` is an error result that lists what exists, so read it and try again.
 - Keep the reference of a result you record with `update_state`, so that it can be read again later.
 - `check_results` of a result returns `feasible` (gemini's verdict), `reasons` (each with a `kind`
@@ -84,4 +94,7 @@ Return a result that was stored by reference, whole or one part of it.
 `reference` is the `result-...` (or `output-...`) key of a result that came back as a
 reference and an outline. `path` is dotted keys and list indexes into it, such as
 `capabilities.HeatingPlant` (`/` reads as `.`). A part too long to show whole comes
-back as its keys (or its length) and an outline, with the path to read deeper.
+back as its keys (or its length) and an outline, with the path to read deeper. A list (a
+study's `result.history`) is read in pages: `start` (0 first) and, if you want, `length`; each
+page returns `items`, `total` and `next`, the start of the next page (`null` at the end), with
+as many items as fit. Read every page to the end.

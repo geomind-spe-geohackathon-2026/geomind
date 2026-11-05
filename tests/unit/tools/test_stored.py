@@ -202,3 +202,28 @@ def test_a_dotted_module_key_is_one_part_of_a_path():
     ]
     assert list(path_keys(result, "d0.x")) == ["d0", "x"]
     assert list(path_keys(result, "rows.0.a")) == ["rows", "0", "a"]
+
+
+async def test_a_long_list_is_read_whole_in_pages():
+    """QA-205: a study's history is read in pages to its end, never one item per call."""
+    session = StubSession()
+    await dispatch(plants, call(), Context(session=session))
+    context = Context(session=session)
+    key = reference_of("c1")
+
+    async def read(**arguments):
+        tool_call = ToolCall(id="r", name="read_stored", input={"reference": key, **arguments})
+        return (await dispatch(read_stored, tool_call, context)).output
+
+    first = await read(path="plants", start=0, length=5)
+    assert [item["name"] for item in first["items"]] == [f"Class{n}" for n in range(5)]
+    assert first["total"] == 30 and first["next"] == 5
+    names, start = [], 0
+    while start is not None:
+        found = await read(path="plants", start=start)
+        names += [item["name"] for item in found["items"]]
+        start = found["next"]
+    assert names == [f"Class{n}" for n in range(30)]
+    assert (await read(path="project_plants", start=0, length=10))["next"] is None
+    assert "error" in await read(path="capabilities", start=0)
+    assert "error" in await read(path="plants", start=31)

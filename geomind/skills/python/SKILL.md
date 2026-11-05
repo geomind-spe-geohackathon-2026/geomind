@@ -21,10 +21,13 @@ Inputs:
   `{"calculation": "<id>"}`, and plain `{"number": 24, "unit": "h"}` or `{"constant": "pi"}`.
   At least one input has a source, or the code reads a project file. The code gets each as a
   plain number in its unit; `UNITS["name"]` gives the unit.
+- A stored list or table, such as a study's history (`{"stored": "<result-...>", "path":
+  "result.history"}`), comes in whole as JSON data (lists and dicts, unit `None`): read every
+  trial of it in the code, never a sample.
 - `files` names project files; the code reads them as `files/<name>` (copies: the project's own
   files never change).
-- The code holds no data: no number above 10 as a literal (indices, counts and small exponents
-  are fine). A price, a depth, 24, 1000 or 3600 typed into the code is refused: pass the value as
+- The code holds no data: no number above 10 as a literal (indices, counts, small exponents and
+  whole floats such as `0.0` are fine). A price, a depth, 24, 1000 or 3600 typed into the code is refused: pass the value as
   an input, and convert units with `gm.units.Quantity(value, UNITS["x"]).to("MWh")` or
   `gm.units.convert`.
 

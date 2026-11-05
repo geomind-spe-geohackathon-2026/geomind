@@ -17,6 +17,11 @@ section="16")`, `section="12"` and `section="13"`; this skill holds only the cal
 - Use the `samples` and `seed` the task gives. Where it gives none, choose them yourself and record
   each as an assumption `{id, text, value, source: "agent", confirmed: false}` with a one-line
   reason.
+- An uncertainty study of the values the user names (three prices) draws only those:
+  `sample_uncertainty(..., values=["economics.energy.electricity", ...])`, as `sensitivity`;
+  without `values` every declared uncertainty is drawn. Its `varied` lists the paths drawn: say
+  them in one line. The summary gives `p5`, `p50` and `p95` only; a P10 or P90 asked for is
+  named as not given by gemini, never worked out.
 - A metric with `failed` draws is reported with that count.
 - A case without declared uncertainty is an error: report it, never invent a range.
 - A one-at-a-time sensitivity on drivers the user names (electricity price, discount rate, heat
@@ -75,7 +80,9 @@ a case without any is an error. `samples` draws are simulated, one run each, fro
 `name` names the study `study/<name>` that records the call; a taken name is refused.
 Returns the `study` key and, in `summary`, each metric's `mean`, `p5`, `p50` and
 `p95` in display units and `failed`, the number of draws left out because their run had
-failed steps.
+failed steps. `values` (paths such as `economics.energy.electricity`) draws only those, and a
+path the case declares no uncertainty for is refused with the declared ones; `varied` lists
+the case paths drawn.
 
 ### `sensitivity`
 

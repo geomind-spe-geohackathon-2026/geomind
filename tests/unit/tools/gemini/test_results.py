@@ -82,6 +82,14 @@ async def test_a_field_needs_a_path():
     assert result.is_error and result.output["error"]["path"] == "path"
 
 
+async def test_a_cost_name_as_path_names_the_tool_that_has_it():
+    """QA-209: read_result reads module columns; costs are estimate_costs', KPIs compute_kpis'."""
+    for path in ("costs", "lcts", "annualised_cost"):
+        result = await call(TOOLS.read_result, {"reference": "result/x", "path": path})
+        message = result.output["error"]["message"]
+        assert result.is_error and "estimate_costs" in message and "compute_kpis" in message
+
+
 async def test_an_unknown_reference_says_what_to_pass():
     """Only a reference that simulate returned reads."""
     result = await call(TOOLS.read_result, {"reference": "result/none"})

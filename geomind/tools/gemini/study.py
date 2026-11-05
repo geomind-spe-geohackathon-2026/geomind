@@ -183,7 +183,13 @@ def sample_design(plant, case, metrics, samples, seed):
     late_schemas={"design": reference_schema("design")},
 )
 async def sample_uncertainty(
-    context, design: str, metrics: list[str], samples: int, seed: int, name: str
+    context,
+    design: str,
+    metrics: list[str],
+    samples: int,
+    seed: int,
+    name: str,
+    values: list[str] | None = None,
 ):
     """Sample a design over the case's uncertainty (from the user or the case, never made up).
 
@@ -191,13 +197,25 @@ async def sample_uncertainty(
     """
     settings = {"method": "sample", "metrics": metrics, "samples": samples, "seed": seed}
     ran, plants, study, case = prepared(context, "sample_uncertainty", name, [design], settings, [])
+    data, files = (
+        (ran[0], ran[1])
+        if not values
+        else only_uncertainty(ran[0], ran[1], values, "sample_uncertainty")
+    )
     sample = await runtime.in_gemini_thread(
-        sample_design, plants[design], build_case(*ran), metrics, samples, seed
+        sample_design, plants[design], build_case(data, files), metrics, samples, seed
     )
     result = to_plain(sample.to_dict())
+    result["varied"] = varied(result)
     found = (study.to_dict(), result)
     key = await save_study(context, name, "sample_uncertainty", found, ([design], []), None, case)
     return {"study": key, **result}
+
+
+def varied(result):
+    """Return the case paths gemini drew, from the first draw's parameters."""
+    first = next(iter(result.get("samples") or ()), {})
+    return sorted((first.get("parameters") or {}).keys())
 
 
 def sensitivity_of_design(plant, case, metrics):
@@ -254,7 +272,7 @@ def kept_uncertainty(node, names, prefix):
             kept_uncertainty(child, names, f"{path}.")
 
 
-def only_uncertainty(data, files, values):
+def only_uncertainty(data, files, values, tool_name="sensitivity"):
     """Return ``(case dict, files)`` with the ``uncertainty`` of the named ``values`` only.
 
     A sensitivity of the drivers a user names moves only those, not every value the case
@@ -277,9 +295,10 @@ def only_uncertainty(data, files, values):
     unknown = [item for item in names if item not in declared]
     if unknown:
         raise ToolError(
-            f"sensitivity: values = {unknown}: the case declares no uncertainty for them; declared: "
-            f"{declared or 'none'}. Set each range in the case first: set_case(economics={{key: "
-            "{value, unit, uncertainty: {kind: 'uniform', min, max}}}}) for an economics value, "
+            f"{tool_name}: values = {unknown}: the case declares no uncertainty for them; "
+            f"declared: {declared or 'none'}. Set each range in the case first: "
+            "set_case(economics={key: {value, unit, uncertainty: {kind: 'uniform', min, max}}}) "
+            "for an economics value, "
             "with the range the user gave",
             path="values",
         )
@@ -548,7 +567,13 @@ async def evolve_structure(context, design: str, objectives: list[str], name: st
     recorded = (study.to_dict(), kept)
     runs = [await simulated_run(context, best, ran, {"study": name})] if best else []
     key = await save_study(
-        context, name, "evolve_structure", recorded, ([design], wrote), recommended, case,
+        context,
+        name,
+        "evolve_structure",
+        recorded,
+        ([design], wrote),
+        recommended,
+        case,
         runs=runs,
     )
     return {

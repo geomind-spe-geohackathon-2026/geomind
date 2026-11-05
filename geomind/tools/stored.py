@@ -246,9 +246,7 @@ def path_keys(value, path):
     while parts:
         count = 1
         if isinstance(value, dict):
-            count = next(
-                (n for n in range(len(parts), 1, -1) if ".".join(parts[:n]) in value), 1
-            )
+            count = next((n for n in range(len(parts), 1, -1) if ".".join(parts[:n]) in value), 1)
         key = ".".join(parts[:count])
         yield key
         parts = parts[count:]
@@ -261,8 +259,14 @@ def path_keys(value, path):
 
 
 @tool(effect="read", stored_input="reference", keeps_result=True)
-def read_stored(context, reference: str, path: str | None = None):
-    """Return a result that was stored by reference, whole or one part of it.
+def read_stored(
+    context,
+    reference: str,
+    path: str | None = None,
+    start: int | None = None,
+    length: int | None = None,
+):
+    """Return a result that was stored by reference, whole or one part of it, or a page of a list.
 
     Skill `reading-results`.
     """
@@ -279,9 +283,54 @@ def read_stored(context, reference: str, path: str | None = None):
         stored = _step(stored, part, ".".join(walked))
         walked.append(part)
     value = to_jsonable(stored)
+    if start is not None or length is not None:
+        return page(reference, path, value, start, length)
     if len(json.dumps(value)) <= runtime.get("tool_result_limit"):
         return value
     return deeper(reference, path, value)
+
+
+def page(reference, path, value, start, length):
+    """Return the items ``start`` to ``start + length`` of a stored list, as many as fit (QA-205).
+
+    A study's history of 240 trials was read one trial per call, and the answer rested on 27 of
+    them: a list is read in pages, each with ``total`` and the ``next`` start, until it ends.
+    """
+    if not isinstance(value, list):
+        raise ToolError(
+            f"read_stored: start/length on {path or 'the result'}, which is no list; expected the "
+            "path of a list, such as history",
+            path="start",
+        )
+    total = len(value)
+    first = 0 if start is None else start
+    if not 0 <= first <= total:
+        raise ToolError(
+            f"read_stored: start = {first}; expected 0 to {total} (a list of {total})", path="start"
+        )
+    if length is not None and length < 1:
+        raise ToolError(f"read_stored: length = {length}; expected 1 or more", path="length")
+    last = total if length is None else min(total, first + length)
+    limit = runtime.get("tool_result_limit")
+    items = []
+    for item in value[first:last]:
+        if items and len(json.dumps(items + [item])) > limit:
+            break
+        items.append(item)
+    end = first + len(items)
+    return {
+        "reference": reference,
+        "path": path or None,
+        "start": first,
+        "items": items,
+        "total": total,
+        "next": end if end < total else None,
+        "note": (
+            f"items {first} to {end - 1} of {total}; read the rest with start={end}"
+            if end < total
+            else f"items {first} to {end - 1} of {total}: the end of the list"
+        ),
+    }
 
 
 def deeper(reference, path, value):
@@ -289,6 +338,18 @@ def deeper(reference, path, value):
     keys = parts_of(value)
     first = keys[0] if keys else "0"
     prefix = f"{path}." if path else ""
+    if isinstance(value, list):
+        return {
+            "reference": reference,
+            "path": path or None,
+            "total": len(value),
+            "summary": outline(value),
+            "note": (
+                f"a list of {len(value)}, too long to show whole: read it ALL in pages, "
+                f"read_stored(reference={reference!r}, path={path or ''!r}, start=0), then each "
+                "`next`; never a sample of it"
+            ),
+        }
     return {
         "reference": reference,
         "path": path or None,

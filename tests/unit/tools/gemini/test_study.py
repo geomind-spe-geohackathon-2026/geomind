@@ -130,6 +130,8 @@ async def hackathon_calls():
     arguments = {"design": heating, "metrics": ["lcts"]}
     draws = {**arguments, "samples": 3, "seed": 1, "name": "draws"}
     drawn = await run(study.sample_uncertainty, context, draws)
+    narrow = {**draws, "name": "narrow", "values": ["economics.discount_rate"]}
+    narrowed = await run(study.sample_uncertainty, context, narrow)
     tornado = await run(study.sensitivity, context, {**arguments, "name": "tornado"})
     named = {**arguments, "name": "named", "values": ["economics.discount_rate"]}
     one = await run(study.sensitivity, context, named)
@@ -138,6 +140,7 @@ async def hackathon_calls():
     return {
         "smoke": smoke,
         "drawn": drawn,
+        "narrowed": narrowed,
         "tornado": tornado,
         "named": one,
         "undeclared": undeclared,
@@ -252,6 +255,12 @@ def test_sample_uncertainty_summarises_the_draws():
     """With an uncertain price the summary has the percentiles and the failed count."""
     summary = slow_calls()["studies"]["drawn"].output["summary"]["lcts"]
     assert {"mean", "p5", "p50", "p95", "failed"} <= set(summary)
+
+
+def test_sample_uncertainty_draws_only_the_named_values():
+    """QA-248: values limits the draw to the uncertainties asked for, and says which were drawn."""
+    output = slow_calls()["studies"]["narrowed"].output
+    assert output["varied"] == ["case.economics.discount_rate"]
 
 
 def test_sensitivity_ranks_the_uncertain_values():

@@ -36,6 +36,43 @@ SEARCHED = "already searched in this run with the same words:"
 PAGE_MARKER = re.compile(r"\[page (\d+)\]")
 
 
+METRIC_NAMES = {
+    "cost",
+    "costs",
+    "economics",
+    "lcts",
+    "lcoh",
+    "lcoc",
+    "lcoe",
+    "capex",
+    "opex",
+    "annualised_cost",
+    "annualized_cost",
+    "npv",
+    "co2",
+    "co2_emitted",
+    "kpi",
+    "kpis",
+    "metrics",
+}
+"""Names agents sent ``read_result`` as a path, which are metrics of other tools (QA-209)."""
+
+
+def metric_path(path):
+    """Return the refusal of a cost or KPI name sent as a module path, or ``None`` (QA-209)."""
+    if path is None or path.strip().lower() not in METRIC_NAMES:
+        return None
+    return ToolError(
+        f"read_result: path = {path!r} is a metric, not a module path: read_result reads the "
+        "columns of a module (path such as 'd0.esp'), or the run's summary with no path. Costs "
+        "(lcts, lcoh, lcoc, capex, opex, annualised_cost) come from estimate_costs; energy and "
+        "emission KPIs from compute_kpis; a study's metrics from read_study",
+        code="unknown_name",
+        path="path",
+        suggestions=["estimate_costs", "compute_kpis", "read_study"],
+    )
+
+
 @tool(effect="read", late_schemas={"reference": reference_schema("result")})
 def read_result(
     context,
@@ -49,8 +86,15 @@ def read_result(
 
     Skill `reading-results`.
     """
+    refused = metric_path(path)
+    if refused is not None:
+        raise refused
     if path is None and field is not None:
-        raise ToolError(f"read_result: field = {field!r}; expected a path too", path="path")
+        raise ToolError(
+            f"read_result: field = {field!r}; expected a module path too (a field is a column "
+            "of one module); read_result without path or field gives the run's summary",
+            path="path",
+        )
     _, _, results = load_run(context, reference, "read_result")
     first, last = parse_time(start, "start", "read_result"), parse_time(end, "end", "read_result")
     if field is None:

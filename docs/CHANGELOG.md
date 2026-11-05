@@ -6,6 +6,15 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.118] - 2026-11-05
+
+### Fixed
+- QA-205: `read_stored` pages a stored list (`start`, `length`, `next`); `read_study` gives an
+  optimize study's `trials` (counts and min/max of gemini's own history); `run_python` takes a
+  stored list as data; whole-number float literals pass.
+- QA-209: `read_result` asked for a cost or KPI names the tool that has it.
+- QA-248: `sample_uncertainty` takes `values` and draws only those; the result names `varied`.
+
 ## [0.4.117] - 2026-11-05
 
 ### Fixed
