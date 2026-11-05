@@ -39,6 +39,7 @@ EXPECTED = (
     "testing",
     "runtime",
     "errors",
+    "sandbox",
     "__version__",
 )
 

@@ -82,7 +82,9 @@ def test_section_three_protocols_are_frozen(frozen):
     0.3.0 added the chat artifacts of ``RunStore`` and ``Workspace.plants``, and the files of
     ``Workspace.case``; 0.4.4 the optional ``Workspace.files`` and ``Workspace.file``; 0.4.22 the
     optional ``knowledge_search``, ``knowledge_files`` and ``knowledge_file``; 0.4.22.dev48 the
-    optional ``project_state`` (contract v4); 0.4.23 the optional ``memory``.
+    optional ``project_state`` (contract v4); 0.4.23 the optional ``memory``; 0.4.97 the optional
+    ``project_designs`` and ``plant_version`` (QA-122); 0.4.132 the optional
+    ``save_plant_version`` (QA-312). Every addition is optional: an older workspace still runs.
     """
     protocols = frozen["protocols"]
     assert set(protocols["RunStore"]) == set(RUN_STORE_METHODS)
@@ -98,6 +100,9 @@ def test_section_three_protocols_are_frozen(frozen):
         "knowledge_file",
         "mcp",
         "memory",
+        "project_designs",
+        "plant_version",
+        "save_plant_version",
     }
     assert (
         protocols["LLM"]["complete"] == "(self, messages, tools, *, model, settings, on_text=None)"
@@ -106,13 +111,17 @@ def test_section_three_protocols_are_frozen(frozen):
 
 
 def test_section_three_run_is_frozen(frozen):
-    """The call the contract shows, every method included."""
+    """The call the contract shows, every method included.
+
+    ``sandbox=`` came back in 0.4.57 as an optional keyword of ``__init__`` and ``load`` (the
+    sandbox of ``run_python``); a caller without it runs with no sandbox.
+    """
     methods = frozen["Run"]
     assert {"__init__", "start", "astart", "load", "resume", "aresume", "cancel"} == set(methods)
     assert [word for word in RUN_KEYWORDS if f"{word}=" not in methods["__init__"]] == []
     missing = {"llm", "store", "workspace", "permissions", "callbacks", "hooks"}
     assert [word for word in missing if f"{word}=" not in methods["load"]] == []
-    assert "sandbox=" not in methods["__init__"] and "sandbox=" not in methods["load"]
+    assert "sandbox=None" in methods["__init__"] and "sandbox=None" in methods["load"]
 
 
 def test_section_three_result_is_frozen(frozen):

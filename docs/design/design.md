@@ -35,7 +35,7 @@ class Analyst(gd.Agent):
         self.review = gd.tools.Delegate(self.reviewer)
 
         # Model
-        self.model = gd.Model("anthropic/claude-sonnet", temperature=0)
+        self.model = gd.Model("deepseek/deepseek-v4.1-flash-1017", temperature=0)
 ```
 
 - Constructor sections `# Agents`, `# Prompt`, `# Tools`, `# Model`, in that order, the same idea as gemini's `# Modules`, `# Parameters`, ... . Assigning registers, like `Module.__setattr__`: a `Tool` goes to the tool registry, an `Agent` becomes a child with a dotted path (`coordinator.analyst`).
