@@ -17,6 +17,7 @@ import hashlib
 import json
 import re
 
+from geomind import runtime
 from geomind.errors import ToolError
 from geomind.tools.gemini.case import (
     build_case,
@@ -28,6 +29,7 @@ from geomind.tools.gemini.case import (
 )
 from geomind.tools.gemini.references import STUDY_INDEX, index_reference, unknown_reference
 from geomind.types.events import StudyRecorded
+from geomind.utils.json import to_jsonable
 
 DESIGN = "design/"
 RESULT = "result/"
@@ -105,6 +107,68 @@ async def save_run(context, plant, results, summary, options, ran):
     return reference
 
 
+async def full_run(context, run, design, ran, options):
+    """Return one study run as a page study stores it, its series kept as ``result/<id>`` (QA-088).
+
+    ``{plant_name, case_name, design, result, report, run}``: ``design`` the stored design the run
+    ended with, ``result`` the reference ``simulate`` would give (series, plant and case kept, so
+    ``read_result`` and the backend read it), ``report`` gemini's evaluate report
+    (``run.report.to_dict()``, display units) and ``run`` gemini's run record (``run.to_dict()``).
+    """
+    from geomind.tools.gemini.case import build_case
+    from geomind.tools.gemini.runs import run_summary
+
+    case = build_case(*ran)
+    summary = await runtime.in_gemini_thread(run_summary, run.plant, case, run.results, design)
+    reference = await save_run(context, run.plant, run.results, summary, options, ran)
+    return {
+        "plant_name": run.plant_name,
+        "case_name": run.case_name,
+        "design": design,
+        "result": reference,
+        "report": to_jsonable(run.report.to_dict()),
+        "run": to_jsonable(run.to_dict()),
+    }
+
+
+def _simulated(plant, case):
+    """Return ``(results, report)`` of a whole-year run of ``plant`` on ``case``."""
+    import gemini as gm
+
+    results = gm.simulate(plant, case)
+    return results, gm.evaluate.report(plant, case, results)
+
+
+async def simulated_run(context, design, ran, options):
+    """Return the stored design ``design`` run on ``ran`` as ``full_run`` gives a study run (QA-088).
+
+    For a study that ends with a design rather than gemini runs (size, optimize, evolve): the
+    design is simulated once for the whole year. ``run`` is ``None``; a design that does not run
+    gives ``{design, error}`` with gemini's message, and the study is kept.
+    """
+    import gemini as gm
+
+    from geomind.tools.gemini.case import build_case
+    from geomind.tools.gemini.runs import run_summary
+
+    plant = load_design(context, design, "study")
+    case = build_case(*ran)
+    try:
+        results, report = await runtime.in_gemini_thread(_simulated, plant, case)
+    except gm.errors.GeminiError as error:
+        return {"design": design, "error": {"code": error.code, "message": str(error)[:500]}}
+    summary = await runtime.in_gemini_thread(run_summary, plant, case, results, design)
+    reference = await save_run(context, plant, results, summary, options, ran)
+    return {
+        "plant_name": design_stem(design),
+        "case_name": case.name,
+        "design": design,
+        "result": reference,
+        "report": to_jsonable(report.to_dict()),
+        "run": None,
+    }
+
+
 def run_files(context, identifier):
     """Return ``{file name: bytes}`` of the case files a stored run kept."""
     return kept_files(context, context.session.load_artifact(f"{identifier}.files") or {})
@@ -167,13 +231,15 @@ def study_index(context):
     return (context.session.load_artifact(STUDY_INDEX) or {"studies": []})["studies"]
 
 
-async def save_study(context, name, tool, found, designs, best, case):
+async def save_study(context, name, tool, found, designs, best, case, runs=None):
     """Store ``study/<name>``, add it to the index and send ``study.recorded``; return the key.
 
     ``found`` is ``(study dict, result dict)``: the gemini ``study.json`` that ran and gemini's
     plain form of what came back. ``designs`` is ``(read, wrote)``, the design references the
     study read and stored. The artifact keeps ``study``, ``result``, ``designs``
-    (``{read, wrote}``), ``case`` (``case_id`` of the case it ran on), ``tool`` and ``versions``.
+    (``{read, wrote}``), ``case`` (``case_id`` of the case it ran on), ``tool`` and ``versions``,
+    and, when the study ran plants on the case, ``runs``: per run the full outcome as a page study
+    of the backend stores it (``full_run``), so the Results tab shows agent studies too (QA-088).
     The index keeps ``{study, tool, method, designs (plant names), best, case}`` of each, so
     ``list_studies`` needs no listing by prefix. NOTE: the study tools run alone within a run, and
     the index lock keeps runs side by side from losing an entry.
@@ -189,6 +255,7 @@ async def save_study(context, name, tool, found, designs, best, case):
         "case": case,
         "tool": tool,
         "versions": session.versions(),
+        **({"runs": runs} if runs is not None else {}),
     }
     await session.save_artifact(key, record)
     plants = [design_stem(reference) for reference in read]

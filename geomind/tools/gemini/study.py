@@ -13,6 +13,8 @@ from geomind.tools.gemini.stored import (
     case_id,
     check_study_free,
     design_stem,
+    full_run,
+    simulated_run,
     load_design,
     load_run,
     ran_case,
@@ -108,8 +110,9 @@ async def size_plant(context, design: str, name: str):
     reference = await save_design(context, name, sized)
     result = {"sizing": to_plain(sized.sizing)}
     found = (study.to_dict(), result)
+    runs = [await simulated_run(context, reference, ran, {"study": name})]
     key = await save_study(
-        context, name, "size_plant", found, ([design], [reference]), reference, case
+        context, name, "size_plant", found, ([design], [reference]), reference, case, runs=runs
     )
     issues = await runtime.in_gemini_thread(plant_issues, context, sized)
     shown = {"design": reference, "study": key, "sizing": result["sizing"], **issues}
@@ -172,8 +175,9 @@ async def optimize(context, design: str, objective: str, evaluations: int, seed:
         wrote = [await save_design(context, name, best["plant"])]
     recommended = wrote[0] if wrote and found["feasible"] else None
     recorded = (study.to_dict(), minimized(found))
+    runs = [await simulated_run(context, wrote[0], ran, {"study": name})] if wrote else []
     key = await save_study(
-        context, name, "optimize", recorded, ([design], wrote), recommended, case
+        context, name, "optimize", recorded, ([design], wrote), recommended, case, runs=runs
     )
     return result | {"study": key} | ({"design": wrote[0]} if wrote else {})
 
@@ -329,7 +333,7 @@ async def run_study(
     settings = {"method": method, "objective": objective, "metrics": metrics, "seed": seed}
     settings |= {"evaluations": evaluations, "samples": samples, "prepare": prepare}
     written = [f"design/{name}_{design_stem(design)}" for design in designs]
-    _, plants, study, case = prepared(context, "run_study", name, designs, settings, written)
+    ran, plants, study, case = prepared(context, "run_study", name, designs, settings, written)
     with range_guidance(plants):
         result = await runtime.in_gemini_thread(study_runs, study)
     runs = await store_runs(context, name, result)
@@ -338,7 +342,13 @@ async def run_study(
     first = next((plant for plant in best.values() if plant is not None), None)
     found = (study.to_dict(), result.to_dict())
     kept = (designs, [item["design"] for item in runs])
-    key = await save_study(context, name, "run_study", found, kept, stored.get(first), case)
+    full = [
+        await full_run(context, run, item["design"], ran, {"study": name, "run": index})
+        for index, (run, item) in enumerate(zip(result.runs, runs, strict=True))
+    ]
+    key = await save_study(
+        context, name, "run_study", found, kept, stored.get(first), case, runs=full
+    )
     return {"study": key, "runs": runs, "best": best}
 
 
@@ -523,8 +533,10 @@ async def evolve_structure(context, design: str, objectives: list[str], name: st
     recommended = best if found["best"]["feasible"] else None
     kept = await runtime.in_gemini_thread(evolved, found)
     recorded = (study.to_dict(), kept)
+    runs = [await simulated_run(context, best, ran, {"study": name})] if best else []
     key = await save_study(
-        context, name, "evolve_structure", recorded, ([design], wrote), recommended, case
+        context, name, "evolve_structure", recorded, ([design], wrote), recommended, case,
+        runs=runs,
     )
     return {
         "front": front,
