@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.78] - 2026-11-05
+
+### Fixed
+
+- QA-074: `calculate` takes the named constant `g`, the standard gravity 9.80665 m/s2 (shown with its value in the expression); with gemini 0.6.12 (`m/s2`, `N/kg`, `kg/m2`) a density × g × depth gives a pressure. An unknown unit lists the nearest units gemini knows.
+
 ## [0.4.77] - 2026-11-05
 
 ### Added
