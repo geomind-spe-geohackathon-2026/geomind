@@ -967,3 +967,50 @@ def test_a_key_with_capitals_is_read_from_a_document():
 
     text = "| CH4 GWP (`accounting.gwp.CH4`) | 29.8 | Cited |\n"
     assert document_values(text) == {"accounting.gwp.CH4": (29.8, None)}
+
+
+async def test_a_second_card_keeps_the_values_already_approved_or_given_by_their_document():
+    """QA-361: the re-ask sent 42 keys with a source and no value; every one went to open."""
+    from geomind.context import ProblemState
+    from geomind.context.state import Assumption
+    from geomind.engine import Context
+    from geomind.tools import dispatch
+    from geomind.types import ToolCall
+    from tests.fixtures.sessions import StubSession
+
+    context = case_document_context(CaseDocumentWorkspace())
+    approved = Assumption(
+        id="economics.discount_rate",
+        text="approved",
+        value={"value": 0.05},
+        confirmed=True,
+    )
+    problem = ProblemState(case=context.problem.case, assumptions=[approved])
+    context = Context(session=StubSession(workspace=CaseDocumentWorkspace()), problem=problem)
+    source = "knowledge/my-case-assumptions.md"
+    values = [
+        {"key": "discount_rate", "source": source},
+        {"key": "revenue.heat", "source": source},
+    ]
+    asked = ToolCall(id="q", name="ask_economics", input={"values": values})
+    request = await dispatch(ask_economics, asked, context)
+    assert isinstance(request, Request), request
+    assert "a source with no value" not in request.message
+    assert "economics.discount_rate = 0.05 |" in request.message
+    assert "economics.revenue.heat = 60 EUR/MWh" in request.message
+
+
+async def test_a_key_the_case_holds_sent_with_no_value_stays_held():
+    """QA-361: a held key re-sent with only its source was moved to open; it is kept."""
+    from geomind.tools import dispatch
+    from geomind.types import ToolCall
+    from tests.fixtures.sessions import StubSession
+
+    session = StubSession(workspace=CatalogueWorkspace())
+    context = await case_context("hackathon_2026", session=session)
+    values = [{"key": "discount_rate", "source": "the case"}]
+    asked = ToolCall(id="q", name="ask_economics", input={"values": values})
+    request = await dispatch(ask_economics, asked, context)
+    assert isinstance(request, Request), request
+    assert "a source with no value" not in request.message
+    assert "Kept as the case has them" in request.message

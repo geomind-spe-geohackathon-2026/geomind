@@ -437,6 +437,9 @@ def not_reproposed(values, held, country, kept):
         if leaf is None:
             found.append(item)
             continue
+        if item.value is None and not item.row:
+            kept.append(key)
+            continue
         own = country is not None and row_region(item.row) == country
         same_value = item.value is not None and equal(item.value, leaf.get("value"))
         if (item.row and not own) or (same_value and (item.unit or None) == leaf.get("unit")):
@@ -815,6 +818,54 @@ def row_of_value(rows, key, value):
         if isinstance(found, (int, float)) and abs(found - number) <= 1e-9 * max(1, abs(number)):
             return row_id
     return None
+
+
+def filled(context, values):
+    """Return ``values`` with each key sent with a source and no value given its value (QA-361).
+
+    The case lead re-asked 42 values the user had approved, each with its source and no value,
+    and every one went to open ("a source with no value"). Its value is the one the user
+    approved (a confirmed ``economics.<key>`` assumption), else the one the Knowledge document
+    its source names gives; a key with neither stays as sent.
+    """
+    approved = {
+        short(item.id): item.value
+        for item in getattr(getattr(context, "problem", None), "assumptions", None) or ()
+        if item.confirmed and item.id.startswith("economics.") and isinstance(item.value, dict)
+    }
+    cache, found = {}, []
+    for item in values:
+        key = short(item.key)
+        if item.value is not None or item.row or not item.source:
+            found.append(item)
+            continue
+        if key in approved:
+            leaf = approved[key]
+            update = {"value": leaf.get("value"), "unit": item.unit or leaf.get("unit")}
+            found.append(item.model_copy(update=update))
+            continue
+        name = DOCUMENT.search(item.source)
+        given = named_document(context, name.group(0), cache) if name else {}
+        if key in given:
+            value, unit = given[key]
+            found.append(item.model_copy(update={"value": value, "unit": item.unit or unit}))
+            continue
+        found.append(item)
+    return found
+
+
+def named_document(context, name, cache):
+    """Return ``{key: (value, unit)}`` of the Knowledge document ``name``, ``{}`` if unreadable."""
+    from geomind.tools.knowledge import knowledge_file
+
+    if name not in cache:
+        try:
+            content = knowledge_file(context, "ask_economics", name)
+        except ToolError:
+            content = None
+        text = content.decode("utf-8") if isinstance(content, bytes) else str(content or "")
+        cache[name] = document_values(text)
+    return cache[name]
 
 
 def own_values(context, values):
@@ -1356,7 +1407,8 @@ def ask_economics(
     Skill `setting-the-case`.
     """
     dropped, skipped, sited = [], [], {}
-    values, open_keys = recommended(context, list(values), list(open or []), country, sited)
+    values = filled(context, list(values))
+    values, open_keys = recommended(context, values, list(open or []), country, sited)
     values = from_catalogue(context, own_values(context, values), skipped)
     opened = []
     site = sited.get("country") or site_country(country) or case_country(context)
@@ -1612,6 +1664,7 @@ def auto_approved(context):
 def answered_values(context, tool_input):
     """Return ``(values, open keys, notes, dropped)`` of an approved question, as it was shown."""
     values = [EconomicsValue.model_validate(item) for item in tool_input.get("values") or []]
+    values = filled(context, values)
     open_keys = list(tool_input.get("open") or [])
     sited = {}
     values, open_keys = recommended(context, values, open_keys, tool_input.get("country"), sited)
