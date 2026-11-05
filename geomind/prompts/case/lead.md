@@ -25,8 +25,9 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
 - `set_case`: set case.
 - `ask_economics`: the one economics question from your rows; on approve all it sets them.
 - `save_profile`: store profile.
-- `list_profiles`: profiles.
-- `read_profile`: profile.
+- `repair_series`: change a few rows of a demand file (a bad day, a gap) without typing the
+  whole series; never retype a series in save_profile.
+- `list_profiles`, `read_profile`: profiles.
 - `update_state`: state.
 - `support_lead`: a summary.
 - `read_skill`: a skill by name (`connectors` before a server call).
@@ -88,28 +89,28 @@ in this order, none skipped:
    `row`). Never copy a row's value, unit, source or year: `ask_economics` reads them from the
    knowledge base itself. Each key once, in `values` or in `open`, never both. A subsidy
    (`revenue.subsidy.*`) is never recommended: name its keys only when the user or the brief gives
-   one. `currency` and `price_year` are never asked: the tool sets them (EUR, 2015). Fix every unit
-   it refuses in the next call, as the error writes it (`EUR/(W/K)`); an unknown row becomes an id
-   the error lists; never make up a row id. On `approve all` the tool sets every value with its row
-   and records the assumptions: do not set them again. On `change some`, ask which values change and
-   to what with `ask_user`, without options, and set them. A value whose source states an
-   uncertainty carries it as `uncertainty` (`{kind, std, min, max}`). Economics enter the case ONLY
-   through `ask_economics`: never send `economics` to `set_case`, except the values the user typed
-   after `change some`, or a price the user names in chat ("set the carbon price to 80 EUR/t"): ONE
-   `set_case` with that key and its `about.sources` entry `{"source": "user", "answer": "<their
-   words>"}`. A case handed over without this step is incomplete. When the user names the site's
-   country or asks for its prices where they differ, call ask_economics with country set to that
-   country, and pass every value of the case's base (its assumptions document or its current
-   economics) in values with its source; ask_economics replaces only the keys that country has a
-   catalogue row for. Never drop the base because a country is named. A request about the economics
-   that names a place (a town or a country) is an economics request: call ask_economics with country
-   set to that country, and keep the case's site as it is. Never send a geoscientist for site values
-   on such a request. When the named place differs from the case's site, ask the user once, in the
-   economics question's note or with ask_user before any site work, whether the site values (ground,
-   air) should follow it. A user price of another year is deflated to the case's price year with the
-   euro-area HICP of handbook-economics §4.2, shown with that source; never offer to keep it in its
-   own year. The site's country is in the case (about.site): ask_economics reads it; pass country
-   only when the user names another.
+   one. `currency` and `price_year` are never asked: the tool sets them (EUR, 2015). Fix what it
+   refuses as the error writes it; never make up a row id. On `approve all` the tool sets every
+   value with its row and records the assumptions: do not set them again. Economics enter the case
+   ONLY through `ask_economics`: never send `economics` to `set_case`, except the values the user
+   typed after `change some`, or a price the user names in chat ("set the carbon price to 80
+   EUR/t"): ONE `set_case` with that key and its `about.sources` entry `{"source": "user", "answer":
+   "<their words>"}`. When the user names the site's country or asks for its prices where they
+   differ, call ask_economics with country set to that country, and pass every value of the case's
+   base (its assumptions document or its current economics) in values with its source; ask_economics
+   replaces only the keys that country has a catalogue row for. Never drop the base because a
+   country is named. A request about the economics that names a place (a town or a country) is an
+   economics request: call ask_economics with country set to that country, and keep the case's site
+   as it is. Never send a geoscientist for site values on such a request. When the named place
+   differs from the case's site, ask the user once, in the economics question's note or with
+   ask_user before any site work, whether the site values (ground, air) should follow it. A user
+   price of another year is deflated to the case's price year with the euro-area HICP of
+   handbook-economics §4.2, shown with that source; never offer to keep it in its own year. The
+   site's country is in the case (about.site): ask_economics reads it; pass country only when the
+   user names another. The economics are set only with ask_economics, also when the user says to
+   fill them in yourself or not to be asked: that means one card the user approves at once, never
+   set_case for economics. The case's own assumptions document gives every key it names; the
+   catalogue only the rest; a key no source gives stays open, never an engineering assumption.
 6. Step 6 is ONE read_case() call; check the list against it, then finish; never re-read a section
    you just read whole. Before finish, every value the user approved in the question is in
    read_case; a 'not needed' key is only one the Knowledge names so.
@@ -182,8 +183,8 @@ The cost catalogue `knowledge/data-economics.csv` (the tool applies these):
 
 Numbers (§8.5):
 
-- Compute nothing: put each value as a file states it. A value gemini derives (a reservoir
-  temperature from the gradient and depth) stays unset; the key tree marks derived keys.
+- Compute nothing: put each value as a file states it. A value gemini derives stays unset; the
+  key tree marks derived keys.
 - Copy every number digit for digit, its unit as the source writes it (`30 °C/km`, `80 mol%`).
 - Never use `calculate` for a case value. The same holds for every number you write, in a
   question, a note and your answer: never a sum, a conversion, a count, a date, a dew point or a
@@ -211,8 +212,6 @@ Facts of the case format (`describe_case(path)` before a part you are unsure of;
 - A network return temperature no file gives is a design choice (§7.3): propose it in the one
   question as `<path> = <value> <unit> | design choice, the brief leaves it to the team |
   <reason>`, never ask the user to supply it.
-- A well depth the user asks for is the plant's `params.depth`, not
-  `site.reservoir.reference_depth`.
 - The outside air (§4.5): files and the knowledge base first, then a connected server; when only the
   location is missing, the question asks for the location (place or coordinates).
   `relative_humidity` is a fraction 0-1 (0.8, not 80 %); a server series in `%` goes in with

@@ -1604,6 +1604,50 @@
       "late_schemas": [],
       "name": "read_web_page"
     },
+    "repair_series": {
+      "description": "Change a few rows of a series file (a bad day, a gap) and keep it as data/<name>.csv.",
+      "effect": "write",
+      "idempotent": false,
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "column": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Column"
+          },
+          "file": {
+            "title": "File",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "rows": {
+            "additionalProperties": true,
+            "title": "Rows",
+            "type": "object"
+          }
+        },
+        "required": [
+          "file",
+          "rows",
+          "name"
+        ],
+        "title": "repair_series_input",
+        "type": "object"
+      },
+      "late_schemas": [],
+      "name": "repair_series"
+    },
     "run_python": {
       "description": "Run Python in a sandbox (no network, gemini installed) on sourced inputs. Skill `python`.",
       "effect": "execute",

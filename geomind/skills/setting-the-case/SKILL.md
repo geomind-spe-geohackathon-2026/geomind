@@ -1,7 +1,7 @@
 ---
 name: setting-the-case
 description: How to set and read the case with its tools: set_case, read_case, describe_case, profiles, accept_case, case_changes and ask_economics; arguments, forms, common mistakes.
-tools: set_case, read_case, describe_case, save_profile, list_profiles, read_profile, accept_case, case_changes, ask_economics
+tools: set_case, read_case, describe_case, save_profile, repair_series, list_profiles, read_profile, accept_case, case_changes, ask_economics
 roles: all
 ---
 
@@ -96,6 +96,18 @@ in `unit`, and the `power` of the service points at it; the rest of the demand i
 profile that does not cover the case's `time` sets the time to the profile's own span and
 step, in the same call. The service's temperatures and the other series must fit the result:
 gemini rejects the case otherwise and nothing is stored.
+
+### `repair_series`
+
+Change a few rows of a series file (a bad day, a gap, a spike) without typing the series again:
+never retype a whole series in `save_profile` to fix some rows. `file` is the case's or the
+project's file, `rows` maps a time of its time column (or a date, or a 0-based row index) to a
+number or `{"calculation": "C..."}`, `column` names the value column of a file with several, and
+the result is stored as `data/<name>.csv`; every other row stays as it is. A file the case names
+is replaced in the case at once; a project file is kept for the next `set_case`, which names
+`data/<name>.csv` as its file. Example: `repair_series(file="data/demand.csv", rows={"2030-01-05":
+8.0, "2030-01-06": {"calculation": "C1a2b3c"}}, name="demand_fixed")`. At most 50 rows: more is a
+corrected file the user gives.
 
 ### `set_case`
 

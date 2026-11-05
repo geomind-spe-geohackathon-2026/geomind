@@ -410,3 +410,46 @@ async def test_the_same_call_refused_before_its_card_stops_the_run():
     assert (result.status, result.stop_reason) == ("failed", "error")
     assert "failed 3 times in a row" in result.message
     assert len(of_type(events, "tool.result")) == 3
+
+
+@tool(effect="write")
+async def note_then_fail(context, text: str):
+    """Change the problem state, then fail, as a nested run that failed after its set_case."""
+    from geomind.errors import ToolError
+
+    await context.session.change_state([{"op": "replace", "path": "/goal", "value": text}])
+    raise ToolError("note_then_fail: failed after writing", code="internal")
+
+
+class Noter(Agent):
+    """Reads, and writes the state with a call that fails."""
+
+    def __init__(self):
+        """Declare the tools."""
+        super().__init__()
+
+        # Prompt
+        self.prompt = Prompt.text("Work.")
+
+        # Tools
+        self.lookup = lookup
+        self.note_then_fail = note_then_fail
+        self.finish = finish
+
+
+async def test_a_read_after_a_failed_call_that_changed_the_state_runs_again():
+    """QA-319: a nested run failed after its write; the same read was answered from before it."""
+    from geomind.agents import Model
+
+    agent = Noter()
+    agent.model = Model("fake/model")
+    await run(
+        [
+            uses(call("lookup", "a", key="k")),
+            uses(call("note_then_fail", "b", text="x")),
+            uses(call("lookup", "c", key="k")),
+            says(),
+        ],
+        agent=agent,
+    )
+    assert EXECUTED == ["lookup", "lookup"]

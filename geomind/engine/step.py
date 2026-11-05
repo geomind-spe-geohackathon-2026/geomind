@@ -170,16 +170,23 @@ def same_result(session, agent, tool, call):
     Only a tool that ``repeats_same`` qualifies (a pure tool, or a write that sets its input such
     as ``set_ranges``), and only when no call of a tool that is not pure ran with success since:
     a write, a nested run or a server's tool may change what the call reads, so then it runs
-    again; so does an answered question whose ``on_answer`` may write (``_may_write``). A design lead sent one ``set_ranges`` call 37 times, 12.7k characters each.
+    again; so does an answered question whose ``on_answer`` may write (``_may_write``). A design
+    lead sent one ``set_ranges`` call 37 times, 12.7k characters each.
+    A change of the problem state since the call last ran (its ``version``, shared by the run
+    tree) also makes it run again: a nested run that failed after its ``set_case`` left the case
+    changed, and the project lead's ``read_case`` was answered from before it (QA-319).
     NOTE: a replay takes a recorded call as recorded (``_execute`` asks only without a recorded
     result), so an older log replays as it ran.
     """
     if not tool.repeats_same:
         return None
     key = call_key(call.name, call.input)
+    versions = session.__dict__.setdefault("read_versions", {})
+    version = getattr(session.state.problem, "version", None)
+    seen, versions[key] = versions.get(key), version
     succeeded = session.state.succeeded
     index = next((i for i in reversed(range(len(succeeded))) if succeeded[i].key == key), None)
-    if index is None:
+    if index is None or seen != version:
         return None
     later = {item.tool for item in succeeded[index + 1 :]}
     tools = session.tools_of(agent, sorted(later))
@@ -632,7 +639,9 @@ async def _retry_cut(session, agent):
     limit = runtime.get("max_output_tokens")
     tokens = session.state.cut_tokens
     early = isinstance(limit, int) and tokens < limit // 2
-    note = EARLY_CUT_NOTE.format(tokens=tokens, limit=limit) if early else CUT_NOTE.format(limit=limit)
+    note = (
+        EARLY_CUT_NOTE.format(tokens=tokens, limit=limit) if early else CUT_NOTE.format(limit=limit)
+    )
     calls = session.state.calls
     if not calls:
         await session.emit(
@@ -662,7 +671,9 @@ async def settle_interrupted(session, agent):
     for call in state.calls:
         tool = tools.get(call.name)
         is_open = call.id in state.started and call.id not in state.results
-        reruns = tool is not None and (tool.idempotent or getattr(tool, "reruns_after_crash", False))
+        reruns = tool is not None and (
+            tool.idempotent or getattr(tool, "reruns_after_crash", False)
+        )
         if is_open and not reruns:
             error = ToolError(
                 f"{call.name}: interrupted by a crash; it may have run in part", code="internal"

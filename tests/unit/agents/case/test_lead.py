@@ -14,6 +14,7 @@ TOOLS = [
     "set_case",
     "ask_economics",
     "save_profile",
+    "repair_series",
     "list_profiles",
     "read_profile",
     "read_stored",

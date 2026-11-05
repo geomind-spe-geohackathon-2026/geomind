@@ -285,6 +285,7 @@ class CaseLead(Agent):
         self.set_case = tools.gemini.set_case
         self.ask_economics = tools.gemini.ask_economics
         self.save_profile = tools.gemini.save_profile
+        self.repair_series = tools.gemini.repair_series
         self.list_profiles = tools.gemini.list_profiles
         self.read_profile = tools.gemini.read_profile
         self.read_stored = tools.read_stored
