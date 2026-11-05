@@ -66,7 +66,11 @@ async def test_usage_of_the_nested_run_adds_to_the_parent():
 
 
 async def test_failed_nested_run_is_an_error_result():
-    """The parent's model reads the failure and goes on."""
+    """The parent's model reads the failure and goes on.
+
+    In ``auto`` mode a run takes its steps again at the limit (QA-086), so the limit is met in
+    ``ask`` mode, where the user stops it.
+    """
     with runtime.settings(max_steps=2):
         result, _, events = await nested(
             [
@@ -74,7 +78,8 @@ async def test_failed_nested_run_is_an_error_result():
                 uses(call("lookup", "n1", key="k")),
                 uses(call("lookup", "n2", key="k")),
                 says("end"),
-            ]
+            ],
+            permissions=Permissions(mode="ask"),
         )
     assert result.answer == "end"
     parent_results = [e for e in of_type(events, "tool.result") if e.parent is None]
@@ -219,19 +224,19 @@ async def test_killed_after_the_nested_run_ended_is_not_stuck():
 
 
 async def test_crash_in_a_nested_run_keeps_its_usage_and_ends_it():
-    """The parent's model reads the interruption, and no spending is lost."""
+    """A restart resumes the nested run (QA-176/184/188); no spending is lost."""
     store = DyingStore("tool.result", True)
     start = context("lead the work")
     script = [uses(HELP), uses(call("lookup", "n1", key="k"))]
     auto = Permissions(mode="auto")
     with pytest.raises(Killed):
         await Engine(llm=FakeLLM(script), store=store, permissions=auto).run(Lead(), start)
-    fresh = Engine(llm=FakeLLM([says("end")]), store=store, permissions=auto)
+    fresh = Engine(llm=FakeLLM([says("found"), says("end")]), store=store, permissions=auto)
     result = await fresh.resume(start.run_id)
     events = store.load_events(start.run_id)
-    assert result.answer == "end" and result.usage.input_tokens == 30
+    assert result.answer == "end" and result.usage.input_tokens == 40
     nested_end = [e for e in of_type(events, "run.finished") if e.parent is not None]
-    assert [e.stop_reason for e in nested_end] == ["error"]
+    assert [e.stop_reason for e in nested_end] == ["answer"]
 
 
 async def test_step_usage_is_the_steps_own_call_and_the_running_total_has_the_nested_run():

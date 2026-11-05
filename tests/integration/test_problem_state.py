@@ -110,7 +110,11 @@ async def test_a_replay_rebuilds_the_state_too():
 
 
 async def test_a_nested_run_shares_the_state():
-    """A change in a child reaches the parent and the rebuilt log."""
+    """A change in a child reaches the parent and the rebuilt log.
+
+    The child's answer is kept as a finding of the state (QA-047): version 2, before the parent's
+    own note.
+    """
     script = [
         uses(call("helper", "c1", task="note it")),
         note(GOAL, call_id="n1"),
@@ -120,8 +124,10 @@ async def test_a_nested_run_shares_the_state():
     ]
     engine, start = await run_engine(script, Lead())
     events = engine.store.load_events(start.run_id)
-    assert [event.version for event in of_type(events, "state.changed")] == [1, 2]
-    assert recover(events).problem.goal == "Size the pump"
+    assert [event.version for event in of_type(events, "state.changed")] == [1, 2, 3]
+    problem = recover(events).problem
+    assert problem.goal == "Size the pump"
+    assert [item.summary for item in problem.findings] == ["noted"]
 
 
 async def test_a_run_without_a_chat_saves_no_state():

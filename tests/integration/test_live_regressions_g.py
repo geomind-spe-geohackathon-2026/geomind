@@ -78,11 +78,15 @@ def test_a_pdf_table_drawn_word_by_word_reads_as_rows():
 
 
 async def test_the_step_limit_waits_and_continue_gives_the_steps_again():
-    """A run at its step limit is not lost: it asks, and ``continue`` gives it as many again."""
+    """A run at its step limit is not lost: it asks, and ``continue`` gives it as many again.
+
+    In ``ask`` mode: in ``auto`` mode it takes its steps again by itself first (QA-086).
+    """
+    from geomind.engine import Permissions
     from geomind.engine.engine import STEP_OPTIONS
 
     script = [uses(call("lookup", f"c{index}", key="k")) for index in range(3)] + [says("done")]
-    result, engine, _ = await run(script, max_steps=2)
+    result, engine, _ = await run(script, max_steps=2, permissions=Permissions(mode="ask"))
     assert result.status == "waiting" and result.stop_reason == "request"
     assert [option.value for option in result.request.options] == list(STEP_OPTIONS)
     resumed = await engine.resume(result.run_id, result.request.id, {"text": STEP_OPTIONS[0]})
@@ -90,11 +94,12 @@ async def test_the_step_limit_waits_and_continue_gives_the_steps_again():
 
 
 async def test_stop_at_the_step_limit_ends_the_run_as_before():
-    """``stop`` ends it with ``step_limit`` and its answer from the record."""
+    """``stop`` ends it with ``step_limit`` and its answer from the record (``ask`` mode)."""
+    from geomind.engine import Permissions
     from geomind.engine.engine import STEP_OPTIONS
 
     script = [uses(call("lookup", f"c{index}", key="k")) for index in range(3)]
-    result, engine, _ = await run(script, max_steps=2)
+    result, engine, _ = await run(script, max_steps=2, permissions=Permissions(mode="ask"))
     resumed = await engine.resume(result.run_id, result.request.id, {"text": STEP_OPTIONS[1]})
     assert (resumed.status, resumed.stop_reason) == ("failed", "step_limit")
 
@@ -269,7 +274,10 @@ async def test_a_missing_case_value_in_a_plant_s_issues_says_how_to_get_it():
 
 
 async def test_a_plant_s_issues_are_compact_enough_to_stay_in_the_history():
-    """Round 2 re-read one read_plant result 29 times: its 110 issues took 30k characters."""
+    """Round 2 re-read one read_plant result 29 times: its 110 issues took 30k characters.
+
+    QA-175 adds the doublet's later design values to the first answer, so the bound is 24k.
+    """
     import json
 
     from geomind.tools.gemini.plants import read_plant
@@ -277,7 +285,7 @@ async def test_a_plant_s_issues_are_compact_enough_to_stay_in_the_history():
 
     output = (await dispatched(read_plant, {"plant_class": "HeatingHeatPumpCoolingPlant"})).output
     issues = output["issues"]
-    assert len(json.dumps(issues)) < 22000
+    assert len(json.dumps(issues)) < 24000
     first = next(item for item in issues if item["path"] == "params.d0.drainage_radius")
     assert first["units"] == "ft|in|km|m|mm" and not first["message"].startswith("d0.")
     assert read_plant.keeps_result

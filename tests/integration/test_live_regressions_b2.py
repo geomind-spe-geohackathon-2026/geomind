@@ -12,19 +12,19 @@ CALLS = json.loads(
 )
 
 
-async def test_a_control_given_as_a_parameter_says_where_it_goes():
-    """#76: gemini raised a bare KeyError, seen as ``internal``; 0.6.3 says it (request 27)."""
+async def test_a_control_given_as_a_parameter_is_moved_to_controls():
+    """#76: gemini raised a bare KeyError, seen as ``internal``. Since IMP-012 geomind moves the
+    control where it goes, so the call goes on to the module's own checks (request 27)."""
     error = (await call(evaluate_module, CALLS["control_as_parameter"])).output["error"]
-    assert error["code"] == "invalid_call" and error["path"] == "parameters.temperature_setpoint"
-    assert "give it in controls" in error["message"] and error["suggestions"] == ["controls"]
+    assert "temperature_setpoint" not in error["message"]
+    assert error["path"] != "parameters.temperature_setpoint"
 
 
-async def test_a_parameter_given_as_a_control_says_where_it_goes():
-    """A parameter in ``controls`` is not checked by gemini: geomind names the parameter it is."""
+async def test_a_parameter_given_as_a_control_is_moved_to_parameters():
+    """A parameter in ``controls`` is moved to ``parameters`` (IMP-012); the inlets come next."""
     tool_input = {"name": "HeatPump", "parameters": {}, "controls": {"capacity": 1}}
     error = (await call(evaluate_module, tool_input)).output["error"]
-    assert error["code"] == "invalid_input" and error["path"] == "controls.capacity"
-    assert "give it in `parameters`" in error["message"]
+    assert error["path"] == "inlets"
 
 
 async def test_an_unknown_parameter_names_the_module_s_parameters():
