@@ -154,10 +154,11 @@ async def test_fill_parts_refuses_a_brief_for_no_member():
     assert result.is_error and "reservoir_engineer" in str(result.output)
 
 
-def test_one_family_unless_a_comparison_is_asked():
-    """The first end-to-end run designed two families for a request that compared nothing."""
+def test_the_best_family_and_one_alternative_in_one_superstructure():
+    """QA-211: one family with one doublet, never searched, ended infeasible on 49 % gas."""
     text = " ".join(DesignLead().prompt.content.split())
-    assert "Design one family" in text and "not one design per family" in text
+    assert "at least one materially different alternative" in text
+    assert "not one design per family" in text
 
 
 def test_a_superstructure_is_searched_with_the_case_s_objectives():

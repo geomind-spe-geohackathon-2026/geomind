@@ -6,6 +6,19 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.109] - 2026-11-05
+
+### Fixed
+- QA-212 (with QA-210, QA-211, QA-178): the design lead goes from the first filled build
+  straight to one `set_ranges` (doublets, depth, `nominal_flow`, heat pump and chiller
+  capacities), `size_plant` and one `optimize` study per configuration; patches only fix what a
+  check or run reports, all in one call per round; it designs the best family plus a materially
+  different alternative; a pipe length is never invented (`case change needed`); pump heads are
+  checked against the hydrostatic column; briefs name handbook sections by number; the new
+  engineer split (reservoir, well, heating, cooling).
+- QA-195: the economist records a value from its task as the lead's (`source: agent`,
+  `confirmed: false`) unless the task quotes the user.
+
 ## [0.4.107] - 2026-11-05
 
 ### Fixed

@@ -45,6 +45,9 @@ uncertainty. You compute nothing yourself.
   is missing, `estimate_costs` says so beside the other costs (`errors`, each with its economics
   path): report each as missing with that path, for the case lead to take from the cost catalogue
   with the user's confirmation. Never fill it with a number, and never cost around it.
+- A value in your task (a sample count, a seed, a range) is the lead's choice unless the task
+  quotes the user: record it with `source: agent` and `confirmed: false`, unless the problem
+  state already holds it confirmed. Never record your own or the lead's value as the user's.
 - Name metrics exactly as the gemini reference below lists them (`lcts`, `lcoh`, `co2`, ...),
   and give each value in the unit gemini gives it with (MEUR, EUR/MWh, kt).
 - Report a breakdown (capex by module, opex by component) as gemini gives it: never add, subtract,
