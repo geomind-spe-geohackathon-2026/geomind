@@ -32,6 +32,8 @@ REPORT_KEYS = (
     "failed_steps",
 )
 COVERAGE_KEYS = ("heating_coverage", "cooling_coverage", "cop")
+USEFUL_KEYS = ("heat_useful", "heat_surplus", "cold_useful", "cold_surplus")
+"""The totals that split the delivered heat and cold into the part up to the demand and the rest."""
 CURVE_STEPS = 400
 """The steps the flows from zero to an ESP's ``maximum_flow`` are checked in (``curve_ranges``)."""
 
@@ -390,18 +392,31 @@ def explained_report(report):
     items = []
     for item in report.get("requirements") or ():
         value = item.get("value")
-        if isinstance(value, dict) and value.get("value") is None and value.get("reason") == "no value":
+        if (
+            isinstance(value, dict)
+            and value.get("value") is None
+            and value.get("reason") == "no value"
+        ):
             item = {**item, "value": {**value, "reason": reason}}
         items.append(item)
     return {**report, "requirements": items}
 
 
 def run_summary(plant, case, results, label):
-    """Return what the model reads of a run: steps, failures, totals in display units."""
+    """Return what the model reads of a run: steps, failures, totals in display units.
+
+    ``useful`` is the heat and cold up to the demand and what the water gave beyond it
+    (``*_surplus``), so the answer quotes the delivered figure the coverage uses (QA-226);
+    ``sources`` the geothermal, backup and unmet part of each service (QA-228).
+    """
     import gemini as gm
 
+    from geomind.tools.gemini.assessment import coverage_split
+    from geomind.tools.gemini.verification import displayed
+
     failures = gm.evaluate.failures(results).to_dict()
-    report = explained_report(gm.evaluate.report(plant, case, results).to_dict())
+    report_of = gm.evaluate.report(plant, case, results)
+    report = explained_report(report_of.to_dict())
     totals = gm.evaluate.totals(plant, case, results)
     times = results.to_frame().index
     return {
@@ -415,6 +430,8 @@ def run_summary(plant, case, results, label):
         "verdict": report["verdict"],
         "unmet": [item for item in report["requirements"] if item["passed"] is False],
         "coverage": {key: totals[key].to_dict() for key in COVERAGE_KEYS if key in totals},
+        "useful": displayed(report_of, {key: totals[key] for key in USEFUL_KEYS if key in totals}),
+        "sources": displayed(report_of, coverage_split(plant, case, results)),
     }
 
 

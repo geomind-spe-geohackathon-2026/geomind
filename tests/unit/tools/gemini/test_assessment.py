@@ -202,14 +202,13 @@ async def without_economics():
 
 @pytest.mark.parametrize("variant", ["base", "no_economics"])
 async def test_the_kpis_keep_the_shape_of_0_4_11(variant):
-    """Every key of 0.4.11 keeps its shape, and the one new key is ``errors``."""
+    """Every key of 0.4.11 keeps its shape; new keys (``errors``, the source split) add to it."""
     if variant == "base":
         output = (await assess(TOOLS.compute_kpis, "shallow_district")).output
     else:
         output = await without_economics()
-    assert {key: shape(value) for key, value in output.items() if key != "errors"} == (
-        SHAPE_0_4_11[variant]
-    )
+    kept = {key: shape(value) for key, value in output.items() if key in SHAPE_0_4_11[variant]}
+    assert kept == SHAPE_0_4_11[variant]
 
 
 async def test_a_kpi_the_case_cannot_give_is_in_errors_with_its_path():
@@ -254,3 +253,23 @@ def test_cost_figures_have_five_significant_digits():
 
     found = rounded({"capex": {"value": 23.955885571022524, "unit": "MEUR"}, "n": [{"value": 1.0}]})
     assert found == {"capex": {"value": 23.956, "unit": "MEUR"}, "n": [{"value": 1.0}]}
+
+
+@example_names
+def test_the_kpis_split_each_service_into_geothermal_backup_and_unmet(name):
+    """QA-228: the geothermal heat is gemini's coverage, never delivered heat less boiler heat."""
+    everything = assessed("compute_kpis", name, "base")
+    parts = [everything[f"{part}_heat"] for part in ("geothermal", "backup", "unmet")]
+    assert {item["unit"] for item in parts} == {"MWh"}
+    share = everything["geothermal_heat_share"]["value"]
+    demand = sum(item["value"] for item in parts)
+    assert share == pytest.approx(parts[0]["value"] / demand, rel=1e-3)
+
+
+async def test_a_cost_asked_of_compute_kpis_points_to_estimate_costs():
+    """QA-209: a cost name is refused with the tool that has it."""
+    result = await assess(TOOLS.compute_kpis, "shallow_district", names=["costs"])
+    message = result.output["error"]["message"]
+    assert result.output["error"]["code"] == "unknown_name"
+    assert "costs is a cost metric" in message and "estimate_costs" in message
+    assert "read_study" in message

@@ -21,6 +21,10 @@ COSTS = (
 )
 """The costs of ``estimate_costs``, all functions of ``gm.evaluate``."""
 
+COST_NAMES = (*COSTS, "costs")
+"""The names an agent may ask ``compute_kpis`` for that are costs: ``estimate_costs`` has them
+(QA-209)."""
+
 
 @tool(effect="compute", late_schemas={"reference": reference_schema("result")})
 def check_results(context, reference: str):
@@ -32,14 +36,49 @@ def check_results(context, reference: str):
 
 
 def kpi_values(plant, case, results):
-    """Return gemini's totals and the metrics of its report, ``{name: value in display units}``."""
+    """Return gemini's totals and the metrics of its report, ``{name: value in display units}``.
+
+    The split of each service by source (``coverage_split``) comes with them, so that no agent
+    derives the geothermal heat by subtraction (QA-228).
+    """
     import gemini as gm
 
     report = gm.evaluate.report(plant, case, results)
     totals = displayed(report, gm.evaluate.totals(plant, case, results))
+    split = displayed(report, coverage_split(plant, case, results))
     metrics = {name: item for name, item in report.to_dict().items() if name not in METRIC_EXCLUDED}
     errors = cost_errors(plant, case, results, metrics)
-    return {**totals, **metrics, **({"errors": errors} if errors else {})}
+    return {**totals, **split, **metrics, **({"errors": errors} if errors else {})}
+
+
+SPLIT = {"heating": "heat", "cooling": "cold"}
+"""The word of each service in the names of ``coverage_split``."""
+
+
+def coverage_split(plant, case, results):
+    """Return what covered each service over the run: geothermal, backup and unmet, and the share.
+
+    Summed from gemini's ``daily_coverage``, the figures the Results page shows: for heating
+    ``geothermal_heat``, ``backup_heat`` (the boilers, the CHP and an electric boiler),
+    ``unmet_heat`` [J] and ``geothermal_heat_share`` (geothermal over the demand, -); the same
+    with ``cold`` for cooling, where a compression chiller is backup. Geothermal heat of a heat
+    pump plant holds the compressor work too. A service the plant has no consumer for is left out.
+    """
+    import gemini as gm
+
+    found = {}
+    for service, days in gm.evaluate.daily_coverage(plant, case, results).items():
+        word = SPLIT[service]
+        sums = {
+            key: sum(day[key].si for day in days)
+            for key in ("demand", "geothermal", "backup", "short")
+        }
+        found[f"geothermal_{word}"] = gm.units.Quantity(sums["geothermal"], "J")
+        found[f"backup_{word}"] = gm.units.Quantity(sums["backup"], "J")
+        found[f"unmet_{word}"] = gm.units.Quantity(sums["short"], "J")
+        share = sums["geothermal"] / sums["demand"] if sums["demand"] > 0 else None
+        found[f"geothermal_{word}_share"] = gm.units.Quantity(share, "-")
+    return found
 
 
 def cost_errors(plant, case, results, metrics):
@@ -86,6 +125,15 @@ def compute_kpis(context, reference: str, names: list[str] | None = None):
     """
     found = kpi_values(*load_run(context, reference, "compute_kpis"))
     for name in names or ():
+        if name not in found and name in COST_NAMES:
+            raise ToolError(
+                f"compute_kpis: names = {list(names)}: {name} is a cost metric, which compute_kpis"
+                " does not have; costs (lcts, lcoh, lcoc, capex, opex, annualised_cost) come from"
+                f" estimate_costs, or from read_study for a study's metrics. Its names:"
+                f" {join_names(found)}",
+                code="unknown_name",
+                path="names",
+            )
         if name not in found:
             raise ToolError(
                 f"compute_kpis: names = {name!r}; expected one of {join_names(found)}"
@@ -151,9 +199,11 @@ def rounded(found):
     """
     if isinstance(found, dict):
         return {
-            key: float(f"{item:.{SIGNIFICANT}g}")
-            if key == "value" and isinstance(item, float)
-            else rounded(item)
+            key: (
+                float(f"{item:.{SIGNIFICANT}g}")
+                if key == "value" and isinstance(item, float)
+                else rounded(item)
+            )
             for key, item in found.items()
         }
     if isinstance(found, list):

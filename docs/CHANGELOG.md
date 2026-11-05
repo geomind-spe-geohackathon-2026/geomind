@@ -6,6 +6,17 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.119] - 2026-11-05
+
+### Fixed
+- QA-175, QA-171, QA-212: `build_plant`, `patch_plant` and `read_plant` name the values of every
+  stage at once (a doublet's whole design group, every supply setpoint the schedule reads on the
+  case, the binding and tear-stream values of a probe run), so one patch fills them all.
+- QA-228: `compute_kpis` gives `geothermal_heat`, `backup_heat`, `unmet_heat` and the share (and
+  the cooling ones) from gemini's daily coverage, never by subtracting; `simulate`'s summary
+  gives `useful` and `sources` (QA-226).
+- QA-209: `compute_kpis` asked for a cost metric it lacks names `estimate_costs`.
+
 ## [0.4.118] - 2026-11-05
 
 ### Fixed

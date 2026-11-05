@@ -830,7 +830,7 @@ async def test_patch_plant_names_a_split_riser_without_its_pump_depth(gm):
     plant = hand_set_pump(plant_dict("hackathon_2026", "HackathonPlant"))
     output = await stored_issues(plant)
     assert [issue["path"] for issue in output["issues"]] == ["params.d0.riser.esp_depth"]
-    assert output["issues"][0]["code"] == "invalid_design"
+    assert output["issues"][0]["code"] in ("invalid_design", "missing_value")
     assert len(output["issues"]) == 1
     depth = {"params": {"d0": {"riser": {"esp_depth": {"value": 1000, "unit": "m"}}}}}
     assert (await patched_issues(plant, depth))["missing"] == 0

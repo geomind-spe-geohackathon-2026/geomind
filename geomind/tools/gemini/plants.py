@@ -316,22 +316,45 @@ def plant_issues(context, plant):
 
     ``gm.check(plant, case)`` is the check that knows what the case fills (``d0.gradient`` empty
     takes it from the case); ``plant.check()`` alone lists such a value as missing. Every value
-    ``simulate`` needs is named: the schedule rules gemini's check passes (``rule_issues``), and,
-    once nothing else is missing, what only a run finds (``run_issues``). It runs a step of the
-    plant, so the tools call it off the event loop.
+    ``simulate`` needs is named: the schedule rules gemini's check passes (``rule_issues``), the
+    values gemini asks only at a later stage (``stages.later_issues``: a doublet's design values,
+    the schedule's supply setpoints), and, once nothing else is missing, what only a run finds
+    (``run_issues``, on a probe copy with stand-in setpoints). One patch then fills them all
+    (QA-175, QA-171, QA-212). It runs a step of the plant, so the tools call it off the event
+    loop.
     """
     import gemini as gm
 
+    from geomind.tools.gemini.stages import later_issues
+
     rules = rule_issues(plant)
     if context.problem.case is None:
-        found = [issue_dict(i) for i in plant.check()]
-        return {"checked_against": "plant", "issues": owned_first(context, found + rules)}
+        ruled = {rule["path"] for rule in rules}
+        found = [issue_dict(i) for i in plant.check() if i.problem()["path"] not in ruled] + rules
+        found += later_issues(plant, found)[0]
+        return {"checked_against": "plant", "issues": owned_first(context, found)}
     case = case_of(context)
     checked = gm.check(plant, case)
-    issues = [issue_dict(i) for i in checked] + rules
+    ruled = {rule["path"] for rule in rules}
+    issues = [issue_dict(i) for i in checked if i.problem()["path"] not in ruled] + rules
+    later, probe = later_issues(plant, issues, case)
     if not rules and all(issue.is_warning for issue in checked):
-        issues += run_issues(plant, case)
+        issues += later + probe_run_issues(plant, probe, case)
+    else:
+        issues += later
     return {"checked_against": "case", "issues": owned_first(context, issues)}
+
+
+def probe_run_issues(plant, probe, case):
+    """Return what a run finds: on ``plant``, or on ``probe`` when it stands in for setpoints.
+
+    A probe run's issues are kept only when they name a value the plant lacks (QA-175).
+    """
+    from geomind.tools.gemini.stages import lacking_values
+
+    if probe is None:
+        return run_issues(plant, case)
+    return lacking_values(run_issues(probe, case))
 
 
 def owned_first(context, issues):
