@@ -162,18 +162,15 @@ def _only_paths(text):
 
 
 def asking_new(request, found):
-    """Return ``request`` with the earlier answers under it.
+    """Return ``request`` as the user reads it, with a plain line when part was answered before.
 
-    The question keeps its text; a line under it gives each earlier answer. Only a question that
-    is nothing but a list of paths names the paths the user answers now: one with a confirmation
-    or other content is answered whole (E2E-11).
+    The user sees no note meant for the agent: no request id and no quote of their own answer
+    (QA-061). Only a question that is nothing but a list of paths gets one line naming the paths
+    answered before and those to answer now; any other question is answered whole (E2E-11).
     """
     new = sorted(named_paths(request.message) - set(found))
-    earlier = "; ".join(
-        f"{', '.join(paths)} ({question.id}): {text!r}"
-        for question, text, paths in _by_question(found)
-    )
-    note = f"\n\nAlready answered in this run, not asked again: {earlier}."
-    if new and _only_paths(request.message):
-        note += f" Answer only {', '.join(new)}."
+    if not (new and _only_paths(request.message)):
+        return request
+    done = sorted(set(found))
+    note = f"\n\nYou answered {', '.join(done)} earlier in this chat; answer only {', '.join(new)}."
     return request.model_copy(update={"message": request.message + note})

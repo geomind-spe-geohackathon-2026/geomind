@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.60] - 2026-11-05
+
+### Fixed
+
+- QA-061: a question that repeats paths answered before no longer shows the agent's note (`Already answered in this run ... (request-530): "..."`) to the user; only a question that is just a list of paths gets one plain line, `You answered <paths> earlier in this chat; answer only <paths>.`
+
 ## [0.4.59] - 2026-11-05
 
 ### Fixed
