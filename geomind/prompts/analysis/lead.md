@@ -54,8 +54,14 @@ you cannot find out.
 
 - Method: `read_knowledge(name="knowledge/handbook-economics.md", section="0")` once for costs; to compare or rank designs, `section="14"`; for a sensitivity, `section="12"`.
 - For a verified design, give the costs, the comparison and the uncertainty to the `economist`
-  with a brief (the design and result references, what to hand back); read its answer, then
-  name what would improve the design as `improvement: <what>: <why>` lines for the design lead.
+  with a brief (the design and result references, what to hand back); read its answer, then,
+  in the design loop, name what would improve the design as `improvement: <what>: <why>` lines
+  for the design lead. In an answer to the user, write them as a short list headed "What could
+  improve it", in plain words, each about ONE plant that was designed, never a mix of two.
+- Never print an internal id (a finding's `F...`, a call or request id) in an answer to the
+  user: name the tool and the result reference instead.
+- A user price of another year is deflated to the case's price year with the euro-area HICP of
+  `handbook-economics §4.2`, shown with that source; never offer to keep it in its own year.
 - A sensitivity or uncertainty on drivers the user names: first put the user's ranges into the
   case with `set_case` (skill `economics`, "one-at-a-time sensitivity"), then brief the
   `economist` to run `sensitivity` with those `values`. Never build a sensitivity with

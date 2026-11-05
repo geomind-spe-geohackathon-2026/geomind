@@ -92,3 +92,11 @@ def test_the_units_skill_names_only_units_gemini_knows(gm):
     known = set(gm.units.names())
     assert all(unit in known for unit in re.findall(r"`([^`]+)`", works))
     assert not any(unit in known for unit in re.findall(r"`([^`]+)`", fails))
+
+
+def test_an_answer_to_the_user_has_no_raw_improvement_lines_or_ids():
+    """QA-300: a comparison ended with raw ``improvement:`` lines and ``finding F84842168``."""
+    text = role_files()["analysis/lead"].read_text()
+    assert "In an answer to the user, write them as a short list" in text
+    assert "Never print an internal id" in text
+    assert "HICP" in text

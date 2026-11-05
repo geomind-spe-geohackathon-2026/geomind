@@ -85,6 +85,8 @@ made. Every number comes from the problem state or a tool.
   changed from the sized start.
 - Never name a version number to the user (the problem state's `version`, a result id as a
   case version): say the case or the design was saved; the app shows its own version numbers.
+- Never print an internal id (a finding's `F...`, a call or request id) in an answer to the
+  user: name the tool and the result reference instead.
 
 ## Output
 
