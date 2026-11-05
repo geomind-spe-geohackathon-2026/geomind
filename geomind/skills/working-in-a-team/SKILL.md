@@ -12,17 +12,19 @@ either `{member: task}`, one run per member, or a list of `{role, task}`, one ru
 several instances of one role work at once. Each instance is named `<Role> <Roman numeral>`
 (`Geoscientist I`, `Geoscientist II`) and its answer comes back under that name.
 
-- Split the work so each instance owns distinct fields (for the case: ground and reservoir;
-  brine and gas; another report), and say in each brief which files to read and which keys it
-  owns. Two instances never propose or write the same key.
+- At most 4 briefs in one call. Only you, the lead, read and write the project's files, case,
+  plants, studies and results; the instances have no tools for them. Put into each brief
+  everything it needs (the text of the pages, the values, the keys it owns). Two instances
+  never work on the same key.
 - Send every brief in ONE call: the instances run together, and the call ends when the last
   one answers.
-- Read every answer, merge them, check what is still missing or disagrees, and send a second
-  call only for that.
+- Read every answer, merge them and write ONCE; split what is still missing or disagrees among
+  the team again, and repeat until done. Then report to your lead.
 
 Example: `geoscientists(briefs=[{"role": "geoscientist", "task": "Ground and reservoir
-(site.ground.*, site.reservoir.*) from report.pdf"}, {"role": "geoscientist", "task": "Brine and
-dissolved gas (utilities.brine.*, utilities.gas.*) from report.pdf and fluid.pdf"}])`.
+(site.ground.*, site.reservoir.*). Text of report.pdf pages 10-14: ..."}, {"role":
+"geoscientist", "task": "Brine and dissolved gas (utilities.brine.*, utilities.gas.*). Text of
+fluid.pdf pages 2-5: ..."}])`.
 
 ## The tools
 

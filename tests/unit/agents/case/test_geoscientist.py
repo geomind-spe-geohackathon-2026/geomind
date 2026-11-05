@@ -9,12 +9,7 @@ from geomind.errors import OutputError
 from tests.unit.agents.structure import check_complete
 
 TOOLS = [
-    "list_files",
-    "read_rag",
-    "search_rag",
-    "read_case",
     "describe_case",
-    "read_stored",
     "search_memory",
     "read_memory",
     "finish",
@@ -46,7 +41,7 @@ def test_it_is_complete():
 def test_it_proposes_and_never_sets_the_case():
     """Only the case lead sets the case; the geoscientist reads files and the case."""
     tools = set(Geoscientist().tools())
-    assert "read_rag" in tools and "read_case" in tools
+    assert not tools & {"read_rag", "read_case", "list_files", "search_rag"}
     assert not tools & {"set_case", "save_profile", "update_state", "ask_user"}
 
 
@@ -100,9 +95,7 @@ async def test_the_case_lead_reads_the_findings_of_a_nested_run():
     assert json.loads(output)["values"][0]["source"]["page"] == 12
 
 
-def test_a_gap_is_searched_in_the_knowledge_base_then_mcp_before_it_is_missing():
-    """Sahand: what the reports lack comes from the knowledge base, then MCP, cited."""
+def test_a_gap_goes_to_missing_for_the_lead_to_search():
+    """IMP-025: the geoscientist reads no file; the case lead searches what the reports lack."""
     text = " ".join(Geoscientist().prompt.render().split())
-    order = ["(`search_rag`", "`read_mcp`", "Only when neither has it"]
-    assert [text.index(item) for item in order] == sorted(text.index(item) for item in order)
-    assert "`source.file` is `<server>/<tool>`" in text
+    assert "goes in `missing`" in text and "the case lead searches the knowledge base" in text

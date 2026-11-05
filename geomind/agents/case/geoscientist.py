@@ -67,7 +67,9 @@ class Geoscientist(Agent):
     """Extract the ground, reservoir, brine and dissolved-gas data from the project's reports.
 
     NOTE: it proposes values to the ``CaseLead`` with their page and quality and never sets the
-    case; a value no report gives is reported missing, never filled with a typical value.
+    case; a value no report gives is reported missing, never filled with a typical value. It
+    reads no file: the lead's brief holds the report text it works on (IMP-025: only a team lead
+    reads and writes the project's files).
     """
 
     def __init__(self):
@@ -78,12 +80,9 @@ class Geoscientist(Agent):
         self.prompt = Prompt("case/geoscientist", appendix=trees("case_compact"))
 
         # Tools
-        self.list_files = tools.list_files
-        self.read_rag = tools.read_rag
-        self.search_rag = tools.search_rag
-        self.read_case = tools.gemini.read_case
+        # Only the case lead reads and writes the project's files and the case: the lead puts
+        # the report text in the brief (user rule, IMP-025).
         self.describe_case = tools.gemini.describe_case
-        self.read_stored = tools.read_stored
         self.search_memory = tools.search_memory
         self.read_memory = tools.read_memory
         self.finish = tools.finish

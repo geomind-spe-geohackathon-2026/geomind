@@ -230,7 +230,8 @@ class TeamInput(Record):
 
 ROMAN = ("I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X")
 """The numerals of a member's instances, in brief order."""
-MAX_INSTANCES = len(ROMAN)
+MAX_INSTANCES = 4
+"""The most briefs one team call runs: a lead splits its task into at most four (user rule)."""
 
 
 def role_title(name):
@@ -298,6 +299,12 @@ class Team(Tool):
                 f"{', '.join(self.members)} that has work",
                 path="briefs",
             )
+        if len(briefs) > MAX_INSTANCES:
+            raise ToolError(
+                f"{self.name}: {len(briefs)} briefs; expected at most {MAX_INSTANCES}: merge "
+                "the smallest tasks",
+                path="briefs",
+            )
         answers = await asyncio.gather(
             *(self._member(context, name, task) for name, task in briefs.items())
         )
@@ -315,7 +322,8 @@ class Team(Tool):
             )
         if len(briefs) > MAX_INSTANCES:
             raise ToolError(
-                f"{self.name}: {len(briefs)} briefs; expected at most {MAX_INSTANCES}",
+                f"{self.name}: {len(briefs)} briefs; expected at most {MAX_INSTANCES}: merge "
+                "the smallest tasks",
                 path="briefs",
             )
         names = instance_names(briefs)

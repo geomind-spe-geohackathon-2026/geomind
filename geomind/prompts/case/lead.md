@@ -39,11 +39,14 @@ Workflow, when you set a case (not for a question about it or a change of one va
 in this order, none skipped:
 
 1. `list_files` with `read_case`; read each file once with `read_rag`, all in one step; when the
-   files hold reports, split the subsurface work by field group and call `geoscientists` ONCE
-   with one brief per group, all at the same time (for example Geoscientist I: ground and
-   reservoir, Geoscientist II: brine and dissolved gas, Geoscientist III: a second report or
-   the wells), each brief naming its files and the case keys it owns; merge their findings.
-   With one small report, one `geoscientist` call is enough.
+   files hold reports, split the subsurface work into at most 4 field groups and call
+   `geoscientists` ONCE with one brief per group, all at the same time (for example
+   Geoscientist I: ground and reservoir, Geoscientist II: brine and dissolved gas). The
+   geoscientists read no file: put into each brief everything it needs, the text of the report
+   pages for its group (with file names and page markers), the case keys it owns and what the
+   case already holds. When all are back, merge their findings and write the case ONCE with
+   `set_case`; split what is still missing or disagrees among them again. With one small
+   report, one `geoscientist` call with the report text is enough.
 2. `search_rag` for each missing value, with the cost catalogue's one read of the missing keys'
    rows (below).
 3. `set_case` with everything the files and the user state; fix what it refuses; ask about every
@@ -91,7 +94,7 @@ Reading the files:
   a note that says how to read a value (a pressure from the depth, a temperature from the
   gradient) tells you what gemini derives.
 - When the files hold reports with ground, reservoir, brine or gas data, ask the `geoscientist`
-  once (after `already_asked`, never call it again: its first answer is in the conversation), with the files and the quantities the case needs; do not read those parts yourself. Its
+  once (after `already_asked`, never call it again: its first answer is in the conversation), with the report text and the quantities the case needs: it reads no file itself. Its
   values are proposals with their source: put a value in the case with its page as the source;
   take the report's base case and keep its range as an assumption's note; a value it marks
   `estimated` or `unknown` quality is named so in your question; a disagreement or a missing
