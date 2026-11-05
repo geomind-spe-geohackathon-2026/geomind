@@ -29,7 +29,8 @@ class Assumption(Record):
 
     ``reason`` says why a value was chosen; ``citation`` holds the details of a published source,
     such as ``title``, ``publisher``, ``year``, ``price_year``, ``currency``, ``page`` or ``link``
-    and a ``note``, so the explainer and the export can show them.
+    and a ``note``, so the explainer and the export can show them. ``made_under`` is the geomind
+    and gemini versions of the run that wrote it (QA-346).
     """
 
     id: str
@@ -39,6 +40,7 @@ class Assumption(Record):
     confirmed: bool = False
     reason: str | None = None
     citation: dict[str, Any] | None = None
+    made_under: str | None = None
 
     @field_validator("citation", mode="before")
     @classmethod
@@ -85,7 +87,8 @@ class Finding(Record):
 
     The engine records one when a nested agent answers (``Delegate``): ``agent`` is the tool name,
     ``task`` the brief's start, ``summary`` the answer's start and ``reference`` the chat artifact
-    (``finding-...``) that ``read_stored`` reads whole.
+    (``finding-...``) that ``read_stored`` reads whole. ``made_under`` is the geomind and gemini
+    versions of the run that wrote it (QA-346).
     """
 
     id: str
@@ -93,6 +96,7 @@ class Finding(Record):
     task: str
     summary: str
     reference: str
+    made_under: str | None = None
 
 
 class Compaction(Record):
@@ -364,7 +368,50 @@ def apply_changes(state, changes):
         document = current.model_dump(mode="json")
         _apply_one(document, change)
         current = _validated(document)
-    return current.model_copy(update={"version": state.version + 1})
+    stamped = {name: _stamped(state, current, name) for name in STAMPED}
+    return current.model_copy(update={"version": state.version + 1, **stamped})
+
+
+STAMPED = ("assumptions", "findings")
+"""The items that record the versions they were made under (QA-346)."""
+
+
+def tools_version():
+    """Return ``geomind X / gemini Y`` of this process: gemini's loaded version, else metadata."""
+    import sys
+    from importlib import metadata
+
+    import geomind
+
+    gemini = getattr(sys.modules.get("gemini"), "__version__", None)
+    try:
+        gemini = gemini or metadata.version("gemini-geothermal-suite-open")
+    except metadata.PackageNotFoundError:
+        gemini = "unknown"
+    return f"geomind {geomind.__version__} / gemini {gemini}"
+
+
+def _stamped(before, after, name):
+    """Return the items ``name`` of ``after``; each one this patch wrote has its versions."""
+    earlier = {item.id: item for item in getattr(before, name)}
+    return tuple(
+        item.model_copy(update={"made_under": tools_version()})
+        if item.made_under is None and earlier.get(item.id) != item
+        else item
+        for item in getattr(after, name)
+    )
+
+
+def _older(item):
+    """Return the note of an item made under other versions than these, or ``""`` (QA-346).
+
+    A finding of an earlier geomind said a percentile did not exist after a fix made it exist,
+    and the economist believed the finding over the tool.
+    """
+    if item.made_under == tools_version():
+        return ""
+    made = item.made_under or "an earlier geomind"
+    return f" [made under {made}; check it against the current tools before you rely on it]"
 
 
 SHOWN_FINDINGS = 8
@@ -384,7 +431,8 @@ def _assumption_line(item):
     value = f" = {json.dumps(item.value)}" if item.value is not None else ""
     reason = f", because {item.reason}" if item.reason else ""
     cited = f"; source: {json.dumps(item.citation)}" if item.citation else ""
-    return f"Assumption {item.id} [{status}, {item.source}]: {item.text}{value}{reason}{cited}"
+    line = f"Assumption {item.id} [{status}, {item.source}]: {item.text}{value}{reason}{cited}"
+    return line + _older(item)
 
 
 def _result_line(item):
@@ -435,6 +483,7 @@ def render(state):
     lines += [f"Question {item.id}: {item.text}" for item in state.questions]
     lines += [
         f"Finding {item.id} ({item.agent}): {item.summary} (whole: read_stored {item.reference})"
+        f"{_older(item)}"
         for item in state.findings[-SHOWN_FINDINGS:]
     ]
     lines += [

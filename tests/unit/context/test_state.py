@@ -226,3 +226,17 @@ def test_removing_a_key_that_is_gone_changes_nothing():
     state = apply_changes(ProblemState(), [{"op": "add", "path": "/design/rejected", "value": []}])
     cleared = apply_changes(state, [{"op": "remove", "path": "/design/reference"}])
     assert cleared.design == {"rejected": []}
+
+
+def test_an_item_made_under_other_versions_is_marked_in_the_render():
+    """QA-346: a finding of an earlier geomind is marked; one of this run is not."""
+    from geomind.context.state import apply_changes, render, tools_version
+
+    finding = {"id": "F1", "agent": "economist", "task": "t", "summary": "no P10", "reference": "f"}
+    state = apply_changes(ProblemState(), [{"op": "add", "path": "/findings/-", "value": finding}])
+    assert state.findings[0].made_under == tools_version()
+    assert "made under" not in render(state)
+    old = state.model_copy(update={"findings": (state.findings[0].model_copy(
+        update={"made_under": "geomind 0.4.1 / gemini 0.6.0"}),)})
+    note = "made under geomind 0.4.1 / gemini 0.6.0; check it against the current tools"
+    assert note in render(old)

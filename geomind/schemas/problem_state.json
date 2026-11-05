@@ -2,7 +2,7 @@
   "$defs": {
     "Assumption": {
       "additionalProperties": false,
-      "description": "A value the work relies on, and where it came from.\n\n``reason`` says why a value was chosen; ``citation`` holds the details of a published source,\nsuch as ``title``, ``publisher``, ``year``, ``price_year``, ``currency``, ``page`` or ``link``\nand a ``note``, so the explainer and the export can show them.",
+      "description": "A value the work relies on, and where it came from.\n\n``reason`` says why a value was chosen; ``citation`` holds the details of a published source,\nsuch as ``title``, ``publisher``, ``year``, ``price_year``, ``currency``, ``page`` or ``link``\nand a ``note``, so the explainer and the export can show them. ``made_under`` is the geomind\nand gemini versions of the run that wrote it (QA-346).",
       "properties": {
         "citation": {
           "anyOf": [
@@ -25,6 +25,18 @@
         "id": {
           "title": "Id",
           "type": "string"
+        },
+        "made_under": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Made Under"
         },
         "reason": {
           "anyOf": [
@@ -147,7 +159,7 @@
     },
     "Finding": {
       "additionalProperties": false,
-      "description": "A teammate's whole answer, kept by reference so a later run never asks it again (QA-047).\n\nThe engine records one when a nested agent answers (``Delegate``): ``agent`` is the tool name,\n``task`` the brief's start, ``summary`` the answer's start and ``reference`` the chat artifact\n(``finding-...``) that ``read_stored`` reads whole.",
+      "description": "A teammate's whole answer, kept by reference so a later run never asks it again (QA-047).\n\nThe engine records one when a nested agent answers (``Delegate``): ``agent`` is the tool name,\n``task`` the brief's start, ``summary`` the answer's start and ``reference`` the chat artifact\n(``finding-...``) that ``read_stored`` reads whole. ``made_under`` is the geomind and gemini\nversions of the run that wrote it (QA-346).",
       "properties": {
         "agent": {
           "title": "Agent",
@@ -156,6 +168,18 @@
         "id": {
           "title": "Id",
           "type": "string"
+        },
+        "made_under": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Made Under"
         },
         "reference": {
           "title": "Reference",
