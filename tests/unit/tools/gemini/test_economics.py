@@ -564,3 +564,12 @@ def test_a_per_energy_map_with_an_open_kind_is_open_as_a_whole():
     assert set(open_keys) == {"opex.per_energy.compression_chiller", "opex.per_energy.boiler"}
     assert moved == ["opex.per_energy.boiler"]
     assert whole_per_energy(values, [])[2] == []
+
+
+def test_a_percent_given_as_a_whole_number_on_a_fraction_key_is_refused():
+    """QA-120: "8 %" was sent as discount_rate 8 with no unit, which reads as 800 %."""
+    from geomind.tools.gemini.economics import refuse_percents
+
+    with pytest.raises(ToolError, match="give 0.08"):
+        refuse_percents([EconomicsValue(key="discount_rate", value=8, source="user")])
+    refuse_percents([EconomicsValue(key="discount_rate", value=0.08, source="user")])

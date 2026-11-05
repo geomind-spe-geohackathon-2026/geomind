@@ -484,6 +484,32 @@ def per_energy_note(moved):
     )
 
 
+FRACTION_WORDS = ("rate", "share", "fraction")
+"""Words of an economics key that is a fraction with no unit: 0.08, never 8, for 8 %."""
+
+
+def refuse_percents(values):
+    """Raise for a fraction key given a number above 1 with no unit (QA-120: "8 %" sent as 8).
+
+    The key takes no unit, so 8 would be 800 %; converting is gemini's, so the model is told
+    the form instead: 0.08.
+    """
+    for item in values:
+        leaf = short(item.key).rsplit(".", 1)[-1]
+        number = item.value if isinstance(item.value, (int, float)) else None
+        if item.row or number is None or isinstance(number, bool):
+            continue
+        if any(word in leaf for word in FRACTION_WORDS) and number > 1 and not item.unit:
+            raise ToolError(
+                f"ask_economics: {short(item.key)} = {number} with no unit; the key is a fraction "
+                f"with no unit, so {number} reads as {number * 100:g} %. For {number:g} % give "
+                f"{number / 100:g}",
+                code="invalid_value",
+                path="values",
+                suggestions=[f'{{"key": "{short(item.key)}", "value": {number / 100:g}}}'],
+            )
+
+
 def prepared(values, open_keys, dropped=None):
     """Return ``(values, open keys, notes)`` of the question, or raise what the model must fix.
 
@@ -495,6 +521,7 @@ def prepared(values, open_keys, dropped=None):
     if dropped is not None:
         dropped += left_out
     values, open_keys = catalogue_basis(values, open_keys)
+    refuse_percents(values)
     values, notes = fitted_units(values)
     _checked(values, open_keys)
     return values, open_keys, notes
