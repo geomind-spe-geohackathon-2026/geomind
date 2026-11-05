@@ -175,7 +175,8 @@ def _raise_failed(tool_name, server, name, answer, limited, row):
 
 
 RATE_LIMIT_WAIT = 61
-"""Seconds a read-only call waits after a server's rate limit (Open-Meteo: "try again in one minute")."""
+"""Seconds a read-only call waits after a server's rate limit (Open-Meteo: "try again in one
+minute")."""
 RATE_LIMIT_RETRIES = 2
 """How often a rate-limited read-only call waits and is sent again (QA-050)."""
 RATE_LIMITED = re.compile(r"rate limit|limit exceeded|too many requests|try again in", re.I)

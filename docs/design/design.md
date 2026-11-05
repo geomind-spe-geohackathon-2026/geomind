@@ -159,7 +159,7 @@ Events therefore come in two groups: **public** (the SSE types of contracts.md s
 
 ### 11.2 Side effects only in two places
 
-LLM calls (`providers`) and tool calls (`tools.dispatch`) are the only side effects. Everything else in the engine and loops is deterministic code over the log. This is what lets a durable executor (Temporal, as Pydantic AI does) wrap them later without a redesign. Tools declare `idempotent`; after a crash, a started tool with no recorded result is rerun only if idempotent, otherwise it becomes an error result for the model.
+LLM calls (`providers`) and tool calls (`tools.dispatch`) are the only side effects. Everything else in the engine and loops is deterministic code over the log. This is what lets a durable executor wrap them later without a redesign. Tools declare `idempotent`; after a crash, a started tool with no recorded result is rerun only if idempotent, otherwise it becomes an error result for the model.
 
 ### 11.3 Async core, sync façade
 
@@ -188,7 +188,7 @@ class SandboxProvider(Protocol):
 
 ### 11.5 Permissions: declarative, in a fixed order
 
-Every tool declares an `effect`: `read`, `compute`, `write`, `execute` (sandbox code), `external` (network or anything outside the run). Each call is decided in one documented order, adapted from the Claude Agent SDK:
+Every tool declares an `effect`: `read`, `compute`, `write`, `execute` (sandbox code), `external` (network or anything outside the run). Each call is decided in one documented order, adapted from an agent harness we studied:
 
 1. `before_tool_call` hooks (may deny or request; an allow does not skip the rules);
 2. deny rules;
@@ -196,7 +196,7 @@ Every tool declares an `effect`: `read`, `compute`, `write`, `execute` (sandbox 
 4. allow rules (let a `write`, `execute` or `external` tool run without asking in `ask` mode; never override `readonly` or `plan`);
 5. the mode: `auto` (allow all), `ask` (ask for `write`, `execute`, `external`; the default), `readonly` (deny all but `read` and `compute`), `plan` (no tool runs; the agent only proposes).
 
-Allow rules come before the mode (unlike the Claude Agent SDK), because here the mode decides every remaining call; found by Claude Code's review of the S1 prompt. As built in S1, `readonly` and `plan` are checked before the ask rules, so approving an ask rule can never run a `write` tool in `readonly`.
+Allow rules come before the mode (unlike that harness), because here the mode decides every remaining call; found by Claude Code's review of the S1 prompt. As built in S1, `readonly` and `plan` are checked before the ask rules, so approving an ask rule can never run a `write` tool in `readonly`.
 
 `gd.Permissions(mode="ask", allow=[...], ask=[...], deny=[...])`, rules by tool name or effect. A decision is `Allow(input=None)` (optionally with a changed input), `Deny(reason)` or `Request`. `RequireApproval` becomes a shortcut for an ask rule. Every decision is a `permission` event, so the log shows why each tool ran.
 
