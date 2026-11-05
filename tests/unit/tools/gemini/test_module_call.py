@@ -32,7 +32,6 @@ def test_evaluate_module_fixes_slips_of_form(gm):
     assert len(notes) == 4
 
 
-
 def test_a_module_of_a_result_is_called_with_the_run_s_fluids_and_controls(gm, monkeypatch):
     """QA-269: heat_pump at a result's time gets each inlet's fluid and its scheduled setpoint."""
     from gemini.engine.apply import apply_case
@@ -54,3 +53,22 @@ def test_a_module_of_a_result_is_called_with_the_run_s_fluids_and_controls(gm, m
     assert controls["temperature_setpoint"]["unit"] == "K"
     assert any("schedule" in note for note in notes)
     gm.call(gm.modules.get(kind), parameters, inlets, controls, units="display", on_error="raise")
+
+
+def test_the_heat_pump_of_the_bug_s_plant_is_called_on_a_peak_day(gm, monkeypatch):
+    """QA-269: HackathonPlant's heat_pump at a January day of its result, the bug's own call."""
+    from gemini.engine.apply import apply_case
+
+    case = readable_case(*example_case("hackathon_2026"))
+    plant = example_plant("hackathon_2026", "HackathonPlant")
+    day = 27
+    results = gm.simulate(plant, case, plan=gm.schedule(plant, case).iloc[day : day + 1])
+    run = (plant, case, apply_case(plant, case))
+    shown = plant.to_dict(structure=True, units="display")
+    monkeypatch.setattr(fix, "plant_of", lambda *_: (shown, results, run))
+    kind, _, parameters, inlets, controls, _ = fix.prepared_call(
+        None, "heat_pump", (None, None, None), None, "result/x", "2027-01-28"
+    )
+    assert all("fluid" in stream for stream in inlets.values())
+    found = gm.call(gm.modules.get(kind), parameters, inlets, controls, units="display")
+    assert "outputs" in found
