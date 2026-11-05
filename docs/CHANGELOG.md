@@ -6,6 +6,14 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.87] - 2026-11-05
+
+### Fixed
+- QA-129: designing-a-plant: a free plant with one doublet `d0` searches `size.doublets` (gemini
+  0.6.15); an approved range is never dropped in silence; handbook-plant-design chapters 10, 11.
+- QA-132: reading-results: the flow range is judged on `<doublet>.reservoir.liquid_flow`; the
+  pump's intake volume flow counts free gas.
+
 ## [0.4.86] - 2026-11-05
 
 ### Fixed
