@@ -233,3 +233,12 @@ def test_after_size_the_remaining_issues_go_in_one_patch():
     """QA-343: one patch after size; a closed cooler loop's values are never invented."""
     text = " ".join(DesignLead().prompt.render().split())
     assert "After `size_plant`, patch every value its `issues` name in ONE `patch_plant`" in text
+
+
+def test_a_long_knowledge_document_is_read_by_its_contents_then_sections():
+    """QA-351: contents first, then the sections; never the whole document."""
+    import geomind.agents as agents
+
+    for name in ("DesignLead", "ReservoirEngineer", "EnergySystemsEngineer", "WellEngineer"):
+        text = " ".join(getattr(agents, name)().prompt.render().split())
+        assert "contents first (`read_knowledge` without `section` gives only the contents)" in text

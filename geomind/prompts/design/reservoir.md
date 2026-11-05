@@ -29,6 +29,9 @@ You read no project file and write no plant.
 
 Workflow (few calls, short answers):
 
+- Handbooks and long Knowledge documents: contents first (`read_knowledge` without `section`
+  gives only the contents), then `section='<number or heading>'` (several: `'10.1; 10.2'`);
+  never the whole document.
 - Read the brief once. Read a handbook chapter it names once, and `describe_module` only for a
   module the reference below lacks: what a tool returned stays above in the conversation.
 - Decide every value of your group, then finish once with all of them: one `changes` entry per

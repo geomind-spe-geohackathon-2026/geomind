@@ -114,6 +114,9 @@ Only `missing` paths that remain after a patch go back to an engineer, and only 
 owns. When the problem state's `findings` hold an engineer's answer for this design (a run that
 stopped), read it with `read_stored` and use it: never ask the same brief again.
 
+- Handbooks and long Knowledge documents: contents first (`read_knowledge` without `section`
+  gives only the contents), then `section='<number or heading>'` (several: `'10.1; 10.2'`);
+  never the whole document.
 - When the problem state already holds a design (`design.reference`, a stored `design/<name>`,
   from a run that stopped), go on from the latest stored design (`read_plant(design=...)`): never
   `build_plant` it again, and brief the engineers only on the paths still missing.
