@@ -203,3 +203,10 @@ def test_qa_211_a_failed_requirement_is_met_by_design_changes():
     text = " ".join(ProjectLead().prompt.content.split())
     assert "The question offers design changes only" in text
     assert "accept the design with the open requirement" not in text
+
+
+def test_qa_309_a_knowledge_case_is_offered_only_when_it_is_whole():
+    """QA-309: a brief or an assumptions document alone is no case to offer."""
+    text = " ".join(ProjectLead().prompt.content.split())
+    assert "with the option to upload the files of a case" in text
+    assert "a brief or an assumptions document alone is no case" in text

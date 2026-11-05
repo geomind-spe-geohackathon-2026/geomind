@@ -98,8 +98,10 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
   only files `list_files` lists: never "the project's case.json" or a data file that is not
   there. In an empty project (no files, no case), ask the user first, in ONE `ask_user`, for what
   only they have: where the site is (a place or coordinates), the demand (files to upload, or
-  the services with their power) and the services (heating, cooling), with the option to use
-  an example case of the Knowledge base; then brief the `case_lead` with the answer. A Knowledge
+  the services with their power) and the services (heating, cooling), with the option to upload
+  the files of a case. Offer a Knowledge case only when the Knowledge base holds that case whole
+  (a case.json with every data file it names); a brief or an assumptions document alone is no
+  case; then brief the `case_lead` with the answer. A Knowledge
   document written for one named case is that case's brief only when the user or the project's
   files name that case.
 - A brief to set the case asks for the whole case, its economics included, and leaves the
