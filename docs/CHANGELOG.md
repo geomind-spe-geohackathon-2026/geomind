@@ -6,6 +6,16 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.73] - 2026-11-05
+
+### Added
+
+- QA-081: `gd.errors.AlreadyAnsweredError` (a `RequestError`): `Run.resume` with the id of a request the run already settled raises it, so a caller that sent one answer twice treats the second as a no-op instead of failing the run. An unknown id is a plain `RequestError` as before.
+
+### Fixed
+
+- QA-087: `web_search` allows six searches per agent and run; each result says `searches_left`, and the next search is refused with the advice to propose a labelled assumption or name the gap. The `web-search` skill says three queries per value at most.
+
 ## [0.4.72] - 2026-11-05
 
 ### Fixed
