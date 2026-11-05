@@ -655,6 +655,36 @@ def zone_retry(error, files, columns):
     )
 
 
+RUNNING_REASON = (
+    "a supply temperature is judged while the supply runs: on a step with no demand the loop "
+    "carries no flow and its idle temperature is no supply"
+)
+
+
+def running_supply_temperatures(requirements):
+    """Return ``converted`` entries after judging supply temperatures only while running.
+
+    A per-step temperature on a heating or cooling supply checked ``always`` (or with no
+    ``when``) failed every zero-demand day, where the idle loop sits at its return (QA-091);
+    gemini's ``running`` (the module carried flow) is what the brief means. Edits in place.
+    """
+    converted = []
+    for item in requirements if isinstance(requirements, list) else ():
+        if not isinstance(item, dict) or item.get("quantity") != "temperature":
+            continue
+        if not str(item.get("on") or "").endswith("_supply") or item.get("over") != "each":
+            continue
+        if item.get("when") in (None, "always"):
+            converted.append({
+                "path": f"requirements.{item.get('name')}.when",
+                "from": {"value": item.get("when"), "unit": None},
+                "to": {"value": "running", "unit": None},
+                "reason": RUNNING_REASON,
+            })
+            item["when"] = "running"
+    return converted
+
+
 def edited_requirements(current, edits):
     """Return the requirement list with ``edits`` ``{name: dict | None}`` applied by name."""
     items = copy.deepcopy(current or [])
@@ -826,6 +856,9 @@ async def set_case(
         requirements, renamed = bridged_requirements(requirements)
         converted += renamed
         data["requirements"] = edited_requirements(data.get("requirements"), requirements)
+    if data.get("requirements"):
+        data["requirements"] = copy.deepcopy(data["requirements"])
+        converted += running_supply_temperatures(data["requirements"])
     contents = edited_economics(context, data, supplied, economics) if economics else supplied
     origin = given_case(context, source, (base, supplied), (data, contents))
     try:
