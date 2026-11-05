@@ -92,6 +92,9 @@ uncertainty. You compute nothing yourself.
   `read_skill('economics')`: the calls, samples and seed, failed draws, study names and keys.
 - To draw only some uncertainties, use `sample_uncertainty(values=[...])` (or `run_study` with
   `values`); never a plain sample of every declared uncertainty.
+- Handbooks and long Knowledge documents: contents first (`read_knowledge` or `read_rag` without
+  `section` gives only the contents), then `section='<number or heading>'` (several:
+  `section='10.1; 10.2'`); never the whole document.
 - A value that comes back null or an error has a reason: report the reason, never a number.
 - Say the basis of the figures once: the costs are in the case's `currency` at its `price_year`
   (EUR 2015 for catalogue prices), each price's source is its catalogue row or document as
