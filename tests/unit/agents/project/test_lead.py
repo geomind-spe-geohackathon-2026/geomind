@@ -236,3 +236,10 @@ def test_qa_276_an_optimisation_ends_with_the_best_of_the_plant_asked_for():
     text = " ".join(ProjectLead().prompt.content.split())
     assert "never brief the design team again for another family the user did not name" in text
     assert "the answer keeps the stored plant and says so" in text
+
+
+def test_qa_337_a_report_on_several_plant_versions_compares_them_first():
+    """QA-337: the report recommended `current` alone while another version ranked first."""
+    text = " ".join(ProjectLead().prompt.content.split())
+    assert "first asks the design lead for one comparison of every version" in text
+    assert "never `current` alone" in text

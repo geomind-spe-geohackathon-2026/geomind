@@ -45,6 +45,10 @@ Each tool's skill says how to call it; a tool's first result brings its skill.
   already has a plant version and a study with results needs no new design for a report, a
   question or an analysis: brief the `analysis_lead` or the `explainer` with those references
   (`design/v<version>`, the study name), never the `design_lead`.
+- A request for a report, a recommendation or the best design, on a project with more than one
+  plant version, first asks the design lead for one comparison of every version (`list_plants`
+  names them under `project_versions`); the report recommends the feasible version that
+  comparison ranks first and names the others with their numbers, never `current` alone.
 - A design the problem state already holds (`design.modules`, `design.owners`, a stored
   `design/<name>`) is work to go on with: a brief to the design team after a stopped,
   cancelled or interrupted run ("continue", or the same message again) names that design and
