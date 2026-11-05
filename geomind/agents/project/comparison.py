@@ -104,7 +104,8 @@ def study_task(request, families, designs):
         f"{request}\n\nThe alternatives are stored plants: {listed}. {REREAD} Compare them with "
         f"ONE run_study (designs {designs}, method minimize, prepare size); never build or retype "
         "them. Simulate each family's best for the whole year and check it. Add one entry per "
-        "family at /design/alternatives/-: {family, design, result, verdict, reason}, verdict "
+        "family at /design/alternatives/-: {family, design, result, verdict, reason}, family "
+        "exactly its id above (such as v1, no name after it), verdict "
         "'feasible' or 'infeasible' with the reason. Do not write design.reference, "
         "design.result or verification."
     )
@@ -166,9 +167,19 @@ def alternatives_table(design):
     return "\n".join(rows)
 
 
+def same_family(entry, family):
+    """Tell whether an alternative's ``family`` names the family id ``family``.
+
+    QA-278 retest: the study run wrote ``v1 HeatingFullCoolingPlant`` for family ``v1``; read as
+    another family, every version was marked failed and designed again one by one.
+    """
+    name = str(entry or "")
+    return name == family or any(name.startswith(f"{family}{mark}") for mark in (" ", ":", "_"))
+
+
 def has_entry(design, family):
     """Tell whether a family has its alternative in the state."""
-    return any(item.get("family") == family for item in design.get("alternatives") or ())
+    return any(same_family(item.get("family"), family) for item in design.get("alternatives") or ())
 
 
 def open_families(design):
@@ -393,7 +404,7 @@ class ComparisonDriver(DesignDriver):
         if last.get("limited") or note.get("limited"):
             return self.partial(design, note, index)
         if "retry" in last:
-            return self.retry(context, last, note, index)
+            return self.retry(context, calls, last, note, index)
         done = attempted(context.messages)
         pending = [item for item in open_families(design) if item.get("id") not in done]
         if pending:
@@ -404,8 +415,12 @@ class ComparisonDriver(DesignDriver):
         """Set aside a failed or infeasible family for another run, or return ``None`` (QA-251).
 
         A family whose run left no design, or an infeasible one, is run again with its reason,
-        as a rejected one is, while the loop's ``retries`` allow.
+        as a rejected one is, while the loop's ``retries`` allow. Never after one study over
+        every stored plant answered: its verdicts are the comparison (QA-278 retest: 30 min of
+        per-family runs after a 112 s study).
         """
+        if any(item.get("study") for item in notes(context.messages)):
+            return None
         for item in design.get("alternatives") or ():
             if item.get("verdict") not in REPAIRED:
                 continue
@@ -502,12 +517,24 @@ class ComparisonDriver(DesignDriver):
         changes = verdict_changes(design, family, verdict, reason)
         return act(note, index, "update_state", changes=changes)
 
-    def retry(self, context, last, note, index):
-        """Run a rejected family again, told why gemini rejected it."""
+    def retry(self, context, calls, last, note, index):
+        """Run a rejected family again, told why gemini rejected it.
+
+        A retry of a name that is no family id (an alternative named by the run, not the plan)
+        is no run: the comparison concludes (QA-278 retest: ``next`` raised StopIteration, the
+        driver crashed with ``internal``).
+        """
         design = context.problem.design or {}
         family = next(
-            item for item in design.get("families") or () if item.get("id") == last["retry"]
+            (
+                item
+                for item in design.get("families") or ()
+                if same_family(last["retry"], item.get("id"))
+            ),
+            None,
         )
+        if family is None:
+            return self.conclude(context, calls, design, note, index)
         task = family_task(request_of(context), family, last["failed"], last["attempt"])
         call = ToolCall(
             id=f"loop-{index}-family-retry", name="family_design_lead", input={"task": task}

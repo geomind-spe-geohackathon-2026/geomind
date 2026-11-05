@@ -80,3 +80,31 @@ def test_a_family_run_reads_the_case_once_and_keeps_its_stored_plant():
     task = family_task("Compare.", {"id": "v3", "summary": "x", "design": "design/v3"})
     assert "read_case at most once" in task
     assert "It is stored as design/v3" in task
+
+
+def test_qa_278_after_one_study_over_every_version_no_family_runs_again():
+    """QA-278 retest: named entries read as other families, then per-family runs and a crash."""
+    import json
+    from types import SimpleNamespace
+
+    from geomind.agents.project.comparison import has_entry, same_family
+    from geomind.agents.project.drivers import MARK
+
+    design = {
+        "families": [{"id": "v1", "summary": "full cooling", "design": "design/v1"}],
+        "alternatives": [
+            {"family": "v1 HeatingFullCoolingPlant", "verdict": "infeasible", "reason": "cold"}
+        ],
+    }
+    assert has_entry(design, "v1") and same_family("v1: plant", "v1")
+    assert not same_family("v10", "v1")
+    study = SimpleNamespace(
+        role="assistant", content=MARK + json.dumps({"round": 1, "batch": ["v1"], "study": True})
+    )
+    driver = ComparisonDriver()
+    driver._retries = 2
+    assert driver.repair(SimpleNamespace(messages=[study]), design, {"round": 1}, 3) is None
+    calls = [("explainer", "The comparison.")]
+    context = SimpleNamespace(messages=[], problem=SimpleNamespace(design=design))
+    move = driver.retry(context, calls, {"retry": "w9"}, {"round": 1}, 4)
+    assert move.tool_calls[0].name != "family_design_lead"
