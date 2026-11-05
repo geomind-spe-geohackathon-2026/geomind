@@ -108,3 +108,37 @@ def test_qa_278_after_one_study_over_every_version_no_family_runs_again():
     context = SimpleNamespace(messages=[], problem=SimpleNamespace(design=design))
     move = driver.retry(context, calls, {"retry": "w9"}, {"round": 1}, 4)
     assert move.tool_calls[0].name != "family_design_lead"
+
+
+def test_qa_353_a_denied_family_run_is_never_asked_again(monkeypatch):
+    """QA-353: three identical family_design_lead cards after the user denied them with words."""
+    import json
+    from types import SimpleNamespace
+
+    from geomind.agents.project import comparison, lead
+    from geomind.agents.project.drivers import MARK
+
+    words = "No new family run. Compare the families you have now and answer."
+    monkeypatch.setattr(
+        lead, "request_denials", lambda context: [("family_design_lead", "run", words)]
+    )
+    design = {
+        "families": [{"id": "a", "summary": "x"}, {"id": "b", "summary": "y"}],
+        "alternatives": [
+            {"family": "a", "verdict": "verified", "design": "design/a", "result": "result/a"},
+            {"family": "b", "verdict": "failed", "reason": "denied"},
+        ],
+    }
+    note = SimpleNamespace(
+        role="assistant", content=MARK + json.dumps({"round": 1, "batch": ["a"]})
+    )
+    context = SimpleNamespace(
+        session=object(), messages=[note], problem=SimpleNamespace(design=design)
+    )
+    monkeypatch.setattr(comparison, "request_of", lambda _: "Compare.")
+    driver = comparison.ComparisonDriver()
+    driver._retries = 2
+    move = driver.next_move(context, [("family_design_lead", words)], {"round": 1}, 5)
+    assert all(call.name != "family_design_lead" for call in move.tool_calls)
+    assert driver.repair(context, design, {"round": 1}, 5) is None
+    assert words in comparison.denial_text(comparison.denied_runs(context))

@@ -282,6 +282,35 @@ def explanation_task(context):
     )
 
 
+def denied_runs(context):
+    """Return the user's words of each denied family run in this request, ``""`` for none (QA-353).
+
+    The user denied the driver's ``family_design_lead`` three times, with "compare the families
+    you have now and answer"; the driver read only the call's output and asked again. The words
+    are in the request's events, which every run of the tree logs under the root.
+    """
+    from geomind.agents.project.lead import request_denials
+
+    if getattr(context, "session", None) is None:
+        return []
+    return [
+        words or "" for tool, _, words in request_denials(context) if tool == "family_design_lead"
+    ]
+
+
+def denial_text(denied):
+    """Return the sentence that tells the explainer the user stopped the family runs, or ``""``."""
+    if not denied:
+        return ""
+    words = "; ".join(f"'{item}'" for item in denied if item)
+    return (
+        "\n\nThe user denied further family runs"
+        + (f", with the words {words}" if words else "")
+        + ": compare only the families that have results, say which have none and why, and "
+        "follow the user's words."
+    )
+
+
 def family_design_lead():
     """Return a design lead for one family's run beside the others: it asks nobody.
 
@@ -403,6 +432,8 @@ class ComparisonDriver(DesignDriver):
         last = notes(context.messages)[-1]
         if last.get("limited") or note.get("limited"):
             return self.partial(design, note, index)
+        if denied_runs(context):
+            return self.check_next(context, calls, design, note, index)
         if "retry" in last:
             return self.retry(context, calls, last, note, index)
         done = attempted(context.messages)
@@ -421,6 +452,8 @@ class ComparisonDriver(DesignDriver):
         """
         if any(item.get("study") for item in notes(context.messages)):
             return None
+        if denied_runs(context):
+            return None
         for item in design.get("alternatives") or ():
             if item.get("verdict") not in REPAIRED:
                 continue
@@ -433,6 +466,8 @@ class ComparisonDriver(DesignDriver):
 
     def retry_move(self, context, design, family, reason, note, index):
         """Return the move that drops a family's entry to run it again, or ``None`` past retries."""
+        if denied_runs(context):
+            return None
         used = sum(item.get("retry") == family for item in notes(context.messages))
         if used >= (self._retries or 0):
             return None
@@ -560,7 +595,8 @@ class ComparisonDriver(DesignDriver):
             if changes:
                 return act(final, index, "update_state", changes=changes)
         if "explainer" not in called:
-            return act(note, index, "explainer", task=explanation_task(context))
+            task = explanation_task(context) + denial_text(denied_runs(context))
+            return act(note, index, "explainer", task=task)
         output = calls[-1][1]
         reason = "compared" if has_verified else "no_verified"
         answer = f"{output}\n\n{MARK}stop: {reason}"
