@@ -875,3 +875,34 @@ async def test_a_case_with_no_country_gets_no_national_tariff_or_scheme():
     asked = ToolCall(id="q", name="ask_economics", input={"values": [subsidy]})
     refused = await dispatch(ask_economics, asked, context)
     assert refused.is_error and "names no country" in refused.output["error"]["message"]
+
+
+async def test_a_value_of_the_agent_s_own_is_refused_and_a_catalogue_value_takes_its_row():
+    """QA-320 retest: nine values went to the card as "agent": four rows unnamed, five invented."""
+    from geomind.tools import dispatch
+    from geomind.types import ToolCall
+
+    context = case_document_context(CatalogueWorkspace())
+    boiler = {
+        "key": "opex.per_energy.boiler",
+        "value": 1.1,
+        "unit": "EUR/MWh",
+        "source": "agent",
+    }
+    asked = ToolCall(id="q", name="ask_economics", input={"values": [boiler]})
+    request = await dispatch(ask_economics, asked, context)
+    assert isinstance(request, Request), request
+    line = next(
+        line for line in request.message.splitlines() if "opex.per_energy.boiler =" in line
+    )
+    assert "row per-energy-boiler-gas-dea-ch44" in line
+    chiller = {
+        "key": "opex.per_energy.compression_chiller",
+        "value": 2,
+        "unit": "EUR/MWh",
+        "source": "engineering assumption",
+    }
+    asked = ToolCall(id="q", name="ask_economics", input={"values": [chiller]})
+    refused = await dispatch(ask_economics, asked, context)
+    assert refused.is_error
+    assert "opex.per_energy.compression_chiller" in refused.output["error"]["message"]

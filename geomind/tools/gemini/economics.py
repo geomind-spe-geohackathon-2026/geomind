@@ -712,6 +712,64 @@ MARKET_KEYS = ("revenue.",)
 travels: a named row of another country is refused for them (QA-320)."""
 
 
+AGENT_SOURCE = re.compile(
+    r"^\W*(?:the\s+|my\s+|our\s+)?(?:agent|assum|engineering|estimat|guess|best guess|own|"
+    r"typical|default|judg)",
+    re.IGNORECASE,
+)
+"""A source that is the agent itself: no document, row, file or user gives the value (QA-320)."""
+
+
+def is_agent_source(source):
+    """Tell whether a value's source is the agent's own word, not a document, row or user."""
+    return bool(AGENT_SOURCE.match(str(source or "")))
+
+
+def row_of_value(rows, key, value):
+    """Return the id of the catalogue row of ``key`` whose 2015 value is ``value``, or ``None``."""
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    for row_id, row in (rows or {}).items():
+        if row.get("path") != f"economics.{key}":
+            continue
+        found = _number(row.get("value_2015"))
+        if isinstance(found, (int, float)) and abs(found - number) <= 1e-9 * max(1, abs(number)):
+            return row_id
+    return None
+
+
+def own_values(context, values):
+    """Return ``values`` with a value the catalogue gives cited by its row; refuse the agent's own.
+
+    QA-320: nine values went to the card as "agent", "no row": four were catalogue rows the lead
+    did not name, five (a subsidy, chiller per-energy costs) were invented. A value equal to a
+    row of its key takes that row; one whose source is still the agent's own word is refused,
+    so the key stays open unless a document, a row or the user gives it.
+    """
+    rows = catalogue_rows(context)
+    found, own = [], []
+    for item in values:
+        if item.value is None or item.row or not is_agent_source(item.source):
+            found.append(item)
+            continue
+        row = row_of_value(rows, short(item.key), item.value)
+        if row is None:
+            own.append(short(item.key))
+            continue
+        found.append(item.model_copy(update={"row": row, "source": None}))
+    if own:
+        raise ToolError(
+            f"ask_economics: {', '.join(own)} have the agent as their source and no row, "
+            "document or user gives them; expected each in open (no value), or its value with "
+            "the row, document or user that gives it; never a value of your own",
+            code="invalid_input",
+            path="values",
+        )
+    return found
+
+
 def refuse_foreign_rows(values, country):
     """Refuse a named revenue row of another country than the site's, or of any with none.
 
@@ -1194,7 +1252,7 @@ def ask_economics(
     """
     dropped, skipped, sited = [], [], {}
     values, open_keys = recommended(context, list(values), list(open or []), country, sited)
-    values = with_ranges(context, from_catalogue(context, values, skipped))
+    values = with_ranges(context, from_catalogue(context, own_values(context, values), skipped))
     refuse_other_sources(context, values)
     refuse_foreign_rows(values, sited.get("country"))
     _, _, moved = whole_per_energy(*given_values(values, list(open_keys)))
