@@ -142,6 +142,7 @@ class Delegate(Tool):
             asked.add(key)
         max_steps = required_setting(self.steps, self.name) if self.steps else None
         beside = beside or self.runs_beside
+        seen = len(tree_events(context.session))
         for attempt in range(NESTED_RETRIES + 1):
             if self.limit is None:
                 result = await context.session.delegate(
@@ -158,6 +159,7 @@ class Delegate(Tool):
         outcome = self.outcome(result, context.session.child_limit)
         if result.request is None:
             await self.record_finding(context.session, task, result)
+            outcome = with_denials(outcome, tree_events(context.session)[seen:])
         return outcome
 
     async def record_finding(self, session, task, result):
@@ -215,6 +217,47 @@ class Delegate(Tool):
         tokens = self.max_summary_tokens or runtime.get("delegate_summary_tokens")
         answer = result.answer if isinstance(result.answer, str) else json.dumps(result.answer)
         return answer[: tokens * CHARACTERS_PER_TOKEN]
+
+
+def tree_events(session):
+    """Return the events of the request's run tree, or ``[]`` when the session keeps none."""
+    try:
+        return list(session.engine.store.load_events(session.state.root))
+    except AttributeError:
+        return []
+
+
+DENIED_INPUT_CHARS = 300
+"""How much of a denied call's input the parent reads beside the user's words."""
+
+
+def with_denials(answer, events):
+    """Return a nested answer with each user denial of its run, so the parent sees it (QA-288).
+
+    The design lead obeyed "Do not change or search the plant"; the project lead read only its
+    summary, saw a pick where it had asked a search, and briefed the search again. Each denial is
+    one line: the tool, what the call sent and the user's words.
+    """
+    inputs = {}
+    lines = []
+    for event in events:
+        call = getattr(event, "call", None)
+        if event.type == "request" and call is not None:
+            inputs[call.id] = call.input
+        if (
+            event.type == "permission"
+            and event.decision == "deny"
+            and event.rule == "user"
+        ):
+            sent = json.dumps(inputs.get(getattr(event, "call_id", None)), default=str)
+            words = f": {event.reason!r}" if event.reason else ""
+            lines.append(
+                f"- The user denied {event.tool} ({sent[:DENIED_INPUT_CHARS]}){words}. This is "
+                "the user's instruction for this request: never brief the denied work again."
+            )
+    if not lines or not isinstance(answer, str):
+        return answer
+    return answer + "\n\nDenied by the user in this work:\n" + "\n".join(dict.fromkeys(lines))
 
 
 class Brief(Record):

@@ -83,3 +83,9 @@ async def test_qa_266_a_newer_saved_case_routes_to_the_project_loop_by_rule():
     assert "175 mD" in route.task
     same = chat_with({"value": 150, "unit": "mD"})
     assert project_case_changes(same) == [] and not has_project_case(same)
+
+
+def test_qa_280_the_task_keeps_the_user_s_scope():
+    """QA-280: an economics request naming a place never becomes a siting task."""
+    text = " ".join(Coordinator().prompt.content.split())
+    assert "Keep the user's scope in the task in their words" in text

@@ -6,6 +6,14 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+### Fixed
+- QA-288: a denied write under a new name is refused with the user's words; a nested answer carries
+  each user denial of its run.
+- QA-284: read_case says when the project's saved case differs from the chat's.
+- QA-224: loading the user's saved case asks no card; loading it when it is the chat's is a no-op.
+- QA-154: an economics uncertainty of another kind replaces the old one whole.
+- QA-280: the coordinator keeps an economics request that names a place an economics request.
+
 ## [0.4.129] - 2026-11-05
 
 ### Fixed

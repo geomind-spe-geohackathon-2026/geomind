@@ -897,3 +897,29 @@ async def test_an_exact_ratio_on_each_step_asks_for_its_tolerance():
     result = await edited(session, problem, {"requirements": {"reinjection": ratio}})
     assert result.is_error is False, result.output
     assert "reinjection" in result.output["check_requirements"]
+
+
+async def test_read_case_says_when_the_project_s_saved_case_differs():
+    """QA-284: a case saved by hand on the Case page reached no agent; read_case now says so."""
+    session, problem = await loaded("shallow_district")
+    same = await call(read_case, {"section": "site"}, session, "p", problem)
+    assert "project_case" not in same.output
+    saved, files = copy.deepcopy(example_case("shallow_district"))
+    saved["site"]["ground"]["gradient"] = {"value": 35, "unit": "K/km"}
+    session.workspace.cases["p"] = (saved, files)
+    output = (await call(read_case, {"section": "site"}, session, "p", problem)).output
+    assert output["chat_case"]["ground"]["gradient"]["value"] != 35
+    paths = [item["path"] for item in output["project_case"]["differs"]]
+    assert paths == ["site.ground.gradient"]
+    assert "set_case(source='project')" in output["project_case"]["note"]
+
+
+async def test_an_uncertainty_of_another_kind_replaces_the_old_one_whole():
+    """QA-154: a uniform over the case's normal kept its ``std`` and gemini refused it."""
+    session, problem = await loaded("hackathon_2026")
+    uniform = {"kind": "uniform", "min": 0.02, "max": 0.08}
+    patch = {"discount_rate": {"uncertainty": uniform}}
+    result = await edited(session, problem, {"economics": patch})
+    assert result.is_error is False, result.output
+    stored = json.loads(session.artifacts["case/economics.json"])
+    assert stored["discount_rate"]["uncertainty"] == uniform

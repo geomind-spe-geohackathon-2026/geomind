@@ -47,6 +47,31 @@ ECONOMICS_FILE = "economics.json"
 FILE = ".file"
 
 
+def replaced_uncertainties(target, patch):
+    """Return ``patch`` with each ``uncertainty`` whose ``kind`` changes set whole (QA-154).
+
+    A merge patch keeps the keys it does not name, so a ``uniform`` over a ``normal`` kept its
+    ``std`` and gemini refused it. An uncertainty of another kind is a new one: every key of the
+    old kind the patch does not set is removed (``null``).
+    """
+    if not isinstance(patch, dict) or not isinstance(target, dict):
+        return patch
+    result = {}
+    for key, value in patch.items():
+        old = target.get(key)
+        if (
+            key == "uncertainty"
+            and isinstance(value, dict)
+            and isinstance(old, dict)
+            and value.get("kind") is not None
+            and value.get("kind") != old.get("kind")
+        ):
+            result[key] = {**{name: None for name in old}, **value}
+        else:
+            result[key] = replaced_uncertainties(old, value)
+    return result
+
+
 def merge_patch(target, patch):
     """Return ``target`` with the RFC 7386 JSON merge patch applied; ``target`` stays as it was."""
     if not isinstance(patch, dict):
@@ -955,13 +980,14 @@ def edited_economics(context, data, supplied, patch):
     patch = sourced_patch(patch)
     named = data.get("economics")
     if isinstance(named, dict):
+        patch = replaced_uncertainties(named, patch)
         data["economics"] = without_empty_sources(merge_patch(named, patch))
         return supplied
     name = checked_name(named or ECONOMICS_FILE)
     data["economics"] = name
     current = file_contents(context, data, supplied).get(name)
     content = json.loads(current) if current is not None else economics_header(data)
-    content = without_empty_sources(merge_patch(content, patch))
+    content = without_empty_sources(merge_patch(content, replaced_uncertainties(content, patch)))
     text = json.dumps(content, indent=2, ensure_ascii=False)
     return {**supplied, name: text.encode()}
 
@@ -1381,6 +1407,17 @@ def read_case(context, section: str | None = None):
     if section == "schema":
         return {**gm.Case.schema(), "economics_schema": gm.case.Economics.schema()}
     data = state_case(context)
+    found = case_section(context, data, section)
+    notice = project_case_notice(context, data)
+    if notice is None:
+        return found
+    return {"project_case": notice, "chat_case": found}
+
+
+def case_section(context, data, section):
+    """Return the state's case ``data``, one of its sections or its economics, for ``read_case``."""
+    import gemini as gm
+
     if section is None:
         return data
     if section == "economics" and not data.get("economics"):
@@ -1397,6 +1434,66 @@ def read_case(context, section: str | None = None):
             path="section",
         )
     return data[section]
+
+
+def economics_content(data, files):
+    """Return the economics of a case dict with its files: inline, its file's JSON, or ``None``."""
+    named = data.get("economics")
+    if isinstance(named, dict) or named is None:
+        return named
+    content = files.get(named)
+    try:
+        return json.loads(content) if content is not None else None
+    except ValueError:
+        return None
+
+
+def project_case_notice(context, data):
+    """Return what ``read_case`` says when the project's saved case differs from the chat's.
+
+    QA-284: the user saved the discount rate 0.07 on the Case page (case version 5); the chat's
+    state kept its own case of version 4, and read_case gave 0.06. The project's latest case is
+    compared, economics included; a difference is said with its paths and the call that loads it,
+    and nothing is loaded without the user's approval, since the chat's case may hold changes.
+    """
+    workspace = context.session.workspace
+    if workspace is None or context.project is None:
+        return None
+    try:
+        found = workspace.case(context.project)
+        mine = file_contents(context, data, {})
+    except (OSError, ValueError, ToolError):
+        return None
+    if found is None:
+        return None
+    saved, files = found
+    before = case_leaves({**data, "economics": economics_content(data, mine)})
+    after = case_leaves({**saved, "economics": economics_content(saved, files)})
+    paths = [path for path in sorted(set(before) | set(after)) if before.get(path) != after.get(path)]
+    if not paths:
+        return None
+    version = current_case_version(context)
+    shown = f"version {version}" if version is not None else "the latest version"
+    changed = [{"path": path, "chat": before.get(path), "saved": after.get(path)} for path in paths]
+    return {
+        "differs": changed[:20],
+        "note": (
+            f"the project's saved case ({shown}) differs from this chat's case at {len(paths)} "
+            "paths, listed here: the user or another chat saved it, or this chat holds changes "
+            "not saved. Say so in the answer, and call set_case(source='project') to load the "
+            "saved case (the user approves it on a card) before you answer from either"
+        ),
+    }
+
+
+def current_case_version(context):
+    """Return the version of the project's saved case from its state, or ``None`` when unknown."""
+    read = getattr(context.session.workspace, "project_state", None)
+    try:
+        state = read(context.project) if read is not None else None
+    except (OSError, ValueError):
+        return None
+    return state.get("case_version") if isinstance(state, dict) else None
 
 
 def profile_csv(frame, name, values):

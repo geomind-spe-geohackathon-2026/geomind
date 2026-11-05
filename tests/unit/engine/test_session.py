@@ -282,6 +282,25 @@ def test_a_denial_with_a_change_lets_a_revised_call_be_asked():
     assert earlier_denial(plain, "set_case", revised) == "denied by the user"
 
 
+def test_the_same_denied_write_under_a_new_name_is_refused():
+    """QA-288: set_ranges with the same ranges came back as hp_range and hp_capacity_search."""
+    from types import SimpleNamespace
+
+    from geomind.engine.session import earlier_denial
+
+    ranges = {"design": "design/v1", "ranges": {"heat_pump.capacity": [3, 15]}}
+    first = SimpleNamespace(id="c1", input={**ranges, "name": "a"})
+    events = [
+        SimpleNamespace(type="request", call=first),
+        SimpleNamespace(type="permission", decision="deny", rule="user", tool="set_ranges",
+                        call_id="c1", reason="Do not change or search the plant."),
+    ]
+    reason = "Do not change or search the plant."
+    assert earlier_denial(events, "set_ranges", {**ranges, "name": "b"}) == reason
+    other = {**ranges, "ranges": {"heat_pump.capacity": [3, 10]}, "name": "b"}
+    assert earlier_denial(events, "set_ranges", other) is None
+
+
 def test_a_set_case_from_the_project_names_its_version_and_changes():
     """QA-224: the card of set_case(source='project') says which version and what changes."""
     from types import SimpleNamespace
@@ -333,3 +352,34 @@ def test_the_write_lesson_card_lists_every_entry_with_its_text():
     entry = {"id": "all-a", "kind": "lesson", "role": "all", "text": "Read.", "source": "gemini"}
     text = call_summary("write_lesson", {"lessons": [entry, {**entry, "id": "all-b"}]})
     assert text.startswith("Keep 2 entries") and "all-b (lesson for all, from gemini)" in text
+
+
+def test_loading_the_saved_case_asks_no_card_and_is_a_no_op_when_it_is_the_chat_s():
+    """QA-224: set_case(source='project') loads what the user saved: no approval card."""
+    from types import SimpleNamespace
+
+    from geomind.engine.session import SAVED_CASE_LOADED, RunSession
+    from geomind.stores import MemoryWorkspace
+    from geomind.types import Allow, Deny
+
+    saved = {"name": "c", "economics": "economics.json"}
+    files = {"economics.json": b"{}"}
+    artifacts = {"case/economics.json": b"{}"}
+
+    def session(case):
+        state = SimpleNamespace(project="p", problem=SimpleNamespace(case=case))
+        stub = SimpleNamespace(
+            engine=SimpleNamespace(workspace=MemoryWorkspace(cases={"p": (saved, files)})),
+            state=state,
+            load_artifact=artifacts.get,
+        )
+        stub._same_case_files = lambda found: RunSession._same_case_files(stub, found)
+        return stub
+
+    decision, rule = RunSession._saved_case(session(dict(saved)))
+    assert isinstance(decision, Deny) and decision.reason == SAVED_CASE_LOADED
+    assert rule == "user-saved:same"
+    decision, rule = RunSession._saved_case(session({"name": "older"}))
+    assert isinstance(decision, Allow) and rule == "user-saved"
+    artifacts["case/economics.json"] = b'{"discount_rate": 1}'
+    assert isinstance(RunSession._saved_case(session(dict(saved)))[0], Allow)

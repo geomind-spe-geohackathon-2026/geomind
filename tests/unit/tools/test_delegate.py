@@ -258,3 +258,23 @@ async def test_a_team_result_within_its_members_budgets_reaches_the_lead_whole()
         team, ToolCall(id="t2", name="team", input={"briefs": briefs}), Context(session=Session())
     )
     assert result.output["Geoscientist III"] == long and result.reference is not None
+
+
+def test_a_nested_answer_carries_each_user_denial_of_its_run():
+    """QA-288: the project lead never saw "Do not change or search the plant" and briefed again."""
+    from types import SimpleNamespace
+
+    from geomind.tools.delegate import with_denials
+
+    events = [
+        SimpleNamespace(type="request", call=SimpleNamespace(id="c1", input={"name": "hp"})),
+        SimpleNamespace(type="permission", decision="deny", rule="user", tool="set_ranges",
+                        call_id="c1", reason="Do not change or search the plant."),
+        SimpleNamespace(type="permission", decision="allow", rule="user", tool="simulate",
+                        call_id="c2", reason=None),
+    ]
+    answer = with_denials("My pick: 10 MW.", events)
+    assert answer.startswith("My pick: 10 MW.")
+    assert "The user denied set_ranges" in answer and "Do not change or search" in answer
+    assert "simulate" not in answer
+    assert with_denials("My pick.", events[2:]) == "My pick."

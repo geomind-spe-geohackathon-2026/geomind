@@ -520,8 +520,34 @@ class RunSession:
         )
         return decision
 
+    def _saved_case(self):
+        """Return the decision of loading the saved case: no card, the user saved it (QA-224).
+
+        The case the user saved on the Case page is theirs already, so loading it asks nothing;
+        when the chat's case is that case, files included, the call is answered as a no-op.
+        """
+        workspace = getattr(self.engine, "workspace", None)
+        project = getattr(self.state, "project", None)
+        try:
+            found = workspace.case(project) if workspace is not None and project else None
+        except (OSError, ValueError):
+            found = None
+        current = self.state.problem.case
+        if found is not None and current == found[0] and self._same_case_files(found[1]):
+            return Deny(reason=SAVED_CASE_LOADED), "user-saved:same"
+        return Allow(), "user-saved"
+
+    def _same_case_files(self, files):
+        """Tell whether the chat's case files hold the bytes of the project's ``files``."""
+        try:
+            return all(self.load_artifact(f"case/{name}") == data for name, data in files.items())
+        except (OSError, ValueError, KeyError):
+            return False
+
     def _approval(self, decision, rule, tool, call):
         """Return the approval to ask, with what the call writes, or the refusal of a denial."""
+        if tool.name == "set_case" and call.input == {"source": "project"}:
+            return self._saved_case()
         events = self.engine.store.load_events(self.state.root)
         refused = earlier_denial(events, tool.name, call.input)
         if refused is not None:
@@ -922,13 +948,37 @@ def earlier_denial(events, tool, tool_input=None):
         ):
             words = event.reason if event.reason and event.reason != DENIED_BY_USER else None
             denied = inputs.get(getattr(event, "call_id", None), _UNKNOWN)
-            if words is None or denied is _UNKNOWN or denied == tool_input:
+            if words is None or denied is _UNKNOWN or same_call(denied, tool_input):
                 reason = words or DENIED_BY_USER
     return reason
 
 
+SAVED_CASE_LOADED = (
+    "set_case: nothing to load: the chat's case already is the project's saved case, files "
+    "included; work from it as it is"
+)
+"""The answer of ``set_case(source='project')`` when the chat's case is the saved one (QA-224)."""
 DENIED_BY_USER = "denied by the user"
 _UNKNOWN = object()
+LABEL_KEYS = ("name",)
+"""Inputs that only label a write: the same write under a new label is the same call (QA-288)."""
+
+
+def same_call(denied, tool_input):
+    """Tell whether ``tool_input`` is the denied call's input, its labels left out.
+
+    QA-288: ``set_ranges`` on design/v1 with the same ranges came back as ``hp_ranged``,
+    ``hp_range`` and ``hp_capacity_search``, each a new card after the user's "do not search".
+    """
+    if denied == tool_input:
+        return True
+    if not isinstance(denied, dict) or not isinstance(tool_input, dict):
+        return False
+
+    def unlabelled(value):
+        return {key: item for key, item in value.items() if key not in LABEL_KEYS}
+
+    return unlabelled(denied) == unlabelled(tool_input)
 
 
 def denied_again(tool, reason):
