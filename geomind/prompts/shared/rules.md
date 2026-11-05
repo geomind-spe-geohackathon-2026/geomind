@@ -13,6 +13,10 @@
   in this chat. A rule of geomind or gemini (dates without an offset are read as UTC), a file, the
   knowledge base or your own choice is named as what it is, never as the user's; a choice of yours
   is an assumption to confirm.
+- Approved is settled: an answer that approves an item of your question ("approve A and B", "yes
+  to 2") confirms it. Record it at once (`confirmed: true`, with the user's answer as its
+  source) and never ask about it again in this chat; a follow-up question asks only what is new
+  (a value gemini derived from the answer, a value the answer left open).
 - No defaults: a value nothing gives stays unset and is named as missing; never fill it in.
 - Units and physics: gemini converts every unit and computes every physical value. Choose the
   units you show the user, and pass values in the units their source gives; never convert a
