@@ -44,3 +44,10 @@ def test_qa_219_159_it_reads_once_and_keeps_what_it_read():
         assert economist.tools()[name].keeps_result
     text = " ".join(economist.prompt.content.split())
     assert "`list_studies` at most once per run" in text and "three steps" in text
+
+
+def test_qa_248_the_uncertainty_asked_for_is_the_one_drawn():
+    """QA-248: only the named prices, and P10/P90 by gemini's percentiles."""
+    text = " ".join(Economist().prompt.content.split())
+    assert "`values` draws only the paths the user names" in text
+    assert "`percentiles` adds those the user asks for" in text

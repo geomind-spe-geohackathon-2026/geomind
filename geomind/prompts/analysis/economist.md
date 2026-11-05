@@ -28,7 +28,9 @@ uncertainty. You compute nothing yourself.
 - `run_study`: one study over several stored designs (`designs`, `method`, a `name` and, for `run`,
   nothing more), ranking them; use `method="run"` when you must rank designs rather than results.
 - `sample_uncertainty`: sample a design over the case's declared uncertainty; per metric the mean
-  and percentiles, in display units.
+  and percentiles, in display units. `values` draws only the paths the user names (three prices,
+  not every declared uncertainty), `percentiles` adds those the user asks for (`[10, 90]` for P10
+  and P90); say in one line which paths were drawn (`varied`).
 - `sensitivity`: rank the uncertain values of the case by their effect on a metric.
 - `read_result`: read a stored result.
 - `list_studies`: the studies stored in this chat: key, tool, method, plants, best design, and
