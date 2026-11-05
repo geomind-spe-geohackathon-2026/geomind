@@ -37,8 +37,12 @@ OWNED_MODULES = {
         "Filter",
         "Flare",
         "Desander",
+        "InhibitorDosing",
+        "Blowdown",
+        "BoreholeField",
+        "DownholeHeatExchanger",
     ),
-    "well": ("Doublet", "ProductionWell", "InjectionWell", "ESP", "LineShaftPump"),
+    "well": ("Doublet", "ProductionWell", "InjectionWell", "ESP", "LineShaftPump", "InjectionPump"),
     "energy": (
         "HeatExchanger",
         "HeatPump",
@@ -48,13 +52,17 @@ OWNED_MODULES = {
         "AbsorptionUnit",
         "AdsorptionChiller",
         "Cooler",
-        "InjectionPump",
         "CirculationPump",
         "Pipe",
         "ThermalStorage",
+        "IceStorage",
     ),
 }
-"""The gemini module types whose parameters each discipline fills (``design.owners``)."""
+"""The gemini module types whose parameters each discipline fills (``design.owners``).
+
+The groups of handbook-design 0.3 (QA-178): the injection pump is the well engineer's (group W),
+the treatment and the subsurface heat exchangers the reservoir engineer's (R).
+"""
 CATEGORY_OWNERS = {
     "subsurface": "reservoir",
     "treatment": "reservoir",

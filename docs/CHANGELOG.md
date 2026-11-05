@@ -7,6 +7,8 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 ## [Unreleased]
 
 ### Fixed
+- QA-178: the injection pump belongs to the well engineer, treatment modules to the reservoir
+  engineer (handbook-design 0.3 groups); the reservoir and well prompts name those groups.
 - QA-099, QA-154 (skill and prompt side): the economics skill and the economist round figures
   and state the 365.25-day basis; the sensitivity recipe sends the keys a new uncertainty kind lacks as null.
 - QA-239: a run summary's `passed` is gemini's verdict `feasible`, and `unmet` names each

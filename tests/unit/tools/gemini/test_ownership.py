@@ -202,3 +202,13 @@ def test_a_refusal_names_the_engineer_s_own_parts():
     owners = {"params.d0": "reservoir_engineer", "heat_pump": "energy", "params.d0.esp": "well"}
     assert own_parts("energy", owners) == ["heat_pump"]
     assert own_parts("reservoir", owners) == ["d0"]
+
+
+def test_qa_178_the_groups_of_handbook_design_0_3_own_their_modules():
+    """QA-178: the injection pump is the well engineer's; treatment the reservoir engineer's."""
+    from geomind.tools.gemini.ownership import type_disciplines
+
+    assert type_disciplines("InjectionPump") == frozenset({"well"})
+    for name in ("InhibitorDosing", "Blowdown", "Degasser", "BoreholeField"):
+        assert type_disciplines(name) == frozenset({"reservoir"})
+    assert type_disciplines("IceStorage") == frozenset({"energy"})
