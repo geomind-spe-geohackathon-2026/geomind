@@ -6,6 +6,16 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.58] - 2026-11-05
+
+### Added
+
+- Agent tools feature, step 3: `web_search(query, limit)` asks the SearXNG at `GEOMIND_SEARCH_URL` (results: title, url, snippet, engine, date) and `read_web_page(url, start)` reads one public HTML page or PDF (url, site, kind, title, publisher, author, date, text in 30000-character parts with `next_start`); both effect `external`, refused for non-public addresses at every redirect, not offered when `GEOMIND_SEARCH_URL` is unset. New skill `web-search`. The case lead gets `read_skill`, `calculate`, `web_search` and `read_web_page`; the five agents with `calculate` get the web tools.
+
+### Changed
+
+- `calculate` (Sahand): operands may also be plain numbers `{"number": 24, "unit": "h"}` (shown as `24 h (plain)`, source kind `number`) and constants `{"constant": "pi"}` or `"e"` (source kind `constant`), but every calculation needs one sourced operand at least; `run_python` takes the same inputs and needs one sourced input or a project file.
+
 ## [0.4.57] - 2026-11-05
 
 ### Added

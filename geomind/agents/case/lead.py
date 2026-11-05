@@ -139,6 +139,10 @@ class CaseLead(Agent):
         self.list_profiles = tools.gemini.list_profiles
         self.read_profile = tools.gemini.read_profile
         self.read_stored = tools.read_stored
+        self.read_skill = tools.read_skill
+        self.calculate = tools.calculate
+        self.web_search = tools.web_search
+        self.read_web_page = tools.read_web_page
         self.search_memory = tools.search_memory
         self.read_memory = tools.read_memory
         self.update_state = tools.update_state

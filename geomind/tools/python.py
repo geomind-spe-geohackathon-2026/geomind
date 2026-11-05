@@ -19,7 +19,7 @@ from uuid import uuid4
 from geomind.context.skills import skill_hint
 from geomind.errors import SandboxError, ToolError
 from geomind.tools.base import tool
-from geomind.tools.calculate import DIMENSIONLESS, _operand
+from geomind.tools.calculate import DIMENSIONLESS, SOURCED_KINDS, _operand
 
 LITERAL_LIMIT = 10
 """The largest integer the code may hold as a literal (indices, counts, small exponents)."""
@@ -163,7 +163,8 @@ async def run_python(
     """Run Python in a sandbox (no network, gemini installed) on sourced inputs.
 
     ``inputs`` maps a variable name to a reference to a sourced value, the same references as
-    calculate's operands; the code gets each as a number in its unit, and ``UNITS`` gives the unit
+    calculate's operands (plain numbers too, but one input at least has a source, or a file is
+    read); the code gets each as a number in its unit, and ``UNITS`` gives the unit
     of each. Never type data into the code: no number above 10 as a literal. ``files`` names project
     files the code reads as ``files/<name>``. To keep a number, write ``result.json`` as
     ``{"name": {"value": ..., "unit": "...", "label": "..."}}``: each becomes a calculation with an
@@ -183,6 +184,14 @@ async def run_python(
             "code",
         )
     resolved = _inputs(context, inputs or {})
+    if not files and not any(
+        item["source"]["kind"] in SOURCED_KINDS for item in resolved
+    ):
+        raise _error(
+            f"no input has a source; expected at least one of {', '.join(SOURCED_KINDS)} or a "
+            "project file (plain numbers and constants do not count)",
+            "inputs",
+        )
     content = _project_files(context, files)
     code_id = f"P{uuid4().hex[:8]}"
     try:

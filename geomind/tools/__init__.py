@@ -8,6 +8,7 @@ from geomind.tools.base import EFFECTS, Tool, tool
 from geomind.tools.builtins import ask_user, finish
 from geomind.tools.calculate import calculate
 from geomind.tools.python import run_python
+from geomind.tools.web import read_web_page, web_search
 from geomind.tools.delegate import Delegate
 from geomind.tools.dispatch import dispatch
 from geomind.tools.files import list_files, read_rag
@@ -31,6 +32,7 @@ __all__ = [
     "read_result",
     "read_skill",
     "read_stored",
+    "read_web_page",
     "run_python",
     "read_memory",
     "search_memory",
@@ -38,4 +40,5 @@ __all__ = [
     "search_rag",
     "tool",
     "update_state",
+    "web_search",
 ]

@@ -1,7 +1,9 @@
 """The tool that derives a value from sourced values, with gemini doing every unit conversion.
 
-The model never types a number: each operand is a reference to a value that has a source (a case
-field, a catalogue row, a user-approved assumption, a stored result, an earlier calculation). The
+Each operand is a reference to a value that has a source (a case field, a catalogue row, a
+user-approved assumption, a stored result, an earlier calculation), a named constant (pi, e) or a
+plain number shown as plain; every calculation has one sourced operand at least (Sahand,
+2026-11-05). The
 result is kept in the problem state as a ``Calculation`` with the source of every operand, so a
 later tool or the report cites it by id.
 
@@ -21,7 +23,11 @@ from geomind.tools.base import tool
 
 OPERATIONS = ("add", "subtract", "multiply", "divide", "power", "min", "max", "sum", "mean")
 SAME_DIMENSION = ("add", "subtract", "min", "max", "sum", "mean")
-REFERENCE_KINDS = ("case", "assumption", "catalogue", "stored", "calculation")
+SOURCED_KINDS = ("case", "assumption", "catalogue", "stored", "calculation")
+"""Operands with a source; every calculation needs one at least."""
+REFERENCE_KINDS = (*SOURCED_KINDS, "constant", "number")
+CONSTANTS = {"pi": math.pi, "e": math.e}
+"""Named mathematical constants an operand may be (dimensionless; they are not sourced)."""
 DERIVED = {
     "W": {"kg": 1, "m": 2, "s": -3},
     "J": {"kg": 1, "m": 2, "s": -2},
@@ -242,7 +248,27 @@ def _calculation(context, reference, path):
     return float(item.value), item.unit, {**source, "expression": item.expression}
 
 
+def _constant(context, reference, path):
+    """Return the operand of a named mathematical constant."""
+    name = reference["constant"]
+    if name not in CONSTANTS:
+        raise _error(f"constant = {name!r}; expected one of {', '.join(CONSTANTS)}", path)
+    return CONSTANTS[name], "-", {"kind": "constant", "name": name}
+
+
+def _number(context, reference, path):
+    """Return the operand of a plain number the agent gives, shown as plain in the expression."""
+    value, unit = reference["number"], reference.get("unit", "-")
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+        raise _error(f"number = {value!r}; expected a finite number", path)
+    if not isinstance(unit, str) or not unit:
+        raise _error(f"unit = {unit!r}; expected the number's unit, '-' for none", path)
+    return float(value), unit, {"kind": "number"}
+
+
 RESOLVERS = {
+    "constant": _constant,
+    "number": _number,
     "case": _case,
     "assumption": _assumption,
     "catalogue": _catalogue,
@@ -256,16 +282,20 @@ def _operand(context, reference, position):
     path = f"operands[{position}]"
     if not isinstance(reference, dict):
         raise _error(
-            f"{path} = {reference!r}; a typed number is refused: give a reference to a sourced "
-            f"value, one of {', '.join(REFERENCE_KINDS)}",
+            f"{path} = {reference!r}; expected an object: a reference to a sourced value (one "
+            f"of {', '.join(SOURCED_KINDS)}), {{\"constant\": \"pi\"}} or "
+            f"{{\"number\": 24, \"unit\": \"h\"}}",
             path,
         )
     kinds = [kind for kind in REFERENCE_KINDS if kind in reference]
-    extra = set(reference) - set(REFERENCE_KINDS) - {"path"}
-    if len(kinds) != 1 or extra or ("path" in reference and kinds != ["stored"]):
+    extra = set(reference) - set(REFERENCE_KINDS) - {"path", "unit"}
+    misplaced = ("path" in reference and kinds != ["stored"]) or (
+        "unit" in reference and kinds != ["number"]
+    )
+    if len(kinds) != 1 or extra or misplaced:
         raise _error(
             f"{path} = {reference!r}; expected one key of {', '.join(REFERENCE_KINDS)} "
-            "(path only beside stored)",
+            "(path only beside stored, unit only beside number)",
             path,
         )
     value, unit, source = RESOLVERS[kinds[0]](context, reference, path)
@@ -276,6 +306,10 @@ def _name(operand):
     """Return how an operand reads in the expression, such as ``catalogue:drilling-nl``."""
     reference = operand["reference"]
     kind = next(kind for kind in REFERENCE_KINDS if kind in reference)
+    if kind == "number":
+        return f"{operand['value']:g} {operand['unit']} (plain)"
+    if kind == "constant":
+        return reference["constant"]
     suffix = f".{reference['path']}" if kind == "stored" else ""
     return f"{kind}:{reference[kind]}{suffix} [{operand['value']:g} {operand['unit']}]"
 
@@ -391,11 +425,13 @@ async def calculate(
 ):
     """Derive a value from sourced values and keep it as a calculation with an id.
 
-    Never type a number: each operand is a reference to a value with a source, one of
+    Each operand is a reference to a value with a source, one of
     ``{"case": "<path in the case>"}``, ``{"assumption": "<id of a confirmed assumption>"}``,
     ``{"catalogue": "<row id of knowledge/cost-sources.csv>"}``,
     ``{"stored": "<result-... reference>", "path": "<dotted path of one value>"}`` or
-    ``{"calculation": "<id of an earlier calculation>"}``. ``operation`` is add, subtract,
+    ``{"calculation": "<id of an earlier calculation>"}``; or ``{"constant": "pi"}`` (pi, e) or a
+    plain ``{"number": 24, "unit": "h"}``, shown as plain. At least one operand must have a
+    source. ``operation`` is add, subtract,
     multiply, divide, power (one operand and an integer ``exponent``), min, max, sum or mean.
     ``unit`` is the unit of the result, one gemini knows (``-`` for none); gemini converts every
     value. ``label`` says what the value is. Read the skill calculator for the rules.
@@ -404,6 +440,12 @@ async def calculate(
         raise _error("label is empty; expected what the value is", "label")
     _checked_shape(operation, operands, exponent)
     resolved = [_operand(context, reference, index) for index, reference in enumerate(operands)]
+    if not any(operand["source"]["kind"] in SOURCED_KINDS for operand in resolved):
+        raise _error(
+            "no operand has a source; expected at least one of "
+            f"{', '.join(SOURCED_KINDS)} (plain numbers and constants do not count)",
+            "operands",
+        )
     bases = [_base(operand, index) for index, operand in enumerate(resolved)]
     found = _result_dimensions(operation, bases, exponent)
     value = _combine(operation, [base for base, _ in bases], exponent)

@@ -16,8 +16,9 @@ Inputs:
 - `inputs` maps a variable name to a reference to a sourced value, the same references as
   `calculate`'s operands: `{"case": "<path>"}`, `{"assumption": "<id>"}` (confirmed),
   `{"catalogue": "<row id>"}`, `{"stored": "<result-...>", "path": "<dotted>"}`,
-  `{"calculation": "<id>"}`. The code gets each as a plain number in its unit; `UNITS["name"]`
-  gives the unit.
+  `{"calculation": "<id>"}`, and plain `{"number": 24, "unit": "h"}` or `{"constant": "pi"}`.
+  At least one input has a source, or the code reads a project file. The code gets each as a
+  plain number in its unit; `UNITS["name"]` gives the unit.
 - `files` names project files; the code reads them as `files/<name>` (copies: the project's own
   files never change).
 - The code holds no data: no number above 10 as a literal (indices, counts and small exponents
