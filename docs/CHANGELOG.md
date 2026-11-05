@@ -6,6 +6,13 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.124] - 2026-11-05
+
+### Fixed
+- QA-269: `evaluate_module` of a module at a result's time takes the run's case-applied plant,
+  each inlet's fluid from upstream and each control left out from gemini's schedule.
+- QA-156 (part): `read_stored` of a long mapping gives the parts that fit whole.
+
 ## [0.4.123] - 2026-11-05
 
 ### Fixed

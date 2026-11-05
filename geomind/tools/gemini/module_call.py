@@ -13,13 +13,15 @@ from geomind.errors import ToolError
 
 
 def module_type(gm, name, plant_data):
-    """Return ``(type name, module path or None, note or None)`` of the ``name`` a call gives."""
+    """Return ``(type name, module path or None, note or None)`` of the ``name`` a call gives.
+
+    A class name with a design that holds one module of that class means that module, so the
+    design's values fill the call (QA-143: name Doublet lost the reservoir).
+    """
     names = gm.modules.names()
     if name in names:
         single = class_path(plant_data, name)
         if single is not None:
-            # A class name with a design that holds one module of that class means that module,
-            # so the design's values fill the call (QA-143: name Doublet lost the reservoir).
             return name, single, f"name {name!r} with the design: its one {name}, {single!r}"
         return name, None, None
     entry = module_entry(plant_data, name)
@@ -141,11 +143,37 @@ def peak_time(results, path, ports):
     return series["time"][values.index(max(values))]
 
 
-def result_inlets(results, path, description, inlets, time, notes):
+def upstream_fluid(plant, target):
+    """Return the fluid that reaches the inlet ``"path.port"`` of a plant, or ``None``.
+
+    The walk goes upstream from module to module, from an outlet to the inlet of its side
+    (``hot_out`` to ``hot_in``, else the module's first inlet: a mixer's branches carry one
+    fluid), until a module states its fluid:
+    a doublet takes the case's, a grid user the plant's ``fluids``.
+    """
+    seen = set()
+    while target and target not in seen:
+        seen.add(target)
+        source = plant.source_of(target)
+        if source is None:
+            return None
+        path, _, port = source.rpartition(".")
+        module = plant.get_submodule(path)
+        if getattr(module, "_fluid", None) is not None:
+            return module._fluid
+        names = list(module.describe()["inlets"])
+        side = port.removesuffix("out") + "in"
+        inlet = side if side in names else (names[0] if names else None)
+        target = f"{path}.{inlet}" if inlet else None
+    return None
+
+
+def result_inlets(results, path, description, inlets, time, notes, plant=None):
     """Return ``inlets`` with T, p and m_dot of each required stream inlet read from a result.
 
-    Each inlet keeps what the call gives (its ``fluid`` is the call's: a result keeps no fluid);
-    the step is ``time``, or the step of the largest inflow when the call gives none.
+    Each inlet keeps what the call gives. A result keeps no fluid, so an inlet's ``fluid`` is the
+    one the run's plant, with its case, carries to that port (QA-269); the step is ``time``, or
+    the step of the largest inflow when the call gives none.
     """
     ports = stream_inlets(description)
     if not ports:
@@ -169,6 +197,10 @@ def result_inlets(results, path, description, inlets, time, notes):
                     path=f"inlets.{port}.{field}",
                 )
             stream[field] = {"value": series["value"][0], "unit": series["unit"]}
+        fluid = upstream_fluid(plant, f"{path}.{port}") if plant is not None else None
+        if "fluid" not in stream and fluid is not None:
+            stream["fluid"] = fluid
+            notes.append(f"inlet {port}: the fluid the run carries to {path}.{port}")
     notes.append(f"inlets {', '.join(ports)}: T, p and m_dot from the result at {time}")
     return filled
 
@@ -186,16 +218,23 @@ def as_time(text):
 
 
 def plant_of(context, design, result):
-    """Return ``(plant file in display units or None, results or None)`` a call names."""
+    """Return ``(plant file in display units or None, results or None, run plant or None)``.
+
+    The run plant is the result's plant with its case's values set, as the run had them: it
+    knows the fluid of each stream (QA-269).
+    """
+    from gemini.engine.apply import apply_case
+
     from geomind.tools.gemini.stored import load_design, load_run
 
     if result is not None:
-        plant, _, results = load_run(context, result, "evaluate_module")
-        return plant.to_dict(structure=True, units="display"), results
+        plant, case, results = load_run(context, result, "evaluate_module")
+        shown = plant.to_dict(structure=True, units="display")
+        return shown, results, (plant, case, apply_case(plant, case))
     if design is not None:
         plant = load_design(context, design, "evaluate_module")
-        return plant.to_dict(structure=True, units="display"), None
-    return None, None
+        return plant.to_dict(structure=True, units="display"), None, None
+    return None, None, None
 
 
 def checked_type(gm, name, plant_data, notes):
@@ -238,7 +277,7 @@ def prepared_call(context, name, given, design, result, time):
 
     notes = []
     parameters, inlets, controls = given
-    plant_data, results = plant_of(context, design, result)
+    plant_data, results, run = plant_of(context, design, result)
     kind, path = checked_type(gm, name, plant_data, notes)
     description = gm.modules.get(kind)().describe()
     inlets = listed_inlets(inlets)
@@ -248,5 +287,38 @@ def prepared_call(context, name, given, design, result, time):
             description, (parameters, controls), path, plant_data, notes
         )
     if results is not None and path is not None:
-        inlets = result_inlets(results, path, description, inlets, time, notes)
+        ports = stream_inlets(description)
+        if time is None and ports:
+            time = peak_time(results, path, ports)
+            notes.append(f"time not given: the step of the largest inflow into {path}, {time}")
+        inlets = result_inlets(results, path, description, inlets, time, notes, run[2])
+        if time is not None:
+            controls = scheduled_controls(run, path, description, controls, time, notes)
     return kind, description, parameters, inlets, controls, notes
+
+
+def scheduled_controls(run, path, description, controls, time, notes):
+    """Return ``controls`` with each one the call leaves out read from the run's schedule (QA-269).
+
+    A result keeps no control such as a supply setpoint; the schedule of its plant and case,
+    which the run followed, gives it at ``time``. A control the schedule does not set stays out.
+    """
+    import gemini as gm
+
+    plant, case, _ = run
+    missing = [name for name in description["controls"] if name not in (controls or {})]
+    if not missing:
+        return controls
+    try:
+        plan = gm.schedule(plant, case)
+    except gm.errors.ValidationError:
+        return controls
+    moment = as_time(time)
+    filled = dict(controls or {})
+    for name in missing:
+        column = f"{path}.{name}"
+        if column in plan.columns and moment in plan.index:
+            unit = description["controls"][name].get("unit") or "-"
+            filled[name] = {"value": float(plan.at[moment, column]), "unit": unit}
+            notes.append(f"control {name} from the run's schedule at {time}")
+    return filled
