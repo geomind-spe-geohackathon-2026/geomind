@@ -44,13 +44,19 @@ _FIXED = {
     "compaction_threshold": 0.6,
     "compaction_keep_turns": 6,
 }
+SANDBOX_SETTINGS = {
+    "sandbox_image": "GEOMIND_SANDBOX_IMAGE",
+    "sandbox_timeout": "GEOMIND_SANDBOX_TIMEOUT",
+    "sandbox_memory": "GEOMIND_SANDBOX_MEMORY",
+    "sandbox_disk": "GEOMIND_SANDBOX_DISK",
+    "sandbox_cpu": "GEOMIND_SANDBOX_CPU",
+}
+"""What ``run_python`` needs, by the environment variable that sets each: the image (with gemini
+installed), a duration such as ``60s``, docker sizes such as ``1g`` and ``256m``, and the CPUs.
+None has a default: a sandbox with one unset refuses to start and names it."""
 REMOVED_SETTINGS = frozenset(
     {
         "default_model",
-        "sandbox_timeout",
-        "sandbox_memory",
-        "sandbox_disk",
-        "sandbox_cpu",
         "analyst_model",
         "designer_model",
         "verifier_model",
@@ -77,6 +83,8 @@ ADDED_SETTINGS = frozenset(
         "knowledge_dir",
         "mcp_servers",
         "mcp_timeout",
+        *SANDBOX_SETTINGS,
+        "search_url",
         *(f"{role}_model" for role in ROLES),
     }
 )
@@ -183,6 +191,8 @@ def _defaults():
         "knowledge_dir": os.environ.get("GEOMIND_KNOWLEDGE_DIR") or None,
         "mcp_servers": os.environ.get("GEOMIND_MCP_SERVERS") or None,
         "mcp_timeout": _number("GEOMIND_MCP_TIMEOUT"),
+        **{name: os.environ.get(variable) or None for name, variable in SANDBOX_SETTINGS.items()},
+        "search_url": os.environ.get("GEOMIND_SEARCH_URL") or None,
         "memory": os.environ.get("GEOMIND_MEMORY") or None,
         "memory_dir": os.environ.get("GEOMIND_MEMORY_DIR") or None,
         "memory_similarity": _number("GEOMIND_MEMORY_SIMILARITY"),

@@ -333,13 +333,32 @@ class RunSession:
         They are the memory tools and a member whose whole work is the memory (``needs_memory``,
         the curator).
         """
+        services = set(self.missing_services(agent))
         if self.memory is not None:
-            return set()
-        return {
+            return services
+        return services | {
             name
             for name, item in agent.tools().items()
             if name in MEMORY_TOOLS or getattr(getattr(item, "agent", None), "needs_memory", False)
         }
+
+    def missing_services(self, agent):
+        """Return ``{tool: reason}`` of an agent's tools whose service this run lacks.
+
+        ``run_python`` needs the engine's sandbox; ``web_search`` and ``read_web_page`` need the
+        ``search_url`` setting (``GEOMIND_SEARCH_URL``).
+        """
+        from geomind import runtime
+
+        needs = {
+            "run_python": None if getattr(self.engine, "sandbox", None) is not None else (
+                "this run has no code sandbox (the backend's ASSISTANT_SANDBOX)"
+            ),
+        }
+        if runtime.get("search_url") is None:
+            reason = "this run has no web search (GEOMIND_SEARCH_URL is unset)"
+            needs |= {"web_search": reason, "read_web_page": reason}
+        return {name: reason for name, reason in needs.items() if reason and name in agent.tools()}
 
     def mcp_of(self, agent):
         """Return the MCP tools an agent is offered, ``MCP_TOOLS``: list, read, call, save a table.

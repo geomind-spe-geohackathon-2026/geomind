@@ -85,6 +85,7 @@ class Run:
         callbacks=(),
         hooks=(),
         agent=None,
+        sandbox=None,
     ):
         """Prepare a run; nothing happens before ``start``."""
         self.id = new_run_id()
@@ -101,6 +102,7 @@ class Run:
             llm=llm if llm is not None else OpenRouter(),
             store=self.store,
             workspace=workspace,
+            sandbox=sandbox,
         )
         self._loop = LOOPS["tool"](agent if agent is not None else AGENTS["analysis_lead"]())
         self._is_routed = agent is not None
@@ -166,12 +168,14 @@ class Run:
         permissions=None,
         callbacks=(),
         hooks=(),
+        sandbox=None,
     ):
         """Rebuild a run in any process; what is code or a service is passed again."""
         run = cls(
             llm=llm,
             store=store,
             workspace=workspace,
+            sandbox=sandbox,
             permissions=permissions,
             callbacks=callbacks,
             hooks=hooks,

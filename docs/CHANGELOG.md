@@ -6,6 +6,12 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.57] - 2026-11-05
+
+### Added
+
+- Agent tools feature, step 2: `run_python` (effect `execute`) runs model-written Python in `gd.sandbox.DockerSandbox` (back from 0.4.21: one container per call, no network, read-only root, in-memory workspace, limits from `GEOMIND_SANDBOX_IMAGE`, `_TIMEOUT`, `_MEMORY`, `_DISK`, `_CPU`, none with a default). Inputs are references to sourced values (as `calculate`'s operands) given to the code as variables; the code may hold no number above 10 as a literal; numbers written to `result.json` become calculations citing the code. `Run`, `Run.load` and `Engine` take `sandbox=`; a run without one does not offer `run_python`. New skill `python`; new settings `sandbox_*` and `search_url` (`GEOMIND_SEARCH_URL`); `gd.errors.SandboxError` is back.
+
 ## [0.4.56] - 2026-11-05
 
 ### Added

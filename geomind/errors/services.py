@@ -28,5 +28,9 @@ class ToolError(GeomindError, RuntimeError):
         self.suggestions = tuple(suggestions)
 
 
+class SandboxError(GeomindError, RuntimeError):
+    """A sandbox is missing, lost or was asked for a path outside itself."""
+
+
 class NotImplementedYet(GeomindError, NotImplementedError):
     """A capability has its final signature and is not built yet; the message names its phase."""

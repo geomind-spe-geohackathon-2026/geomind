@@ -71,6 +71,7 @@ class Calculation(Record):
     value: Any
     unit: str
     operands: tuple[dict[str, Any], ...] = ()
+    code: str | None = None
 
 
 class Compaction(Record):

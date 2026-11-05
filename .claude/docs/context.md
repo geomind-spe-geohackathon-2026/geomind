@@ -149,6 +149,12 @@ geomind only combines dimensions. The result is a `Calculation` (`id` C1, C2 ...
 `operation`, `expression`, `value`, `unit`, `operands` each with `reference`, `value`, `unit`,
 `source`) appended to the problem state's `calculations`, which `update_state` cannot write.
 
+`run_python` (`tools/python.py`, effect `execute`, 0.4.57) runs code in the engine's `sandbox`
+(`gd.sandbox.DockerSandbox`, one container per call, settings `sandbox_*`); inputs are the same
+references, numbers in `result.json` become calculations with `operation` `python` and `code`.
+`Session.missing_services` hides `run_python` without a sandbox and `web_search`/`read_web_page`
+without `search_url`.
+
 ## Context window
 
 `context_window(model)` in `geomind/context/compaction.py` returns the window in tokens: the setting

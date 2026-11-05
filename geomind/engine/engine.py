@@ -122,6 +122,7 @@ class Engine:
         store=None,
         workspace=None,
         memory=None,
+        sandbox=None,
     ):
         """Keep what a run needs; ``llm`` gets the retry layer."""
         self.callbacks = list(callbacks or ())
@@ -132,6 +133,7 @@ class Engine:
         self.llm = with_retries(llm) if llm is not None else None
         self.store = store if store is not None else MemoryRunStore()
         self.workspace = workspace
+        self.sandbox = sandbox
         self.memory = memory
         self.workspace_memories = {}
         self.mcp_servers = None

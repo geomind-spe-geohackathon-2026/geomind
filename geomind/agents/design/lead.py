@@ -111,6 +111,7 @@ class DesignLead(Agent):
         self.update_state = tools.update_state
         self.read_skill = tools.read_skill
         self.calculate = tools.calculate
+        self.run_python = tools.run_python
         self.read_stored = tools.read_stored
         self.search_memory = tools.search_memory
         self.read_memory = tools.read_memory

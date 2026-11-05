@@ -298,11 +298,14 @@ async def _refuse_hidden(session, call):
 
     NOTE: no validation failure: the model named a tool from its prompt, and the answer says why.
     """
-    error = ToolError(
-        f"{call.name}: the memory is off for this run (GEOMIND_MEMORY), so {call.name} is not "
-        "offered; call no memory tool and go on without it",
-        code="not_allowed",
+    reason = session.missing_services(session.agent).get(call.name)
+    text = (
+        f"{call.name}: {reason}, so {call.name} is not offered; go on without it"
+        if reason
+        else f"{call.name}: the memory is off for this run (GEOMIND_MEMORY), so {call.name} is not "
+        "offered; call no memory tool and go on without it"
     )
+    error = ToolError(text, code="not_allowed")
     result = ToolResult(call_id=call.id, tool=call.name, output=error_output(error), is_error=True)
     await record_result(session, call, result)
 
