@@ -12,6 +12,7 @@ from geomind.tools.web import read_web_page, web_search
 from geomind.tools.delegate import Delegate
 from geomind.tools.dispatch import dispatch
 from geomind.tools.files import list_files, read_rag
+from geomind.tools.knowledge_only import read_knowledge, search_knowledge
 from geomind.tools.gemini import read_result, search_rag
 from geomind.tools.memory import read_memory, search_memory, write_lesson
 from geomind.tools.skills import read_skill
@@ -29,6 +30,8 @@ __all__ = [
     "gemini",
     "list_files",
     "read_rag",
+    "read_knowledge",
+    "search_knowledge",
     "read_result",
     "read_skill",
     "read_stored",

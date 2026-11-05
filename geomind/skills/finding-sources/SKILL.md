@@ -1,7 +1,7 @@
 ---
 name: finding-sources
 description: How to find a value in the project's files and the knowledge base: search_rag, read_rag and list_files; arguments and citing.
-tools: search_rag, read_rag, list_files
+tools: search_rag, read_rag, list_files, search_knowledge, read_knowledge
 roles: all
 ---
 
@@ -60,3 +60,16 @@ cited with its `file` and `page`; a passage of the knowledge base: `name` as
 match means neither states these words, and the `note` says what to do instead; the same
 words again are noted too. A value from the knowledge base goes into the case only after the
 user confirms it, as any value no project file gives.
+
+### `search_knowledge`
+
+Search the global Knowledge base only (never the project's files); returns `{matches}`, each
+with `name` (`knowledge/<name>`), `text`, `score`, `citation` and its `section` when it has
+one. For a team's sub-agent: the lead gives you the project's text; the Knowledge base is yours
+to search for what that text lacks.
+
+### `read_knowledge`
+
+Read one Knowledge document, `read_knowledge(name="knowledge/<name>")`; `outline=true` lists
+its sections, `section="10.2"` (or a title) reads one, `start` and `length` a window. A name
+outside `knowledge/` is refused: project files are the lead's to read.
