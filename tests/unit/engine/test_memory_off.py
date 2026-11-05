@@ -133,7 +133,7 @@ async def test_nested_runs_of_a_project_whose_workspace_gives_no_memory_see_none
     workspace = NoMemory()
     completions = [
         uses(call("support_lead", task="keep the lessons")),
-        says("no lessons are kept"),
+        says("nothing kept"),  # its answer becomes a finding the design lead reads
         uses(call("design_lead", call_id="c2", task="design")),
         says("designed"),
         says("done"),

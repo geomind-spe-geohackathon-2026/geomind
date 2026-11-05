@@ -708,7 +708,8 @@ async def test_a_question_in_auto_mode_replays():
 async def test_a_step_limit_replays():
     """A run that hit its step limit ends there again, with the same partial answer."""
     script = [uses(call("lookup", "c1", key="k")), uses(call("lookup", "c2", key="j"))]
-    result, engine, _ = await run(script, max_steps=1)
+    ask = Permissions(mode="ask")  # QA-086: in auto mode the run continues by itself
+    result, engine, _ = await run(script, max_steps=1, permissions=ask)
     result = await stopped_at_limit(engine, result)
     assert result.stop_reason == "step_limit"
     replayed = await Engine.replay(engine.store, result.run_id)

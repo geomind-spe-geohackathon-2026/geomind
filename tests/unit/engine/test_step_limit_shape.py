@@ -4,13 +4,14 @@ The backend takes typed text for any question with options except this one, whic
 recognises by options exactly ``[continue, stop]`` and no call id; no new marker is added.
 """
 
+from geomind.engine import Permissions
 from tests.fixtures.runs import Worker, call, context, engine_for, uses
 
 
 async def test_the_step_limit_question_is_continue_or_stop_with_no_call():
     """A run at its step limit asks with options exactly continue and stop, from no call."""
     script = [uses(call("lookup", f"c{n}", key="k")) for n in range(4)]
-    engine = engine_for(script)
+    engine = engine_for(script, permissions=Permissions(mode="ask"))  # auto continues (QA-086)
     start = context()
     result = await engine.run(Worker(), start, max_steps=2)
     assert result.status == "waiting"

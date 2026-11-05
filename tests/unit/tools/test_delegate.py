@@ -4,7 +4,7 @@ import pytest
 
 import geomind as gd
 from geomind import runtime
-from geomind.engine import Context
+from geomind.engine import Context, Permissions
 from geomind.tools import Delegate, dispatch
 from geomind.types import Request, RunResult, ToolCall
 from tests.fixtures.runs import Worker
@@ -115,7 +115,8 @@ async def test_a_crash_leaves_no_message_on_the_result():
 
 async def test_a_step_limit_leaves_its_message_on_the_result():
     """A stop that is no crash says why, for the parent of a nested run."""
-    engine = engine_for([uses(fixture_call("lookup", key="k"))] * 3)
+    ask = Permissions(mode="ask")  # QA-086: in auto mode the run continues by itself
+    engine = engine_for([uses(fixture_call("lookup", key="k"))] * 3, permissions=ask)
     result = await stopped_at_limit(engine, await engine.run(Worker(), context(), max_steps=2))
     assert result.stop_reason == "step_limit" and "2 steps" in result.message
 

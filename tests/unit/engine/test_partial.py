@@ -26,9 +26,14 @@ def looking(count):
 
 
 async def drive(llm, context_=None, agent=None, max_steps=None, hooks=(), callbacks=()):
-    """Run the agent; return ``(result, events)``."""
+    """Run the agent; return ``(result, events)``.
+
+    With a step limit the run is in ``ask`` mode: in ``auto`` it takes its steps again by itself
+    (QA-086), and these tests stop it at the limit.
+    """
+    mode = "auto" if max_steps is None else "ask"
     engine = Engine(
-        llm=llm, permissions=Permissions(mode="auto"), hooks=list(hooks), callbacks=list(callbacks)
+        llm=llm, permissions=Permissions(mode=mode), hooks=list(hooks), callbacks=list(callbacks)
     )
     start = context_ or context()
     agent = agent or Worker()

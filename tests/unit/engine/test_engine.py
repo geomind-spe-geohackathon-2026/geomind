@@ -35,7 +35,7 @@ async def test_answer_stops_a_run():
 async def test_step_limit_stops_a_run():
     """A run is finite."""
     calls = [uses(call("lookup", f"c{index}", key="k")) for index in range(5)]
-    result, engine, _ = await run(calls, max_steps=2)
+    result, engine, _ = await run(calls, max_steps=2, permissions=Permissions(mode="ask"))
     result = await stopped_at_limit(engine, result)
     events = engine.store.load_events(result.run_id)
     assert (result.status, result.stop_reason, result.steps) == ("failed", "step_limit", 2)

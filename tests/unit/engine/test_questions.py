@@ -102,15 +102,16 @@ def test_a_path_answered_inside_a_question_of_many_is_not_asked_alone():
 
 
 def test_a_question_mixing_old_and_new_paths_asks_only_the_new_ones():
-    """The earlier answers go with the question, which names the new paths to answer."""
+    """The question names the paths answered before and the new ones, no request id (QA-061)."""
     events = asked("case-lead", "c1", MANY, 259, MANY_ANSWER)
     mixed = Request(kind="question", message="site.air.pressure and site.ground.gradient?")
     found = answered_paths(events, mixed)
     assert set(found) == {"site.air.pressure"}
     message = asking_new(mixed, found).message
     assert message.startswith(mixed.message)
-    assert "not asked again: site.air.pressure (request-259)" in message
-    assert message.endswith("Answer only site.ground.gradient.")
+    assert "You answered site.air.pressure earlier in this chat" in message
+    assert "request-259" not in message
+    assert message.endswith("answer only site.ground.gradient.")
 
 
 def test_the_first_answer_of_a_path_stays_its_answer():
