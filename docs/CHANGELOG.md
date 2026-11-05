@@ -6,6 +6,13 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.116] - 2026-11-05
+
+### Fixed
+- QA-233: the verification compares the run's plant with the design's plant in gemini's form on
+  both sides, loading a project plant version `design/v<N>` as the design tools do; a fresh run
+  of `design/v1` was called stale and the report's finish was refused three times.
+
 ## [0.4.115] - 2026-11-05
 
 ### Fixed

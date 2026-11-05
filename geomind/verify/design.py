@@ -3,7 +3,7 @@
 from geomind.errors import ToolError
 from geomind.tools.gemini.case import digests, file_contents
 from geomind.tools.gemini.origin import changes_of
-from geomind.tools.gemini.stored import RESULT, load_run
+from geomind.tools.gemini.stored import RESULT, load_design, load_run
 from geomind.verify.verify import verify
 
 
@@ -54,6 +54,20 @@ def result_off_case(context, result):
     )
 
 
+def same_plant(context, plant, design):
+    """Tell whether ``plant`` (of a stored run) is the plant of ``design``.
+
+    Both sides are gemini's form of the plant (``to_dict(structure=True)``) built by gemini: a
+    project plant version ``design/v<N>`` is no chat artifact, and its saved dict (nulls, key
+    order) differs from gemini's form, so a fresh run of it was called stale (QA-233).
+    """
+    try:
+        stored = load_design(context, design, "verification")
+    except ToolError:
+        return False
+    return plant.to_dict(structure=True) == stored.to_dict(structure=True)
+
+
 def verify_design(context):
     """Return the verdict of ``design.reference`` on ``verification.result`` of the problem state.
 
@@ -74,7 +88,7 @@ def verify_design(context):
         plant, case, results = load_run(context, result, "verification")
     except ToolError as error:
         return unverified("result_unknown", str(error))
-    if plant.to_dict(structure=True) != context.session.load_artifact(design):
+    if not same_plant(context, plant, design):
         return unverified(
             "stale_result",
             f"{result} is stale: it ran another plant than {design}; simulate the current design "
