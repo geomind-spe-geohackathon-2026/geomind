@@ -19,6 +19,8 @@ def test_it_is_complete():
             "compute_kpis",
             "estimate_costs",
             "search_rag",
+            "read_knowledge",
+            "read_skill",
             "finish",
         ],
     )
@@ -32,10 +34,17 @@ def test_it_reads_knowledge_only_for_its_sources():
 
 
 def test_it_quotes_gemini_s_explanation_of_a_structure_search():
-    """An ``evolve_structure`` study's ``explanation`` and ``table`` are quoted, never computed."""
-    text = " ".join(Explainer().prompt.content.split())
+    """An ``evolve_structure`` study's ``explanation`` and ``table`` are quoted, never computed.
+
+    The rule lives in the ``report`` skill the explainer reads before ``Decisions``.
+    """
+    from geomind.prompts.prompt import FOLDER
+
+    assert "read_skill('report')" in Explainer().prompt.content
+    path = FOLDER.parent / "skills" / "report" / "SKILL.md"
+    text = " ".join(path.read_text().split())
     assert "`explanation`" in text and "`table`" in text
-    assert "Quote them as they are" in text and "never compute" in text
+    assert "Quote them as they are" in text and "Never compute" in text
 
 
 def test_qa_218_a_conceptual_question_is_answered_in_a_few_steps():

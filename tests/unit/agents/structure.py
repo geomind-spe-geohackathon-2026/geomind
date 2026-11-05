@@ -33,9 +33,13 @@ def check_skeleton(agent_class, role):
 
 
 def named_tools(text):
-    """Return the tools a prompt names in its ``## Tools`` section."""
+    """Return the tools a prompt names in its ``## Tools`` section.
+
+    A bullet may name several tools before its colon: ``- `calculate`, `run_python`: ...``.
+    """
     section = text.split("## Tools")[1].split("## Rules")[0]
-    return re.findall(r"^- `(\w+)`", section, flags=re.MULTILINE)
+    heads = re.findall(r"^- ((?:`\w+`(?:, |,? and | or )?)+):", section, flags=re.MULTILINE)
+    return [name for head in heads for name in re.findall(r"`(\w+)`", head)]
 
 
 def check_complete(agent_class, role, tools):

@@ -30,7 +30,9 @@ and sha256), is a document of that folder; geomind owns the copy.
   the families and the lessons of the rejected rounds, with `origin` `{run, source: code}` and
   `project_id`;
 - the curator's lessons and the user's facts, `{id, kind: lesson|user_fact, role, text, origin:
-  {run, source}, project_id}` (`write_lesson`; a digit in a lesson is refused).
+  {run, source}, project_id}` (`write_lesson(lessons)`: one call holds the run's entries, at most
+  three, on one approval card; a digit in a lesson is refused, and an entry the user denied in the
+  request is refused under any id or role).
 
 `search_memory()` returns the past designs at or above `memory_similarity` to the state's case,
 each with its score, and the lessons of the caller's role, of `all` and the user's facts;

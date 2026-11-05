@@ -4,44 +4,46 @@ from geomind.agents import DesignLead
 from tests.unit.agents.structure import check_complete
 
 TOOLS = [
-    "process_engineer",
-    "integration_engineer",
-    "reservoir_engineer",
-    "well_engineer",
-    "energy_systems_engineer",
-    "fill_parts",
-    "merge_designs",
-    "union_designs",
-    "read_case",
-    "list_plants",
-    "read_plant",
-    "list_modules",
-    "describe_module",
-    "evaluate_module",
-    "build_plant",
-    "patch_plant",
-    "set_ranges",
-    "size_plant",
-    "list_profiles",
-    "read_profile",
-    "simulate",
-    "read_result",
-    "list_studies",
-    "read_study",
-    "check_results",
-    "optimize",
-    "evolve_structure",
-    "run_study",
-    "update_state",
-    "read_skill",
-    "read_stored",
-    "search_memory",
-    "read_memory",
-    "search_rag",
-    "support_lead",
-    "ask_user",
-    "finish",
-]
+            "fill_parts",
+            "merge_designs",
+            "union_designs",
+            "read_case",
+            "list_plants",
+            "list_starts",
+            "start_plant",
+            "read_plant",
+            "list_modules",
+            "describe_module",
+            "evaluate_module",
+            "build_plant",
+            "patch_plant",
+            "set_ranges",
+            "size_plant",
+            "list_profiles",
+            "read_profile",
+            "simulate",
+            "read_result",
+            "list_studies",
+            "read_study",
+            "check_results",
+            "optimize",
+            "evolve_structure",
+            "run_study",
+            "update_state",
+            "read_skill",
+            "calculate",
+            "run_python",
+            "web_search",
+            "read_web_page",
+            "read_stored",
+            "search_memory",
+            "read_memory",
+            "search_rag",
+            "read_knowledge",
+            "support_lead",
+            "ask_user",
+            "finish",
+        ]
 
 
 
@@ -161,16 +163,28 @@ def test_the_best_family_and_one_alternative_in_one_superstructure():
     assert "not one design per family" in text
 
 
+def comparing_skill():
+    """Return the ``comparing-designs`` skill as one line: the lead reads it for a search."""
+    from geomind.prompts.prompt import FOLDER
+
+    path = FOLDER.parent / "skills" / "comparing-designs" / "SKILL.md"
+    return " ".join(path.read_text().split())
+
+
 def test_a_superstructure_is_searched_with_the_case_s_objectives():
-    """The lead calls evolve_structure with the objectives of the case or its brief only."""
-    text = DesignLead().prompt.content
+    """The lead calls evolve_structure with the objectives of the case or its brief only.
+
+    The rule lives in the ``comparing-designs`` skill the prompt sends the lead to.
+    """
+    assert "comparing-designs" in DesignLead().prompt.content
+    text = comparing_skill()
     assert "`evolve_structure` on the merged design" in text
     assert "never ones you choose" in text
 
 
 def test_it_quotes_why_the_structure_search_stopped():
     """The search's ``stopped``, ``why``, ``explanation`` and ``table`` are quoted, not computed."""
-    text = " ".join(DesignLead().prompt.content.split())
+    text = comparing_skill()
     assert "quoting `stopped` and `why`" in text
     assert "`explanation` and `table`, as gemini gives them, never computed" in text
 

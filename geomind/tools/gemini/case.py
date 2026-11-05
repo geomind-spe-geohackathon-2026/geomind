@@ -1065,7 +1065,9 @@ def with_saved_files(context, changes, files):
             return [walked(item, f"{path}[{index}]") for index, item in enumerate(node)]
         if not isinstance(node, dict):
             return node
-        result = {key: walked(value, f"{path}.{key}" if path else key) for key, value in node.items()}
+        result = {
+            key: walked(value, f"{path}.{key}" if path else key) for key, value in node.items()
+        }
         saved = saved_name(context, node.get("file"), project) if "file" in node else None
         if saved is not None and saved != node["file"]:
             converted.append({
@@ -1080,6 +1082,61 @@ def with_saved_files(context, changes, files):
     changes = walked(changes, "")
     kept = [name for name in files or [] if saved_name(context, name, project) is None]
     return changes, (kept if files is not None else None), converted
+
+
+APPROVED_LINE = re.compile(
+    r"^\s*(?:\d+[.)]\s*)?`?((?:site|demand|utilities|time)\.[A-Za-z0-9_.]+)`?\s*=\s*([^|;\n]+)",
+    re.M,
+)
+"""A line of a confirmation question that names a case value: ``12. site.air.pressure = ...``."""
+NOT_APPROVED = ("stop", "deny", "no", "cancel")
+"""The first words of an answer that approve nothing."""
+
+
+def approved_values(context):
+    """Return ``{path: shown value}`` of the case values the user's answered questions listed.
+
+    QA-304: item 12 of the approved question was ``site.air.pressure = 101325 Pa``; a later full
+    set_case left the leaf out and the case was stored without it. Only questions the user
+    answered with something other than stop or a refusal count.
+    """
+    messages = getattr(context, "messages", None) or ()
+    answers = {
+        message.tool_call_id: message.content if isinstance(message.content, str) else ""
+        for message in messages
+        if message.role == "tool"
+    }
+    found = {}
+    for message in messages:
+        for call in getattr(message, "tool_calls", None) or ():
+            answer = answers.get(call.id)
+            if call.name != "ask_user" or not answer:
+                continue
+            first = answer.strip().strip("'\"{").lower()
+            if first.split(" ")[0] in NOT_APPROVED or "error" in first[:12]:
+                continue
+            question = str((call.input or {}).get("question") or "")
+            for path, shown in APPROVED_LINE.findall(question):
+                found[path.rstrip(".")] = shown.strip()
+    return found
+
+
+def missing_approved(context, data):
+    """Return the warning of approved case values the case to store leaves out, or ``None``."""
+    from geomind.tools.gemini.explain import field_of
+
+    missing = [
+        f"{path} = {shown}"
+        for path, shown in approved_values(context).items()
+        if field_of(data, path) is None
+    ]
+    if not missing:
+        return None
+    return (
+        f"the user approved {len(missing)} case value(s) this case leaves out: "
+        f"{'; '.join(missing)}. Add each in the next set_case as approved (a merge patch keeps "
+        "the rest), or say in the answer why it is left out"
+    )
 
 
 def kept_columns(columns, kept):
@@ -1250,6 +1307,7 @@ async def set_case(
     converted += judged_requirements(data)
     moved = moved_reference_depth(base, data)
     exact = exact_ratios(data.get("requirements"))
+    unstored = missing_approved(context, data)
     if economics:
         from geomind.tools.gemini.economics import refuse_unapproved
 
@@ -1281,6 +1339,7 @@ async def set_case(
         "version_is": VERSION_MEANING,
         **({"check": moved} if moved else {}),
         **({"check_requirements": exact} if exact else {}),
+        **({"check_approved": unstored} if unstored else {}),
         **({"converted": converted} if converted else {}),
         **({"plants_need": needs, "note": PLANTS_NEED_NOTE} if needs else {}),
     }

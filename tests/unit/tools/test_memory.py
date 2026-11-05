@@ -244,3 +244,18 @@ def test_a_card_of_several_denied_with_words_refuses_only_the_named_entries():
     events = denial("c1", [first, second], reason="drop all-second, it is wrong")
     assert repeated_denial(events, {"lessons": [first]}) is None
     assert "all-second" in repeated_denial(events, {"lessons": [first, second]})
+
+
+async def test_the_older_one_entry_form_still_writes_one_lesson():
+    """No API break: the five fields of one entry are accepted beside the list, never both."""
+    from geomind.tools import write_lesson
+
+    session = session_with(MemoryMemory())
+    entry = {"id": "l9", "kind": "lesson", "role": "all", "text": "read once", "source": "user"}
+    assert (await call(write_lesson, entry, session)).output == {"written": ["l9"]}
+    both = await call(write_lesson, {**entry, "lessons": [{**entry, "id": "l8"}]}, session)
+    assert both.output["error"]["code"] == "invalid_input"
+    part = await call(write_lesson, {"id": "l7", "text": "x"}, session)
+    assert "kind, role, source missing" in part.output["error"]["message"]
+    assert (await call(write_lesson, {}, session)).is_error
+    assert [item["id"] for item in session.memory.entries("experience")] == ["l9"]

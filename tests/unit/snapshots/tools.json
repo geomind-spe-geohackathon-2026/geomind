@@ -2358,44 +2358,133 @@
       "name": "web_search"
     },
     "write_lesson": {
-      "description": "Keep a general lesson for one role, or a fact the user gave, in the memory's experience.",
+      "description": "Keep the run's general lessons for roles, and the facts the user gave, in one call.",
       "effect": "write",
       "idempotent": true,
       "input_schema": {
+        "$defs": {
+          "Lesson": {
+            "additionalProperties": false,
+            "description": "One entry of the memory's experience: a lesson for a role, or a fact the user stated.",
+            "properties": {
+              "id": {
+                "title": "Id",
+                "type": "string"
+              },
+              "kind": {
+                "enum": [
+                  "lesson",
+                  "user_fact"
+                ],
+                "title": "Kind",
+                "type": "string"
+              },
+              "role": {
+                "title": "Role",
+                "type": "string"
+              },
+              "source": {
+                "title": "Source",
+                "type": "string"
+              },
+              "text": {
+                "title": "Text",
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "role",
+              "text",
+              "source"
+            ],
+            "title": "Lesson",
+            "type": "object"
+          }
+        },
         "additionalProperties": false,
         "properties": {
           "id": {
-            "title": "Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Id"
           },
           "kind": {
-            "enum": [
-              "lesson",
-              "user_fact"
+            "anyOf": [
+              {
+                "enum": [
+                  "lesson",
+                  "user_fact"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ],
-            "title": "Kind",
-            "type": "string"
+            "default": null,
+            "title": "Kind"
+          },
+          "lessons": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/$defs/Lesson"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Lessons"
           },
           "role": {
-            "title": "Role",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Role"
           },
           "source": {
-            "title": "Source",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Source"
           },
           "text": {
-            "title": "Text",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Text"
           }
         },
-        "required": [
-          "id",
-          "kind",
-          "role",
-          "text",
-          "source"
-        ],
         "title": "write_lesson_input",
         "type": "object"
       },

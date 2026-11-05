@@ -956,3 +956,25 @@ async def test_a_saved_connector_table_is_found_by_its_name_without_its_folder()
     assert result.is_error is False, result.output
     assert result.output["case"]["site"]["air"]["temperature"]["file"] == "data/air.csv"
     assert any(item["path"] == "site.air.temperature.file" for item in result.output["converted"])
+
+
+async def test_a_case_that_leaves_out_an_approved_value_says_which():
+    """QA-304: ``site.air.pressure = 101325 Pa`` was approved, then left out of the stored case."""
+    from geomind.tools import dispatch
+    from geomind.types import Message, ToolCall
+
+    question = "Confirm:\n12. site.air.pressure = 101325 Pa | the brief | constant\n"
+    asked = ToolCall(id="q1", name="ask_user", input={"question": question})
+    messages = (
+        Message(role="assistant", content="", tool_calls=[asked]),
+        Message(role="tool", tool_call_id="q1", content="approve all"),
+    )
+    first = {"changes": FROM_FILE}
+    context = Context(project="p", session=first_case_session(), messages=messages)
+    result = await dispatch(set_case, ToolCall(id="c1", name="set_case", input=first), context)
+    assert result.is_error is False, result.output
+    assert "site.air.pressure = 101325 Pa" in result.output["check_approved"]
+    stopped = (*messages[:1], Message(role="tool", tool_call_id="q1", content="stop"))
+    context = Context(project="p", session=first_case_session(), messages=stopped)
+    result = await dispatch(set_case, ToolCall(id="c1", name="set_case", input=first), context)
+    assert "check_approved" not in result.output

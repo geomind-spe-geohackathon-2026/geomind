@@ -114,6 +114,8 @@ ONE requirement with `min` and `max`: two one-sided requirements on the same `on
 `quantity`, `over`, `when` and `unit` are joined into `<quantity>_range`, listed in
 `converted`. A per-step requirement with `min` equal to `max` comes back with
 `check_requirements`: take its tolerance from the brief or the Knowledge base, or ask.
+A case that leaves out a value the user approved in a question (`<path> = <value>` lines)
+comes back with `check_approved`: add each such value in the next call as approved.
 `economics` is a merge patch on the content of the case's economics file. `files` names
 project files (`list_files`): their bytes go to gemini, under the same name, so a data file
 is given to the case and never retyped: name it in `changes`, as the `file` of a series.

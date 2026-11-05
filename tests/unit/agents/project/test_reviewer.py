@@ -17,8 +17,13 @@ def test_it_is_complete():
             "read_result",
             "update_state",
             "read_skill",
+            "calculate",
+            "run_python",
+            "web_search",
+            "read_web_page",
             "read_stored",
             "search_rag",
+            "read_knowledge",
             "finish",
         ],
     )

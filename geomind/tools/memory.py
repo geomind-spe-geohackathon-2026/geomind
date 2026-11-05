@@ -176,15 +176,71 @@ class Lesson(BaseModel):
     source: str
 
 
+FLAT_FIELDS = ("id", "kind", "role", "text", "source")
+"""The fields of the older one-entry form of ``write_lesson``, still accepted (no API break)."""
+
+
+def given_entries(lessons, flat):
+    """Return the entries of a call: its ``lessons`` list, or the older one-entry form.
+
+    The API stays additive: the five fields of one entry are still accepted beside the list,
+    never both in one call.
+    """
+    given = {name: value for name, value in flat.items() if value is not None}
+    if lessons is not None and given:
+        raise ToolError(
+            f"write_lesson: lessons and {', '.join(given)} given; expected the lessons list alone",
+            code="invalid_input",
+            path="lessons",
+        )
+    if lessons is not None:
+        return [lesson if isinstance(lesson, dict) else lesson.model_dump() for lesson in lessons]
+    if not given:
+        return []
+    missing = [name for name in FLAT_FIELDS if name not in given]
+    if missing:
+        raise ToolError(
+            f"write_lesson: {', '.join(missing)} missing; expected lessons = [{{id, kind, role, "
+            "text, source}, ...]",
+            code="invalid_input",
+            path=missing[0],
+        )
+    return [Lesson.model_validate(given).model_dump()]
+
+
+def check_roles(entries):
+    """Raise unless each entry's role is an agent's snake name or ``all``."""
+    for index, entry in enumerate(entries):
+        if not is_role(entry["role"]):
+            raise ToolError(
+                f"write_lesson: role = {entry['role']!r}; expected an agent's snake name, such "
+                "as design_lead, or all",
+                code="unknown_name",
+                path=f"lessons.{index}.role",
+                suggestions=difflib.get_close_matches(
+                    entry["role"].replace("_", ""), runtime.ROLES
+                ),
+            )
+
+
 @tool(effect="write", idempotent=True)
-def write_lesson(context, lessons: list[Lesson]):
+def write_lesson(
+    context,
+    lessons: list[Lesson] | None = None,
+    id: str | None = None,
+    kind: Literal["lesson", "user_fact"] | None = None,
+    role: str | None = None,
+    text: str | None = None,
+    source: str | None = None,
+):
     """Keep the run's general lessons for roles, and the facts the user gave, in one call.
 
     One call holds every entry of the run, so the user approves them on one card (QA-199).
     Skill `memory`.
     """
     memory = memory_of(context, "write_lesson")
-    entries = [lesson if isinstance(lesson, dict) else lesson.model_dump() for lesson in lessons]
+    flat = {"id": id, "kind": kind, "role": role, "text": text, "source": source}
+    entries = given_entries(lessons, flat)
     if not entries:
         raise ToolError(
             "write_lesson: lessons = []; expected at least one entry, or keep nothing and finish",
@@ -197,17 +253,7 @@ def write_lesson(context, lessons: list[Lesson]):
             code="invalid_input",
             path="lessons",
         )
-    for index, entry in enumerate(entries):
-        if not is_role(entry["role"]):
-            raise ToolError(
-                f"write_lesson: role = {entry['role']!r}; expected an agent's snake name, such "
-                "as design_lead, or all",
-                code="unknown_name",
-                path=f"lessons.{index}.role",
-                suggestions=difflib.get_close_matches(
-                    entry["role"].replace("_", ""), runtime.ROLES
-                ),
-            )
+    check_roles(entries)
     origin = {"run": context.session.state.run_id}
     checked = [
         checked_lesson(

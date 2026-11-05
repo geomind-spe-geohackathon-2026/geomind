@@ -580,9 +580,8 @@ async def test_a_range_on_a_doublet_a_search_adds_is_named_not_refused(gm):
     assert "d1.nominal_flow" in shown_ranges(stored)
     far = {**ranges, "d3.nominal_flow": flow}
     beyond = await call(TOOLS.set_ranges, {**step, "ranges": far, "name": "far"}, session)
-    assert beyond.is_error
-    if gemini.__version__ >= "0.6.21":
-        assert "size.doublets allows at most 3 doublets" in beyond.output["error"]["message"]
+    assert beyond.is_error and beyond.output["error"]["code"] == "unknown_name"
+    assert "unknown path 'd3.nominal_flow'" in beyond.output["error"]["message"]
 
 
 async def test_a_version_alias_is_no_new_design_name(gm):

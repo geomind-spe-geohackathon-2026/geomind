@@ -146,10 +146,12 @@ def test_load_takes_the_contract_keywords():
     assert fresh.engine.permissions is permissions
 
 
-def test_run_and_load_take_no_sandbox():
-    """The code sandbox is gone: no code runs in geomind, so neither takes ``sandbox``."""
-    with pytest.raises(TypeError):
-        gd.Run(message="x", llm=FakeLLM([]), sandbox=object())
+def test_run_and_load_take_the_sandbox_of_run_python():
+    """``run_python`` runs in a sandbox (0.4.57): ``Run`` and ``Run.load`` both take it."""
+    import inspect
+
+    assert "sandbox" in inspect.signature(gd.Run).parameters
+    assert "sandbox" in inspect.signature(gd.Run.load).parameters
 
 
 def test_cancel_stops_at_the_next_hook_point():
@@ -279,14 +281,14 @@ def test_the_brief_follows_the_message_and_preferences_join_the_state():
 
 
 def test_a_short_answer_route_ends_the_run_with_it():
-    """A greeting is answered by the route itself, by rule."""
+    """A greeting is answered by the route itself, by rule; the run says so (QA-190)."""
     answer = says(json.dumps({"kind": "answer", "answer": "Hello."}))
     run = gd.Run(message="hi", llm=FakeLLM([answer]))
     result = run.start()
     assert (result.status, result.answer) == ("done", "Hello.")
     events = run.store.load_events(run.id)
     started = next(e for e in events if e.type == "run.started" and e.run_id == run.id)
-    assert started.loop == "answer"  # QA-190: the run says it was a direct answer
+    assert started.loop == "answer"
 
 
 def test_a_loop_set_by_hand_is_not_routed():

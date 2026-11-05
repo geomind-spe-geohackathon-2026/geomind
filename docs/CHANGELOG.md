@@ -7,6 +7,11 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 ## [Unreleased]
 
 ### Fixed (QA-296)
+- write_lesson takes the old flat form (id, kind, role, text, source) again beside `lessons`;
+  no argument is required (the 0.4.12x list form had broken the frozen tool API).
+- QA-304: a set_case whose case leaves out a value the user approved returns `check_approved`.
+- The project lead no longer imports the engine: call summaries live in geomind.tools.summaries.
+- The case lead's prompt names no competition case as built in (package generality).
 - QA-301: set_case finds a saved connector table by its name with or without `data/`, and drops
   it from `files`.
 - run_python and read_web_page check a call before its approval card, so a call they would refuse

@@ -11,21 +11,26 @@ from tests.fixtures.runs import call, context, engine_for, of_type, run, says, u
 from tests.unit.agents.structure import check_complete
 
 TOOLS = [
-    "case_lead",
-    "design_lead",
-    "reviewer",
-    "analysis_lead",
-    "explainer",
-    "support_lead",
-    "comparison",
-    "read_case",
-    "set_case",
-    "case_changes",
-    "accept_case",
-    "update_state",
-    "ask_user",
-    "finish",
-]
+            "case_lead",
+            "design_lead",
+            "reviewer",
+            "analysis_lead",
+            "explainer",
+            "support_lead",
+            "comparison",
+            "list_plants",
+            "list_studies",
+            "list_files",
+            "read_case",
+            "set_case",
+            "case_changes",
+            "accept_case",
+            "update_state",
+            "read_stored",
+            "read_knowledge",
+            "ask_user",
+            "finish",
+        ]
 
 
 def test_it_is_complete():
@@ -139,7 +144,7 @@ def test_qa_283_an_empty_project_asks_for_the_site_first():
     assert "list_files" in lead.tools()
     text = " ".join(lead.prompt.content.split())
     assert "In an empty project (no files, no case), ask the user first" in text
-    assert "is never this project's brief unless the user or the project's files name" in text
+    assert "is that case's brief only when the user or the project's files name that case" in text
 
 
 def test_qa_288_a_denied_card_reaches_the_project_lead_with_the_user_s_words():
@@ -191,3 +196,10 @@ def test_qa_179_an_optimisation_answer_comes_from_the_study_record():
     """QA-179: the analysis lead and explainer are briefed at once, with the study key."""
     text = " ".join(ProjectLead().prompt.content.split())
     assert "After an optimisation, the study record holds the answer" in text
+
+
+def test_qa_211_a_failed_requirement_is_met_by_design_changes():
+    """QA-211: design changes only, never accepting the failure or changing the requirement."""
+    text = " ".join(ProjectLead().prompt.content.split())
+    assert "The question offers design changes only" in text
+    assert "accept the design with the open requirement" not in text

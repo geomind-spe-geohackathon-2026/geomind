@@ -44,7 +44,7 @@ def project_case_changes(context, found=None):
 
     ``about`` (notes and sources) is left out: only values count. Empty when either is missing.
     """
-    from geomind.engine.session import _differing, _leaf
+    from geomind.tools.summaries import _differing, _leaf
 
     workspace = context.session.workspace
     current = context.problem.case
@@ -148,7 +148,7 @@ def request_denials(context):
     nested run, the project lead read only the design lead's pick and briefed the same search
     again, twice. Every run of the request tree logs under the root, so the lead sees them all.
     """
-    from geomind.engine.session import DENIED_BY_USER, call_summary
+    from geomind.tools.summaries import DENIED_BY_USER, call_summary
 
     session = context.session
     store = getattr(getattr(session, "engine", None), "store", None)

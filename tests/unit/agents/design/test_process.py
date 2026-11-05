@@ -7,21 +7,27 @@ from geomind.agents import ProcessEngineer
 from tests.unit.agents.structure import check_complete
 
 TOOLS = [
-    "read_case",
-    "list_plants",
-    "read_plant",
-    "list_modules",
-    "describe_module",
-    "build_plant",
-    "patch_plant",
-    "update_state",
-    "read_skill",
-    "read_stored",
-    "search_memory",
-    "read_memory",
-    "search_rag",
-    "finish",
-]
+            "read_case",
+            "list_plants",
+            "read_plant",
+            "list_modules",
+            "describe_module",
+            "list_starts",
+            "start_plant",
+            "build_plant",
+            "patch_plant",
+            "update_state",
+            "read_skill",
+            "calculate",
+            "run_python",
+            "web_search",
+            "read_web_page",
+            "read_stored",
+            "search_memory",
+            "read_memory",
+            "search_rag",
+            "finish",
+        ]
 
 
 def test_it_is_complete():
