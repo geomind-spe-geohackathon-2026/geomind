@@ -240,6 +240,15 @@ of):
   `about` and named as open. An efficiency, a share or a rate is a fraction with no unit (70 %
   is `0.7`, no `unit`); a bound on a single equipment value (`pump_hydraulic_efficiency`) has
   no `over` and no `when`.
+- A supply temperature the brief fixes (heating 100 °C, cooling 20 °C, "Fixed") is an operating
+  condition of the plant: its per-step requirement on `heating_supply` or `cooling_supply` is
+  `when: running`, never `always` (a day with no demand runs no supply; its idle loop is no
+  supply). Beside it, the brief's ask that the demand is met is one `unmet_share` requirement per
+  supply, with no `over`, `when` or `unit`: `{name: heat_delivered, on: heating_supply, quantity:
+  unmet_share, max: 0.01}` and `cold_delivered` on `cooling_supply`; the 0.01 is an assumption
+  (the brief gives no tolerance), named as one. It judges the whole simulated year: a limit on a
+  source's days of operation (330 d of a doublet) is that source's availability, never the
+  system's; the system meets the demand on every day.
 - The outside air (`site.air.temperature`, `relative_humidity`, `pressure`): search the files and
   the knowledge base first (step 2). When a weather or elevation server is connected, read the
   values or the elevation from it before any question; when only the site's location is
