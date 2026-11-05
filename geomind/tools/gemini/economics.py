@@ -259,8 +259,12 @@ STATUS_RANK = {"verified": 0, "secondary": 1}
 """The order of sourced rows; a ``placeholder`` row has no source and is never recommended."""
 BOUND_WORDS = ("upper bound", "proxy")
 """Words of a row's note or id that keep it from being recommended over a usable row."""
-REFERENCE_ONLY = ("erratum", "waste-density")
-"""Words of a row id kept for reference only: never a value nor in ``others``."""
+REFERENCE_ONLY = ("erratum", "waste-density", "subsidy-period")
+"""Words of a row id kept for reference only: never a value nor in ``others`` (QA-314: the SDE++
+subsidy period, 15 yr, was recommended as a Dutch site's analysis period)."""
+NOT_PRICES = ("analysis_period",)
+"""Keys whose rows are no prices of a country (a plant's life): the site's country does not rank
+them, so a lifetime row of another country is no reason to leave the key open."""
 NOT_REAL_RATE = ("social", "nominal")
 """Words of a ``discount_rate`` row that is not a real financial rate (the catalogue is real)."""
 
@@ -499,11 +503,12 @@ def recommended(context, values, open_keys, country=None, notes=None):
     rows = catalogue_rows(context)
     if rows is None:
         return values, open_keys
-    country = site_country(country) or case_country(context)
+    asked = site_country(country)
+    country = asked or case_country(context)
     notes = {} if notes is None else notes
     notes["country"] = country
     replaced, foreign = notes.setdefault("replaced", []), notes.setdefault("foreign", [])
-    values = kept_base(rows, values, country, replaced)
+    values = kept_base(rows, values, asked, replaced)
     held = case_values(context)
     notes["held"] = held
     kept, later = notes.setdefault("kept", []), notes.setdefault("later", [])
@@ -514,7 +519,7 @@ def recommended(context, values, open_keys, country=None, notes=None):
         if key in CATALOGUE_BASIS:
             continue
         if held_by_case(key, held):
-            item = held_replaced(rows, key, held, country, replaced)
+            item = held_replaced(rows, key, held, asked, replaced)
             added += [item] if item else []
             kept += [] if item else [key]
             continue
@@ -524,17 +529,27 @@ def recommended(context, values, open_keys, country=None, notes=None):
         if key.startswith(POLICY_KEYS):
             opened.append(key)
             continue
-        sourced = ranked_rows(found, key, country)
-        if not sourced:
-            opened.append(key)
-            continue
-        if not fits_site(sourced[0]["id"], country):
-            regions = sorted({row_region(row["id"]) for row in sourced} - {None})
-            foreign.append(f"economics.{key} (rows only of {', '.join(regions)})")
-            opened.append(key)
-            continue
-        added.append(row_value(key, sourced))
+        item = site_value(found, key, country, foreign)
+        added += [item] if item else []
+        opened += [] if item else [key]
     return [*values, *added], [*open_keys, *opened]
+
+
+def site_value(found, key, country, foreign):
+    """Return the value of ``key`` from its best row that fits the site, or ``None`` (open).
+
+    A key whose usable rows are all of another country than the site's is named in ``foreign``;
+    the country does not rank a key of ``NOT_PRICES``.
+    """
+    own = None if key in NOT_PRICES else country
+    sourced = ranked_rows(found, key, own)
+    if not sourced:
+        return None
+    if not fits_site(sourced[0]["id"], own):
+        regions = sorted({row_region(row["id"]) for row in sourced} - {None})
+        foreign.append(f"economics.{key} (rows only of {', '.join(regions)})")
+        return None
+    return row_value(key, sourced)
 
 
 def catalogue_keys(rows, named):
@@ -851,11 +866,10 @@ def refuse_percents(values):
         if any(word in leaf for word in FRACTION_WORDS) and number > 1 and not item.unit:
             raise ToolError(
                 f"ask_economics: {short(item.key)} = {number} with no unit; the key is a fraction "
-                f"with no unit, so {number} reads as {number * 100:g} %. For {number:g} % give "
-                f"{number / 100:g}",
+                f"with no unit, so {number} reads as {number} wholes, not {number} %. For a "
+                "percent give the fraction, the percent over a hundred (0.08 for 8 %)",
                 code="invalid_value",
                 path="values",
-                suggestions=[f'{{"key": "{short(item.key)}", "value": {number / 100:g}}}'],
             )
 
 
@@ -1013,10 +1027,46 @@ def open_line(key, note=None):
     return f"{line} ({note})" if note else line
 
 
+ONE_SOURCE_WORDS = ("every value", "all values", "all the values", "each value", "every key")
+"""Words of a lead's note that give one source for all the values (QA-314)."""
+
+
+def source_counts(values):
+    """Return ``{source: count}`` of the values: their document, catalogue rows by country, other.
+
+    QA-314: the lead's note said every value was the assumptions document while 8 keys came from
+    Dutch catalogue rows; the question now counts where each value comes from itself. The
+    catalogue's currency and price year are left out: they go with its rows.
+    """
+    counts = {}
+    for item in values:
+        if item.source == BASIS_SOURCE:
+            continue
+        if item.row:
+            region = row_region(item.row)
+            name = f"catalogue rows of {region}" if region else "catalogue rows, general"
+        else:
+            document = DOCUMENT.search(item.source or "")
+            name = document.group(0) if document else (item.source or "no source")
+        counts[name] = counts.get(name, 0) + 1
+    return counts
+
+
+def sources_text(counts):
+    """Return ``"30 from knowledge/a.md; 8 from catalogue rows of the Netherlands"``."""
+    if not counts:
+        return "no values"
+    ordered = sorted(counts.items(), key=lambda pair: -pair[1])
+    return "; ".join(f"{count} from {name}" for name, count in ordered)
+
+
 def question_text(values, open_keys, note=None, notes=None, country=None):
     """Return the one economics question, every value on its own line, the required keys first."""
     first = sorted(values, key=lambda item: short(item.key) not in REQUIRED)
-    lines = ["Economics of the case, from the cost catalogue."]
+    sources = source_counts(first)
+    lines = ["Economics of the case.", "Where the values come from: " + sources_text(sources)]
+    if note and len(sources) > 1 and any(word in note.lower() for word in ONE_SOURCE_WORDS):
+        note = "(the lead's note named one source for every value; the line above is counted)"
     lines += [note] if note else []
     lines += ["", "Values (approve all sets each, with its row):"]
     lines += [value_line(item, (notes or {}).get(short(item.key))) for item in first]

@@ -587,7 +587,7 @@ def test_a_percent_given_as_a_whole_number_on_a_fraction_key_is_refused():
     """QA-120: "8 %" was sent as discount_rate 8 with no unit, which reads as 800 %."""
     from geomind.tools.gemini.economics import refuse_percents
 
-    with pytest.raises(ToolError, match="give 0.08"):
+    with pytest.raises(ToolError, match=r"not 8 %. For a percent give the fraction"):
         refuse_percents([EconomicsValue(key="discount_rate", value=8, source="user")])
     refuse_percents([EconomicsValue(key="discount_rate", value=0.08, source="user")])
 
@@ -776,3 +776,29 @@ async def test_the_source_documents_ranges_go_in_as_uncertainty():
         line for line in request.message.splitlines() if line.startswith("economics.energy.elec")
     )
     assert "uncertainty" not in electricity
+
+
+async def test_the_question_counts_where_its_values_come_from_and_drops_a_false_note():
+    """QA-314: the note said every value was the document; 8 keys were Dutch catalogue rows."""
+    from geomind.engine import Context
+    from geomind.tools import dispatch
+    from geomind.types import ToolCall
+    from tests.fixtures.sessions import StubSession
+
+    source = "knowledge/assumptions.md, section 1.4"
+    values = [
+        {"key": "discount_rate", "value": 0.05, "source": source},
+        {"key": "energy.gas", "value": 39.92, "unit": "EUR/MWh", "source": source},
+    ]
+    note = "Every value is the assumptions document, so results compare with the sample case."
+    context = Context(session=StubSession(workspace=AssumptionsWorkspace()))
+    asked = ToolCall(id="q", name="ask_economics", input={"values": values, "note": note})
+    request = await dispatch(ask_economics, asked, context)
+    assert isinstance(request, Request), request
+    lines = request.message.splitlines()
+    assert lines[1].startswith("Where the values come from: ")
+    assert "2 from knowledge/assumptions.md" in lines[1]
+    assert "from catalogue rows, general" in lines[1]
+    assert note not in request.message
+    period = next(line for line in lines if line.startswith("economics.analysis_period"))
+    assert "subsidy-period" not in period and "25 yr" in period
