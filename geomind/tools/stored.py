@@ -94,8 +94,10 @@ def stored_form(output, reference):
             if key not in RESERVED and len(json.dumps(value)) <= SMALL_CHARACTERS
         }
         rest = {key: value for key, value in output.items() if key not in kept}
+    told = output.get("note") if isinstance(output, dict) else None
     return {
         **kept,
+        **({"answer_note": told} if isinstance(told, str) else {}),
         "reference": reference,
         "summary": outline(rest),
         "note": "read_stored(reference)",
@@ -185,6 +187,11 @@ def _step(value, part, walked=""):
     tables = tables_in(value) if not walked else []
     message = f"read_stored: path = {prefix}{part}; {part!r} is no key or index of "
     message += walked or "the result"
+    if not walked:
+        message += (
+            " (a key the tool's answer showed beside its `reference`, such as `plants_need`, is in "
+            "that answer itself, not in the stored result)"
+        )
     names = [name for name in parts_of(value) if name != TEXT_HINT]
     message += f"; expected one of {', '.join(names)}" if names else ""
     message += f"; {TEXT_HINT}" if isinstance(value, str) else ""
