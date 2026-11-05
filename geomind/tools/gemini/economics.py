@@ -618,30 +618,7 @@ def ask_economics(
 ):
     """Ask the user the ONE economics question from the rows you chose, and set what they approve.
 
-    Send only the exceptions: every economics key of the cost catalogue you do not name goes in
-    with its recommended row (sourced, verified, no upper bound or proxy, the latest year; a
-    real discount rate) and its other rows in ``others``; a key with only placeholder rows is
-    open. Name a key to recommend another row (one of the site's country), to put it in ``open``,
-    or with a value from a server or the user.
-    ``values`` holds each economics key with the row you recommend: ``key`` its path under
-    ``economics`` (``capex.heat_pump``, ``energy.electricity``), ``row`` the catalogue row ``id``
-    and, for a key whose rows differ, ``others``, the ids of the rows you did not recommend
-    (``["drilling-nl-2013-2300m"]``). Send only ids: this tool reads each row's value, unit,
-    source, year, url and status from the knowledge base itself, so never copy them (copying
-    every row ran past the output limit). ``value`` with ``source`` (and ``unit``, no ``row``) is
-    for a value a knowledge document or a project file states (an assumptions document of the
-    case: ``source`` ``knowledge/<name>`` with its section), an MCP result or the user. ``discount_rate`` is a key too, in ``values`` or in
-    ``open``. A value from a catalogue row is its ``value_2015`` in
-    ``unit_2015``, EUR at 2015 prices, so this tool sets ``currency`` EUR and ``price_year`` 2015
-    itself: leave both out (without any row, name each in ``values`` or ``open``). A row's unit
-    goes as the row writes it (``EUR/W electric``); a unit its key does not take is refused,
-    every one at once, before the user is asked. ``open`` names the keys no usable row gives, each
-    key once in ``values`` or ``open``; ``note`` one line for the user. A field with
-    nothing to say is null or left out; a key whose value is null is open. The question's
-    options are approve all, change some and stop, and the user may type an answer instead. On
-    approve all, every value is set in the case's economics (``set_case``) with its row in
-    ``about.sources``, and each becomes a confirmed assumption with its citation; the result says
-    what was set. On change some, ask which values change and to what, without options.
+    Skill `setting-the-case`.
     """
     dropped, skipped = [], []
     values, open_keys = recommended(context, list(values), list(open or []))

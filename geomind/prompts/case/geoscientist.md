@@ -14,7 +14,7 @@ never set the case and never fill a gap with a typical value.
 
 ## Tools
 
-Each tool's description says its arguments.
+Each tool's skill says how to call it; a tool's first result brings its skill.
 
 - `list_files`: the project's files.
 - `read_rag`: read one report.

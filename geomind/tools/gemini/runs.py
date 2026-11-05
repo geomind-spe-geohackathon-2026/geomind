@@ -124,7 +124,10 @@ def profile_row(case, service):
 
 @tool(effect="read")
 def list_profiles(context):
-    """List the demand of the case: its heating and cooling services, with unit, window and peak."""
+    """List the demand of the case: its heating and cooling services, with unit, window and peak.
+
+    Skill `setting-the-case`.
+    """
     case = case_of(context)
     if case.demand is None:
         raise ToolError(
@@ -139,9 +142,7 @@ def list_profiles(context):
 def read_profile(context, service: str, start: str | None = None, end: str | None = None):
     """Return the demand of a service (heating or cooling) of the case as a series in MW.
 
-    ``start`` and ``end`` are ISO 8601 times, both inclusive. ``summary`` gives the ``peak`` and
-    ``minimum`` with their time, the ``mean`` and the ``energy`` of the window, computed by
-    gemini's units: take a size from it, never from adding the series by hand.
+    Skill `setting-the-case`.
     """
     import gemini as gm
 
@@ -448,21 +449,7 @@ async def simulate(
 ):
     """Simulate a plant on the state's case and store the results; return a reference and summary.
 
-    ``design`` is a stored design (``design/<name>``), or the project's plant without one.
-    ``changes`` holds parameters by module path for this run only, each a ``{"value", "unit"}``
-    (a dimensionless parameter may be a number); the plant's own options go under ``control``
-    (``{"control": {"dispatch": {"value": "least_cost"}}}``) or as ``backup``. ``start`` and ``end`` are ISO 8601 times that cut
-    the case's time to a window, both inclusive: the run, its summary and its stored case are those
-    of the window (the case's ``time`` cut to it); to change the case's time itself use set_case.
-
-    The plan comes from gemini's schedule over the case. A step that fails is a failed row in the
-    summary and the run goes on. What ``gm.check`` finds wrong with the plant on this case (a
-    parameter without a value, equipment without a cost in the economics, a role a requirement
-    names) is a gemini error with each issue's path and message, and nothing runs.
-
-    The summary gives the steps, the failed steps with their first groups, the report's totals in
-    display units (MWh, MEUR, EUR/MWh, kt), gemini's ``verdict``, the requirements that are not met
-    (``unmet``), the coverage of the demand, the plant and the case's time span.
+    Skill `simulating-a-plant`.
     """
     plant, results, summary, options, ran = await runtime.in_gemini_thread(
         run_plant, context, design, changes, start, end

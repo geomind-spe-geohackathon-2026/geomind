@@ -15,6 +15,7 @@ from geomind.prompts.prompt import (
 )
 from geomind.tools.base import with_old_names
 from geomind.tools.mcp import MCP_TOOLS
+from geomind.tools.memory import MEMORY_TOOLS
 from geomind.tools.stored import shortened_message
 from geomind.types import Message
 
@@ -94,7 +95,7 @@ class Context:
         prompt = agent.prompt.render(memory=remembers) if agent.prompt else ""
         parts = [prompt, agent.output.instructions()]
         role = getattr(agent.prompt, "role", None)
-        offered = {*agent.tools(), *MCP_TOOLS}
+        offered = {*agent.tools(), *MCP_TOOLS} - (set() if remembers else set(MEMORY_TOOLS))
         parts.append(skill_listing(role, offered) if "read_skill" in agent.tools() else "")
         parts.append(STORED_RESULTS if "read_stored" in agent.tools() else "")
         parts.append(MEMORY if remembers and "search_memory" in agent.tools() else "")

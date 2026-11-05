@@ -36,5 +36,8 @@ def test_ask_user_says_a_typed_answer_needs_no_options():
     """#59: the case lead asked for a path and a value with options, and the user could not."""
     from geomind.tools import ask_user
 
-    text = ask_user.schema()["description"]
+    from geomind.context.skills import load_skill
+
+    assert "working-in-a-team" in ask_user.schema()["description"]
+    text = " ".join(load_skill("working-in-a-team").split())
     assert "types an answer of their own" in text and "ask without options" in text

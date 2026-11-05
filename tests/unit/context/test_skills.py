@@ -7,12 +7,11 @@ from geomind.errors import UnknownNameError
 
 
 def test_the_first_skills_ship():
-    """The design lead's general skill, the units and the results skills exist."""
-    assert skill_names() == [
-        "designing-a-plant",
-        "gemini-units",
-        "reading-results",
-    ]
+    """The general skills and one skill per group of tools exist."""
+    names = skill_names()
+    for name in ("designing-a-plant", "gemini-units", "reading-results", "setting-the-case"):
+        assert name in names
+    assert names == sorted(names)
 
 
 def test_a_skill_loads_by_name():
@@ -35,8 +34,8 @@ def test_a_name_cannot_leave_the_folder():
 def test_the_listing_has_one_line_per_skill():
     """The system prompt holds names and one line each, not the text."""
     lines = skill_listing().splitlines()
-    assert len(lines) == 4
-    assert lines[2].startswith("- gemini-units: Units gemini accepts")
+    assert len(lines) == 1 + len(skill_names())
+    assert any(line.startswith("- gemini-units: Units gemini accepts") for line in lines)
 
 
 def test_a_tool_s_first_result_carries_its_skill_once():
@@ -50,4 +49,28 @@ def test_a_tool_s_first_result_carries_its_skill_once():
     later = [Message(role="tool", content=text, tool_call_id="c1")]
     assert first_call_skill("evaluate_module", later) is None
     assert first_call_skill("describe_module", later) is None
-    assert first_call_skill("finish", []) is None
+    assert first_call_skill("no_such_tool", []) is None
+
+
+def test_every_tool_is_explained_by_exactly_one_skill():
+    """User rule (2026-11-05): how to use a tool lives in one skill; its description names it."""
+    from geomind import tools
+    from geomind.context.skills import _skills
+    from geomind.tools import mcp
+    from geomind.tools.base import Tool
+
+    found = {}
+    for module in (tools, tools.gemini, mcp):
+        for name in dir(module):
+            item = getattr(module, name)
+            if isinstance(item, Tool):
+                found[item.name] = item
+    claims = {}
+    for skill, (fields, _) in _skills().items():
+        for name in (part.strip() for part in fields["tools"].split(",")):
+            if name.isidentifier():
+                claims.setdefault(name, []).append(skill)
+    assert sorted(set(found) - set(claims)) == []
+    assert {name: skills for name, skills in claims.items() if len(skills) > 1} == {}
+    for name, item in found.items():
+        assert f"`{claims[name][0]}`" in item.description, name

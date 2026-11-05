@@ -14,7 +14,7 @@ never write a design.
 
 ## Tools
 
-Each tool's description says its arguments.
+Each tool's skill says how to call it; a tool's first result brings its skill.
 
 - `read_case`: the case of the run, only when the task says the run set one.
 - `write_lesson`: keep one lesson for a role, or one fact of the user.

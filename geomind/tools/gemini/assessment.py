@@ -26,13 +26,7 @@ COSTS = (
 def check_results(context, reference: str):
     """Check stored results against the case they ran on: gemini's verdict and report.
 
-    Returns ``{feasible, reasons, requirements, failures, metrics}``, gemini's, in display units.
-    ``feasible`` is ``gm.evaluate.verdict``, the one rule: true when nothing is wrong. ``reasons``
-    says what is, each with a ``kind`` (``requirement``, ``failed_step``, ``numerical`` or
-    ``bound``), a ``name`` and a ``message``. ``requirements`` is one check per unit of each
-    requirement of the case and per service supply temperature, ``failures`` the failed and skipped
-    steps by module and code, and ``metrics`` the energies, capacities, costs and CO2. A limit is a
-    requirement of the case: set it with ``set_case``.
+    Skill `reading-results`.
     """
     return assess(*load_run(context, reference, "check_results"))
 
@@ -88,10 +82,7 @@ def gap_problems(plant, case, results, errors):
 def compute_kpis(context, reference: str, names: list[str] | None = None):
     """Compute KPIs of stored results in display units, all of them without ``names``.
 
-    The KPIs are the totals of ``gm.evaluate.totals`` (what crossed the plant's edge, coverage,
-    COP, peaks) and the metrics of ``gm.evaluate.report``. ``errors`` maps each cost gemini gives
-    no value for to its error, ``case_incomplete`` with the path in the case when a value is
-    missing; it is left out when there is none.
+    Skill `economics`.
     """
     found = kpi_values(*load_run(context, reference, "compute_kpis"))
     for name in names or ():
@@ -127,12 +118,7 @@ def cost_values(plant, case, results, names=COSTS):
 def estimate_costs(context, reference: str):
     """Estimate capex, opex, LCOH, LCOC, LCTS, NPV, payback, CO2 and the annualised cost.
 
-    Every value is gemini's (``gm.evaluate``) on the run's case, in display units with its parts;
-    prices, discount rate, analysis period and cost factors are the case's ``economics.json``.
-    Nothing the file lacks is filled: a cost that needs it is ``{"error": {path, code, message}}``
-    with gemini's error (its code and the path in the case; a missing value is ``case_incomplete``
-    with every value the costs need in ``suggestions``), and when no cost can be computed the call
-    fails with that error. Set the values in the case's economics or ask the user.
+    Skill `economics`.
     """
     import gemini as gm
 

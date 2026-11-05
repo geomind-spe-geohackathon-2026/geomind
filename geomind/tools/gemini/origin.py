@@ -71,10 +71,7 @@ def changes_of(context):
 def case_changes(context):
     """List how the state's case differs from the case the user or the project gave.
 
-    Each item has ``path`` (a section, ``section.key``, ``requirements.<name>`` or ``file <name>``),
-    ``change`` (``changed``, ``removed`` or ``added``) and the ``given`` and ``now`` values. An
-    empty list means the case is the one the user gave. A design is verified only on that case:
-    any difference waits for the user's approval.
+    Skill `setting-the-case`.
     """
     return changes_of(context)
 
@@ -83,7 +80,7 @@ def case_changes(context):
 async def accept_case(context):
     """Make the state's case the one the user gave, after the user approved its changes.
 
-    Only the design loop's driver holds this tool, after the user answered its question.
+    Skill `setting-the-case`.
     """
     data = state_case(context)
     if context.problem.case_origin is None:

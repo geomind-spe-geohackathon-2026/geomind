@@ -89,16 +89,7 @@ def size_design(plant, case):
 async def size_plant(context, design: str, name: str):
     """Size a stored design for the state's case; store the sized plant as design ``name``.
 
-    Sizing reads the plant's ranges (``size.doublets`` min and max, when its class takes doublets)
-    and its ``params.backup``; set what is missing with ``set_ranges`` first. The boiler's backup
-    policy is the plant's own ``params.backup``: ``peak`` covers the whole heating peak with
-    the doublets off, ``none`` covers only what the doublets cannot reach. The policy has no
-    default: set it in the plant first, as an assumption when the user gave none. ``name`` names
-    the sized design and the study ``study/<name>`` that records the call; a taken name is
-    refused. Returns the new design reference, the ``study`` key,
-    gemini's notes (what was ``sized`` with its reason, what stayed ``unchanged``, what is
-    ``broken`` and the ``simulation`` that judged it) and, as ``patch_plant`` gives them, the
-    sized plant's ``issues`` with their count ``missing``: every value ``simulate`` still needs.
+    Skill `simulating-a-plant`.
     """
     from geomind.tools.gemini.plants import plant_issues
 
@@ -146,15 +137,7 @@ def minimized(found):
 async def optimize(context, design: str, objective: str, evaluations: int, seed: int, name: str):
     """Search a stored design for the values that minimise a metric; store the best as ``name``.
 
-    ``objective`` is a metric such as ``lcts``, ``lcoh``, ``lcoc``, ``annualised_cost`` or ``co2``;
-    a leading ``-`` maximises it. The variables are the ranges and options of the design (set them
-    with ``set_ranges``); a design with none is gemini's error. The constraints are the case's
-    requirements, which the user owns. ``evaluations`` and ``seed`` have no default. ``name``
-    names the stored best design and the study ``study/<name>`` that records the call; a taken
-    name is refused. Returns the ``best`` (its value, parameters and plant, in display units),
-    ``feasible``, the ``trials`` run, the stored ``design`` and the ``study`` key. When no trial
-    is feasible the best is the least violating one and its ``reason`` says why. A search that
-    takes longer than 15 minutes comes back as a ``timeout`` error: ask for fewer evaluations.
+    Skill `simulating-a-plant`.
     """
     settings = {"method": "minimize", "objective": objective, "evaluations": evaluations}
     settings["seed"] = seed
@@ -200,14 +183,7 @@ async def sample_uncertainty(
 ):
     """Sample a design over the case's uncertainty (from the user or the case, never made up).
 
-    Returns a summary per metric.
-
-    The distributions are only those of the case's ``uncertainty`` (set them with ``set_case``);
-    a case without any is an error. ``samples`` draws are simulated, one run each, from ``seed``.
-    ``name`` names the study ``study/<name>`` that records the call; a taken name is refused.
-    Returns the ``study`` key and, in ``summary``, each metric's ``mean``, ``p5``, ``p50`` and
-    ``p95`` in display units and ``failed``, the number of draws left out because their run had
-    failed steps.
+    Skill `economics`.
     """
     settings = {"method": "sample", "metrics": metrics, "samples": samples, "seed": seed}
     ran, plants, study, case = prepared(context, "sample_uncertainty", name, [design], settings, [])
@@ -236,12 +212,7 @@ def sensitivity_of_design(plant, case, metrics):
 async def sensitivity(context, design: str, metrics: list[str], name: str):
     """Rank the case's uncertain values (from the user or the case, never made up) by effect.
 
-    The metrics are those of a stored design.
-
-    Each value the case declares an ``uncertainty`` for is set at its low and high bound. ``name``
-    names the study ``study/<name>`` that records the call; a taken name is refused. Returns the
-    ``study`` key and ``rows``, sorted by effect, each ``{parameter, metric, low, high, at_low,
-    at_high, effect}``.
+    Skill `economics`.
     """
     settings = {"method": "sensitivity", "metrics": metrics}
     ran, plants, study, case = prepared(context, "sensitivity", name, [design], settings, [])
@@ -315,20 +286,7 @@ async def run_study(
 ):
     """Run one study over several stored designs on the state's case and rank them.
 
-    This is how alternatives are compared: one study over several topologies. ``method`` is
-    ``run`` (simulate as it is), ``minimize`` (search each design's ranges), ``sample`` or
-    ``sensitivity``; ``prepare=["size"]`` sizes each design first, from its ranges and its own
-    ``params.backup``.
-    The settings a method needs are gemini's: ``minimize`` needs ``objective``, ``evaluations``
-    and ``seed``; ``sample`` needs ``metrics``, ``samples`` and ``seed``; ``sensitivity`` needs
-    ``metrics``. A missing or unread setting is gemini's error; none has a default. ``name``
-    names the study ``study/<name>`` that records the call, and each design it ends with is
-    stored as ``design/<name>_<plant name>``; a taken name is refused. Returns the ``study`` key
-    and ``runs``, one per design in order: ``plant_name``, ``feasible``, ``verdict``, ``metrics``
-    in display units, ``ranks`` and ``pareto`` (rank 1 is best, over the objective then the
-    metrics), ``note``, what the method ``found`` and the stored ``design`` the run ended with
-    (the sized or the best plant). ``best`` names the feasible design ranked first by the
-    objective, if any.
+    Skill `comparing-designs`.
     """
     settings = {"method": method, "objective": objective, "metrics": metrics, "seed": seed}
     settings |= {"evaluations": evaluations, "samples": samples, "prepare": prepare}
@@ -364,9 +322,7 @@ def compare_runs(runs, by):
 async def compare(context, references: list[str], by: list[str]):
     """Compare stored runs on metrics such as ``lcts`` or ``co2``; return one entry per run.
 
-    Each entry has the run's ``reference``, its metric ``values`` in display units, ``ranks`` (1
-    is best, the feasible first), ``pareto`` and ``feasible``, and the ``reasons`` of an
-    infeasible run.
+    Skill `comparing-designs`.
     """
     runs = [load_run(context, reference, "compare") for reference in references]
     comparison, reports = await runtime.in_gemini_thread(compare_runs, runs, by)
@@ -500,18 +456,7 @@ def without_plant(item):
 async def evolve_structure(context, design: str, objectives: list[str], name: str):
     """Search a superstructure's structures and values by gemini's genetic algorithm.
 
-    ``design`` holds optional modules (``optional``) and choice groups (``choices``) with their
-    ranges; ``objectives`` are the metrics the case or the brief names to minimise (a leading
-    ``-`` maximises), never ones you choose. The evaluations, population, seed, polish and when
-    to stop early are settings, not yours. Each design of the front (none beats it on every
-    objective) is stored as ``design/<name>_<n>``; the answer lists each with its ``structure``,
-    ``metrics``, ``feasible`` and ``reason``, then ``best`` (on the first objective), the
-    ``evaluations`` run, the ``invalid`` candidates refused, each structure gemini refused before
-    any simulation with its reasons (``rejected``: a port a bypass leaves open, say), ``stopped``
-    (gemini's ``budget``, ``stalled``, ``converged`` or ``seconds``) with ``why`` in words, and
-    the ``study`` key. ``read_study`` of it gives gemini's ``explanation`` of the search and its
-    ``table`` of the front: quote them, never compute from them. Take the chosen design on as any
-    other: size, simulate, check.
+    Skill `comparing-designs`.
     """
     settings = evolve_settings()
     study_settings = {"method": "evolve", "objectives": objectives, **settings}

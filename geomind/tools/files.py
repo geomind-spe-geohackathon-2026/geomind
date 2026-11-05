@@ -249,7 +249,7 @@ def table_of(name, text):
 def list_files(context):
     """List the files of the project: ``files``, each with ``name``, ``size`` and ``media_type``.
 
-    Read one with ``read_rag``, and give a data file to the case with ``set_case`` ``files``.
+    Skill `finding-sources`.
     """
     workspace = files_workspace(context, "list_files")
     return {"files": sorted(workspace.files(context.project), key=lambda item: item["name"])}
@@ -359,24 +359,7 @@ def read_rag(
 ):
     """Read a project file, or a document of the knowledge base as ``knowledge/<name>``, as text.
 
-    CSV, TSV, JSON, Markdown and text files read as they are, and a PDF as its extracted text with
-    a ``[page n]`` marker before each page; another file is a ``not_text`` error. ``start`` is the
-    first character and ``length`` the number of characters, at most 20,000. Returns ``name``,
-    ``start``, ``total``, ``text`` and ``next``, where the following page starts (``null`` at the
-    end). The first page of a CSV or TSV also has ``table``: ``columns``, the number of ``rows``,
-    the ``first_rows``, the ``last_row`` and the ``span`` its first column covers as a case's
-    time: ``start``, ``end`` (exclusive, one step after the last row) and ``step``, or ``null``
-    when that column is not evenly spaced times. ``columns`` reads only those columns of a CSV or
-    TSV, in that order, such as the ``id``, ``path`` and price of a cost table: a wide table costs
-    far fewer tokens so. ``rows`` (``{column: [text, ...]}``) reads only the rows whose value in
-    each named column starts with one of the texts, such as the paths of the keys a case lacks.
-    A CSV or TSV still longer than 20,000 characters after them gives no ``text``: its ``table``
-    outline and a ``note``; find its rows with ``search_rag`` and read them by ``rows``. A page
-    this run already read comes back as ``already_read`` with a ``note`` instead of its text: its
-    text is in the conversation, even with ``force``, unless a compaction summarized it since;
-    after one, ``force`` reads it again until the whole document was read, then every page is
-    ``already_read`` with the references of the stored results. Nested runs share what the run
-    tree read.
+    Skill `finding-sources`.
     """
     if start < 0:
         raise ToolError(f"read_rag: start = {start}; expected 0 or more", path="start")

@@ -13,7 +13,7 @@ plant's skeleton and record which discipline owns each part. The design lead rev
 
 ## Tools
 
-Each tool's description says its arguments.
+Each tool's skill says how to call it; a tool's first result brings its skill.
 
 - `read_case`: the case.
 - `list_plants`: gemini's plant classes and the project's plants.

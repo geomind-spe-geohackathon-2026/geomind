@@ -827,35 +827,7 @@ async def set_case(
 ):
     """Set the case of the problem state: the project's case, changes to it, or both.
 
-    ``source`` is ``project`` to load the project's ``case.json`` (beside its data or among its
-    files, ``list_files``) and the files it names, ``origin`` to go
-    back to the case the user or the project gave, or omitted to start from the state's case (an
-    empty one when it has none). ``changes`` is a JSON merge patch (RFC 7386) on the case: an
-    object merges into the case, a value replaces, null removes a key; it never holds
-    ``requirements`` or ``economics`` of a case that has them (on a new case, they and ``files``
-    and ``columns`` in ``changes`` are taken as those arguments). ``requirements`` is
-    ``{name: requirement or null}``: a requirement object adds or replaces the one of that name,
-    null removes it, and the others stay.
-    ``economics`` is a merge patch on the content of the case's economics file. ``files`` names
-    project files (``list_files``): their bytes go to gemini, under the same name, so a data file
-    is given to the case and never retyped: name it in ``changes``, as the ``file`` of a series.
-    A project file the changes name is loaded even when ``files`` leaves it out. ``columns``
-    renames header names of those files, such as ``{"demand.csv": {"date": "time"}}``:
-    gemini reads a series' times from a column named ``time``. Once a case is stored, send only
-    the keys that change: ``changes`` merges into it, and a rejected call stores nothing. The
-    sections are
-    in ``read_case(section="schema")``, the exact schema. gemini validates the result: a rejected
-    case comes back with the path and message to fix, and nothing is stored; a case with values
-    missing is ``case_incomplete``, every missing path in ``suggestions``. The project's case, or
-    the first case of a chat, is the case the user gave; a design is verified only on it, so any
-    later change of it, economics included, waits for the user's approval. Write units as the
-    source gives them (gemini takes °C/km): a gas fraction in % is mol% (gemini converts
-    mol%), and a unit name as sources print it becomes gemini's name of it (``kg/m³`` is
-    ``kg/m3``, ``mPa·s`` is ``mPa.s``, ``MWth`` is ``MW``). With only the site's elevation, give
-    ``site.air.pressure`` as ``{"elevation": {"value", "unit"}}``: set_case sets the ISA pressure
-    in Pa (ISO 2533:1975), never a value of yours. Returns the case, the state version
-    and ``converted``, each value set_case mapped or converted (``{path, from, to, reason}``), to
-    list in the user's confirmation question.
+    Skill `setting-the-case`.
     """
     import gemini as gm
 
@@ -1028,9 +1000,7 @@ def economics_of(context, data):
 def describe_case(path: str):
     """Say what each key of the case or its economics under ``path`` means, with its units.
 
-    ``path`` is a dotted key or a part of one, such as ``site.air``, ``demand.cooling``,
-    ``requirements`` (also what each option means) or ``economics.capex``. Returns ``keys``, one
-    line each: the key, its form and units, its meaning and where its value comes from.
+    Skill `setting-the-case`.
     """
     from geomind.tools.gemini.skeleton import keys_under
 
@@ -1065,10 +1035,7 @@ def unset_section(section, data):
 def read_case(context, section: str | None = None):
     """Return the case of the problem state, one of its sections, its economics or the schema.
 
-    ``section`` is a key of the case (``time``, ``site``, ``demand``, ``utilities``,
-    ``requirements``, ``initial_state``), ``economics`` for the content of the economics file, or
-    ``schema`` for the JSON Schema of a case (and of the economics under ``economics_schema``).
-    A section the case does not set yet returns ``{section, unset: true, note}``.
+    Skill `setting-the-case`.
     """
     import gemini as gm
 
@@ -1157,14 +1124,7 @@ async def save_profile(
 ):
     """Add a demand profile the user gave as values to the case's demand, and return the demand.
 
-    ``values`` are the demand of the ``service`` (heating or cooling), one per step in the power
-    unit ``unit`` (such as ``MW``), from the ISO 8601 time ``start`` at a constant ``step``, given
-    as ``{"value": 1, "unit": "d"}``. gemini checks them (finite, not negative). They are written
-    to the run's case files as ``data/<name>.csv`` with a ``time`` column and the column ``name``,
-    in ``unit``, and the ``power`` of the service points at it; the rest of the demand is kept. A
-    profile that does not cover the case's ``time`` sets the time to the profile's own span and
-    step, in the same call. The service's temperatures and the other series must fit the result:
-    gemini rejects the case otherwise and nothing is stored.
+    Skill `setting-the-case`.
     """
     import gemini as gm
 

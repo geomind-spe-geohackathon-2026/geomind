@@ -13,7 +13,7 @@ engineering and gemini decides whether a design passes.
 
 ## Tools
 
-Each tool's description says its arguments.
+Each tool's skill says how to call it; a tool's first result brings its skill.
 
 - `case_lead`: the case team; sets the case from the user's words and files, with the geoscientist.
 - `design_lead`: the design team; builds, sizes, simulates, checks and optimises a plant.

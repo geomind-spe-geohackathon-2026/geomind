@@ -266,10 +266,7 @@ LIST_NOTE = (
 def list_mcp(context, server: str | None = None, tool: str | None = None):
     """List the connected MCP servers and their tools, of one ``server`` or of all.
 
-    Returns ``tools``, each ``{server, name, read_only, summary, arguments}``: ``arguments`` is
-    ``{name: type}``, ``required`` marked. ``list_mcp(server, tool)`` returns that tool alone,
-    ``{server, name, description, read_only, input_schema}``. Call a read-only tool with
-    ``read_mcp``, any other with ``call_mcp``, with the server's name as listed.
+    Skill `connectors`.
     """
     listing = servers_of(context, "list_mcp").listing("list_mcp", server, tool)
     return {"tools": listing} if tool is not None else {"tools": listing, "note": LIST_NOTE}
@@ -279,13 +276,7 @@ def list_mcp(context, server: str | None = None, tool: str | None = None):
 async def read_mcp(context, server: str, tool: str, arguments: dict[str, Any]):
     """Call a read-only tool of a connected MCP server, with its ``arguments``.
 
-    Returns ``origin`` (server, tool, time, arguments, the tool's description and ``future``,
-    true when a date lies after the call: a forecast or a projection, never a measurement),
-    ``answer`` (the key of the whole answer, for ``read_stored`` and ``save_mcp_table``),
-    ``tables`` (each table's path, rows, columns, units, time zone, first and last time),
-    ``structured`` and ``text``; a long answer comes back short. Cite a value with its origin.
-    Arguments the tool refuses come back with its ``input_schema``. A tool that is not read-only
-    answers ``not_read_only``: call it with ``call_mcp``.
+    Skill `connectors`.
     """
     servers = servers_of(context, "read_mcp")
     if not servers.row("read_mcp", server, tool)["read_only"]:
@@ -300,12 +291,7 @@ async def read_mcp(context, server: str, tool: str, arguments: dict[str, Any]):
 
 @tool(effect="external", idempotent=False, keeps_result="run")
 async def call_mcp(context, server: str, tool: str, arguments: dict[str, Any]):
-    """Call any tool of a connected MCP server, with its ``arguments``.
-
-    A tool that is not read-only asks the user's approval before it runs. Returns the same as
-    ``read_mcp``: ``origin``, ``answer``, ``tables``, ``structured`` and ``text``; cite a value
-    with its origin.
-    """
+    """Call any tool of a connected MCP server, with its ``arguments``. Skill `connectors`."""
     called = await servers_of(context, "call_mcp").call("call_mcp", server, tool, arguments)
     return await kept_answer(context, called)
 
@@ -370,14 +356,7 @@ def table_zone(whole, time_zone):
 async def save_mcp_table(context, answer: str, table: str, file: str, time_zone: str | None = None):
     """Save a table of an MCP answer as a case file, its times in UTC, with its origin beside it.
 
-    ``answer`` is the ``answer`` of a ``read_mcp`` or ``call_mcp`` result and ``table`` the
-    ``path`` of one of its ``tables`` (``structured.daily``). ``file`` is the file name, made
-    safe (``data/open-meteo_trondheim_2025.csv``). ``time_zone`` is the IANA zone of the times,
-    only for an answer that names none. The file has the column ``time`` in UTC and one column
-    per value; the origin (server, tool, time, arguments, ``future``) is saved as
-    ``<file>.origin.json``. Returns ``file``, ``columns``, ``units``, ``rows``, ``time_zone``,
-    ``first``, ``last`` and ``origin``: name the file and a column as the ``file`` and
-    ``column`` of a series in ``set_case``, with the unit ``units`` gives.
+    Skill `connectors`.
     """
     from geomind.tools.gemini.case import CASE_FILE
 

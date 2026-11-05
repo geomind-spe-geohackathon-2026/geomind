@@ -251,13 +251,7 @@ def check_no_case(changes):
 async def update_state(context, changes: list[dict[str, Any]]):
     """Change the problem state with JSON Patch operations (add, replace, remove).
 
-    Paths are JSON Pointers under goal, requirements, assumptions, design, results, verification
-    or questions; the case is set only with set_case. Items of requirements, assumptions, results
-    and questions are addressed by id, as in /assumptions/A1/confirmed, never by position;
-    add to /requirements/- appends an item that has an id. A requirement has id, text, status and,
-    when a requirement of the case judges it, case_requirement: that requirement's name. An
-    assumption has id, text, value, source (user, agent or default) and confirmed; a result id,
-    summary, reference; a question id, text. A rejected change names the shape expected there.
+    Skill `working-in-a-team`.
     """
     check_no_case(changes)
     check_shapes(changes)

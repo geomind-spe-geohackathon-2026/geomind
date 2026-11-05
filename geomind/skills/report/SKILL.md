@@ -1,7 +1,7 @@
 ---
 name: report
 description: How to quote a structure search (evolve_structure study) in the explanation: gemini's own explanation and front table, with the study key, never a number of yours.
-tools: list_studies, read_study
+tools: none of its own (it quotes read_study results)
 roles: project/explainer, project/lead, analysis/lead
 ---
 

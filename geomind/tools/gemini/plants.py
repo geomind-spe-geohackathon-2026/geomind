@@ -49,12 +49,7 @@ def plant_schema():
 def list_plants(context, plant_class: str | None = None, with_schema: bool = False):
     """List the plant classes and the project's plant files; one class in full on request.
 
-    Without arguments: ``project_plants``, the names of the project's plant files (``read_plant``
-    ``project_plant`` reads one; empty without a project or plants), and ``plants``, each class
-    with its summary. With ``plant_class``: its ``capabilities`` (``roles``, whether it is
-    ``schedulable`` and ``ranges``, the leaves of the plant file that may state a search range,
-    which ``set_ranges`` sets) and ``roles``, the quantities a module of each of its roles reports.
-    With ``with_schema`` true: ``schema``, gemini's schema of the plant file ``build_plant`` takes.
+    Skill `designing-a-plant`.
     """
     import gemini as gm
 
@@ -346,15 +341,7 @@ async def read_plant(
 ):
     """Read a project plant file, a stored design or a plant class: file, ranges, issues.
 
-    Give one of ``project_plant`` (a name from ``list_plants`` ``project_plants``),
-    ``design`` as ``design/<name>`` or ``plant_class`` (a name from ``list_plants``); with none,
-    the project's plant is read when it has exactly one file. Returns ``plant`` (the plant file
-    ``build_plant`` takes), ``ranges`` (each searchable leaf as ``{min, max}`` in display units),
-    ``options`` and ``issues`` (what is wrong or missing, with path, kind, quantity and accepted
-    units). With a case in the state the issues come from ``gm.check(plant, case)`` and
-    ``checked_against`` is ``case``; without one they come from the plant alone (``plant``),
-    which lists as missing what the case would fill. A class is read without values: every
-    parameter it needs is missing until you fill it in a plant file.
+    Skill `designing-a-plant`.
     """
     import gemini as gm
 
@@ -395,19 +382,7 @@ def wrapped_choices(plant):
 async def build_plant(context, plant: dict[str, Any], name: str, from_class: str | None = None):
     """Build a plant from a plant file and store it as design/<name>; return its issues.
 
-    ``plant`` is the plant file (``read_plant`` shows one). Every value with a dimension is
-    ``{"value", "unit"}``. A file gemini cannot read is an error with gemini's problems
-    (``path``, ``message``, ``suggestions`` such as the name probably meant) and nothing is
-    stored. A file without its header is ``old_format``, the smallest plant file of gemini's
-    schema last in ``suggestions``. A file that builds is stored even with ``issues`` (the values
-    still missing, checked as in ``read_plant``): fill them in a new file or with ``simulate``
-    ``changes``. A plant with ``type`` takes only the modules of its class. To add a module to a
-    class (``thermal_storage``), name the class in ``from_class`` and give ``plant`` without
-    ``type``, holding only what differs: the added ``modules``, their ``connections``,
-    ``optional`` or ``choices``; the class gives every other module and connection, its size,
-    params and fluids. A connection you give at a port that takes one connection replaces the
-    class's connection there; connect each port of an added module (``describe_module`` lists
-    them).
+    Skill `designing-a-plant`.
     """
     import gemini as gm
 
@@ -550,15 +525,7 @@ def port_takes_one(gm, modules, port):
 async def patch_plant(context, design: str, changes: dict[str, Any], name: str):
     """Change a stored design by a small patch, stored as design/<name>, and list what is missing.
 
-    ``changes`` is a JSON merge patch (RFC 7386) on the plant file of ``design``, such as
-    ``{"params": {"d0": {"drainage_radius": {"value": 500, "unit": "m"}}}}``: every value you
-    change, of one module or several, in one patch, never the whole file. gemini builds the
-    result: a patch it refuses is its error, and nothing is stored. Returns the new design, its
-    ``issues`` (what is still missing, checked as in ``read_plant``) and their count,
-    ``missing``. An engineer of the design team
-    patches only its own part (``design.owners``, else its module's type); another part is
-    ``not_allowed``. A module's parameters written at the top or inside ``modules`` are taken as
-    under ``params``.
+    Skill `designing-a-plant`.
     """
     import gemini as gm
 
@@ -602,10 +569,7 @@ def leaf_changes(patch, prefix=""):
 async def merge_designs(context, base: str, designs: list[str], name: str):
     """Join the designs the engineers patched side by side from ``base``, stored as design/<name>.
 
-    Each of ``designs`` started from ``base``; what each changed is applied to ``base`` in order.
-    Two designs that set one value differently are a conflict: nothing is stored and the error
-    names the path and both designs. gemini builds the result, and the answer lists what is
-    still missing, as ``patch_plant`` does.
+    Skill `designing-a-plant`.
     """
     import gemini as gm
 
@@ -646,16 +610,7 @@ def plant_union(plants, name):
 async def union_designs(context, designs: list[str], name: str):
     """Join alternative designs into one superstructure by gemini, stored as design/<name>.
 
-    Each of ``designs`` is a whole alternative (a heating plant, the same with a heat pump and
-    cooling). gemini's ``gm.plants.union`` keeps a module of every design fixed and makes one of
-    some designs ``optional`` or a group of ``choices``; a value the designs state differently
-    keeps the first design's, its range widened to cover every design's. Designs it cannot join
-    (one module name with two types, a module with no bypass) are gemini's ``invalid_design``,
-    and nothing is stored. Returns the ``design``, ``structures`` (``{design: structure}``, the
-    structure that gives back each design), ``notes`` (each value stated differently, ``{path,
-    kept, values}`` with ``values`` by design) and what is still missing, as ``patch_plant``
-    does. ``evolve_structure`` then searches it. This is not ``merge_designs``, which joins the
-    patches engineers made side by side on one design.
+    Skill `comparing-designs`.
     """
     from geomind.tools.gemini.study import to_plain
 
@@ -693,17 +648,7 @@ async def set_ranges(
 ):
     """Set search ranges on a design: they come from the user or the case, so ask_user first.
 
-    Propose values with ask_user and set them only after the user confirms. The result is stored
-    as design/<name>.
-
-    ``ranges`` is ``{path: {"min": {"value", "unit"}, "max": {"value", "unit"}}}``; a count such
-    as ``size.doublets`` takes plain numbers; a side left out is open and a leaf with neither
-    loses its range. ``options`` is ``{path: [value, ...]}`` for a leaf that takes one of a
-    list. A path is the leaf of the plant file without ``params.``: ``size.doublets``,
-    ``depth``, ``heat_pump.capacity``, ``d0.nominal_flow``; ``list_plants`` ``capabilities`` and
-    ``read_plant`` ``ranges`` name them. An unknown path, or a bound gemini refuses, is gemini's
-    error with its path (for an unknown path, the valid ones). A study (``optimize``) searches
-    the leaves that state a range; the design read is not changed.
+    Skill `designing-a-plant`.
     """
     plant = load_design(context, design, "set_ranges")
     for path, bounds in ranges.items():

@@ -56,7 +56,10 @@ def test_the_integration_engineer_has_every_module_s_ports():
 
 def test_patch_plant_takes_several_modules_in_one_patch():
     """The docstring asked for one module's values at a time; the engineers patched 6 times."""
-    assert "of one module or several, in one patch" in " ".join(patch_plant.description.split())
+    from geomind.context.skills import load_skill
+
+    text = " ".join(load_skill("designing-a-plant").split())
+    assert "of one module or several, in one patch" in text
 
 
 def test_the_lead_records_the_design_before_it_finishes():

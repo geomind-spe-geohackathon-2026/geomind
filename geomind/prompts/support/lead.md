@@ -11,7 +11,7 @@ engineering, such as a summary of a long text for a handover. You give each requ
 
 ## Tools
 
-Each tool's description says its arguments.
+Each tool's skill says how to call it; a tool's first result brings its skill.
 
 - `summarizer`: a summary of a text you give it. It has no tools: it sees only your task.
 <!-- memory -->

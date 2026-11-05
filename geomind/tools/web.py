@@ -102,16 +102,7 @@ def query_problem(query):
 async def web_search(context, query: str, limit: int = 5):
     """Search the web in English; return results with title, url, snippet, engine and date.
 
-    ``query``: one value, 3 to 6 English technical terms (at most 8 words), never a sentence
-    or chat text: the quantity, the technology, its unit and, when they matter, the
-    region and the year, such as ``geothermal well sand production ppm`` or
-    ``geothermal doublet drilling cost Netherlands 2024``. Never search for a value the
-    user's files or the case already give, nor for the project or the chat itself. When the
-    results are weak, try 2 or 3 refined queries (other terms, a narrower technology, a primary
-    source's name such as IEA, IRENA, an EU report or a manufacturer). ``limit`` is how many
-    results come back, 1 to 10. A result is a lead, not a source: read the page with
-    read_web_page and give the user its URL, publisher and year before a value is used. Read the
-    skill web-search for the rules.
+    Skill `web-search`.
     """
     import httpx
 
@@ -305,10 +296,7 @@ def _pdf(content):
 async def read_web_page(url: str, start: int = 0):
     """Read one public web page (HTML or PDF) and return its main text with its source fields.
 
-    The result has url, title, publisher, author and date when the page states them, the text
-    from character ``start`` on (cut at 30000; ``next_start`` reads on) and its total length. No
-    scripts run and nothing is clicked. Cite a value with url, publisher and year, and give it to
-    the user for approval before it is used. Read the skill web-search for the rules.
+    Skill `web-search`.
     """
     search_url()
     if start < 0:

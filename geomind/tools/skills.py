@@ -15,6 +15,6 @@ def role_of(context):
 def read_skill(context, name: str):
     """Return the instructions of one skill, by its name in the system prompt.
 
-    ``<skill>/<file>`` reads a file the skill names.
+    Skill `working-in-a-team`.
     """
     return load_skill(name, role_of(context))

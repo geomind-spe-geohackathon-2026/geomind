@@ -168,7 +168,8 @@ async def test_a_long_answer_leads_with_its_tables_their_units_and_its_reference
     }
     assert output["structured"]["timezone"] == "GMT" and "daily" not in output["structured"]
     assert output["text"].startswith("## Climate projections (CMIP6)")
-    assert len(json.dumps(output)) < STORE_CHARACTERS * 2
+    shown = {key: value for key, value in output.items() if key != "skill"}
+    assert len(json.dumps(shown)) < STORE_CHARACTERS * 2
     whole = artifact(engine, output["answer"])
     assert len(whole["structured"]["daily"]) == 365
     shown = later_tool_messages(events)[0]

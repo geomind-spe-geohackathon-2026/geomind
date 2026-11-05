@@ -11,7 +11,10 @@ from geomind.tools.gemini.references import reference_schema
 
 @tool(effect="read")
 def list_modules(category: str | None = None):
-    """List gemini's module types with category and summary. Skill `evaluating-a-module`."""
+    """List gemini's module types with category and summary.
+
+    Skill `evaluating-a-module`.
+    """
     import gemini as gm
 
     rows = []
@@ -29,7 +32,10 @@ def list_modules(category: str | None = None):
 
 @tool(effect="read")
 def describe_module(name: str):
-    """Describe one module type: parameters, controls, ports, outputs. Skill `evaluating-a-module`."""
+    """Describe one module type: parameters, controls, ports, outputs.
+
+    Skill `evaluating-a-module`.
+    """
     import gemini as gm
 
     from geomind.tools.gemini.skeleton import module_tree
@@ -130,7 +136,10 @@ def evaluate_module(
     result: str | None = None,
     time: str | None = None,
 ):
-    """Run one module at one point in display units. Skill `evaluating-a-module`."""
+    """Run one module at one point in display units.
+
+    Skill `evaluating-a-module`.
+    """
     import gemini as gm
 
     from geomind.tools.gemini.module_call import prepared_call

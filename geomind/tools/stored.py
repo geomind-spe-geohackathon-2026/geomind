@@ -233,10 +233,7 @@ def parts_of(value):
 def read_stored(context, reference: str, path: str | None = None):
     """Return a result that was stored by reference, whole or one part of it.
 
-    ``reference`` is the ``result-...`` (or ``output-...``) key of a result that came back as a
-    reference and an outline. ``path`` is dotted keys and list indexes into it, such as
-    ``capabilities.HeatingPlant`` (``/`` reads as ``.``). A part too long to show whole comes
-    back as its keys (or its length) and an outline, with the path to read deeper.
+    Skill `reading-results`.
     """
     stored = context.session.load_artifact(reference)
     if stored is None:

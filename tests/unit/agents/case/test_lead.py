@@ -59,7 +59,10 @@ def test_the_case_is_set_in_parts():
 
     text = " ".join(CaseLead().prompt.render().split())
     assert "Once a case is stored, send only the keys that change" in text
-    assert "send only" in set_case.description or "send only" in set_case.function.__doc__
+    from geomind.context.skills import load_skill
+
+    assert "setting-the-case" in set_case.description
+    assert "send only" in " ".join(load_skill("setting-the-case").split())
 
 
 def test_it_computes_nothing_and_invents_no_number():
@@ -155,8 +158,8 @@ def test_the_economics_parts_of_gemini_0_6_2_have_their_rules():
     ``subsidy.cap`` in h/yr without ``capacity`` is ``missing_assumption``.
     """
     text = " ".join(CaseLead().prompt.content.split())
-    assert "rows for `boiler`, `electric_boiler`, `heat_pump` and `chp`: put all four in" in text
-    assert "`absorption_chiller` and `adsorption_chiller` in `open`" in text
+    assert "the map is all or nothing" in text
+    assert "puts every `opex.per_energy.*` key in `open`" in text
     assert "a cap in hours needs `capacity`" in text and "never you" in text
     assert (
         "`capex.ice_storage` and `opex.fixed.ice_storage` price an ice store only when given"

@@ -159,17 +159,7 @@ async def run_python(
     inputs: dict[str, Any] | None = None,
     files: list[str] | None = None,
 ):
-    """Run Python in a sandbox (no network, gemini installed) on sourced inputs.
-
-    ``inputs`` maps a variable name to a reference to a sourced value, the same references as
-    calculate's operands (plain numbers too, but one input at least has a source, or a file is
-    read); the code gets each as a number in its unit, and ``UNITS`` gives the unit
-    of each. Never type data into the code: no number above 10 as a literal. ``files`` names project
-    files the code reads as ``files/<name>``. To keep a number, write ``result.json`` as
-    ``{"name": {"value": ..., "unit": "...", "label": "..."}}``: each becomes a calculation with an
-    id. Files written under ``out/`` come back. ``purpose`` says what the code is for. Read the
-    skill python for the rules.
-    """
+    """Run Python in a sandbox (no network, gemini installed) on sourced inputs. Skill `python`."""
     sandbox = getattr(context.session.engine, "sandbox", None)
     if sandbox is None:
         raise _error("this run has no sandbox (the backend's ASSISTANT_SANDBOX)", code="not_allowed")

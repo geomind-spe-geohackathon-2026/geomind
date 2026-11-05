@@ -15,11 +15,7 @@ QUESTION_CHARS = 300
 async def ask_user(question: str, options: list[str | Option] | None = None):
     """Ask the user a question and wait for the answer, with fixed options if there are any.
 
-    With ``options`` the user picks one option's value or types an answer of their own, which
-    comes back marked as typed. To ask for something typed (a path, a number with its unit, a
-    name), ask without options. Every answer is kept in the problem state as a confirmed user
-    assumption (``answer.<id>``) that every later agent reads: read the state first and never ask
-    a question it already answers; act on that answer instead.
+    Skill `working-in-a-team`.
     """
     return Request(kind="question", message=question, options=options)
 
@@ -61,5 +57,5 @@ ask_user.on_answer = user_answered
 
 @tool(effect="read", runs_alone=True)
 async def finish(answer: Any):
-    """End the run with the final answer."""
+    """End the run with the final answer. Skill `working-in-a-team`."""
     return Finish(answer=answer)

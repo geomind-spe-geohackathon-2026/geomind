@@ -12,7 +12,7 @@ You make it meet every service of the case and fill only your own part.
 
 ## Tools
 
-Each tool's description says its arguments.
+Each tool's skill says how to call it; a tool's first result brings its skill.
 
 - `read_case`: the case.
 - `read_plant`: the design and what is still missing.

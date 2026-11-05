@@ -442,16 +442,7 @@ async def calculate(
 ):
     """Derive a value from sourced values and keep it as a calculation with an id.
 
-    Each operand is a reference to a value with a source, one of
-    ``{"case": "<path in the case>"}``, ``{"assumption": "<id of a confirmed assumption>"}``,
-    ``{"catalogue": "<row id of knowledge/cost-sources.csv>"}``,
-    ``{"stored": "<result-... reference>", "path": "<dotted path of one value>"}`` or
-    ``{"calculation": "<id of an earlier calculation>"}``; or ``{"constant": "pi"}`` (pi, e) or a
-    plain ``{"number": 24, "unit": "h"}``, shown as plain. At least one operand must have a
-    source. ``operation`` is add, subtract,
-    multiply, divide, power (one operand and an integer ``exponent``), min, max, sum or mean.
-    ``unit`` is the unit of the result, one gemini knows (``-`` for none); gemini converts every
-    value. ``label`` says what the value is. Read the skill calculator for the rules.
+    Skill `calculator`.
     """
     if not isinstance(label, str) or not label.strip():
         raise _error("label is empty; expected what the value is", "label")

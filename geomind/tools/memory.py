@@ -89,11 +89,7 @@ def state_features(context):
 def search_memory(context):
     """Return what the team learned before: designs that passed on alike cases, and lessons.
 
-    ``experience`` holds past designs whose case is at least the ``memory_similarity`` setting
-    alike to the state's case, each with its ``similarity``: a starting point only, never a
-    result. ``lessons`` holds the general lessons of your role and the facts the user gave; the
-    curator's holds every role's, so it writes no lesson twice.
-    Cited values are not here: search the knowledge base (``search_rag``).
+    Skill `memory`.
     """
     memory = memory_of(context, "search_memory")
     role = role_of(context)
@@ -150,7 +146,7 @@ def role_of(context):
 
 @tool(effect="read")
 def read_memory(context, id: str):
-    """Return one experience entry by the id ``search_memory`` gave."""
+    """Return one experience entry by the id ``search_memory`` gave. Skill `memory`."""
     memory = memory_of(context, "read_memory")
     for entry in from_store("read_memory", memory.entries, "experience"):
         if entry.get("id") == id:
@@ -173,11 +169,7 @@ def write_lesson(
 ):
     """Keep a general lesson for one role, or a fact the user gave, in the memory's experience.
 
-    A ``lesson`` is method for ``role`` (an agent's snake name such as ``design_lead``, or
-    ``all``) in words, with no number: a project's values never become a rule. A ``user_fact``
-    is what the user said (``source`` ``user``), such as the units they read. ``source`` says
-    where it came from: ``user``, ``reviewer``, ``gemini`` or the agent that learned it. Past
-    designs are written by code alone, after the reviewer passed them.
+    Skill `memory`.
     """
     memory = memory_of(context, "write_lesson")
     if not is_role(role):

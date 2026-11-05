@@ -12,7 +12,7 @@ plant's boundaries, the process flow diagram. You change nothing else.
 
 ## Tools
 
-Each tool's description says its arguments.
+Each tool's skill says how to call it; a tool's first result brings its skill.
 
 - `read_case`: the case.
 - `read_plant`: a stored design and what is still missing.

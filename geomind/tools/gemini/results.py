@@ -47,10 +47,7 @@ def read_result(
 ):
     """Return one series of a stored run, or a summary of the run or of one module path.
 
-    ``reference`` is what simulate returned. With ``path`` and ``field`` it returns the series
-    ``{time, value, unit}``; ``start`` and ``end`` are ISO 8601 times, both inclusive. With only
-    ``path`` it returns min, max and mean of each field of that module, and with neither of the
-    whole run. Power is in MW, temperature in degC, pressure in bar, flows in m3/h or kg/s.
+    Skill `reading-results`.
     """
     if path is None and field is not None:
         raise ToolError(f"read_result: field = {field!r}; expected a path too", path="path")
@@ -65,15 +62,7 @@ def read_result(
 def search_rag(context, query: str):
     """Search the project's documents and files and the knowledge base; return ``{matches, note}``.
 
-    Each match has ``scope`` (``project`` or ``knowledge``), ``text``, ``score`` and ``citation``,
-    what a value taken from it is cited with. A project document: ``id`` and ``title``; a passage
-    of a project file that reads as text, such as a PDF: ``name`` and ``start`` for ``read_rag``,
-    cited with its ``file`` and ``page``; a passage of the knowledge base: ``name`` as
-    ``knowledge/<document>`` for ``read_rag``, cited with its ``document``, ``title`` and
-    ``page``. The best of each scope come first, in turn. A file's name alone matches nothing. No
-    match means neither states these words, and the ``note`` says what to do instead; the same
-    words again are noted too. A value from the knowledge base goes into the case only after the
-    user confirms it, as any value no project file gives.
+    Skill `finding-sources`.
     """
     project = project_matches(context, query)
     knowledge = knowledge_matches(context, query)
