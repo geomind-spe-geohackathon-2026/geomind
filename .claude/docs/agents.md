@@ -117,15 +117,15 @@ moved with `DesignDriver` and `CompareDriver` to `agents/project/drivers.py` and
 `CompareLoop` still run them alone, and old logs find them by their old paths). The analysis
 lead has the `economist` as its member.
 
-The design team works in order: the `DesignLead` asks the `ProcessEngineer`, then the
-`IntegrationEngineer`, then the `ReservoirEngineer`, `WellEngineer` and `EnergySystemsEngineer`
-in one step, side by side (delegates with `runs_beside` and `limit="design_concurrency"`, at most
-`GEOMIND_DESIGN_CONCURRENCY` at once, required, no default), each from the connected design and
-each storing its own name; it joins them with `merge_designs`, reviews the plant (every service
-and nothing more, sensible connections, coupled values that agree, a source or reason for each
-value), sends each problem back to its owner with the reason, and then sizes, simulates, checks
-and optimises. An engineer has a `discipline`; `patch_plant` refuses its change to a part
-another discipline owns (`design.owners`). Engineers ask nobody: what they cannot settle goes
+The design team (QA-145): the `DesignLead` alone reads and writes the plant (IMP-025). It picks
+the family and the plant class, builds once, splits the missing values by the handbook's groups
+among up to four `ReservoirEngineer`, `WellEngineer` and `EnergySystemsEngineer` instances in one
+`fill_parts` call (at most `GEOMIND_DESIGN_CONCURRENCY` at once, required, no default), applies all
+their proposed changes in one `patch_plant` (list form; a patch that changes nothing is refused
+`no_change`), simulates as soon as nothing is missing, then checks and optimises. An engineer
+works from its brief only: its tools are `describe_module`, `search_knowledge`, `read_knowledge`,
+memory and `finish`, and it returns a `Proposal` (changes with sources, evaluations, case changes,
+couplings; `agents/design/proposal.py`). Engineers ask nobody: what they cannot settle goes
 back to the lead.
 
 Removed in 0.4.22: `Assistant`, `CodeAssistant`, `FamilyDesigner` (a comparison's family run is a
@@ -150,7 +150,7 @@ frozen; the tools themselves are in [tools.md](tools.md#catalogue). Every agent 
 | `Coordinator` | none: it answers with a `Route` |
 | `Geoscientist` | `list_files`, `read_rag`, `search_rag`, `read_case`, `read_stored`, `search_memory`, `read_memory`, `finish` |
 | `CaseLead` | `geoscientist`, `list_files`, `read_rag`, `search_rag`, `read_case`, `set_case`, `save_profile`, `list_profiles`, `read_profile`, `read_stored`, `search_memory`, `read_memory`, `update_state`, `ask_user`, `finish` |
-| `DesignLead` | `process_engineer`, `integration_engineer`, `reservoir_engineer`, `well_engineer`, `energy_systems_engineer`, `merge_designs`, `union_designs`, `read_case`, `list_plants`, `read_plant`, `list_modules`, `describe_module`, `evaluate_module`, `build_plant`, `patch_plant`, `set_ranges`, `size_plant`, `list_profiles`, `read_profile`, `simulate`, `read_result`, `list_studies`, `read_study`, `check_results`, `optimize`, `run_study`, `update_state`, `read_skill`, `read_stored`, `search_memory`, `read_memory`, `search_rag`, `ask_user`, `finish` |
+| `DesignLead` | `fill_parts`, `merge_designs`, `union_designs`, `read_case`, `list_plants`, `read_plant`, `list_modules`, `describe_module`, `evaluate_module`, `build_plant`, `patch_plant`, `set_ranges`, `size_plant`, `list_profiles`, `read_profile`, `simulate`, `read_result`, `list_studies`, `read_study`, `check_results`, `optimize`, `run_study`, `update_state`, `read_skill`, `read_stored`, `search_memory`, `read_memory`, `search_rag`, `read_knowledge`, `ask_user`, `finish` |
 | `Reviewer` | `check_results`, `case_changes`, `read_case`, `compute_kpis`, `read_result`, `update_state`, `read_skill`, `read_stored`, `search_rag`, `finish` |
 | `Economist` | `compute_kpis`, `estimate_costs`, `compare`, `run_study`, `sample_uncertainty`, `sensitivity`, `read_result`, `list_studies`, `read_study`, `update_state`, `read_skill`, `read_stored`, `search_memory`, `read_memory`, `search_rag`, `finish` |
 | `Explainer` | `read_case`, `case_changes`, `read_plant`, `read_result`, `list_studies`, `read_study`, `compute_kpis`, `estimate_costs`, `search_rag`, `finish` |

@@ -6,6 +6,17 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.96] - 2026-11-05
+
+### Changed
+- QA-145: the design engineers propose changes from their brief (no plant, case or profile
+  tool) and return a `Proposal` (changes with sources, evaluations, case changes, couplings);
+  the design lead builds once, splits the missing values among up to four engineers in one
+  `fill_parts` and applies all changes in one `patch_plant`; the lead prompt follows the gated
+  design path of handbook-design ch 0 and reads the handbook with `read_knowledge`.
+- `patch_plant` takes a change list `[{path, value, source}]`; a patch that changes nothing is
+  refused `no_change` and stores no version.
+
 ## [0.4.95] - 2026-11-05
 
 ### Added

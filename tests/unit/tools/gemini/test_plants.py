@@ -792,6 +792,24 @@ async def patched_issues(plant, changes):
     return (await call(TOOLS.patch_plant, step, session, problem=context.problem)).output
 
 
+async def stored_issues(plant):
+    """Return ``read_plant``'s output for a stored ``plant`` with its case: its issues unpatched."""
+    session = StubSession()
+    session.artifacts["design/x"] = plant
+    context = await case_context("hackathon_2026", session)
+    step = {"design": "design/x"}
+    return (await call(TOOLS.read_plant, step, session, problem=context.problem)).output
+
+
+async def test_patch_plant_refuses_a_patch_that_changes_nothing(reads):
+    """QA-145: an empty or same-value patch stores no new version; it is refused ``no_change``."""
+    plant = plant_dict("hackathon_2026", "HackathonPlant")
+    for changes in ({}, {"params": {"control": plant["params"]["control"]}}):
+        error = (await patched_issues(plant, changes))["error"]
+        assert error["code"] == "no_change"
+        assert error["path"] == "changes"
+
+
 async def test_patch_plant_names_the_schedule_rules_simulate_needs(gm):
     """E2E-13: gemini's check passes a plant without ``control``; its schedule then refuses it.
 
@@ -810,18 +828,18 @@ async def test_patch_plant_names_the_schedule_rules_simulate_needs(gm):
 async def test_patch_plant_names_a_split_riser_without_its_pump_depth(gm):
     """E2E-13: the riser above a hand-set pump needs ``esp_depth``; only a run found it before."""
     plant = hand_set_pump(plant_dict("hackathon_2026", "HackathonPlant"))
-    output = await patched_issues(plant, {})
+    output = await stored_issues(plant)
     assert [issue["path"] for issue in output["issues"]] == ["params.d0.riser.esp_depth"]
     assert output["issues"][0]["code"] == "invalid_design"
-    assert output["missing"] == 1
+    assert len(output["issues"]) == 1
     depth = {"params": {"d0": {"riser": {"esp_depth": {"value": 1000, "unit": "m"}}}}}
     assert (await patched_issues(plant, depth))["missing"] == 0
 
 
 async def test_a_plant_ready_for_its_case_still_has_no_issues_after_the_run_check(reads):
     """The run check finds nothing on the example's own plant: a ready plant stays ready."""
-    output = await patched_issues(plant_dict("hackathon_2026", "HackathonPlant"), {})
-    assert output["issues"] == [] and output["missing"] == 0
+    output = await stored_issues(plant_dict("hackathon_2026", "HackathonPlant"))
+    assert output["issues"] == []
 
 
 def test_plant_writes_are_checked_before_the_approval():
