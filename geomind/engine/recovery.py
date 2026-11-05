@@ -150,7 +150,8 @@ def _count_same(state, event):
     """Remember a call that ran with success, and count the steps answered from an earlier one.
 
     A repeat answered in a step counts once per step, as failures do; any other result of a call
-    ends the run of repeats.
+    ends the run of repeats. An answered question counts as a call that ran (QA-181): its
+    ``on_answer`` may write, which ``same_result`` must see.
     """
     if event.source == "repeat":
         if state.same_call_step != state.step:
@@ -158,7 +159,7 @@ def _count_same(state, event):
         state.same_call_step = state.step
         return
     state.same_calls, state.same_call_step = 0, None
-    if event.is_error or event.is_finish or event.source != "tool":
+    if event.is_error or event.is_finish or event.source not in ("tool", "answer"):
         return
     output = to_jsonable(event.output)
     shown = output.get("summary") if is_stored_form(output, event.reference) else output

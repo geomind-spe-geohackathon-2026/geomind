@@ -6,6 +6,15 @@ the list of frozen interfaces are in [.claude/docs/api.md](../.claude/docs/api.m
 
 ## [Unreleased]
 
+## [0.4.110] - 2026-11-05
+
+### Fixed
+- QA-181 (reopened): an answered question (source `answer`) enters `state.succeeded`, so the
+  repeat guard sees the write of `ask_economics` approve all; 0.4.103 checked only the calls
+  recorded there and the answer never was.
+- QA-221: the design lead reuses stored plants (`design/v<N>`) to compare versions and never
+  re-types one with `build_plant`.
+
 ## [0.4.109] - 2026-11-05
 
 ### Fixed

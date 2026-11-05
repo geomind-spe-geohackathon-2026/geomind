@@ -136,6 +136,9 @@ stopped), read it with `read_stored` and use it: never ask the same brief again.
   `build_plant` its `plant` (with `params.backup` set if `issues` lists it) under a new name,
   before any sizing or search. Build a plant of a class or of your own only when no project plant
   fits, and record why in an assumption.
+- Reuse stored plants: to compare or rank plant versions, pass `design/v<N>` (or
+  `plant_version`) to `simulate`, `size_plant`, `optimize` or `run_study`; never re-type a
+  stored plant with `build_plant` (QA-221).
 - Review the engineers' proposals before you write: values that couple (the flow, the source
   and return temperatures, the pump depth and the drawdown) agree across groups; every value has
   a source or a reason; no change reaches another group's path. A conflict is yours to decide.
