@@ -1,0 +1,52 @@
+id,group,item,path,value,unit,status,source,publisher,year,url,note
+doublet-well-diameter,wells,Inner diameter of the wells of a doublet,Doublet.well_diameter,0.244,m,placeholder,,,,,A common production casing size; no verified source
+doublet-drainage-radius,wells,Drainage radius around each well,Doublet.drainage_radius,1000,m,secondary,"Willems (2016), Dutch geothermal doublet spacing",,2016,,The lower end of a 1 to 2 km well spacing
+roughness-new-commercial-steel-well,wells,"Absolute roughness of new commercial steel, well",Doublet.roughness,4.5e-5,m,secondary,"Moody (1944), Friction factors for pipe flow, Trans. ASME 66",ASME,1944,,
+roughness-new-commercial-steel-pipe,pipes,"Absolute roughness of new commercial steel, pipe",Pipe.roughness,4.5e-5,m,secondary,"Moody (1944), Friction factors for pipe flow, Trans. ASME 66",ASME,1944,,
+doublet-nominal-wellhead-pressure,wells,Nominal wellhead pressure of the producer,Doublet.nominal_wellhead_pressure,10,bar,placeholder,,,,,
+reservoir-skin-production,reservoir,"Skin factor of the near-well zone, producer",ProductionReservoir.skin,0,-,placeholder,,,,,"An undamaged, unstimulated well"
+reservoir-skin-injection,reservoir,"Skin factor of the near-well zone, injector",InjectionReservoir.skin,0,-,placeholder,,,,,"An undamaged, unstimulated well"
+reservoir-decline-threshold-production,reservoir,Relative decline at which the producer's alarm is raised,ProductionReservoir.decline_threshold,0.15,-,placeholder,,,,,"An alarm threshold, not a physical value"
+reservoir-decline-threshold-injection,reservoir,Relative decline at which the injector's alarm is raised,InjectionReservoir.decline_threshold,0.15,-,placeholder,,,,,"An alarm threshold, not a physical value"
+heat-exchanger-fouling-threshold,heat exchangers,Relative loss of conductance at which fouling is reported,HeatExchanger.fouling_threshold,0.15,-,placeholder,,,,,"An alarm threshold, not a physical value"
+well-friction-correlation,wells,Correlation of the single-phase friction,ProductionWell.friction_correlation,darcy_weisbach,,placeholder,,,,,A model choice; the same for the riser and the injector
+well-two-phase-friction-correlation,wells,Correlation of the two-phase friction,ProductionWell.two_phase_friction_correlation,BeggsBrill,,placeholder,,,,,A model choice; the same for the riser and the injector
+well-heat-transfer-coefficient,wells,Overall heat transfer coefficient from the fluid to the soil,ProductionWell.heat_transfer_coefficient,10,W/m2/K,placeholder,,,,,The value of the original GEMINI well model; the same for the riser and the injector
+esp-pump-type-unspecified,pumps,ESP model without catalogue curves,ESP.pump_type,unspecified,,placeholder,,,,,No head or power curves: the pump is sized from its duty
+esp-minimum-intake-pressure,pumps,Lowest intake pressure of an ESP,ESP.minimum_intake_pressure,5,bar,placeholder,,,,,No verified source
+esp-maximum-gas-fraction,pumps,Highest free gas volume fraction at the ESP intake,ESP.maximum_gas_fraction,0.1875,-,secondary,"Baker Hughes, Ace Plus gas handler pumps",Baker Hughes,,,Standard stages handle one fourth of the 75 % a gas handler takes
+esp-motor-efficiency,pumps,Efficiency of the ESP motor,ESP.motor_efficiency,1.0,-,placeholder,,,,,The motor loss left out
+degasser-separation-efficiency,gas treatment,Share of the free gas a degasser separates,Degasser.separation_efficiency,1.0,-,placeholder,,,,,
+degasser-nominal-pressure-drop,gas treatment,Pressure drop of a degasser at its nominal flow,Degasser.nominal_pressure_drop,14900,Pa,placeholder,,,,,
+filter-nominal-pressure-drop,water treatment,Pressure drop of a clean filter at its nominal flow,Filter.nominal_pressure_drop,1600,Pa,placeholder,,,,,
+filter-clogging-pressure-drop,water treatment,Pressure drop at which a filter is clogged,Filter.clogging_pressure_drop,50000,Pa,placeholder,,,,,
+desander-separation-efficiency,water treatment,Share of the sand a desander separates,Desander.separation_efficiency,0.9,-,placeholder,,,,,
+desander-nominal-pressure-drop,water treatment,Pressure drop of a desander at its nominal flow,Desander.nominal_pressure_drop,20000,Pa,placeholder,,,,,
+inhibitor-dose,water treatment,Inhibitor dose in the brine,InhibitorDosing.dose,10,ppm,placeholder,,,,,"A run input of the module, not a stored parameter"
+inhibitor-product-concentration,water treatment,Concentration of the active agent in the dosed product,InhibitorDosing.product_concentration,0.3,-,placeholder,,,,,
+flare-combustion-efficiency,gas treatment,Combustion efficiency of a flare,Flare.combustion_efficiency,0.98,-,secondary,"US EPA, AP-42 section 13.5, Industrial Flares",US EPA,,,
+heat-exchanger-arrangement,heat exchangers,Flow arrangement of a plate heat exchanger,HeatExchanger.arrangement,counterflow,,placeholder,,,,,A model choice
+heat-pump-cop-model,heat pumps,Model of the COP of a heat pump or a compression chiller,HeatPump.cop_model,carnot,,placeholder,,,,,A model choice
+heat-pump-carnot-fraction,heat pumps,Share of the Carnot COP a heat pump or a compression chiller reaches,HeatPump.carnot_fraction,0.5,-,secondary,"Frutschi, ABB Review 5/1996, pp. 33-34",ABB,1996,,
+heat-pump-lorenz-fraction,heat pumps,Share of the Lorenz COP a heat pump or a compression chiller reaches,HeatPump.lorenz_fraction,0.5,-,placeholder,,,,,
+heat-pump-minimum-temperature-lift,heat pumps,Lowest temperature lift of a heat pump or a compression chiller,HeatPump.minimum_temperature_lift,10,K,secondary,"Arpagaus et al. (2018), High temperature heat pumps: market overview, state of the art, research status, refrigerants, and application potentials",,2018,,The lowest lift of the reviewed units
+heat-pump-supply-margin,heat pumps,Margin of the supply temperature over its setpoint,HeatPump.supply_margin,0,K,placeholder,,,,,
+boiler-efficiency-gas,boilers,Efficiency of a gas peak boiler,Boiler.efficiency,0.9,-,placeholder,,,,,
+pipe-heat-transfer-coefficient-insulated,pipes,"Heat transfer coefficient of a plant pipe, loss left out",Pipe.heat_transfer_coefficient,0,W/m2/K,placeholder,,,,,An adiabatic pipe
+absorption-chiller-thermal-cop,chillers,Thermal COP of a single-effect LiBr absorption chiller,AbsorptionUnit.thermal_cop,0.7,-,secondary,"Herold, Radermacher and Klein (2016), Absorption Chillers and Heat Pumps, 2nd ed.",CRC Press,2016,,
+absorption-chiller-minimum-driving-temperature,chillers,Lowest driving temperature of a LiBr absorption chiller,AbsorptionUnit.minimum_driving_temperature,353.15,K,placeholder,,,,,The LiBr operating limit of the GEMINI model
+absorption-chiller-minimum-driving-difference,chillers,Lowest driving temperature difference of an absorption chiller,AbsorptionUnit.minimum_driving_difference,10,K,placeholder,,,,,
+absorption-chiller-rejection-coefficient,chillers,Rejection coefficient of an absorption chiller,AbsorptionUnit.rejection_coefficient,2.2,-,placeholder,,,,,
+absorption-chiller-evaporator-coefficient,chillers,Evaporator coefficient of an absorption chiller,AbsorptionUnit.evaporator_coefficient,1.2,-,placeholder,,,,,
+absorption-chiller-auxiliary-power-ratio,chillers,"Auxiliary electric power over cooling power, absorption chiller",AbsorptionUnit.auxiliary_power_ratio,0.01,-,placeholder,,,,,
+adsorption-chiller-thermal-cop,chillers,Thermal COP of a silica-gel adsorption chiller,AdsorptionChiller.thermal_cop,0.55,-,secondary,"Wang and Oliveira (2006), Adsorption refrigeration: an efficient way to make good use of waste heat and solar energy",,2006,,
+adsorption-chiller-minimum-driving-temperature,chillers,Lowest driving temperature of a silica-gel adsorption chiller,AdsorptionChiller.minimum_driving_temperature,328.15,K,placeholder,,,,,The silica-gel range of the GEMINI model
+adsorption-chiller-maximum-driving-temperature,chillers,Highest driving temperature of a silica-gel adsorption chiller,AdsorptionChiller.maximum_driving_temperature,363.15,K,placeholder,,,,,The silica-gel range of the GEMINI model
+adsorption-chiller-minimum-driving-difference,chillers,Lowest driving temperature difference of an adsorption chiller,AdsorptionChiller.minimum_driving_difference,5,K,placeholder,,,,,
+adsorption-chiller-rejection-coefficient,chillers,Rejection coefficient of an adsorption chiller,AdsorptionChiller.rejection_coefficient,2.0,-,placeholder,,,,,
+adsorption-chiller-evaporator-coefficient,chillers,Evaporator coefficient of an adsorption chiller,AdsorptionChiller.evaporator_coefficient,1.0,-,placeholder,,,,,
+adsorption-chiller-auxiliary-power-ratio,chillers,"Auxiliary electric power over cooling power, adsorption chiller",AdsorptionChiller.auxiliary_power_ratio,0.02,-,placeholder,,,,,
+cooler-type-dry,coolers,Kind of an air cooler,Cooler.cooler_type,dry,,placeholder,,,,,A design choice: no water use
+cooler-approach-dry,coolers,Approach of a dry cooler to the air temperature,Cooler.approach,5,K,secondary,"ASHRAE Handbook, HVAC Systems and Equipment (dry cooler approach 5 to 15 K)",ASHRAE,,,The lower end of the range
+cooler-specific-fan-power,coolers,Fan power over the heat rejected,Cooler.specific_fan_power,0.02,-,placeholder,,,,,
+cooler-loop-pressure,coolers,Pressure of the cooling water loop,Cooler.loop_pressure,3,bar,placeholder,,,,,
