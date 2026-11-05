@@ -291,3 +291,18 @@ async def test_the_same_set_ranges_runs_once_and_its_repeats_end_the_run():
     )
     notes = [event for event in of_type(events, "tool.result") if event.source == "repeat"]
     assert len(notes) == 3 and "same result as step 1" in notes[0].output
+
+
+def test_the_same_error_twice_in_a_row_says_to_change_the_call():
+    """IMP-015: one code on one path twice for a tool: the second result says so."""
+    from types import SimpleNamespace
+
+    from geomind.engine.step import with_repeat_note
+    from geomind.types.messages import ToolResult
+
+    session = SimpleNamespace()
+    error = {"error": {"code": "invalid_input", "path": "inlets", "message": "m"}}
+    first = ToolResult(call_id="a", tool="evaluate_module", output=error, is_error=True)
+    second = ToolResult(call_id="b", tool="evaluate_module", output=dict(error), is_error=True)
+    assert "repeated" not in with_repeat_note(session, first).output
+    assert "second time" in with_repeat_note(session, second).output["repeated"]

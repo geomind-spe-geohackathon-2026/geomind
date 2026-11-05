@@ -272,8 +272,42 @@ async def _execute(session, agent, tool, call):
             await record_result(session, call, text_result(call, reused_answer(found)))
             return _over_retries(session, tool)
         return await session.pause(asking_new(outcome, found) if found else outcome, "tool", call)
-    await record_result(session, call, with_skill(outcome, session.state.messages))
+    outcome = with_repeat_note(session, with_skill(outcome, session.state.messages))
+    await record_result(session, call, outcome)
     return _over_retries(session, tool)
+
+
+REPEAT_NOTE = (
+    "this is the second time in a row that {tool} failed with {code} at {path}: do not send a "
+    "call like it again. Change what the message names (the tool's skill shows the form), or "
+    "hand back to whoever gave you the task with this message"
+)
+"""What a model reads beside an error that repeats its previous one of the same tool (IMP-015)."""
+
+
+def error_key(output):
+    """Return ``(code, path)`` of an error output, or ``None``."""
+    error = output.get("error") if isinstance(output, dict) else None
+    if not isinstance(error, dict):
+        return None
+    return error.get("code"), error.get("path")
+
+
+def with_repeat_note(session, result):
+    """Return ``result`` with ``repeated`` when its error repeats the tool's previous error.
+
+    A guard stopped a run only after three identical calls; slightly different calls with the
+    same error went on (89 identical evaluate_module errors in a row). Two in a row with one code
+    on one path now say to change the call or hand back.
+    """
+    errors = session.__dict__.setdefault("last_errors", {})
+    key = error_key(result.output) if result.is_error else None
+    earlier = errors.get(result.tool)
+    errors[result.tool] = key
+    if key is None or key != earlier or "repeated" in result.output:
+        return result
+    note = REPEAT_NOTE.format(tool=result.tool, code=key[0], path=key[1] or "the call")
+    return result.model_copy(update={"output": {**result.output, "repeated": note}})
 
 
 def with_skill(result, messages):
